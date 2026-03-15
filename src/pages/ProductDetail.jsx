@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { getCompareItems, getFavorites, normalizeProduct, toggleCompareItem, toggleFavorite } from "@/lib/growth-store";
-import FitScoreBadge from "@/components/FitScoreBadge";
 import MaterialBadges from "@/components/MaterialBadges";
 import DeliveryBadge from "@/components/DeliveryBadge";
 import ProcurementPanel from "@/components/ProcurementPanel";

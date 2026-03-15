@@ -17,7 +17,6 @@ import {
   ChevronUp,
   AlertCircle,
   Loader2,
-  Package,
   Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";

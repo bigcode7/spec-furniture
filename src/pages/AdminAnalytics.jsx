@@ -4,7 +4,6 @@ import {
   BarChart3,
   Search,
   MousePointerClick,
-  GitCompare,
   AlertTriangle,
   Activity,
   RefreshCw,

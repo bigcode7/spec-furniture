@@ -10,17 +10,14 @@ import {
   Users,
   Share2,
   Palette,
-  ArrowRight,
   Loader2,
   Search,
   ImageOff,
   ChevronRight,
-  ChevronLeft,
   X,
   AlertTriangle,
   Sparkles,
   Building2,
-  Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";

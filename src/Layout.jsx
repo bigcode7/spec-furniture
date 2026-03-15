@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles, Bell } from "lucide-react";
+import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useState, useEffect, useRef } from "react";

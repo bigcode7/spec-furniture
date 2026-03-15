@@ -5,7 +5,6 @@ import {
   Palette,
   Sparkles,
   ImageOff,
-  ArrowLeft,
   Layers,
   Quote,
   MapPin,

@@ -1216,110 +1216,152 @@ const server = http.createServer(async (req, res) => {
         dbInsertProducts(discoveredProducts);
       }
 
-      // Step 2: Decide whether to run full discovery or just re-rank
-      const needsFullDiscovery = action === "new_search" || action === "related" || previousResultsInput.length === 0;
+      // Step 2: Build intent-based filter from conversation context
+      // Both new searches AND refinements need proper filtering
+      const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
+      const queryText = lastUserMsg?.content || intent.summary || "";
+
+      // Build filter from AI intent — merge vendor/vendors into filter
+      const intentFilter = {
+        category: intent.product_type ? intent.product_type.replace(/ /g, "-").toLowerCase() : null,
+        vendor: intent.vendor || null,
+        vendors: (intent.vendors && intent.vendors.length > 0) ? intent.vendors : (intent.vendor ? [intent.vendor] : []),
+        material: intent.material || null,
+        style: intent.style || null,
+        color: intent.color || null,
+        price_max: intent.max_price || null,
+      };
+
+      // Also try AI query translator for richer parsing (keywords, exclude_terms, etc.)
+      const convoAiFilter = await withTimeout(translateQuery(queryText), 8000, null);
+
+      // Merge AI translator output with conversation intent (conversation intent takes priority)
+      const mergedFilter = convoAiFilter ? { ...convoAiFilter } : { keywords: [queryText] };
+      // Conversation intent overrides translator output for precise filtering
+      if (intentFilter.category) {
+        mergedFilter.category = intentFilter.category;
+        // Clear broad categories array when we have a specific category from intent
+        mergedFilter.categories = null;
+      }
+      if (intentFilter.vendors.length > 0) {
+        mergedFilter.vendors = intentFilter.vendors;
+        mergedFilter.vendor = null; // Use array form
+      } else if (intentFilter.vendor) {
+        mergedFilter.vendor = intentFilter.vendor;
+      }
+      if (intentFilter.material) mergedFilter.material = intentFilter.material;
+      if (intentFilter.style) mergedFilter.style = intentFilter.style;
+      if (intentFilter.price_max) mergedFilter.price_max = intentFilter.price_max;
+
       let mergedProducts;
+      const isRefine = action === "refine";
 
-      if (needsFullDiscovery) {
-        const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
-        const queryText = lastUserMsg?.content || intent.summary || "";
+      // For refinements: filter previous results + search catalog with constraints
+      // For new searches: full catalog search
+      let allConvoProducts = [];
 
-        // Use AI query translator for new searches (same path as /search endpoint)
-        const convoAiFilter = await withTimeout(translateQuery(queryText), 8000, null);
-        let allConvoProducts = [];
+      if (isRefine && previousResultsInput.length > 0) {
+        // Apply hard filters to previous results first
+        const filteredPrevious = applyAIFilter(previousResultsInput, mergedFilter);
+        console.log(`[conversational-search] Refine: filtered ${previousResultsInput.length} → ${filteredPrevious.length} from previous results`);
 
-        if (convoAiFilter) {
-          // AI-guided search: broad candidate fetch then filter
-          const candidateMap = new Map();
-          const keywords = convoAiFilter.keywords || [queryText];
-          for (const kw of [...keywords, queryText]) {
-            const results = searchCatalogDB(kw, {
-              vendor: convoAiFilter.vendor?.toLowerCase().replace(/\s+/g, "-"),
-            }, 200);
-            for (const r of results) {
-              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-            }
+        // Also search catalog with constraints for more results
+        const candidateMap = new Map();
+        for (const p of filteredPrevious) {
+          if (p.id) candidateMap.set(p.id, p);
+        }
+        const keywords = mergedFilter.keywords || [queryText];
+        for (const kw of [...keywords, queryText]) {
+          const results = searchCatalogDB(kw, {}, 200);
+          for (const r of results) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
           }
-          if (convoAiFilter.category) {
-            const catResults = searchCatalogDB(convoAiFilter.category.replace(/-/g, " "), {}, 200);
+        }
+        if (mergedFilter.category) {
+          const catResults = searchCatalogDB(mergedFilter.category.replace(/-/g, " "), {}, 200);
+          for (const r of catResults) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+        allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), mergedFilter);
+        console.log(`[conversational-search] Refine: ${allConvoProducts.length} results after catalog search + filter`);
+      } else {
+        // Full discovery for new_search, related, or no previous results
+        const candidateMap = new Map();
+        const keywords = mergedFilter.keywords || [queryText];
+        for (const kw of [...keywords, queryText]) {
+          const results = searchCatalogDB(kw, {}, 200);
+          for (const r of results) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+        if (mergedFilter.category) {
+          const catResults = searchCatalogDB(mergedFilter.category.replace(/-/g, " "), {}, 200);
+          for (const r of catResults) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+        if (mergedFilter.categories?.length) {
+          for (const cat of mergedFilter.categories) {
+            const catResults = searchCatalogDB(cat.replace(/-/g, " "), {}, 100);
             for (const r of catResults) {
               if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
             }
           }
-          if (convoAiFilter.categories?.length) {
-            for (const cat of convoAiFilter.categories) {
-              const catResults = searchCatalogDB(cat.replace(/-/g, " "), {}, 100);
-              for (const r of catResults) {
-                if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-              }
-            }
-          }
-          allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), convoAiFilter);
-          console.log(`[conversational-search] AI filter for "${queryText}": ${allConvoProducts.length} results`);
-        } else {
-          // Fallback: direct catalog search
-          allConvoProducts = searchCatalogDB(queryText, {
-            category: intent.product_type || null,
-            style: intent.style || null,
-            material: intent.material || null,
-          }, 200);
         }
-
-        // For "related" searches, carry over style/material context from previous results
-        if (action === "related" && intent.style) {
-          allConvoProducts.sort((a, b) => {
-            const aMatch = (a.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
-            const bMatch = (b.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
-            return bMatch - aMatch;
-          });
-        }
-
-        allConvoProducts = [...allConvoProducts, ...discoveredProducts];
-
-        // Tier 2: Live vendor crawl if not enough results (cheap)
-        if (allConvoProducts.length < 8) {
-          try {
-            const relevantVendorIds = pickRelevantVendors(intent, 5);
-            const crawlResults = await withTimeout(
-              crawlForQuery(queryText, relevantVendorIds, catalogDBInterface),
-              5000,
-              []
-            );
-            if (crawlResults && crawlResults.length > 0) {
-              dbInsertProducts(crawlResults);
-              allConvoProducts = [...allConvoProducts, ...crawlResults];
-            }
-          } catch (err) {
-            console.error("[conversational-search] Tier 2 crawl failed:", err.message);
-          }
-        }
-
-        mergedProducts = dedupeProducts(allConvoProducts);
-      } else {
-        // Fast path for refinements: merge discovered products with previous results, then re-rank
-        mergedProducts = dedupeProducts([
-          ...discoveredProducts,
-          ...previousResultsInput,
-        ]);
+        allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), mergedFilter);
+        console.log(`[conversational-search] ${action}: ${allConvoProducts.length} results after filter`);
       }
 
+      // For "related" searches, carry over style/material context
+      if (action === "related" && intent.style) {
+        allConvoProducts.sort((a, b) => {
+          const aMatch = (a.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
+          const bMatch = (b.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
+          return bMatch - aMatch;
+        });
+      }
+
+      allConvoProducts = [...allConvoProducts, ...discoveredProducts];
+
+      // Tier 2: Live vendor crawl if not enough results
+      if (allConvoProducts.length < 8) {
+        try {
+          const relevantVendorIds = pickRelevantVendors(intent, 5);
+          const crawlResults = await withTimeout(
+            crawlForQuery(queryText, relevantVendorIds, catalogDBInterface),
+            5000,
+            []
+          );
+          if (crawlResults && crawlResults.length > 0) {
+            dbInsertProducts(crawlResults);
+            const newCrawled = applyAIFilter(crawlResults, mergedFilter);
+            allConvoProducts = [...allConvoProducts, ...newCrawled];
+          }
+        } catch (err) {
+          console.error("[conversational-search] Tier 2 crawl failed:", err.message);
+        }
+      }
+
+      mergedProducts = dedupeProducts(allConvoProducts);
+
       // Step 3: AI rank with the refined intent
-      const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
-      const rankQuery = lastUserMsg?.content || intent.summary || "";
+      const rankQuery = queryText;
       const rankedProducts = await withTimeout(
         aiRankResults(rankQuery, intent, mergedProducts),
         30000,
         mergedProducts,
       );
 
-      // Apply vendor diversity
+      // Apply vendor diversity — skip diversity when filtering to specific vendors
+      const hasVendorConstraint = (intent.vendors && intent.vendors.length > 0) || intent.vendor;
       const convoQueryTerms = (rankQuery || "").toLowerCase().split(/\s+/).filter(Boolean);
       const diversifiedConvo = diversifyResults(rankedProducts || mergedProducts, {
-        maxPerVendor: 5,
+        maxPerVendor: hasVendorConstraint ? 15 : 5,
         topSlice: 20,
         totalLimit: 50,
         queryTerms: convoQueryTerms,
-        vendorFilter: intent.vendor || null,
+        vendorFilter: hasVendorConstraint ? (intent.vendor || intent.vendors?.[0] || null) : null,
       });
       const responseProducts = diversifiedConvo.map(sanitizeSearchProduct);
 
@@ -1332,7 +1374,7 @@ const server = http.createServer(async (req, res) => {
         products: responseProducts,
         total: responseProducts.length,
         diagnostics: {
-          full_discovery: needsFullDiscovery,
+          action,
           previous_results_count: previousResultsInput.length,
           discovered_count: discoveredProducts.length,
           merged_count: mergedProducts.length,

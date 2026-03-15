@@ -3,9 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Search,
-  ExternalLink,
   X,
-  Sparkles,
   AlertCircle,
   History,
   GitCompare,
@@ -13,7 +11,6 @@ import {
   Camera,
   Loader2,
   RefreshCw,
-  MessageSquare,
   ArrowRight,
   Layers,
   Send,
@@ -23,7 +20,6 @@ import {
 import DiscoverBrowser from "@/components/DiscoverBrowser";
 import CollectionBrowser from "@/components/CollectionBrowser";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { searchProducts, visualSearch, getAutocomplete, conversationalSearch, findSimilarProducts, trackProductClick, trackProductCompare } from "@/api/searchClient";
 import FitScoreBadge from "@/components/FitScoreBadge";
 import MaterialBadges from "@/components/MaterialBadges";
@@ -189,6 +185,14 @@ export default function SearchPage() {
       if (!isShowMore && hasConversation && !searchOptions.freshSearch) {
         const apiConvo = updatedMessages.map(({ role, content }) => ({ role, content }));
         data = await conversationalSearch(apiConvo, results, sessionId);
+      } else if (isShowMore && hasConversation) {
+        // "Show more" in conversation context — use conversational search
+        // so vendor/category constraints from prior refinements are preserved
+        const showMoreConvo = [
+          ...updatedMessages.filter(m => m.role === "user" || m.role === "assistant").map(({ role, content }) => ({ role, content })),
+          { role: "user", content: "Show me more options" },
+        ];
+        data = await conversationalSearch(showMoreConvo, results, sessionId);
       } else {
         data = await searchProducts(trimmed, {
           exclude_ids: isShowMore ? [...shownProductIds.current] : [],

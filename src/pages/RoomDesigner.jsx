@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   LayoutGrid,
   Plus,
@@ -15,7 +14,6 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
   Ruler,
   DoorOpen,
   Maximize2,
@@ -24,15 +22,8 @@ import {
   Scale,
   RefreshCw,
   Sofa,
-  Armchair,
-  Bed,
-  UtensilsCrossed,
-  Lamp,
-  Monitor,
   X,
-  Search,
   Move,
-  RotateCcw,
   Flame,
   Tv,
   Mountain,

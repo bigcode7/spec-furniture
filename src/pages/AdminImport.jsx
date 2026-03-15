@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Upload, Play, RefreshCw, Database, CheckCircle2, XCircle,
+  Upload, Play, RefreshCw, Database, CheckCircle2,
   Loader2, ArrowRight, Package, Globe, FileText, Code, FileSpreadsheet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

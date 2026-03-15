@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import {
   getProjects,
   createProject,
-  updateProject,
   deleteProject,
   addProductToProject,
   removeProductFromProject,

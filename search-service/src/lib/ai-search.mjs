@@ -1232,7 +1232,8 @@ RESPONSE FORMAT — respond with ONLY a JSON object (no markdown, no explanation
     "style": "design style or null",
     "material": "primary material or null",
     "color": "color preference or null",
-    "vendor": "specific vendor or null",
+    "vendor": "specific single vendor or null",
+    "vendors": ["array of vendor names if user asks for multiple specific vendors, else null"],
     "max_price": null or number,
     "price_tier": "luxury|premium|accessible or null",
     "room_type": "room type or null",
@@ -1254,9 +1255,12 @@ NEW SEARCH vs REFINEMENT — THIS IS CRITICAL:
   - Previous results showed dining tables → user says "what about beds" = NEW SEARCH
   - Previous results showed accent chairs → user says "now show me coffee tables" = NEW SEARCH
   - User types just a product type name like "ottomans" or "bar stools" = NEW SEARCH
-- "refine": The user is adjusting the SAME product type. Examples:
+  - Previous results showed sofas → user says "outdoor furniture" = NEW SEARCH
+- "refine": The user is adjusting the SAME product type with different constraints. Examples:
   - "show me in leather" = REFINE (same product, different material)
   - "what about from Bernhardt" = REFINE (same product, different vendor)
+  - "just hooker and bernhardt" = REFINE (same product, filter to specific vendors → vendors: ["Hooker Furniture", "Bernhardt"])
+  - "only show me Hooker" = REFINE (same product, single vendor filter)
   - "something bigger" = REFINE (same product, different size)
   - "more modern" = REFINE (same product, different style)
   - "more like the third one" = REFINE
@@ -1264,7 +1268,13 @@ NEW SEARCH vs REFINEMENT — THIS IS CRITICAL:
   - "what accent chairs go with these" = RELATED (new category, keep style context)
   - "show me matching nightstands" = RELATED
 
+MULTI-VENDOR — when user names multiple vendors:
+- "just hooker and bernhardt" → vendors: ["Hooker Furniture", "Bernhardt"], vendor: null
+- "show me only Caracole" → vendor: "Caracole", vendors: null
+- Always use full vendor names as they appear in the catalog
+
 When action is "new_search", the search_queries and intent MUST reflect ONLY the new product type. Do NOT carry over the previous category. If user says "credenzas" after looking at sofas, intent.product_type must be "credenzas" and search_queries must be about credenzas, NOT sofas.
+When action is "new_search", do NOT carry over vendor, material, or style constraints from previous results unless the user explicitly mentions them.
 
 GUIDELINES:
 - Generate 5-8 search queries reflecting the correct context based on action type
@@ -1293,6 +1303,7 @@ GUIDELINES:
         material: parsed.intent.material || null,
         color: parsed.intent.color || null,
         vendor: parsed.intent.vendor || null,
+        vendors: Array.isArray(parsed.intent.vendors) ? parsed.intent.vendors.filter(Boolean) : [],
         max_price: typeof parsed.intent.max_price === "number" ? parsed.intent.max_price : null,
         price_tier: parsed.intent.price_tier || null,
         max_lead_time_weeks: null,

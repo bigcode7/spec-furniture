@@ -6,11 +6,10 @@ import {
   Loader2,
   AlertTriangle,
   Building2,
-  DollarSign,
   Clock,
   Users,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -27,8 +26,6 @@ function formatCurrency(amount) {
 function ProductCard({ item, roomId, onApprove, onRequestChange }) {
   const [imgError, setImgError] = useState(false);
   const product = item.selected_product;
-  if (!product) return null;
-
   const storageKey = `client-feedback-${roomId}-${item.id}`;
   const [feedback, setFeedback] = useState(() => {
     try {
@@ -37,6 +34,8 @@ function ProductCard({ item, roomId, onApprove, onRequestChange }) {
       return null;
     }
   });
+
+  if (!product) return null;
 
   const handleApprove = () => {
     localStorage.setItem(storageKey, "approved");

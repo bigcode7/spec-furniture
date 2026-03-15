@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Plus, X, Trash2, Search } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { Bell, Plus, Trash2, Search } from "lucide-react";
 import {
   getAlerts,
   createAlert,

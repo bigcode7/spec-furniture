@@ -43,7 +43,8 @@ Return ONLY a JSON object:
 {
   "category": "exact slug or null",
   "categories": ["array of slugs if multi-category, else null"],
-  "vendor": "vendor name if specified, else null",
+  "vendor": "single vendor name if specified, else null",
+  "vendors": ["array of vendor names if user names multiple vendors, else null — e.g. 'hooker and bernhardt' → ['Hooker Furniture', 'Bernhardt']"],
   "collection": "collection name if mentioned (e.g. Barbara Barry, Mission, Tommy Bahama), else null",
   "style": "modern|traditional|transitional|coastal|mid-century|glam|contemporary|minimalist|industrial|rustic|art-deco|mission|craftsman|farmhouse|bohemian|scandinavian or null",
   "material": "primary material or null",
@@ -65,6 +66,8 @@ CRITICAL RULES:
 - "no sectionals" / "not sectionals" → exclude_terms: ["sectional"], exclude_categories: ["sectionals"]
 - "dark wood dining table" → material: "dark wood", material_expanded: ["walnut","mahogany","espresso","ebony","dark brown","java","dark oak"]
 - "Hancock and Moore leather recliner" → vendor: "Hancock and Moore", material: "leather", category: "recliners"
+- "just hooker and bernhardt sofas" → vendors: ["Hooker Furniture", "Bernhardt"], category: "sofas"
+- "only from Caracole" → vendor: "Caracole"
 - "Barbara Barry collection" → collection: "Barbara Barry", vendor: "Baker Furniture"
 - "mission style bookcase" → style: "mission", category: "bookcases", vendor hint: "Stickley"
 - "large dining table seats 10" → category: "dining-tables", dimensions.width_min: 108, dimensions.seats: 10
@@ -528,16 +531,18 @@ export function applyAIFilter(products, filter) {
 
   // ── HARD FILTER: Category ──
   if (filter.category) {
+    const fc = filter.category.toLowerCase().replace(/\s+/g, "-");
     const catResults = results.filter(p => {
       const cat = (p.category || "").toLowerCase();
-      return cat === filter.category;
+      // Exact match, or singular/plural match (sofa↔sofas, chair↔chairs)
+      return cat === fc || cat === fc + "s" || cat + "s" === fc || cat.startsWith(fc + "-") || fc.startsWith(cat + "-");
     });
     if (catResults.length > 0) results = catResults;
   } else if (filter.categories?.length > 0) {
-    const catSet = new Set(filter.categories.map(c => c.toLowerCase()));
+    const catNorms = filter.categories.map(c => c.toLowerCase().replace(/\s+/g, "-"));
     const catResults = results.filter(p => {
       const cat = (p.category || "").toLowerCase();
-      return catSet.has(cat);
+      return catNorms.some(fc => cat === fc || cat === fc + "s" || cat + "s" === fc);
     });
     if (catResults.length > 0) results = catResults;
   }
