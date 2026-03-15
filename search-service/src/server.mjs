@@ -1,0 +1,2538 @@
+import http from "node:http";
+import { readCatalog, readRuns, readVerifiedCatalog } from "./lib/store.mjs";
+import { searchCatalog } from "./lib/rank.mjs";
+import { getCatalogSummary, ingestVendors, seedSampleCatalog } from "./lib/ingest.mjs";
+import { priorityVendors } from "./config/vendors.mjs";
+import { discoverLiveVendorProducts } from "./lib/discover.mjs";
+
+import { buildQueryVariants, buildSearchIntent } from "./lib/query-intelligence.mjs";
+import { aiParseAndExpand, aiDiscoverProducts, aiRankResults, aiGenerateSummary, aiCompareProducts, aiGenerateQuoteNarratives, aiGeneratePresentation, aiVendorIntelligence, aiAnalyzeProject, aiTrendAnalysis, aiExtractProduct, aiChat, aiVisualSearch, aiRoomPlan, aiDesignBrief, aiAutocomplete, aiWeeklyDigest, aiConversationalSearch, getApiCallStats } from "./lib/ai-search.mjs";
+import { crawlAllVendors, crawlVendor, searchTradeCatalog, getTradeCatalogStats, readTradeCatalog } from "./lib/catalog-crawler.mjs";
+import { tradeVendors } from "./config/trade-vendors.mjs";
+import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets } from "./db/catalog-db.mjs";
+import { diversifyResults, getVendorDiversityStats } from "./lib/vendor-diversity.mjs";
+import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl-scheduler.mjs";
+import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
+import { importFromCsv } from "./importers/csv-importer.mjs";
+import { buildAutocompleteIndex, autocompleteSearch, recordSearch } from "./lib/autocomplete-index.mjs";
+import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard } from "./lib/search-analytics.mjs";
+import { runImageVerification, getImageVerificationStatus, stopImageVerification } from "./jobs/image-verifier.mjs";
+import { runDeduplication, getDedupStatus } from "./jobs/dedup-job.mjs";
+import { runPhotoAnalysis, getPhotoAnalysisStatus, stopPhotoAnalysis } from "./jobs/photo-analyzer.mjs";
+import { runEnrichment, getEnrichmentStatus, stopEnrichment } from "./jobs/enrichment-job.mjs";
+import { getCategoryTree } from "./lib/category-normalizer.mjs";
+import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
+import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors } from "./lib/vector-store.mjs";
+import { hybridSearch, semanticSimilar } from "./lib/hybrid-search.mjs";
+import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
+import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
+import { parseDimensions, batchParseDimensions, checkProductFit, checkArrangement, calculateFitScore, checkDeliveryFeasibility, suggestProportions, recommendRoomSize, getSpatialRules } from "./lib/spatial-engine.mjs";
+import { generateLayout, generateFloorPlanSVG, generateScaleComparisonSVG } from "./lib/layout-generator.mjs";
+import { getMaterial, getAllMaterials, matchProductMaterial, checkMaterialSuitability, compareMaterials, getProductMaterialBadges, scoreMaterialFit } from "./lib/material-intelligence.mjs";
+import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, estimateFullCost, estimateCOMYardage, checkCOMAvailability } from "./lib/procurement-intel.mjs";
+import { think as designBrainThink } from "./lib/design-brain.mjs";
+import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp } from "./lib/ai-query-translator.mjs";
+
+const host = process.env.SEARCH_SERVICE_HOST || "127.0.0.1";
+const port = Number(process.env.SEARCH_SERVICE_PORT || 4310);
+const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id);
+
+// ── Initialize catalog database ──
+await initCatalogDB();
+
+// ── Initialize project store ──
+initProjectStore();
+
+// Re-normalize categories with master tree + compute quality scores
+renormalizeAllCategories();
+recomputeAllQualityScores();
+
+// Build autocomplete index from catalog data
+buildAutocompleteIndex(getAllProducts());
+
+// Initialize analytics
+initAnalytics();
+
+// Initialize vector store (loads cached vectors, model downloads on first run)
+await initVectorStore();
+
+// Index products into vector store in background (non-blocking)
+// Only generates embeddings for products not yet indexed
+vectorIndexAll(getAllProducts()).then((stats) => {
+  console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
+}).catch((err) => {
+  console.error(`[server] Vector indexing failed: ${err.message}`);
+});
+
+const catalogDBInterface = {
+  insertProducts: (products) => {
+    const result = dbInsertProducts(products);
+    // Auto-index new products into vector store (non-blocking)
+    for (const p of products) {
+      const normalized = getProduct(p.id || "");
+      if (normalized) vectorIndexProduct(normalized).catch(() => {});
+    }
+    return result;
+  },
+  getVendorCrawlMeta,
+  setVendorCrawlMeta,
+  getProductsByVendor,
+  getProductCount,
+  getAllProducts,
+  updateProductDirect,
+  deleteProduct,
+  getProductsByVendorGrouped,
+};
+
+// ── Simple in-memory result cache ──
+const resultCache = new Map();
+let cacheHits = 0;
+let cacheMisses = 0;
+
+function getFromCache(key) {
+  const entry = resultCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    resultCache.delete(key);
+    return null;
+  }
+  cacheHits++;
+  return entry.value;
+}
+
+function setCache(key, value, ttlMs) {
+  resultCache.set(key, { value, expires: Date.now() + ttlMs });
+  // Evict old entries if cache gets too large
+  if (resultCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of resultCache) {
+      if (now > v.expires) resultCache.delete(k);
+    }
+  }
+}
+
+function pickRelevantVendors(intent, maxVendors = 5) {
+  // If intent specifies a vendor, use that
+  if (intent.vendor) {
+    const match = tradeVendors.find(v =>
+      v.name.toLowerCase().includes(intent.vendor.toLowerCase()) ||
+      v.id === intent.vendor.toLowerCase()
+    );
+    if (match) return [match.id];
+  }
+  // Otherwise pick top tier vendors
+  return tradeVendors
+    .filter(v => v.tier <= 2)
+    .slice(0, maxVendors)
+    .map(v => v.id);
+}
+
+function json(res, status, payload) {
+  res.writeHead(status, {
+    "content-type": "application/json",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "access-control-allow-headers": "content-type",
+  });
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function notFound(res) {
+  json(res, 404, { error: "Not found" });
+}
+
+function collectBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = "";
+    req.on("data", (chunk) => {
+      raw += chunk;
+    });
+    req.on("end", () => {
+      if (!raw) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(raw));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  try {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "access-control-allow-headers": "content-type",
+      });
+      res.end();
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/health") {
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && req.url === "/vendors") {
+      return json(res, 200, { vendors: priorityVendors });
+    }
+
+    if (req.method === "GET" && req.url === "/catalog") {
+      return json(res, 200, {
+        summary: getCatalogSummary(),
+        catalog: readCatalog(),
+        verified_catalog: readVerifiedCatalog(),
+      });
+    }
+
+    // ── Full Catalog Crawl (background) ──
+    if (req.method === "POST" && req.url === "/catalog/full-crawl") {
+      const importStatus = getImportStatus();
+      if (importStatus.running) {
+        return json(res, 409, { error: "Import already running", status: importStatus });
+      }
+      // Run in background
+      runBulkImport(catalogDBInterface).then(async () => {
+        console.log("[server] Full crawl complete. Running dedup...");
+        try { await runDeduplication(catalogDBInterface); } catch (e) { console.error("[server] Dedup error:", e.message); }
+        console.log("[server] Re-indexing vectors...");
+        vectorIndexAll(getAllProducts(), { reindex: false }).catch(() => {});
+        buildAutocompleteIndex(getAllProducts());
+        clearSearchCache();
+        console.log("[server] Post-crawl processing complete. Total products:", getProductCount());
+      }).catch(err => console.error("[server] Full crawl failed:", err.message));
+      return json(res, 202, { message: "Full catalog crawl started (with post-crawl dedup)", status_url: "/import/status" });
+    }
+
+    // ── Import Status ──
+    if (req.method === "GET" && req.url === "/import/status") {
+      const raw = getImportStatus();
+      // Return lightweight summary to avoid OOM on huge sitemap progress objects
+      const summary = {
+        running: raw.running,
+        progress: raw.progress ? {
+          status: raw.progress.status,
+          vendors_total: raw.progress.vendors_total,
+          vendors_completed: raw.progress.vendors_completed,
+          products_before: raw.progress.products_before,
+          products_after: raw.progress.products_after,
+          started_at: raw.progress.started_at,
+          completed_at: raw.progress.completed_at,
+          errors: (raw.progress.errors || []).slice(0, 10),
+          vendor_results: (raw.progress.vendor_results || []).map(vr => ({
+            vendor_id: vr.vendor_id,
+            vendor_name: vr.vendor_name,
+            tier: vr.tier,
+            total_products: vr.total_products,
+            methods_succeeded: vr.methods_succeeded,
+          })),
+        } : null,
+        catalog_total: getProductCount(),
+      };
+      return json(res, 200, summary);
+    }
+
+    // ── Vector Rebuild ──
+    if (req.method === "POST" && req.url === "/vectors/rebuild") {
+      const vectorStats = getVectorStoreStats();
+      vectorIndexAll(getAllProducts(), { reindex: true }).then(() => {
+        console.log("[server] Vector rebuild complete.");
+        persistVectors();
+      }).catch(err => console.error("[server] Vector rebuild failed:", err.message));
+      return json(res, 202, { message: "Vector rebuild started", current_vectors: vectorStats.total_vectors });
+    }
+
+    // ── Image Proxy ──
+    if (req.method === "GET" && req.url.startsWith("/images/")) {
+      const productId = decodeURIComponent(req.url.slice(8).split("?")[0]);
+      const product = getProduct(productId);
+      if (!product || !product.image_url) return json(res, 404, { error: "No image" });
+
+      // Check local cache
+      if (product.cached_image_path) {
+        try {
+          const { createReadStream, existsSync } = await import("node:fs");
+          if (existsSync(product.cached_image_path)) {
+            const ext = product.cached_image_path.split(".").pop();
+            const ct = ext === "webp" ? "image/webp" : ext === "png" ? "image/png" : "image/jpeg";
+            res.writeHead(200, { "content-type": ct, "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" });
+            createReadStream(product.cached_image_path).pipe(res);
+            return;
+          }
+        } catch {}
+      }
+
+      // Redirect to vendor URL
+      res.writeHead(302, { location: product.image_url, "access-control-allow-origin": "*" });
+      res.end();
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/catalog/stats") {
+      const dbStats = getCatalogDBStats();
+      const crawlStatus = getCrawlStatus();
+      const apiStats = getApiCallStats();
+      const vectorStats = getVectorStoreStats();
+      return json(res, 200, {
+        catalog: dbStats,
+        vectors: vectorStats,
+        crawl: crawlStatus,
+        api_calls: apiStats,
+        cache: {
+          size: resultCache.size,
+          hits: cacheHits,
+          misses: cacheMisses,
+          hit_rate: cacheHits + cacheMisses > 0 ? (cacheHits / (cacheHits + cacheMisses) * 100).toFixed(1) + "%" : "N/A",
+        },
+      });
+    }
+
+    // ── Find Similar Products (vector-powered) ──
+    if (req.method === "POST" && req.url === "/similar") {
+      const body = await collectBody(req);
+      const productId = String(body.product_id || "");
+      if (!productId) return json(res, 400, { error: "product_id required" });
+      const limit = Number(body.limit) || 20;
+      const sameVendor = body.same_vendor === true;
+
+      // Try vector similarity first (much better), fall back to tag-based
+      const sourceProduct = getProduct(productId);
+      let similar;
+      const vectorStats = getVectorStoreStats();
+      if (vectorStats.ready && vectorStats.total_vectors > 0) {
+        const filter = sameVendor ? null : (id) => {
+          const p = getProduct(id);
+          return p && p.vendor_id !== sourceProduct?.vendor_id;
+        };
+        similar = semanticSimilar(productId, limit, filter, getProduct);
+      } else {
+        similar = findSimilarProducts(productId, limit, sameVendor);
+      }
+
+      return json(res, 200, {
+        source_product_id: productId,
+        products: similar.map(sanitizeSearchProduct),
+        total: similar.length,
+        method: vectorStats.ready && vectorStats.total_vectors > 0 ? "semantic" : "tags",
+      });
+    }
+
+    // ── Get Single Product ──
+    if (req.method === "GET" && req.url.startsWith("/product/")) {
+      const productId = decodeURIComponent(req.url.slice("/product/".length));
+      const product = getProduct(productId);
+      if (!product) return json(res, 404, { error: "Product not found" });
+      const dims = parseDimensions(product.dimensions);
+      const delivery = dims ? checkDeliveryFeasibility(dims) : null;
+      const materialInfo = matchProductMaterial(product);
+      const materialBadges = getProductMaterialBadges(product);
+      const procurement = getProductProcurement(product);
+      return json(res, 200, {
+        product: sanitizeSearchProduct(product),
+        parsed_dimensions: dims || null,
+        delivery_feasibility: delivery,
+        material_info: materialInfo,
+        material_badges: materialBadges,
+        procurement,
+      });
+    }
+
+    if (req.method === "GET" && req.url === "/runs") {
+      return json(res, 200, readRuns());
+    }
+
+    if (req.method === "POST" && req.url === "/seed") {
+      const payload = await seedSampleCatalog();
+      return json(res, 200, {
+        ok: true,
+        count: payload.products.length,
+        updated_at: payload.updated_at,
+        vendor_results: payload.vendor_results,
+      });
+    }
+
+    // ── Delete products by ID or vendor ──
+    if (req.method === "POST" && req.url === "/catalog/delete") {
+      const body = await collectBody(req);
+      let deleted = 0;
+      if (body.id) {
+        if (deleteProduct(body.id)) deleted++;
+      }
+      if (Array.isArray(body.ids)) {
+        for (const id of body.ids) { if (deleteProduct(id)) deleted++; }
+      }
+      if (body.vendor_name) {
+        const all = getAllProducts();
+        for (const p of all) {
+          if (p.vendor_name === body.vendor_name) { if (deleteProduct(p.id)) deleted++; }
+        }
+      }
+      return json(res, 200, { ok: true, deleted, total: getProductCount() });
+    }
+
+    // ── Direct product insert (for scrapers) ──
+    if (req.method === "POST" && req.url === "/catalog/insert") {
+      const body = await collectBody(req);
+      const products = Array.isArray(body.products) ? body.products : [];
+      if (products.length === 0) return json(res, 400, { error: "No products provided" });
+      const result = catalogDBInterface.insertProducts(products);
+      return json(res, 200, { ok: true, inserted: result.inserted, updated: result.updated, total: getProductCount() });
+    }
+
+    if (req.method === "POST" && req.url === "/ingest") {
+      const body = await collectBody(req);
+      const payload = await ingestVendors({
+        mode: String(body.mode || "seed"),
+        vendorIds: Array.isArray(body.vendor_ids) ? body.vendor_ids.map(String) : [],
+      });
+      return json(res, 200, {
+        ok: true,
+        count: payload.products.length,
+        updated_at: payload.updated_at,
+        vendor_results: payload.vendor_results,
+      });
+    }
+
+    // ── Trade Catalog Endpoints ──────────────────────────────
+    if (req.method === "GET" && req.url === "/trade-catalog") {
+      const stats = getTradeCatalogStats();
+      return json(res, 200, stats);
+    }
+
+    if (req.method === "POST" && req.url === "/trade-catalog/crawl") {
+      const body = await collectBody(req);
+      const vendorIds = Array.isArray(body.vendor_ids) ? body.vendor_ids : undefined;
+      const maxCategories = Number(body.max_categories) || 6;
+      // Run async — respond immediately with status
+      const result = await crawlAllVendors({ vendorIds, maxCategories });
+      return json(res, 200, { ok: true, ...result });
+    }
+
+    if (req.method === "POST" && req.url === "/trade-catalog/crawl-vendor") {
+      const body = await collectBody(req);
+      const vendorId = String(body.vendor_id || "");
+      if (!vendorId) return json(res, 400, { error: "vendor_id required" });
+      const products = await crawlVendor(vendorId, { maxCategories: Number(body.max_categories) || 8 });
+      return json(res, 200, { ok: true, vendor_id: vendorId, discovered: products.length, products });
+    }
+
+    if (req.method === "GET" && req.url === "/trade-vendors") {
+      return json(res, 200, { vendors: tradeVendors });
+    }
+
+    if (req.method === "POST" && req.url === "/search") {
+      const body = await collectBody(req);
+      const query = String(body.query || "").trim();
+      if (!query) return json(res, 400, { error: "query required" });
+
+      // ── Pagination & exclusion params ──
+      const excludeIds = new Set(Array.isArray(body.exclude_ids) ? body.exclude_ids : []);
+      const page = Math.max(1, Number(body.page) || 1);
+      const requestFilters = body.filters || {};
+      const previousFilter = body.previous_filter || null;
+
+      // ── STEP 0: Check result cache ──
+      const cacheKey = `search:${query.toLowerCase()}:${JSON.stringify(requestFilters)}:p${page}`;
+      const cached = getFromCache(cacheKey);
+      if (cached && excludeIds.size === 0) {
+        return json(res, 200, { ...cached, cache_hit: true });
+      }
+      cacheMisses++;
+
+      // ══════════════════════════════════════════════════════════════════
+      // PRIMARY PATH: AI Query Translator
+      // One cheap Haiku call translates the query into structured filters,
+      // then we run those filters against the local catalog.
+      // Fast, accurate, costs ~$0.001 per search.
+      // ══════════════════════════════════════════════════════════════════
+
+      // Check if this is a follow-up query with a previous filter context
+      let aiFilter;
+      if (previousFilter) {
+        // Try follow-up parsing first (handles "now just hooker", "add Baker too", etc.)
+        const followUpResult = await withTimeout(translateFollowUp(query, previousFilter), 8000, null);
+        if (followUpResult) {
+          aiFilter = followUpResult;
+          console.log(`[search] Follow-up detected: "${query}" → vendor=${aiFilter.vendor || 'null'}, vendors=${JSON.stringify(aiFilter.vendors || null)}`);
+        } else {
+          // Not a follow-up pattern — treat as fresh search
+          aiFilter = await withTimeout(translateQuery(query), 8000, null);
+        }
+      } else {
+        aiFilter = await withTimeout(translateQuery(query), 8000, null);
+      }
+      let aiFilterUsed = !!aiFilter;
+      let filteredResults = [];
+      let totalBeforeExclude = 0;
+      let tier = 1;
+      let aiCalled = !!aiFilter;
+
+      // Build local intent as fallback
+      const intent = buildSearchIntent(query);
+
+      if (aiFilter) {
+        // ── AI-guided search: broad catalog fetch, then AI filter ──
+        const keywords = aiFilter.keywords || [query];
+
+        // Build vendor filter(s) — supports multi-vendor queries
+        // Use vendor_ids (from LOCAL_VENDORS) when available, fall back to slugifying display names
+        const vendorIds = aiFilter.vendor_ids?.length > 0
+          ? aiFilter.vendor_ids
+          : aiFilter.vendors?.length > 0
+            ? aiFilter.vendors.map(v => v.toLowerCase().replace(/[&]/g, "").replace(/\s+/g, "-"))
+            : aiFilter.vendor
+              ? [aiFilter.vendor.toLowerCase().replace(/[&]/g, "").replace(/\s+/g, "-")]
+              : [];
+        const vendorFilter = vendorIds.length === 1 ? vendorIds[0] : undefined;
+
+        // Build search filters including AI-parsed price
+        const aiSearchFilters = {
+          vendor: vendorFilter || requestFilters.vendor,
+          max_price: aiFilter.price_max || requestFilters.price_max,
+          min_price: aiFilter.price_min || requestFilters.price_min,
+        };
+
+        // Search with each keyword to build a rich candidate pool
+        const candidateMap = new Map();
+
+        // Also include expanded material terms as keywords (#6)
+        const allKeywords = [...keywords, query];
+        if (aiFilter.material_expanded?.length > 0) {
+          allKeywords.push(...aiFilter.material_expanded.slice(0, 4));
+        }
+        // Add collection as keyword (#8)
+        if (aiFilter.collection) {
+          allKeywords.push(aiFilter.collection);
+        }
+
+        // For multi-vendor queries, search per vendor to ensure coverage
+        const searchVendorFilters = vendorIds.length > 1
+          ? vendorIds.map(vid => ({ ...aiSearchFilters, vendor: vid }))
+          : [aiSearchFilters];
+
+        for (const svf of searchVendorFilters) {
+          for (const kw of allKeywords) {
+            const results = searchCatalogDB(kw, svf, 200);
+            for (const r of results) {
+              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+            }
+          }
+        }
+
+        // Also search by category name if we have one
+        if (aiFilter.category) {
+          for (const svf of searchVendorFilters) {
+            const catResults = searchCatalogDB(aiFilter.category.replace(/-/g, " "), {
+              vendor: svf.vendor,
+            }, 200);
+            for (const r of catResults) {
+              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+            }
+          }
+        }
+        if (aiFilter.categories?.length) {
+          for (const cat of aiFilter.categories) {
+            for (const svf of searchVendorFilters) {
+              const catResults = searchCatalogDB(cat.replace(/-/g, " "), {
+                vendor: svf.vendor,
+              }, 100);
+              for (const r of catResults) {
+                if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+              }
+            }
+          }
+        }
+
+        let candidates = Array.from(candidateMap.values());
+        console.log(`[search] AI filter for "${query}": ${candidates.length} candidates, filter=${JSON.stringify({ category: aiFilter.category, categories: aiFilter.categories, vendor: aiFilter.vendor, vendors: aiFilter.vendors, style: aiFilter.style, material: aiFilter.material, collection: aiFilter.collection, dimensions: aiFilter.dimensions, exclude_terms: aiFilter.exclude_terms })}`);
+
+        // Apply AI filter (hard category + exclude + vendor + dimensions + material + scoring)
+        filteredResults = applyAIFilter(candidates, aiFilter);
+        filteredResults = dedupeProducts(filteredResults);
+        totalBeforeExclude = filteredResults.length;
+
+        // Exclude already-seen products (#11 pagination)
+        if (excludeIds.size > 0) {
+          filteredResults = filteredResults.filter(p => !excludeIds.has(p.id));
+        }
+
+        console.log(`[search] AI filter result: ${filteredResults.length} products after filtering (excluded ${excludeIds.size} seen)`);
+      }
+
+      // ── FALLBACK: Old pipeline if AI filter unavailable or returned < 5 ──
+      // Also used for page 2+ to expand the search with more terms (#11)
+      const needsFallback = !aiFilter || filteredResults.length < 5 || (page > 1 && excludeIds.size > 0);
+      if (needsFallback) {
+        if (aiFilter && filteredResults.length < 5) {
+          console.log(`[search] AI filter returned only ${filteredResults.length}, supplementing with keyword fallback`);
+        }
+        if (page > 1) {
+          console.log(`[search] Page ${page}: expanding search with synonym/brain fallback`);
+        }
+
+        const brain = designBrainThink(query);
+        const brainPlan = brain.plan;
+
+        const mergedFilters = {
+          vendor: brainPlan.filters.vendor_id || intent.vendor || requestFilters.vendor || undefined,
+          max_price: brainPlan.filters.price_max || intent.max_price || requestFilters.price_max || undefined,
+          min_price: brainPlan.filters.price_min || requestFilters.price_min || undefined,
+          categories: requestFilters.categories || undefined,
+          materials: requestFilters.materials || undefined,
+          vendors: requestFilters.vendors || undefined,
+          styles: requestFilters.styles || undefined,
+        };
+
+        const catalogResults = searchCatalogDB(query, mergedFilters, 200);
+        const seenIds = new Set(catalogResults.map(p => p.id));
+
+        // Brain expanded terms
+        const expandedSearches = brainPlan.expanded_terms
+          .filter(t => t.length > 3 && t !== query.toLowerCase())
+          .slice(0, 4);
+        for (const term of expandedSearches) {
+          const expandedResults = searchCatalogDB(term, mergedFilters, 50);
+          for (const r of expandedResults) {
+            if (!seenIds.has(r.id)) { catalogResults.push(r); seenIds.add(r.id); }
+          }
+        }
+
+        let allResults = dedupeProducts(catalogResults);
+
+        // Exclude already-seen
+        if (excludeIds.size > 0) {
+          allResults = allResults.filter(p => !excludeIds.has(p.id));
+        }
+
+        // Category hard filter (local fallback)
+        const categoryDetection = detectQueryCategory(query, mergedFilters.vendor);
+        if (categoryDetection.categories?.length > 0) {
+          const catFiltered = allResults.filter(p => productMatchesCategory(p, categoryDetection.categories));
+          if (catFiltered.length > 0) allResults = catFiltered;
+        }
+
+        // Brain ranking
+        allResults = brain.applyToResults(allResults);
+
+        if (!aiFilter) {
+          // Full fallback — use these results
+          filteredResults = allResults;
+          totalBeforeExclude = allResults.length;
+          aiFilterUsed = false;
+        } else {
+          // Supplement: merge fallback results into AI results (avoiding dupes)
+          const existingIds = new Set(filteredResults.map(p => p.id));
+          for (const r of allResults) {
+            if (!existingIds.has(r.id)) {
+              filteredResults.push(r);
+              existingIds.add(r.id);
+            }
+          }
+          totalBeforeExclude = filteredResults.length;
+        }
+      }
+
+      // ── Apply explicit request filters (from UI facets) ──
+      if (requestFilters.vendors?.length) {
+        filteredResults = filteredResults.filter(p =>
+          requestFilters.vendors.some(v => (p.vendor_name || "").toLowerCase() === v.toLowerCase() || (p.vendor_id || "").toLowerCase() === v.toLowerCase())
+        );
+      }
+      if (requestFilters.materials?.length) {
+        filteredResults = filteredResults.filter(p =>
+          requestFilters.materials.some(m => (p.material || "").toLowerCase().includes(m.toLowerCase()))
+        );
+      }
+      if (requestFilters.categories?.length) {
+        filteredResults = filteredResults.filter(p =>
+          requestFilters.categories.some(c => (p.category || "").toLowerCase().includes(c.toLowerCase().replace(/ /g, "-")))
+        );
+      }
+      if (requestFilters.styles?.length) {
+        filteredResults = filteredResults.filter(p =>
+          requestFilters.styles.some(s => (p.style || "").toLowerCase() === s.toLowerCase())
+        );
+      }
+      if (requestFilters.price_min != null) {
+        filteredResults = filteredResults.filter(p => !p.retail_price || p.retail_price >= requestFilters.price_min);
+      }
+      if (requestFilters.price_max != null) {
+        filteredResults = filteredResults.filter(p => !p.retail_price || p.retail_price <= requestFilters.price_max);
+      }
+
+      // ── Filter out products without valid product images ──
+      // Logo, placeholder, banner, and missing images provide no value to designers
+      filteredResults = filteredResults.filter(p => hasValidProductImage(p.image_url));
+
+      // ── Vendor diversity ──
+      const preDiv = filteredResults;
+      const queryTerms = (query || "").toLowerCase().split(/\s+/).filter(Boolean);
+      const isMultiVendor = aiFilter?.vendors?.length > 1 || aiFilter?.vendor_ids?.length > 1;
+      const hasVendorLock = !!(aiFilter?.vendor || isMultiVendor || intent.vendor);
+      // For multi-vendor queries, don't lock to a single vendor — let diversity interleave
+      const vendorLock = isMultiVendor ? null : (aiFilter?.vendor?.toLowerCase().replace(/\s+/g, "-") || intent.vendor || null);
+      const diversified = diversifyResults(preDiv, {
+        maxPerVendor: hasVendorLock ? 80 : 8,
+        topSlice: 40,
+        totalLimit: 100,
+        queryTerms,
+        vendorFilter: vendorLock,
+      });
+
+
+      const responseProducts = diversified.slice(0, 80).map(sanitizeSearchProduct);
+
+      // If room dimensions provided, add fit scores
+      if (body.room_dimensions) {
+        const roomDims = body.room_dimensions;
+        for (const product of responseProducts) {
+          let dims = parseDimensions(product.dimensions);
+          if (!dims && (product.dimensions_width || product.dimensions_length)) {
+            dims = {
+              width_in: Number(product.dimensions_width) || 0,
+              depth_in: Number(product.dimensions_length) || Number(product.dimensions_depth) || 0,
+              height_in: Number(product.dimensions_height) || 0,
+            };
+            if (dims.width_in === 0 && dims.depth_in === 0) dims = null;
+          }
+          if (dims) {
+            product.fit_score = calculateFitScore(dims, roomDims, product.category);
+          }
+        }
+      }
+
+      // Material badges
+      for (const product of responseProducts) {
+        product.material_badges = getProductMaterialBadges(product);
+      }
+      if (body.material_context) {
+        for (const product of responseProducts) {
+          product.material_score = scoreMaterialFit(product, body.material_context);
+        }
+      }
+
+      // ── Compute facets ──
+      const facets = computeFacets(preDiv);
+
+      const vendorCount = new Set(responseProducts.map(p => p.vendor_name)).size;
+      const vectorStats = getVectorStoreStats();
+
+      // Build rich summary including dimension/collection context
+      let summary = `Found ${responseProducts.length} products across ${vendorCount} vendors`;
+      if (totalBeforeExclude > responseProducts.length) {
+        summary += ` (${totalBeforeExclude} total available)`;
+      }
+      if (aiFilter?.dimensions?.width_max) {
+        summary += `. Filtered to ${aiFilter.dimensions.width_max}" wide or less`;
+      }
+      if (aiFilter?.dimensions?.width_min) {
+        summary += `. Showing ${aiFilter.dimensions.width_min}"+ wide`;
+      }
+      if (aiFilter?.collection) {
+        summary += `. Collection: ${aiFilter.collection}`;
+      }
+      if (aiFilter?.exclude_terms?.length > 0) {
+        summary += `. Excluded: ${aiFilter.exclude_terms.join(", ")}`;
+      }
+      summary += ".";
+
+      const response = {
+        query,
+        intent,
+        ai_filter: aiFilter || null,
+        ai_summary: summary,
+        total: responseProducts.length,
+        total_available: totalBeforeExclude,
+        has_more: preDiv.length > responseProducts.length || totalBeforeExclude > (page * 50),
+        page,
+        result_mode: aiFilterUsed ? "ai-filter" : "keyword-fallback",
+        tier_used: tier,
+        ai_called: aiCalled,
+        cache_hit: false,
+        facets,
+        diagnostics: {
+          ai_filter_used: aiFilterUsed,
+          total_catalog_size: getProductCount(),
+          vector_indexed: vectorStats.total_vectors,
+          tier_used: tier,
+          ai_query_calls: getAIQueryStats().calls,
+        },
+        products: responseProducts,
+      };
+
+      // Track analytics
+      trackSearch({
+        query,
+        resultCount: responseProducts.length,
+        vendorIds: [...new Set(responseProducts.map(p => p.vendor_id))],
+        tier,
+        cacheHit: false,
+      });
+      recordSearch(query);
+
+      // Cache for 2 hours
+      setCache(cacheKey, response, 2 * 60 * 60 * 1000);
+
+      return json(res, 200, response);
+    }
+
+    if (req.method === "POST" && req.url === "/compare-analyze") {
+      const body = await collectBody(req);
+      const products = Array.isArray(body.products) ? body.products : [];
+      if (products.length < 2) return json(res, 400, { error: "at least 2 products required" });
+      const analysis = await withTimeout(aiCompareProducts(products), 30000, null);
+      return json(res, 200, { analysis });
+    }
+
+    if (req.method === "POST" && req.url === "/quote-narratives") {
+      const body = await collectBody(req);
+      const products = Array.isArray(body.products) ? body.products : [];
+      const projectName = String(body.project_name || "Untitled Project");
+      if (products.length === 0) return json(res, 400, { error: "products required" });
+      const narratives = await withTimeout(aiGenerateQuoteNarratives(products, projectName), 30000, null);
+      return json(res, 200, { narratives });
+    }
+
+    if (req.method === "POST" && req.url === "/presentation") {
+      const body = await collectBody(req);
+      const products = Array.isArray(body.products) ? body.products : [];
+      if (products.length === 0) return json(res, 400, { error: "products required" });
+      const presentation = await withTimeout(aiGeneratePresentation(products, body.project_context || {}), 30000, null);
+      return json(res, 200, { presentation });
+    }
+
+    if (req.method === "POST" && req.url === "/vendor-intelligence") {
+      const body = await collectBody(req);
+      const vendors = Array.isArray(body.vendors) ? body.vendors : priorityVendors;
+      let intelligence = await withTimeout(aiVendorIntelligence(vendors, body.catalog_summary || getCatalogSummary()), 30000, null);
+
+      // Fallback: build vendor intelligence from local procurement data when AI is unavailable
+      if (!intelligence) {
+        const allProcurement = getAllVendorProcurement();
+        const vendorCards = Object.values(allProcurement).map((v) => {
+          const lt = v.lead_time_weeks;
+          const quickWeeks = lt.quick_ship || lt.in_stock || null;
+          const standardWeeks = lt.standard || lt.import || 8;
+          const leadTimeStr = quickWeeks
+            ? `${quickWeeks}-${standardWeeks} weeks`
+            : `${standardWeeks} weeks`;
+
+          // Derive tier from trade discount and notes
+          let tier = "mid-market";
+          const discount = v.trade_discount || "";
+          const notes = (v.notes || "").toLowerCase();
+          if (notes.includes("ultra high-end") || notes.includes("premium") || notes.includes("trade-only")) {
+            tier = "luxury";
+          } else if (notes.includes("heritage") || notes.includes("high quality") || discount.includes("40-50%")) {
+            tier = "premium";
+          } else if (discount.includes("15-20%") || discount.includes("20%")) {
+            tier = "value";
+          }
+
+          // Build specialties from notes
+          const specialties = [];
+          if (v.com_col) specialties.push("COM/COL Available");
+          if (v.grade_out) specialties.push(`${v.grade_count} Fabric Grades`);
+          if (v.stocking_program) specialties.push("Quick-Ship Program");
+          if (notes.includes("lighting")) specialties.push("Lighting");
+          if (notes.includes("upholster")) specialties.push("Upholstery");
+          if (notes.includes("case goods")) specialties.push("Case Goods");
+          if (notes.includes("accent")) specialties.push("Accent Furniture");
+          if (notes.includes("rattan") || notes.includes("wicker") || notes.includes("natural fiber")) specialties.push("Natural Fibers");
+          if (notes.includes("accessories")) specialties.push("Accessories");
+
+          // Strengths
+          const strengths = [];
+          if (v.stocking_program && v.stocking_note) strengths.push("Strong In-Stock Program");
+          if (notes.includes("made in") && (notes.includes("nc") || notes.includes("va"))) strengths.push("American Made");
+          if (v.com_col) strengths.push("Custom Material Options");
+          if (notes.includes("designer") || notes.includes("trade")) strengths.push("Designer-Friendly");
+          if (notes.includes("warranty") || (v.warranty && v.warranty.includes("Lifetime"))) strengths.push("Lifetime Frame Warranty");
+          if (notes.includes("free freight") || (v.freight_cost_estimate && v.freight_cost_estimate.includes("free"))) strengths.push("Free Freight Available");
+
+          // Considerations
+          const considerations = [];
+          if (standardWeeks >= 10) considerations.push("Longer Lead Times");
+          if (v.return_policy && v.return_policy.includes("Non-returnable")) considerations.push("Non-Returnable");
+          if (v.typical_deposit >= 50) considerations.push(`${v.typical_deposit}% Deposit Required`);
+          if (v.minimum_order) considerations.push(v.minimum_order);
+
+          // Determine competitors based on similar notes/specialties
+          const competes_with = [];
+          for (const [, other] of Object.entries(allProcurement)) {
+            if (other.vendor_id === v.vendor_id) continue;
+            const otherNotes = (other.notes || "").toLowerCase();
+            if (v.com_col && other.com_col && notes.includes("upholster") && otherNotes.includes("upholster")) {
+              competes_with.push(other.vendor_name);
+            } else if (notes.includes("lighting") && otherNotes.includes("lighting")) {
+              competes_with.push(other.vendor_name);
+            } else if (notes.includes("accent") && otherNotes.includes("accent")) {
+              competes_with.push(other.vendor_name);
+            }
+            if (competes_with.length >= 3) break;
+          }
+
+          // Best for
+          let best_for = "General furnishing projects";
+          if (notes.includes("slipcovered") || notes.includes("upholster")) best_for = "Custom upholstery projects";
+          else if (notes.includes("lighting")) best_for = "Lighting specification";
+          else if (notes.includes("accent") && notes.includes("statement")) best_for = "Statement accent pieces";
+          else if (notes.includes("coastal") || notes.includes("rattan")) best_for = "Coastal and organic modern projects";
+          else if (notes.includes("industrial") || notes.includes("reclaimed")) best_for = "Industrial and modern spaces";
+
+          return {
+            id: v.vendor_id,
+            name: v.vendor_name,
+            tier,
+            typical_lead_time: leadTimeStr,
+            price_positioning: `Trade discount: ${v.trade_discount}. ${v.payment_terms.map(t => t.replace(/-/g, " ")).join(", ")} accepted.`,
+            specialties: specialties.slice(0, 5),
+            strengths: strengths.slice(0, 4),
+            considerations,
+            best_for,
+            competes_with: competes_with.slice(0, 3),
+          };
+        });
+
+        intelligence = {
+          industry_context: `Analysis of ${vendorCards.length} trade furniture vendors in our procurement database. Vendors span luxury to mid-market tiers, with lead times ranging from 1-16 weeks. Most offer trade discounts between 40-50% off retail, with strong stocking programs for quick-ship needs.`,
+          sourcing_tips: [
+            "Compare quick-ship programs across vendors — lead times range from 1-3 weeks for stocked items vs. 8-16 weeks for custom orders.",
+            "Vendors offering COM (Customer's Own Material) add 2-4 weeks to lead time but allow full fabric customization.",
+            "Many vendors offer free freight on orders over $2,000-$2,500 — consolidate orders to save on shipping costs.",
+          ],
+          vendors: vendorCards,
+        };
+      }
+
+      return json(res, 200, { intelligence });
+    }
+
+    if (req.method === "POST" && req.url === "/project-analyze") {
+      const body = await collectBody(req);
+      if (!body.project) return json(res, 400, { error: "project required" });
+      const analysis = await withTimeout(aiAnalyzeProject(body.project), 30000, null);
+      return json(res, 200, { analysis });
+    }
+
+    if (req.method === "POST" && req.url === "/trends") {
+      const body = await collectBody(req);
+      let trends = await withTimeout(aiTrendAnalysis(body.category || null, body.style || null), 45000, null);
+
+      // Fallback: generate trends from local catalog and material data when AI is unavailable
+      if (!trends) {
+        const totalProducts = getProductCount();
+        const allMaterials = getAllMaterials();
+        const materialNames = Object.values(allMaterials).map(m => m.name);
+
+        // Build trending_now from catalog data and real industry knowledge
+        const trendingNow = [
+          {
+            trend: "Performance Fabrics",
+            category: "Upholstery",
+            momentum: "rising",
+            description: "Performance fabrics like Crypton and Revolution are replacing traditional upholstery textiles. They offer stain resistance and durability without sacrificing aesthetics.",
+            vendors_leading: ["Lee Industries", "CR Laine", "Bernhardt"],
+            search_terms: ["performance fabric sofa", "crypton upholstery", "stain resistant"],
+          },
+          {
+            trend: "Natural & Organic Materials",
+            category: "Materials",
+            momentum: "rising",
+            description: "Rattan, wicker, seagrass, and other natural fibers are surging in popularity for both indoor and outdoor spaces, driven by biophilic design principles.",
+            vendors_leading: ["Palecek", "Four Hands", "Serena & Lily"],
+            search_terms: ["rattan chair", "wicker furniture", "natural fiber", "seagrass"],
+          },
+          {
+            trend: "Warm Minimalism",
+            category: "Style",
+            momentum: "peaking",
+            description: "Clean lines paired with warm tones and organic textures. This approach balances the simplicity of minimalism with inviting, tactile surfaces.",
+            vendors_leading: ["RH", "McGee & Co.", "Made Goods"],
+            search_terms: ["warm minimalist", "organic modern", "japandi"],
+          },
+          {
+            trend: "Curved & Sculptural Seating",
+            category: "Seating",
+            momentum: "rising",
+            description: "Curved sofas, barrel chairs, and sculptural accent seating continue to replace boxy silhouettes as designers embrace softer, more organic forms.",
+            vendors_leading: ["Century Furniture", "Hickory Chair", "Bernhardt"],
+            search_terms: ["curved sofa", "barrel chair", "sculptural seating"],
+          },
+          {
+            trend: "Mixed Metal Finishes",
+            category: "Lighting",
+            momentum: "stabilizing",
+            description: "Combining brass, iron, and nickel finishes within the same space has become an established design practice rather than a bold statement.",
+            vendors_leading: ["Visual Comfort", "Arteriors", "Currey & Company"],
+            search_terms: ["brass lighting", "mixed metals", "iron chandelier"],
+          },
+          {
+            trend: "Artisan & Handcrafted Pieces",
+            category: "Accent Furniture",
+            momentum: "rising",
+            description: "One-of-a-kind artisan pieces with visible hand-finishing and natural variations are prized as counterpoints to mass production.",
+            vendors_leading: ["Noir", "Made Goods", "Palecek"],
+            search_terms: ["handcrafted furniture", "artisan table", "hand-finished"],
+          },
+        ];
+
+        // Filter by category/style if provided
+        let filteredTrending = trendingNow;
+        if (body.category) {
+          const cat = body.category.toLowerCase();
+          filteredTrending = trendingNow.filter(t =>
+            t.category.toLowerCase().includes(cat) ||
+            t.description.toLowerCase().includes(cat) ||
+            t.search_terms.some(s => s.includes(cat))
+          );
+          if (filteredTrending.length === 0) filteredTrending = trendingNow.slice(0, 3);
+        }
+        if (body.style) {
+          const sty = body.style.toLowerCase();
+          const styleFiltered = filteredTrending.filter(t =>
+            t.description.toLowerCase().includes(sty) ||
+            t.trend.toLowerCase().includes(sty)
+          );
+          if (styleFiltered.length > 0) filteredTrending = styleFiltered;
+        }
+
+        trends = {
+          trending_now: filteredTrending,
+          emerging: [
+            {
+              trend: "Bouclé & Textured Upholstery",
+              description: "Bouclé, sherpa, and heavily textured fabrics are moving from accent pillows to full upholstery on major seating pieces.",
+              watch_for: "Watch for bouclé dining chairs and headboards as the next application.",
+            },
+            {
+              trend: "Quiet Luxury Interiors",
+              description: "Understated, high-quality materials with no visible branding. Focus on craftsmanship and material quality over logos or trendy patterns.",
+              watch_for: "Expect growth in solid-color premium leathers and matte-finish woods.",
+            },
+            {
+              trend: "Indoor-Outdoor Living",
+              description: "Performance materials designed for outdoor use are being specified for high-traffic indoor rooms, blurring traditional indoor-outdoor boundaries.",
+              watch_for: "Sunbrella and similar outdoor fabrics on indoor dining chairs and family room sofas.",
+            },
+          ],
+          declining: [
+            "Farmhouse Shiplap",
+            "All-Gray Interiors",
+            "Mirrored Furniture",
+            "Heavy Traditional Ornamentation",
+            "Ultra-Glossy Finishes",
+          ],
+          color_forecast: [
+            { name: "Warm Clay", hex: "#C67B5C", usage: "Accent walls, upholstery" },
+            { name: "Olive Grove", hex: "#6B7C4E", usage: "Case goods, accent pieces" },
+            { name: "Midnight Navy", hex: "#1B2A4A", usage: "Statement seating, cabinetry" },
+            { name: "Soft Ivory", hex: "#F5F0E8", usage: "Primary upholstery, walls" },
+            { name: "Burnished Brass", hex: "#B8953E", usage: "Hardware, lighting fixtures" },
+            { name: "Stone Gray", hex: "#A09B93", usage: "Rugs, secondary textiles" },
+          ],
+          material_spotlight: `Our catalog tracks ${materialNames.length} material categories including ${materialNames.slice(0, 5).join(", ")}. Performance fabrics lead in durability with ratings of 8-9/10 and 15+ year expected lifespans. Natural materials like solid hardwood and marble remain premium choices for longevity and resale value. Sustainable materials are increasingly requested by design clients.`,
+          designer_tip: `With ${totalProducts} products across our catalog, consider mixing vendor price tiers — pair premium upholstery from heritage makers like Century or Lee Industries with value-driven accent pieces from Four Hands or Noir to balance project budgets while maintaining quality where it matters most.`,
+        };
+      }
+
+      return json(res, 200, { trends });
+    }
+
+    if (req.method === "POST" && req.url === "/extract-product") {
+      const body = await collectBody(req);
+      if (!body.page_content) return json(res, 400, { error: "page_content required" });
+      const extracted = await withTimeout(aiExtractProduct(body.page_content, body.source_url || null), 20000, null);
+      return json(res, 200, { extracted });
+    }
+
+    if (req.method === "POST" && req.url === "/chat") {
+      const body = await collectBody(req);
+      const messages = Array.isArray(body.messages) ? body.messages : [];
+      if (messages.length === 0) return json(res, 400, { error: "messages required" });
+      const reply = await withTimeout(aiChat(messages), 60000, { message: "Request timed out. Please try again.", products: null });
+      return json(res, 200, { reply });
+    }
+
+    if (req.method === "POST" && req.url === "/visual-search") {
+      const body = await collectBody(req);
+      if (!body.image) return json(res, 400, { error: "image (base64) required" });
+      const result = await withTimeout(aiVisualSearch(body.image, body.mime_type || "image/jpeg"), 90000, null);
+      return json(res, 200, { result });
+    }
+
+    if (req.method === "POST" && req.url === "/room-plan") {
+      const body = await collectBody(req);
+      const plan = await withTimeout(aiRoomPlan(body), 120000, null);
+      return json(res, 200, { plan });
+    }
+
+    if (req.method === "POST" && req.url === "/design-brief") {
+      const body = await collectBody(req);
+      const brief = await withTimeout(aiDesignBrief(body), 45000, null);
+      return json(res, 200, { brief });
+    }
+
+    // Old AI autocomplete replaced by local autocomplete (see /autocomplete handler below)
+
+    if (req.method === "POST" && req.url === "/weekly-digest") {
+      const body = await collectBody(req);
+      let digest = await withTimeout(aiWeeklyDigest(body), 60000, null);
+
+      // Fallback: generate digest from local catalog and analytics data when AI is unavailable
+      if (!digest) {
+        const analytics = getAnalyticsDashboard();
+        const totalProducts = getProductCount();
+        const allProducts = getAllProducts();
+
+        // Get the current week date range
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        const weekOfStr = weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+        // Pick editor's picks from actual catalog products (diverse selection)
+        const editorPicks = [];
+        const seenVendors = new Set();
+        const shuffled = [...allProducts].sort(() => Math.random() - 0.5);
+        for (const p of shuffled) {
+          const vendorName = p.vendor_name || p.manufacturer_name || "Unknown";
+          if (seenVendors.has(vendorName)) continue;
+          seenVendors.add(vendorName);
+          editorPicks.push({
+            product_name: p.product_name || p.name || p.title || "Untitled Product",
+            vendor_name: vendorName,
+            image_url: p.image_url || p.images?.[0] || null,
+            retail_price: p.retail_price ? `$${Number(p.retail_price).toLocaleString()}` : (p.wholesale_price ? `$${Number(p.wholesale_price).toLocaleString()}` : null),
+            why_picked: p.description ? p.description.slice(0, 120) : "A standout piece from our curated trade catalog.",
+            product_url: p.product_url || p.url || null,
+          });
+          if (editorPicks.length >= 6) break;
+        }
+
+        // Build trending searches from analytics or provide defaults
+        let trendingSearches = [];
+        if (analytics.top_queries && analytics.top_queries.length > 0) {
+          trendingSearches = analytics.top_queries.slice(0, 10).map(q => q.query);
+        } else {
+          trendingSearches = [
+            "performance fabric sofa",
+            "rattan dining chair",
+            "brass chandelier",
+            "marble coffee table",
+            "velvet accent chair",
+            "walnut dining table",
+            "boucle chair",
+            "console table",
+            "linen sofa",
+            "modern bookcase",
+          ];
+        }
+
+        digest = {
+          week_of: weekOfStr,
+          headline: `This week's catalog spans ${totalProducts} products across ${seenVendors.size}+ trade vendors — from heritage American upholstery makers to curated modern accent brands.`,
+          editor_picks: editorPicks,
+          trending_searches: trendingSearches,
+          industry_news: [
+            {
+              headline: "Performance Fabrics Now Account for Majority of Trade Upholstery Orders",
+              summary: "Interior designers report that performance fabrics like Crypton, Revolution, and Sunbrella have overtaken traditional textiles in new upholstery orders, driven by demand for durability without compromising aesthetics.",
+              source: "Trade Industry Report",
+            },
+            {
+              headline: "Lead Times Stabilizing Across Major Domestic Manufacturers",
+              summary: "After years of pandemic-era delays, most domestic furniture manufacturers have returned to pre-2020 lead times of 6-10 weeks for standard orders. Quick-ship programs continue to expand.",
+              source: "Furniture Today",
+            },
+          ],
+          new_collections: [
+            {
+              vendor: "Four Hands",
+              collection: "Spring Collection",
+              description: "Expanded warehouse-stocked program with 200+ new SKUs in reclaimed and industrial styles, most shipping within 1-2 weeks.",
+            },
+            {
+              vendor: "Lee Industries",
+              collection: "Performance Living",
+              description: "New quick-ship frames available in curated performance fabrics with 3-4 week delivery, expanding their stain-resistant family room offerings.",
+            },
+          ],
+          personalized: [
+            {
+              recommendation: "Explore quick-ship programs for time-sensitive projects",
+              reason: `${Object.values(getAllVendorProcurement()).filter(v => v.stocking_program).length} of our tracked vendors offer in-stock programs with 1-3 week shipping.`,
+            },
+            {
+              recommendation: "Compare COM options across upholstery vendors",
+              reason: `${Object.values(getAllVendorProcurement()).filter(v => v.com_col).length} vendors in our database accept Customer's Own Material — lead time additions range from 1-4 weeks.`,
+            },
+          ],
+          pro_tip: "When sourcing for a full project, order long-lead custom upholstery first (8-14 weeks), then fill in with quick-ship accent furniture and lighting (1-3 weeks). This parallel approach can cut overall project timelines by 4-6 weeks.",
+        };
+      }
+
+      return json(res, 200, { digest });
+    }
+
+    if (req.method === "POST" && req.url === "/conversational-search") {
+      const body = await collectBody(req);
+      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
+      const rawPrevious = Array.isArray(body.previous_results) ? body.previous_results : [];
+      // Normalize frontend product objects back to server format
+      const previousResultsInput = rawPrevious.map((p) => ({
+        ...p,
+        vendor_name: p.vendor_name || p.manufacturer_name || null,
+        category: p.category || p.product_type || null,
+        description: p.description || p.snippet || null,
+        product_url: p.product_url || p.portal_url || null,
+      }));
+      const sessionId = String(body.session_id || `cs-${Date.now()}`);
+
+      if (conversation.length === 0) {
+        return json(res, 400, { error: "conversation array required" });
+      }
+
+      // Step 1: AI conversational understanding
+      const convoResult = await withTimeout(
+        aiConversationalSearch(conversation, previousResultsInput),
+        30000,
+        null,
+      );
+
+      if (!convoResult) {
+        return json(res, 500, { error: "Conversational search failed" });
+      }
+
+      const { intent, searchQueries, assistantMessage, action, actionParams, discoveredProducts } = convoResult;
+
+      // Save conversation-discovered products to catalog DB
+      if (discoveredProducts && discoveredProducts.length > 0) {
+        dbInsertProducts(discoveredProducts);
+      }
+
+      // Step 2: Decide whether to run full discovery or just re-rank
+      const needsFullDiscovery = action === "new_search" || action === "related" || previousResultsInput.length === 0;
+      let mergedProducts;
+
+      if (needsFullDiscovery) {
+        const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
+        const queryText = lastUserMsg?.content || intent.summary || "";
+
+        // Use AI query translator for new searches (same path as /search endpoint)
+        const convoAiFilter = await withTimeout(translateQuery(queryText), 8000, null);
+        let allConvoProducts = [];
+
+        if (convoAiFilter) {
+          // AI-guided search: broad candidate fetch then filter
+          const candidateMap = new Map();
+          const keywords = convoAiFilter.keywords || [queryText];
+          for (const kw of [...keywords, queryText]) {
+            const results = searchCatalogDB(kw, {
+              vendor: convoAiFilter.vendor?.toLowerCase().replace(/\s+/g, "-"),
+            }, 200);
+            for (const r of results) {
+              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+            }
+          }
+          if (convoAiFilter.category) {
+            const catResults = searchCatalogDB(convoAiFilter.category.replace(/-/g, " "), {}, 200);
+            for (const r of catResults) {
+              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+            }
+          }
+          if (convoAiFilter.categories?.length) {
+            for (const cat of convoAiFilter.categories) {
+              const catResults = searchCatalogDB(cat.replace(/-/g, " "), {}, 100);
+              for (const r of catResults) {
+                if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+              }
+            }
+          }
+          allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), convoAiFilter);
+          console.log(`[conversational-search] AI filter for "${queryText}": ${allConvoProducts.length} results`);
+        } else {
+          // Fallback: direct catalog search
+          allConvoProducts = searchCatalogDB(queryText, {
+            category: intent.product_type || null,
+            style: intent.style || null,
+            material: intent.material || null,
+          }, 200);
+        }
+
+        // For "related" searches, carry over style/material context from previous results
+        if (action === "related" && intent.style) {
+          allConvoProducts.sort((a, b) => {
+            const aMatch = (a.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
+            const bMatch = (b.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
+            return bMatch - aMatch;
+          });
+        }
+
+        allConvoProducts = [...allConvoProducts, ...discoveredProducts];
+
+        // Tier 2: Live vendor crawl if not enough results (cheap)
+        if (allConvoProducts.length < 8) {
+          try {
+            const relevantVendorIds = pickRelevantVendors(intent, 5);
+            const crawlResults = await withTimeout(
+              crawlForQuery(queryText, relevantVendorIds, catalogDBInterface),
+              5000,
+              []
+            );
+            if (crawlResults && crawlResults.length > 0) {
+              dbInsertProducts(crawlResults);
+              allConvoProducts = [...allConvoProducts, ...crawlResults];
+            }
+          } catch (err) {
+            console.error("[conversational-search] Tier 2 crawl failed:", err.message);
+          }
+        }
+
+        mergedProducts = dedupeProducts(allConvoProducts);
+      } else {
+        // Fast path for refinements: merge discovered products with previous results, then re-rank
+        mergedProducts = dedupeProducts([
+          ...discoveredProducts,
+          ...previousResultsInput,
+        ]);
+      }
+
+      // Step 3: AI rank with the refined intent
+      const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
+      const rankQuery = lastUserMsg?.content || intent.summary || "";
+      const rankedProducts = await withTimeout(
+        aiRankResults(rankQuery, intent, mergedProducts),
+        30000,
+        mergedProducts,
+      );
+
+      // Apply vendor diversity
+      const convoQueryTerms = (rankQuery || "").toLowerCase().split(/\s+/).filter(Boolean);
+      const diversifiedConvo = diversifyResults(rankedProducts || mergedProducts, {
+        maxPerVendor: 5,
+        topSlice: 20,
+        totalLimit: 50,
+        queryTerms: convoQueryTerms,
+        vendorFilter: intent.vendor || null,
+      });
+      const responseProducts = diversifiedConvo.map(sanitizeSearchProduct);
+
+      return json(res, 200, {
+        intent,
+        ai_summary: intent.summary || `Refined search based on conversation.`,
+        assistant_message: assistantMessage,
+        action,
+        action_params: actionParams,
+        products: responseProducts,
+        total: responseProducts.length,
+        diagnostics: {
+          full_discovery: needsFullDiscovery,
+          previous_results_count: previousResultsInput.length,
+          discovered_count: discoveredProducts.length,
+          merged_count: mergedProducts.length,
+          search_queries: searchQueries,
+          ai_parsed: Boolean(intent.ai_parsed),
+        },
+        session_id: sessionId,
+      });
+    }
+
+    // ── BULK IMPORT ENDPOINTS ─────────────────────────────────
+
+    if (req.method === "POST" && req.url === "/catalog/bulk-import") {
+      const body = await collectBody(req);
+      const vendorIds = Array.isArray(body.vendor_ids) ? body.vendor_ids : undefined;
+      const maxTier = Number(body.max_tier) || 4;
+      const methods = Array.isArray(body.methods) ? body.methods : ["shopify", "feed", "api", "sitemap"];
+      const concurrentVendors = Number(body.concurrent_vendors) || 3;
+
+      // Run async — respond immediately with status
+      runBulkImport(catalogDBInterface, { vendor_ids: vendorIds, max_tier: maxTier, methods, concurrent_vendors: concurrentVendors })
+        .catch((err) => console.error("[bulk-import] Error:", err.message));
+
+      return json(res, 202, {
+        ok: true,
+        message: "Bulk import started. Poll GET /catalog/import-status for progress.",
+      });
+    }
+
+    if (req.method === "GET" && req.url === "/catalog/import-status") {
+      const raw = getImportStatus();
+      const summary = {
+        running: raw.running,
+        progress: raw.progress ? {
+          status: raw.progress.status,
+          vendors_total: raw.progress.vendors_total,
+          vendors_completed: raw.progress.vendors_completed,
+          products_before: raw.progress.products_before,
+          products_after: raw.progress.products_after,
+          vendor_results: (raw.progress.vendor_results || []).map(vr => ({
+            vendor_id: vr.vendor_id,
+            vendor_name: vr.vendor_name,
+            tier: vr.tier,
+            total_products: vr.total_products,
+            methods_succeeded: vr.methods_succeeded,
+          })),
+        } : null,
+        catalog_total: getProductCount(),
+      };
+      return json(res, 200, summary);
+    }
+
+    if (req.method === "POST" && req.url === "/catalog/import-csv") {
+      // Accepts raw CSV text in body
+      const rawBody = await new Promise((resolve, reject) => {
+        let raw = "";
+        req.on("data", (chunk) => { raw += chunk; });
+        req.on("end", () => resolve(raw));
+        req.on("error", reject);
+      });
+
+      // Try to parse as JSON first (for { csv_text, vendor_id, vendor_name } format)
+      let csvText, vendorId, vendorName;
+      try {
+        const parsed = JSON.parse(rawBody);
+        csvText = parsed.csv_text || parsed.csv || parsed.data;
+        vendorId = parsed.vendor_id;
+        vendorName = parsed.vendor_name;
+      } catch {
+        // Assume raw CSV
+        csvText = rawBody;
+      }
+
+      if (!csvText || csvText.trim().length < 10) {
+        return json(res, 400, { error: "CSV data required. Send as JSON { csv_text, vendor_id?, vendor_name? } or raw CSV body." });
+      }
+
+      const result = importFromCsv(csvText, { vendor_id: vendorId, vendor_name: vendorName }, catalogDBInterface);
+      return json(res, 200, { ok: true, ...result });
+    }
+
+    // ── SMART AUTOCOMPLETE (local, zero API cost) ──
+    if (req.method === "POST" && req.url === "/autocomplete") {
+      const body = await collectBody(req);
+      const query = String(body.query || body.partial || "").trim();
+      if (!query || query.length < 2) return json(res, 200, { suggestions: [] });
+      const results = autocompleteSearch(query, 8);
+      return json(res, 200, { suggestions: results.map(r => r.text), details: results });
+    }
+
+    // ── ANALYTICS ENDPOINTS ──
+    if (req.method === "GET" && req.url === "/analytics") {
+      const dashboard = getAnalyticsDashboard();
+      return json(res, 200, dashboard);
+    }
+
+    if (req.method === "POST" && req.url === "/analytics/click") {
+      const body = await collectBody(req);
+      if (body.product_id) trackClick(body.product_id, body.vendor_id);
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "POST" && req.url === "/analytics/compare") {
+      const body = await collectBody(req);
+      if (body.product_id) trackCompare(body.product_id);
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "POST" && req.url === "/analytics/quote") {
+      const body = await collectBody(req);
+      if (body.product_id) trackQuote(body.product_id);
+      return json(res, 200, { ok: true });
+    }
+
+    // ── CATEGORY TREE ──
+    if (req.method === "GET" && req.url === "/categories") {
+      return json(res, 200, { categories: getCategoryTree() });
+    }
+
+    // ── BACKGROUND JOBS ──
+    if (req.method === "POST" && req.url === "/jobs/verify-images") {
+      runImageVerification(catalogDBInterface).catch(err => console.error("[image-verifier] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Image verification job started. Poll GET /jobs/status for progress." });
+    }
+
+    if (req.method === "POST" && req.url === "/jobs/dedup") {
+      runDeduplication(catalogDBInterface).then(() => {
+        // Rebuild autocomplete after dedup
+        buildAutocompleteIndex(getAllProducts());
+      }).catch(err => console.error("[dedup] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Deduplication job started." });
+    }
+
+    if (req.method === "POST" && req.url === "/jobs/enrich") {
+      const body = await collectBody(req);
+      runEnrichment(catalogDBInterface, {
+        maxProducts: Number(body.max_products) || 20000,
+        batchSize: Number(body.batch_size) || 10,
+      }).then(() => {
+        recomputeAllQualityScores();
+        buildAutocompleteIndex(getAllProducts());
+      }).catch(err => console.error("[enrichment] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Enrichment job started." });
+    }
+
+    if (req.method === "POST" && req.url === "/jobs/photo-analyze") {
+      const body = await collectBody(req);
+      const vendors = Array.isArray(body.vendors) ? body.vendors : undefined;
+      runPhotoAnalysis(catalogDBInterface, { vendors }).then(() => {
+        // Rebuild index after analysis to pick up new visual tags in search
+        const allProds = getAllProducts();
+        // Re-index products with new visual tags
+        for (const p of allProds) {
+          if (p.ai_visual_tags) {
+            // Trigger re-index by re-inserting (updateProductDirect already saved tags)
+          }
+        }
+        clearSearchCache();
+        console.log("[photo-analyzer] Search cache cleared, visual tags now searchable");
+      }).catch(err => console.error("[photo-analyzer] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Photo analysis job started. Poll GET /jobs/status for progress." });
+    }
+
+    if (req.method === "GET" && req.url === "/jobs/status") {
+      return json(res, 200, {
+        image_verification: getImageVerificationStatus(),
+        deduplication: getDedupStatus(),
+        enrichment: getEnrichmentStatus(),
+        photo_analysis: getPhotoAnalysisStatus(),
+      });
+    }
+
+    if (req.method === "POST" && req.url === "/jobs/stop") {
+      stopImageVerification();
+      stopEnrichment();
+      stopPhotoAnalysis();
+      return json(res, 200, { ok: true, message: "Stop signals sent to running jobs." });
+    }
+
+    // ── VECTOR STORE ENDPOINTS ──
+    if (req.method === "GET" && req.url === "/vectors/stats") {
+      return json(res, 200, getVectorStoreStats());
+    }
+
+    if (req.method === "POST" && req.url === "/vectors/reindex") {
+      const body = await collectBody(req);
+      const reindex = body.reindex === true;
+      vectorIndexAll(getAllProducts(), { reindex }).then((stats) => {
+        console.log(`[server] Vector reindex complete: ${stats.total} total, ${stats.new} new`);
+      }).catch((err) => console.error(`[server] Vector reindex failed: ${err.message}`));
+      return json(res, 202, { ok: true, message: "Vector reindexing started in background." });
+    }
+
+    if (req.method === "POST" && req.url === "/catalog/import-vendor") {
+      const body = await collectBody(req);
+      const vendorId = String(body.vendor_id || "");
+      if (!vendorId) return json(res, 400, { error: "vendor_id required" });
+
+      const methods = Array.isArray(body.methods) ? body.methods : ["shopify", "feed", "api", "sitemap"];
+
+      // Find vendor in unified list
+      const allVendors = tradeVendors;
+      const tv = allVendors.find((v) => v.id === vendorId);
+      if (!tv) return json(res, 404, { error: `Vendor not found: ${vendorId}` });
+
+      const profileMap = new Map();
+      for (const v of priorityVendors) profileMap.set(v.id, v);
+      const profile = profileMap.get(tv.id);
+
+      const vendor = {
+        ...tv,
+        profile: profile?.profile || {},
+        discovery: profile?.discovery || {},
+        shopify_domain: profile?.shopify_domain || null,
+      };
+
+      // Run import (async for sitemap, sync for shopify/feed/api)
+      const result = await importVendor(vendor, catalogDBInterface, methods);
+      return json(res, 200, { ok: true, ...result, catalog_total: getProductCount() });
+    }
+
+    // ── Sourcing Brain Endpoints ──────────────────────────────
+
+    // Room templates
+    if (req.method === "GET" && req.url === "/room-templates") {
+      return json(res, 200, { templates: getAllRoomTemplates() });
+    }
+
+    if (req.method === "GET" && req.url.startsWith("/room-templates/")) {
+      const parts = req.url.slice("/room-templates/".length).split("/");
+      const type = decodeURIComponent(parts[0] || "");
+      const size = decodeURIComponent(parts[1] || "");
+      if (!type || !size) return json(res, 400, { error: "Usage: /room-templates/:type/:size" });
+      const template = getRoomTemplate(type, size);
+      if (!template) return json(res, 404, { error: `No template for ${type}/${size}` });
+      return json(res, 200, { template });
+    }
+
+    // Project CRUD
+    if (req.method === "POST" && req.url === "/projects/intake") {
+      const body = await collectBody(req);
+      const description = String(body.description || "").trim();
+      if (!description) return json(res, 400, { error: "description required" });
+
+      let parsed = null;
+      try {
+        parsed = await withTimeout(aiParseProjectIntake(description), 30000, null);
+      } catch { /* AI unavailable, fall through to local parser */ }
+
+      // Fallback: parse project description locally when AI is unavailable
+      if (!parsed) {
+        const lower = description.toLowerCase();
+
+        // Extract budget
+        const budgetMatch = lower.match(/\$\s?([\d,]+(?:\.\d{2})?)\s*k?\b/);
+        let budgetTotal = 0;
+        if (budgetMatch) {
+          budgetTotal = parseFloat(budgetMatch[1].replace(/,/g, ""));
+          if (lower.includes("k") && budgetTotal < 1000) budgetTotal *= 1000;
+        }
+
+        // Extract style
+        const styleMap = {
+          "mid-century": "mid-century-modern", "mid century": "mid-century-modern", mcm: "mid-century-modern",
+          modern: "modern", minimalist: "minimalist", coastal: "coastal",
+          traditional: "traditional", bohemian: "bohemian", boho: "bohemian",
+          industrial: "industrial", farmhouse: "farmhouse", transitional: "transitional",
+          japandi: "japandi", "art deco": "art-deco", scandinavian: "scandinavian",
+        };
+        let style = "modern";
+        for (const [keyword, value] of Object.entries(styleMap)) {
+          if (lower.includes(keyword)) { style = value; break; }
+        }
+
+        // Extract rooms from description
+        const roomPatterns = [
+          { regex: /living\s*room/i, type: "living-room" },
+          { regex: /bedroom/i, type: "bedroom" },
+          { regex: /dining\s*(room|area)/i, type: "dining-room" },
+          { regex: /office|study/i, type: "home-office" },
+          { regex: /entry|foyer|mudroom/i, type: "entryway" },
+          { regex: /nursery|kid/i, type: "nursery" },
+          { regex: /media|theater/i, type: "media-room" },
+          { regex: /outdoor|patio|deck/i, type: "outdoor" },
+        ];
+        const rooms = [];
+        const bedroomMatch = lower.match(/(\d+)\s*(?:-\s*)?bed(?:room)?/);
+        if (bedroomMatch) {
+          const count = Math.min(parseInt(bedroomMatch[1]), 6);
+          for (let i = 0; i < count; i++) {
+            rooms.push({ name: `Bedroom ${i + 1}`, type: "bedroom", size: i === 0 ? "large" : "medium" });
+          }
+        }
+        for (const { regex, type } of roomPatterns) {
+          if (regex.test(description) && !rooms.some(r => r.type === type)) {
+            rooms.push({ name: type.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()), type, size: "medium" });
+          }
+        }
+        if (rooms.length === 0) {
+          rooms.push({ name: "Living Room", type: "living-room", size: "medium" });
+        }
+
+        // Extract timeline
+        const weeksMatch = lower.match(/(\d+)\s*(?:week|wk)/);
+        const monthsMatch = lower.match(/(\d+)\s*month/);
+        let weeks = 12;
+        if (weeksMatch) weeks = parseInt(weeksMatch[1]);
+        else if (monthsMatch) weeks = parseInt(monthsMatch[1]) * 4;
+
+        // Extract client name
+        const clientMatch = description.match(/(?:client|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
+
+        parsed = {
+          name: clientMatch ? `${clientMatch[1]} Project` : "New Project",
+          client_name: clientMatch ? clientMatch[1] : "",
+          style,
+          budget: { total: budgetTotal, currency: "USD" },
+          timeline: { weeks, urgency: weeks <= 6 ? "urgent" : "normal" },
+          rooms,
+          vendor_preferences: [],
+          notes: description,
+        };
+      }
+
+      // Create the project
+      const startDate = new Date().toISOString().split("T")[0];
+      const weeks = parsed.timeline?.weeks || 12;
+      const targetDate = new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const project = createProject({
+        name: parsed.name,
+        client_name: parsed.client_name,
+        style: parsed.style,
+        budget: { total: parsed.budget?.total || 0, currency: parsed.budget?.currency || "USD" },
+        timeline: { start: startDate, target_completion: targetDate, weeks, urgency: parsed.timeline?.urgency || "normal", status: "planning" },
+        vendor_preferences: parsed.vendor_preferences || [],
+        notes: parsed.notes || "",
+      });
+
+      // Auto-populate rooms with templates
+      for (const room of (parsed.rooms || [])) {
+        const template = getRoomTemplate(room.type, room.size);
+        const items = [];
+        if (template) {
+          for (const item of template.essential) {
+            items.push({
+              name: item.item,
+              priority: item.priority,
+              status: "sourcing",
+              search_query: parsed.style ? `${parsed.style} ${item.search}` : item.search,
+              qty: item.qty,
+            });
+          }
+          for (const item of template.optional) {
+            items.push({
+              name: item.item,
+              priority: item.priority,
+              status: "sourcing",
+              search_query: parsed.style ? `${parsed.style} ${item.search}` : item.search,
+              qty: item.qty,
+            });
+          }
+        }
+        addRoomToProject(project.id, {
+          name: room.name,
+          type: room.type,
+          size: room.size,
+          items,
+        });
+      }
+
+      // Refetch to get populated rooms
+      const fullProject = getProject(project.id);
+      return json(res, 201, { project: fullProject, parsed_intake: parsed });
+    }
+
+    if (req.method === "POST" && req.url === "/projects") {
+      const body = await collectBody(req);
+      const project = createProject(body);
+      return json(res, 201, { project });
+    }
+
+    if (req.method === "GET" && req.url === "/projects") {
+      return json(res, 200, { projects: listProjects() });
+    }
+
+    // Share token lookup (must be before /projects/:id to avoid conflicts)
+    if (req.method === "GET" && req.url.startsWith("/share/")) {
+      const token = decodeURIComponent(req.url.slice("/share/".length));
+      const project = getProjectByShareToken(token);
+      if (!project) return json(res, 404, { error: "Invalid or expired share token" });
+      return json(res, 200, { project });
+    }
+
+    // Project-level routes with :id
+    if (req.url.startsWith("/projects/")) {
+      const urlWithoutQuery = req.url.split("?")[0];
+      const pathParts = urlWithoutQuery.slice("/projects/".length).split("/");
+      const projectId = decodeURIComponent(pathParts[0]);
+
+      // GET /projects/:id
+      if (req.method === "GET" && pathParts.length === 1) {
+        const project = getProject(projectId);
+        if (!project) return json(res, 404, { error: "Project not found" });
+        return json(res, 200, { project });
+      }
+
+      // PUT /projects/:id
+      if (req.method === "PUT" && pathParts.length === 1) {
+        const body = await collectBody(req);
+        const project = updateProject(projectId, body);
+        if (!project) return json(res, 404, { error: "Project not found" });
+        return json(res, 200, { project });
+      }
+
+      // DELETE /projects/:id
+      if (req.method === "DELETE" && pathParts.length === 1) {
+        const deleted = deleteProject(projectId);
+        if (!deleted) return json(res, 404, { error: "Project not found" });
+        return json(res, 200, { ok: true });
+      }
+
+      // POST /projects/:id/rooms
+      if (req.method === "POST" && pathParts[1] === "rooms" && pathParts.length === 2) {
+        const body = await collectBody(req);
+        // Auto-populate items from room template if none provided
+        if (!body.items || body.items.length === 0) {
+          const template = getRoomTemplate(body.type || "living-room", body.size || "medium");
+          if (template) {
+            const project = getProject(projectId);
+            const styleMod = project?.style ? project.style.replace(/-/g, " ") : "";
+            body.items = [...template.essential, ...template.optional].map((t) => ({
+              name: t.item,
+              priority: t.priority,
+              search_query: styleMod ? `${styleMod} ${t.search}` : t.search,
+              qty: t.qty,
+              status: "sourcing",
+            }));
+          }
+        }
+        const room = addRoomToProject(projectId, body);
+        if (!room) return json(res, 404, { error: "Project not found" });
+        return json(res, 201, { room });
+      }
+
+      // PUT /projects/:id/rooms/:roomId/items/:itemId
+      if (req.method === "PUT" && pathParts[1] === "rooms" && pathParts[3] === "items" && pathParts.length === 5) {
+        const roomId = decodeURIComponent(pathParts[2]);
+        const itemId = decodeURIComponent(pathParts[4]);
+        const body = await collectBody(req);
+        const item = updateRoomItem(projectId, roomId, itemId, body);
+        if (!item) return json(res, 404, { error: "Project, room, or item not found" });
+        return json(res, 200, { item });
+      }
+
+      // POST /projects/:id/rooms/:roomId/auto-source
+      if (req.method === "POST" && pathParts[1] === "rooms" && pathParts[3] === "auto-source" && pathParts.length === 4) {
+        const roomId = decodeURIComponent(pathParts[2]);
+        const project = getProject(projectId);
+        if (!project) return json(res, 404, { error: "Project not found" });
+        const room = project.rooms.find((r) => r.id === roomId);
+        if (!room) return json(res, 404, { error: "Room not found" });
+
+        const styleDNA = getStyleDNA(project.style);
+        let sourcedCount = 0;
+
+        for (const item of room.items) {
+          if (item.status !== "sourcing") continue;
+
+          let query = item.search_query || item.name;
+          // Add style modifiers if not already present
+          if (project.style && !query.toLowerCase().includes(project.style)) {
+            query = `${project.style} ${query}`;
+          }
+
+          try {
+            const results = searchCatalogDB(query, {}, 10);
+            if (results.length > 0) {
+              item.options = results.slice(0, 5).map(sanitizeSearchProduct);
+              item.status = "options-ready";
+              sourcedCount++;
+            }
+          } catch (err) {
+            console.error(`[auto-source] Failed for "${item.name}": ${err.message}`);
+          }
+        }
+
+        // Persist changes
+        updateProject(projectId, { rooms: project.rooms });
+
+        return json(res, 200, {
+          room,
+          sourced_count: sourcedCount,
+          total_items: room.items.length,
+        });
+      }
+
+      // POST /projects/:id/style-check
+      if (req.method === "POST" && pathParts[1] === "style-check" && pathParts.length === 2) {
+        const project = getProject(projectId);
+        if (!project) return json(res, 404, { error: "Project not found" });
+        if (!project.style) return json(res, 400, { error: "Project has no style set" });
+
+        // Gather all selected products
+        const selectedProducts = [];
+        for (const room of project.rooms) {
+          for (const item of room.items) {
+            if (item.selected_product) {
+              selectedProducts.push(item.selected_product);
+            }
+          }
+        }
+
+        if (selectedProducts.length === 0) {
+          return json(res, 200, {
+            coherence: { score: 100, issues: [], materialConflicts: [], colorConflicts: [], suggestions: ["No products selected yet — nothing to check."] },
+            products_checked: 0,
+          });
+        }
+
+        const coherence = checkStyleCoherence(selectedProducts, project.style);
+        return json(res, 200, { coherence, products_checked: selectedProducts.length });
+      }
+
+      // POST /projects/:id/share
+      if (req.method === "POST" && pathParts[1] === "share" && pathParts.length === 2) {
+        const token = getProjectShareToken(projectId);
+        if (!token) return json(res, 404, { error: "Project not found" });
+        return json(res, 200, { share_token: token, share_url: `/share/${token}` });
+      }
+
+      // GET /projects/:id/cost-summary
+      if (req.method === "GET" && pathParts[1] === "cost-summary" && pathParts.length === 2) {
+        const project = getProject(projectId);
+        if (!project) return json(res, 404, { error: "Project not found" });
+
+        const roomBreakdown = [];
+        let totalSpent = 0;
+        let totalItems = 0;
+        let sourcedItems = 0;
+        let selectedItems = 0;
+
+        for (const room of project.rooms) {
+          let roomSpent = 0;
+          const roomItems = room.items.length;
+          let roomSourced = 0;
+          let roomSelected = 0;
+
+          for (const item of room.items) {
+            totalItems++;
+            if (item.status !== "sourcing") roomSourced++;
+            if (item.selected_product) {
+              roomSelected++;
+              selectedItems++;
+              const price = item.selected_product.retail_price || item.selected_product.price || 0;
+              roomSpent += price * (item.qty || 1);
+            }
+            if (item.status !== "sourcing") sourcedItems++;
+          }
+
+          totalSpent += roomSpent;
+          roomBreakdown.push({
+            room_id: room.id,
+            room_name: room.name,
+            room_budget: room.budget,
+            spent: Math.round(roomSpent * 100) / 100,
+            remaining: room.budget > 0 ? Math.round((room.budget - roomSpent) * 100) / 100 : null,
+            items: roomItems,
+            sourced: roomSourced,
+            selected: roomSelected,
+          });
+        }
+
+        const suggestions = [];
+        if (project.budget.total > 0 && totalSpent > project.budget.total * 0.9) {
+          suggestions.push("Budget is over 90% spent. Consider reviewing selections for cost savings.");
+        }
+        for (const rb of roomBreakdown) {
+          if (rb.room_budget > 0 && rb.spent > rb.room_budget) {
+            suggestions.push(`${rb.room_name} is over budget by $${Math.round(rb.spent - rb.room_budget)}.`);
+          }
+        }
+
+        return json(res, 200, {
+          project_budget: project.budget.total,
+          total_spent: Math.round(totalSpent * 100) / 100,
+          total_remaining: Math.round((project.budget.total - totalSpent) * 100) / 100,
+          currency: project.budget.currency || "USD",
+          total_items: totalItems,
+          sourced_items: sourcedItems,
+          selected_items: selectedItems,
+          rooms: roomBreakdown,
+          suggestions,
+        });
+      }
+    }
+
+    // ── Spatial Intelligence Endpoints ──────────────────────────
+
+    // Parse dimensions from text
+    if (req.method === "POST" && req.url === "/spatial/parse-dimensions") {
+      const body = await collectBody(req);
+      if (body.products) {
+        const results = batchParseDimensions(body.products);
+        return json(res, 200, { results });
+      }
+      const text = String(body.text || "").trim();
+      if (!text) return json(res, 400, { error: "text or products required" });
+      const parsed = parseDimensions(text);
+      return json(res, 200, { dimensions: parsed });
+    }
+
+    // Check product fit in a room
+    if (req.method === "POST" && req.url === "/spatial/check-fit") {
+      const body = await collectBody(req);
+      if (!body.product || !body.room) return json(res, 400, { error: "product and room required" });
+      const result = checkProductFit(body.product, body.room);
+      return json(res, 200, { fit: result });
+    }
+
+    // Calculate fit scores for multiple products
+    if (req.method === "POST" && req.url === "/spatial/fit-scores") {
+      const body = await collectBody(req);
+      if (!body.products || !body.room) return json(res, 400, { error: "products and room required" });
+      const scores = {};
+      for (const product of body.products) {
+        const dims = product.dimensions ? parseDimensions(product.dimensions) : product;
+        if (dims) {
+          scores[product.id] = calculateFitScore(dims, body.room, product.category);
+        }
+      }
+      return json(res, 200, { scores });
+    }
+
+    // Check delivery feasibility
+    if (req.method === "POST" && req.url === "/spatial/delivery-check") {
+      const body = await collectBody(req);
+      if (!body.product) return json(res, 400, { error: "product required" });
+      let dims = body.product;
+      if (body.product.dimensions && typeof body.product.dimensions === "string") {
+        dims = parseDimensions(body.product.dimensions);
+        if (!dims) return json(res, 400, { error: "Could not parse dimensions" });
+      }
+      const result = checkDeliveryFeasibility(dims, body.constraints || {});
+      return json(res, 200, { delivery: result });
+    }
+
+    // Suggest proportional companion pieces
+    if (req.method === "POST" && req.url === "/spatial/suggest-proportions") {
+      const body = await collectBody(req);
+      if (!body.main_piece || !body.companion_category) return json(res, 400, { error: "main_piece and companion_category required" });
+      const result = suggestProportions(body.main_piece, body.companion_category, body.room || {});
+      return json(res, 200, { suggestion: result });
+    }
+
+    // Get spatial rules reference
+    if (req.method === "GET" && req.url === "/spatial/rules") {
+      return json(res, 200, { rules: getSpatialRules() });
+    }
+
+    // Generate room layout
+    if (req.method === "POST" && req.url === "/spatial/generate-layout") {
+      const body = await collectBody(req);
+      if (!body.room || !body.pieces) return json(res, 400, { error: "room and pieces required" });
+      const layout = generateLayout(body.room, body.pieces);
+      return json(res, 200, { layout });
+    }
+
+    // Generate floor plan SVG
+    if (req.method === "POST" && req.url === "/spatial/floor-plan") {
+      const body = await collectBody(req);
+      if (!body.room || !body.pieces) return json(res, 400, { error: "room and pieces required" });
+      const layout = generateLayout(body.room, body.pieces);
+      const svg = generateFloorPlanSVG(body.room, layout.placements || [], body.options || {});
+      return json(res, 200, { layout, svg });
+    }
+
+    // Generate scale comparison SVG
+    if (req.method === "POST" && req.url === "/spatial/scale-compare") {
+      const body = await collectBody(req);
+      if (!body.products || !Array.isArray(body.products)) return json(res, 400, { error: "products array required" });
+      const svg = generateScaleComparisonSVG(body.products, body.options || {});
+      return json(res, 200, { svg });
+    }
+
+    // Recommend room size for furniture set
+    if (req.method === "POST" && req.url === "/spatial/recommend-room-size") {
+      const body = await collectBody(req);
+      if (!body.pieces || !Array.isArray(body.pieces)) return json(res, 400, { error: "pieces array required" });
+      const recommendation = recommendRoomSize(body.pieces);
+      return json(res, 200, { recommendation });
+    }
+
+    // ── Material Intelligence Endpoints ──────────────────────────
+
+    // Get all materials
+    if (req.method === "GET" && req.url === "/materials") {
+      return json(res, 200, { materials: getAllMaterials() });
+    }
+
+    // Get material info (fuzzy matched)
+    if (req.method === "GET" && req.url.startsWith("/materials/") && !req.url.includes("/match") && !req.url.includes("/check") && !req.url.includes("/compare") && !req.url.includes("/badges") && !req.url.includes("/scores")) {
+      const name = decodeURIComponent(req.url.slice("/materials/".length));
+      const material = getMaterial(name);
+      if (!material) return json(res, 404, { error: `Material not found: ${name}` });
+      return json(res, 200, { material });
+    }
+
+    // Match product materials
+    if (req.method === "POST" && req.url === "/materials/match") {
+      const body = await collectBody(req);
+      if (!body.product) return json(res, 400, { error: "product required" });
+      const matches = matchProductMaterial(body.product);
+      return json(res, 200, { matches });
+    }
+
+    // Check material suitability
+    if (req.method === "POST" && req.url === "/materials/check") {
+      const body = await collectBody(req);
+      if (!body.material) return json(res, 400, { error: "material required" });
+      const result = checkMaterialSuitability(body.material, body.context || {});
+      return json(res, 200, { suitability: result });
+    }
+
+    // Compare two materials
+    if (req.method === "POST" && req.url === "/materials/compare") {
+      const body = await collectBody(req);
+      if (!body.material1 || !body.material2) return json(res, 400, { error: "material1 and material2 required" });
+      const result = compareMaterials(body.material1, body.material2, body.context || {});
+      return json(res, 200, { comparison: result });
+    }
+
+    // Get material badges for a product
+    if (req.method === "POST" && req.url === "/materials/badges") {
+      const body = await collectBody(req);
+      if (!body.product) return json(res, 400, { error: "product required" });
+      const badges = getProductMaterialBadges(body.product);
+      return json(res, 200, { badges });
+    }
+
+    // Batch material scores for search results
+    if (req.method === "POST" && req.url === "/materials/scores") {
+      const body = await collectBody(req);
+      if (!body.products || !Array.isArray(body.products)) return json(res, 400, { error: "products array required" });
+      const scores = {};
+      for (const product of body.products) {
+        scores[product.id] = {
+          score: scoreMaterialFit(product, body.context || {}),
+          badges: getProductMaterialBadges(product),
+        };
+      }
+      return json(res, 200, { scores });
+    }
+
+    // ── Procurement Intelligence Endpoints ──────────────────────
+
+    // Get all vendor procurement data
+    if (req.method === "GET" && req.url === "/procurement") {
+      return json(res, 200, { vendors: getAllVendorProcurement() });
+    }
+
+    // Check COM availability for vendor
+    if (req.method === "GET" && req.url.match(/^\/procurement\/[^/]+\/com$/)) {
+      const vendorId = decodeURIComponent(req.url.split("/")[2]);
+      const result = checkCOMAvailability(vendorId);
+      if (!result) return json(res, 404, { error: `Vendor not found: ${vendorId}` });
+      return json(res, 200, { com: result });
+    }
+
+    // Get vendor procurement info (fuzzy matched)
+    if (req.method === "GET" && req.url.startsWith("/procurement/") && !req.url.includes("/com")) {
+      const vendorId = decodeURIComponent(req.url.slice("/procurement/".length));
+      const vendor = getVendorProcurement(vendorId);
+      if (!vendor) return json(res, 404, { error: `Vendor not found: ${vendorId}` });
+      return json(res, 200, { vendor });
+    }
+
+    // Get procurement info for a product
+    if (req.method === "POST" && req.url === "/procurement/product") {
+      const body = await collectBody(req);
+      if (!body.product) return json(res, 400, { error: "product required" });
+      const result = getProductProcurement(body.product);
+      return json(res, 200, { procurement: result });
+    }
+
+    // Estimate full cost
+    if (req.method === "POST" && req.url === "/procurement/estimate-cost") {
+      const body = await collectBody(req);
+      if (!body.product) return json(res, 400, { error: "product required" });
+      const estimate = estimateFullCost(body.product, body.delivery_zip || null);
+      return json(res, 200, { estimate });
+    }
+
+    // COM yardage estimate
+    if (req.method === "POST" && req.url === "/procurement/com-yardage") {
+      const body = await collectBody(req);
+      if (!body.category) return json(res, 400, { error: "category required" });
+      const estimate = estimateCOMYardage(body.category, body.width_in || null);
+      return json(res, 200, { estimate });
+    }
+
+    // ── POST /discover — Visual discovery endpoint ──
+    if (req.method === "POST" && req.url === "/discover") {
+      const body = await collectBody(req);
+      const colors = Array.isArray(body.colors) ? body.colors : [];
+      const textures = Array.isArray(body.textures) ? body.textures : [];
+      const vibes = Array.isArray(body.vibes) ? body.vibes : [];
+      const room_type = String(body.room_type || "");
+      const page = Math.max(1, Number(body.page) || 1);
+
+      const COLOR_MAP = {
+        "warm-neutrals": ["beige","cream","tan","camel","ivory","sand","wheat","champagne"],
+        "cool-neutrals": ["gray","charcoal","slate","silver","pewter","smoke","ash"],
+        "earth-tones": ["terracotta","rust","olive","sage","moss","brown","copper","sienna","umber"],
+        "jewel-tones": ["emerald","navy","burgundy","plum","sapphire","ruby","teal","amethyst"],
+        "pastels": ["blush","powder blue","lavender","mint","rose","peach","lilac","soft pink"],
+        "monochromes": ["black","white","ivory","espresso","ebony","snow","charcoal"],
+      };
+      const TEXTURE_MAP = {
+        "smooth-polished": ["leather","marble","lacquer","glass","chrome","polished","metal"],
+        "soft-plush": ["velvet","boucle","chenille","mohair","plush","shearling","fur"],
+        "natural-organic": ["linen","rattan","raw wood","jute","stone","oak","walnut","teak","bamboo","seagrass"],
+        "woven-tactile": ["cane","wicker","rope","performance fabric","woven","knit","macrame"],
+      };
+      const VIBE_MAP = {
+        "clean-quiet": ["modern","contemporary","minimal","scandinavian","japanese"],
+        "warm-collected": ["transitional","traditional","layered","eclectic","warm"],
+        "bold-dramatic": ["glam","bold","art deco","maximalist","hollywood"],
+        "coastal-relaxed": ["coastal","beach","resort","bohemian","casual","relaxed"],
+        "heritage-classic": ["traditional","classic","english","european","french","colonial"],
+      };
+      const ROOM_MAP = {
+        "living-room": "sofa OR chair OR coffee table OR side table OR console",
+        "dining-room": "dining table OR dining chair OR sideboard OR buffet",
+        "bedroom": "bed OR nightstand OR dresser OR chest OR bench",
+        "office": "desk OR office chair OR bookcase OR shelving",
+        "outdoor": "outdoor",
+        "entryway": "console OR mirror OR bench OR coat rack",
+      };
+
+      // Gather all matched terms
+      const colorTerms = colors.flatMap(c => COLOR_MAP[c] || []);
+      const textureTerms = textures.flatMap(t => TEXTURE_MAP[t] || []);
+      const vibeTerms = vibes.flatMap(v => VIBE_MAP[v] || []);
+      const roomQuery = ROOM_MAP[room_type] || "";
+
+      // Build search query from representative subset (2-3 from each)
+      const pick = (arr, n) => arr.slice(0, n);
+      const queryParts = [
+        ...pick(colorTerms, 3),
+        ...pick(textureTerms, 3),
+        ...pick(vibeTerms, 3),
+        roomQuery,
+      ].filter(Boolean);
+      const searchQuery = queryParts.join(" ");
+
+      // Build filters
+      const filters = {};
+      if (textureTerms.length > 0) filters.materials = textureTerms;
+      if (vibeTerms.length > 0) filters.styles = vibeTerms;
+
+      // Pass 1: text search
+      let searchResults = [];
+      if (searchQuery) {
+        searchResults = searchCatalogDB(searchQuery, filters, 200);
+      }
+
+      // Pass 2: direct field matching against all products
+      const allProducts = getAllProducts();
+      const colorSet = new Set(colorTerms.map(t => t.toLowerCase()));
+      const textureSet = new Set(textureTerms.map(t => t.toLowerCase()));
+      const vibeSet = new Set(vibeTerms.map(t => t.toLowerCase()));
+      const allTerms = new Set([...colorSet, ...textureSet, ...vibeSet]);
+
+      const fieldMatched = allProducts.filter(p => {
+        const pColor = (p.color || "").toLowerCase();
+        const pMaterial = (p.material || "").toLowerCase();
+        const pStyle = (p.style || "").toLowerCase();
+        const pTags = Array.isArray(p.tags) ? p.tags.map(t => t.toLowerCase()) : [];
+        for (const term of allTerms) {
+          if (pColor.includes(term) || pMaterial.includes(term) || pStyle.includes(term) || pTags.some(tag => tag.includes(term))) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      // Merge and deduplicate
+      const seenIds = new Set();
+      const merged = [];
+      for (const p of [...searchResults, ...fieldMatched]) {
+        if (!seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          merged.push(p);
+        }
+      }
+
+      // Sort: image_verified first, then by quality_score descending
+      merged.sort((a, b) => {
+        const aVerified = a.image_verified ? 1 : 0;
+        const bVerified = b.image_verified ? 1 : 0;
+        if (bVerified !== aVerified) return bVerified - aVerified;
+        return (b.quality_score || 0) - (a.quality_score || 0);
+      });
+
+      // Paginate (60 per page)
+      const perPage = 60;
+      const start = (page - 1) * perPage;
+      const pageProducts = merged.slice(start, start + perPage);
+
+      // Compute facets from full result set
+      const facets = computeFacets(merged);
+
+      return json(res, 200, {
+        products: pageProducts.map(sanitizeSearchProduct),
+        total: merged.length,
+        page,
+        has_more: start + perPage < merged.length,
+        facets,
+      });
+    }
+
+    // ── GET /collections — List all collections ──
+    if (req.method === "GET" && req.url.startsWith("/collections")) {
+      const parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      const pathname = parsedUrl.pathname;
+
+      // GET /collections/:collectionName
+      if (pathname.startsWith("/collections/") && pathname !== "/collections/") {
+        const collectionName = decodeURIComponent(pathname.slice("/collections/".length));
+        const allProducts = getAllProducts();
+        const collectionProducts = allProducts.filter(p => p.collection === collectionName);
+        return json(res, 200, {
+          collection: collectionName,
+          products: collectionProducts.map(sanitizeSearchProduct),
+          total: collectionProducts.length,
+        });
+      }
+
+      // GET /collections
+      const vendorFilter = parsedUrl.searchParams.get("vendor") || "";
+      const allProducts = getAllProducts();
+      const collectionMap = new Map();
+
+      for (const p of allProducts) {
+        if (!p.collection) continue;
+        if (vendorFilter && p.vendor_id !== vendorFilter) continue;
+        if (!collectionMap.has(p.collection)) {
+          collectionMap.set(p.collection, []);
+        }
+        collectionMap.get(p.collection).push(p);
+      }
+
+      const collections = [];
+      for (const [name, products] of collectionMap) {
+        const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+        const styles = [...new Set(products.map(p => p.style).filter(Boolean))];
+        const materials = [...new Set(products.map(p => p.material).filter(Boolean))];
+        const colorsArr = [...new Set(products.map(p => p.color).filter(Boolean))];
+        const prices = products.map(p => p.retail_price || p.wholesale_price).filter(Boolean);
+        const verifiedImages = products
+          .filter(p => p.image_verified && p.image_url)
+          .map(p => p.image_url)
+          .slice(0, 6);
+
+        collections.push({
+          name,
+          vendor_name: products[0].vendor_name || null,
+          vendor_id: products[0].vendor_id || null,
+          product_count: products.length,
+          categories,
+          styles,
+          materials,
+          colors: colorsArr,
+          price_range: prices.length > 0 ? { min: Math.min(...prices), max: Math.max(...prices) } : null,
+          sample_images: verifiedImages,
+        });
+      }
+
+      collections.sort((a, b) => b.product_count - a.product_count);
+
+      return json(res, 200, { collections, total: collections.length });
+    }
+
+    // ── POST /style-profile — Compute visual taste profile ──
+    if (req.method === "POST" && req.url === "/style-profile") {
+      const body = await collectBody(req);
+      const interactions = Array.isArray(body.interactions) ? body.interactions : [];
+
+      const colorCounts = {};
+      const materialCounts = {};
+      const styleCounts = {};
+      const vendorCounts = {};
+      const categoryCounts = {};
+      const prices = [];
+
+      for (const interaction of interactions) {
+        const product = getProduct(String(interaction.product_id || ""));
+        if (!product) continue;
+
+        if (product.color) colorCounts[product.color] = (colorCounts[product.color] || 0) + 1;
+        if (product.material) materialCounts[product.material] = (materialCounts[product.material] || 0) + 1;
+        if (product.style) styleCounts[product.style] = (styleCounts[product.style] || 0) + 1;
+        if (product.vendor_name) vendorCounts[product.vendor_name] = (vendorCounts[product.vendor_name] || 0) + 1;
+        if (product.category) categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1;
+        const price = product.retail_price || product.wholesale_price;
+        if (price) prices.push(price);
+      }
+
+      const toSorted = (counts) => Object.entries(counts)
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return json(res, 200, {
+        colors: toSorted(colorCounts),
+        materials: toSorted(materialCounts),
+        styles: toSorted(styleCounts),
+        vendors: toSorted(vendorCounts).map(v => ({ name: v.value, count: v.count })),
+        avg_price: prices.length > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0,
+        price_range: prices.length > 0 ? { min: Math.min(...prices), max: Math.max(...prices) } : null,
+        categories: toSorted(categoryCounts),
+        total_interactions: interactions.length,
+      });
+    }
+
+    return notFound(res);
+  } catch (error) {
+    return json(res, 500, { error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+server.listen(port, host, () => {
+  console.log(`search-service listening on http://${host}:${port}`);
+  // Initialize catalog database and start crawl scheduler
+  startCrawlScheduler(catalogDBInterface);
+
+  // Schedule image verification every 6 hours
+  setInterval(() => {
+    runImageVerification(catalogDBInterface, { batchSize: 15, delayMs: 300 })
+      .catch(err => console.error("[server] Image verification failed:", err.message));
+  }, 6 * 60 * 60 * 1000);
+
+  // Warmup disabled to preserve API rate limit budget for searches
+  // queueLiveWarmup();
+});
+
+function queueLiveWarmup() {
+  setTimeout(async () => {
+    try {
+      await ingestVendors({
+        mode: "live",
+        vendorIds: liveWarmVendorIds,
+      });
+      console.log(`search-service live warmup completed for ${liveWarmVendorIds.join(", ")}`);
+    } catch (error) {
+      console.error("search-service live warmup failed:", error instanceof Error ? error.message : String(error));
+    }
+  }, 250);
+}
+
+function filterSearchableProducts(products, body) {
+  if (body.allow_seed_results) return products;
+  return products.filter((product) => product.ingestion_source === "live-crawler" || product.ingestion_source === "live-discovery");
+}
+
+function getSearchMode(body) {
+  const mode = String(body.search_mode || "").toLowerCase();
+  if (["verified-only", "balanced", "catalog-only"].includes(mode)) {
+    return mode;
+  }
+  return "balanced";
+}
+
+function shouldRefreshVerifiedCatalog(verifiedCatalog) {
+  const updatedAt = verifiedCatalog?.updated_at ? Date.parse(verifiedCatalog.updated_at) : NaN;
+  if (!Number.isFinite(updatedAt)) return true;
+  return Date.now() - updatedAt > 1000 * 60 * 30;
+}
+
+function dedupeProducts(products) {
+  const seen = new Map();
+  for (const product of products) {
+    const key = [product.vendor_id, product.product_url || product.product_name].join("::").toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, product);
+    }
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * Check if a product image URL is a real product photo (not a logo, placeholder, or banner).
+ */
+function hasValidProductImage(url) {
+  if (!url || url.length < 15) return false;
+  const lower = url.toLowerCase();
+  // Reject known non-product patterns
+  if (/logo|placeholder|no.?image|default|spacer|blank/i.test(lower)) return false;
+  // Reject website banners/headers/cluster images
+  if (/header|mid-cluster|hp_.*cluster|essentials-/i.test(lower)) return false;
+  // Reject SVG files (almost always logos/icons)
+  if (lower.endsWith('.svg')) return false;
+  return true;
+}
+
+function getSearchVendorIds(body) {
+  if (Array.isArray(body.vendor_ids) && body.vendor_ids.length > 0) {
+    return body.vendor_ids.map(String);
+  }
+  return priorityVendors.map((vendor) => vendor.id);
+}
+
+async function discoverAcrossVariants(queryVariants, options) {
+  const settled = await Promise.allSettled(
+    queryVariants.slice(0, 4).map((variant) => discoverLiveVendorProducts(variant, options)),
+  );
+  const results = [];
+  for (const result of settled) {
+    if (result.status === "fulfilled") {
+      results.push(...result.value);
+    }
+  }
+  return dedupeProducts(results);
+}
+
+async function withTimeout(promise, timeoutMs, fallbackValue) {
+  let timeoutId;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timeoutId = setTimeout(() => resolve(fallbackValue), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function aiParseProjectIntake(description) {
+  const headers = {
+    "Content-Type": "application/json",
+    "anthropic-version": "2023-06-01",
+  };
+  if (process.env.ANTHROPIC_API_KEY) {
+    headers["x-api-key"] = process.env.ANTHROPIC_API_KEY;
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: `You are a furniture sourcing assistant. Parse this project description into structured data.
+
+Description: "${description}"
+
+Return JSON only:
+{
+  "name": "project name",
+  "client_name": "client name if mentioned, else empty string",
+  "style": "one of: modern, mid-century-modern, coastal, traditional, minimalist, bohemian, industrial, transitional, japandi, art-deco, scandinavian, farmhouse",
+  "rooms": [{ "name": "display name", "type": "living-room|bedroom|dining-room|home-office|entryway|nursery|media-room|outdoor|kitchen|bathroom", "size": "small|medium|large" }],
+  "budget": { "total": number or 0, "currency": "USD" },
+  "timeline": { "weeks": number or 12, "urgency": "normal|rush|flexible" },
+  "vendor_preferences": [],
+  "notes": "any additional details"
+}` }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+}
+
+function sanitizeSearchProduct(product) {
+  const isAiDiscovery = product.ingestion_source === "ai-discovery" || product.ingestion_source === "ai-extraction";
+  const isLive = product.ingestion_source === "live-crawler" || product.ingestion_source === "live-discovery";
+  return {
+    ...product,
+    // Map vendor_name → manufacturer_name for frontend compatibility
+    manufacturer_name: product.vendor_name || product.manufacturer_name || null,
+    // Map product_url → portal_url for frontend compatibility
+    portal_url: product.product_url || product.portal_url || null,
+    retail_price: product.retail_price ?? null,
+    wholesale_price: product.wholesale_price ?? null,
+    // AI-discovered products pass through URLs directly (AI found real vendor URLs)
+    image_url: isAiDiscovery ? (product.image_url || null)
+      : isLive ? (product.image_verified ? product.image_url : null)
+      : (product.image_url || null),
+    product_url: isAiDiscovery ? (product.product_url || null)
+      : isLive ? (product.product_url_verified ? product.product_url : null)
+      : (product.product_url || null),
+    retrieval_quality_score: Number(product.retrieval_quality_score || 0),
+  };
+}

@@ -1,0 +1,51 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 3333 >> stream
+BT /F1 20 Tf 1 0 0 1 42 760 Tm (Furniture Home Hub / SPEC App Summary) Tj ET
+BT /F1 8 Tf 1 0 0 1 42 736 Tm (Repo-based one-page summary generated on 2026-03-09) Tj ET
+BT /F1 12 Tf 1 0 0 1 42 718 Tm (What It Is) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 703 Tm (- SPEC is a React/Vite furniture sourcing app built on Base44.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 692 Tm (- It combines manufacturer search, comparison, cart/order routing, and catalog workflows in one interface.) Tj ET
+BT /F1 12 Tf 1 0 0 1 42 675 Tm (Who It's For) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 660 Tm (- Primary persona: interior designers and retailers sourcing wholesale furniture.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 649 Tm (- Repo evidence also includes admin, manufacturer, buyer/consumer roles.) Tj ET
+BT /F1 12 Tf 1 0 0 1 42 632 Tm (What It Does) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 617 Tm (- Natural-language AI search calls aiSearchProducts and returns ranked manufacturer results.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 606 Tm (- Dashboard highlights listing volume, styles, manufacturers, commissions, and lead times.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 595 Tm (- Compare up to 4 listings side by side across price, commission, lead time, material, and dimensions.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 584 Tm (- Browse manufacturer profiles with active SKU counts, categories, and lead-time ranges.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 573 Tm (- View product detail with role-based pricing, specs, reviews, inventory, and add-to-cart.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 562 Tm (- Create cart orders; checkout writes Order records and clears CartItem records.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 551 Tm (- Manufacturer/admin pages support catalog management, CSV import, and order visibility.) Tj ET
+BT /F1 12 Tf 1 0 0 1 42 534 Tm (How It Works) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 519 Tm (- Frontend: React 18 + Vite SPA with auto-registered routes from src/pages.config.js and shared layout/auth) Tj ET
+BT /F1 9 Tf 1 0 0 1 52 508 Tm (wrappers.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 497 Tm (- Client data layer: Base44 SDK client reads appId/token/appBaseUrl from URL or env and accesses auth, entities,) Tj ET
+BT /F1 9 Tf 1 0 0 1 52 486 Tm (functions, and integrations.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 475 Tm (- Data used in pages: ManufacturerListing, FurnitureStyle, Manufacturer, Product, CartItem, Order, Review, Project.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 464 Tm (- AI flow: Search page invokes Base44 function aiSearchProducts; the Deno function authenticates the user, parses) Tj ET
+BT /F1 9 Tf 1 0 0 1 52 453 Tm (intent with an LLM, queries SerpAPI against manufacturer domains, scores results with an LLM, and returns ranked) Tj ET
+BT /F1 9 Tf 1 0 0 1 52 442 Tm (products.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 431 Tm (- Seed utilities exist for Product and routing data. Persistent schema definitions: Not found in repo.) Tj ET
+BT /F1 12 Tf 1 0 0 1 42 414 Tm (How To Run) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 399 Tm (1. npm install) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 388 Tm (2. Create .env.local with VITE_BASE44_APP_ID and VITE_BASE44_APP_BASE_URL.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 377 Tm (3. Optional env referenced in code: VITE_BASE44_FUNCTIONS_VERSION.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 366 Tm (4. Run npm run dev.) Tj ET
+BT /F1 9 Tf 1 0 0 1 42 355 Tm (5. Search functions require SERPAPI_KEY, but local setup instructions for that key are Not found in repo.) Tj ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+3696
+%%EOF
