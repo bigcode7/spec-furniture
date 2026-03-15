@@ -553,6 +553,12 @@ const server = http.createServer(async (req, res) => {
 
         // Apply AI filter (hard category + exclude + vendor + dimensions + material + scoring)
         filteredResults = applyAIFilter(candidates, aiFilter);
+        // Propagate AI score to relevance_score so downstream sorting uses it
+        for (const p of filteredResults) {
+          if (typeof p._ai_score === "number") {
+            p.relevance_score = p._ai_score;
+          }
+        }
         filteredResults = dedupeProducts(filteredResults);
         totalBeforeExclude = filteredResults.length;
 
@@ -667,7 +673,11 @@ const server = http.createServer(async (req, res) => {
 
       // ── Filter out products without valid product images ──
       // Logo, placeholder, banner, and missing images provide no value to designers
-      filteredResults = filteredResults.filter(p => hasValidProductImage(p.image_url));
+      // But don't filter if it would remove ALL results — show what we have
+      const imageFiltered = filteredResults.filter(p => hasValidProductImage(p.image_url));
+      if (imageFiltered.length > 0) {
+        filteredResults = imageFiltered;
+      }
 
       // ── Vendor diversity ──
       const preDiv = filteredResults;

@@ -530,21 +530,43 @@ export function applyAIFilter(products, filter) {
   let results = [...products];
 
   // ── HARD FILTER: Category ──
+  // True hard filter — but falls back to unfiltered if it would return 0.
+  // Also checks product name for the category keyword as a secondary signal.
   if (filter.category) {
     const fc = filter.category.toLowerCase().replace(/\s+/g, "-");
-    const catResults = results.filter(p => {
+    const catWord = fc.replace(/-/g, " ");
+    const catSingular = catWord.replace(/s$/, "");
+    const catFiltered = results.filter(p => {
       const cat = (p.category || "").toLowerCase();
-      // Exact match, or singular/plural match (sofa↔sofas, chair↔chairs)
-      return cat === fc || cat === fc + "s" || cat + "s" === fc || cat.startsWith(fc + "-") || fc.startsWith(cat + "-");
+      const name = (p.product_name || "").toLowerCase();
+      // Exact category match or singular/plural
+      if (cat === fc || cat === fc + "s" || cat + "s" === fc || cat.startsWith(fc + "-") || fc.startsWith(cat + "-")) {
+        return true;
+      }
+      // Fallback: check product name for the category keyword
+      if (name.includes(catSingular) || name.includes(catWord)) {
+        return true;
+      }
+      return false;
     });
-    if (catResults.length > 0) results = catResults;
+    if (catFiltered.length > 0) results = catFiltered;
   } else if (filter.categories?.length > 0) {
     const catNorms = filter.categories.map(c => c.toLowerCase().replace(/\s+/g, "-"));
-    const catResults = results.filter(p => {
+    const catFiltered = results.filter(p => {
       const cat = (p.category || "").toLowerCase();
-      return catNorms.some(fc => cat === fc || cat === fc + "s" || cat + "s" === fc);
+      const name = (p.product_name || "").toLowerCase();
+      if (catNorms.some(fc => cat === fc || cat === fc + "s" || cat + "s" === fc)) {
+        return true;
+      }
+      // Name-based fallback
+      for (const fc of catNorms) {
+        const catWord = fc.replace(/-/g, " ");
+        const catSingular = catWord.replace(/s$/, "");
+        if (name.includes(catSingular) || name.includes(catWord)) return true;
+      }
+      return false;
     });
-    if (catResults.length > 0) results = catResults;
+    if (catFiltered.length > 0) results = catFiltered;
   }
 
   // ── HARD FILTER: Exclude categories ──
@@ -642,30 +664,59 @@ export function applyAIFilter(products, filter) {
 
   // ── SCORING: Enhanced keyword relevance ──
   const keywords = (filter.keywords || []).map(k => k.toLowerCase());
+  const filterCategory = (filter.category || "").toLowerCase().replace(/\s+/g, "-");
+  const filterCategories = (filter.categories || []).map(c => c.toLowerCase().replace(/\s+/g, "-"));
+  const allFilterCats = filterCategory ? [filterCategory, ...filterCategories] : filterCategories;
+
   for (const p of results) {
     const name = (p.product_name || "").toLowerCase();
     const desc = (p.description || "").toLowerCase();
     const collection = (p.collection || "").toLowerCase();
     const material = (p.material || "").toLowerCase();
     const visualTags = (p.ai_visual_tags || "").toLowerCase();
+    const productCat = (p.category || "").toLowerCase();
     const searchable = `${name} ${desc} ${collection} ${material} ${visualTags}`;
 
     let score = 0;
 
-    // Keyword matches
-    for (const kw of keywords) {
-      if (name.includes(kw)) score += 30;
-      else if (visualTags.includes(kw)) score += 20;
-      else if (collection.includes(kw)) score += 15;
-      else if (desc.includes(kw)) score += 10;
-      else if (searchable.includes(kw)) score += 5;
+    // ── EXACT CATEGORY MATCH: +30 ──
+    if (allFilterCats.length > 0) {
+      if (allFilterCats.some(fc => productCat === fc || productCat === fc + "s" || productCat + "s" === fc)) {
+        score += 30;
+      }
     }
 
-    // Style match bonus
+    // ── PRODUCT NAME CONTAINS SEARCH TERMS: +25 per hit ──
+    for (const kw of keywords) {
+      if (name.includes(kw)) score += 25;
+      else if (visualTags.includes(kw)) score += 15;
+      else if (collection.includes(kw)) score += 12;
+      else if (desc.includes(kw)) score += 8;
+      else if (searchable.includes(kw)) score += 3;
+    }
+
+    // ── VENDOR MATCH: +40 when vendor is in query ──
+    if (filter.vendor || filter.vendors?.length) {
+      const vendorNames = filter.vendors?.length > 0 ? filter.vendors : [filter.vendor];
+      const pVendor = (p.vendor_name || "").toLowerCase();
+      if (vendorNames.some(v => pVendor.includes(v.toLowerCase()))) {
+        score += 40;
+      }
+    }
+
+    // ── STYLE MATCH: +15 ──
     if (filter.style) {
       const styleLower = filter.style.toLowerCase();
       if (name.includes(styleLower) || desc.includes(styleLower) || (p.style || "").toLowerCase().includes(styleLower)) {
-        score += 25;
+        score += 15;
+      }
+    }
+
+    // ── MATERIAL MATCH: +15 ──
+    if (filter.material) {
+      const matLower = filter.material.toLowerCase();
+      if (material.includes(matLower) || name.includes(matLower) || desc.includes(matLower)) {
+        score += 15;
       }
     }
 
@@ -673,7 +724,7 @@ export function applyAIFilter(products, filter) {
     if (filter.color) {
       const colorLower = filter.color.toLowerCase();
       if (name.includes(colorLower) || desc.includes(colorLower) || (p.color || "").toLowerCase().includes(colorLower)) {
-        score += 20;
+        score += 12;
       }
     }
 
@@ -694,34 +745,34 @@ export function applyAIFilter(products, filter) {
       for (const m of filter.material_expanded) {
         if (matText.includes(m.toLowerCase())) matHits++;
       }
-      score += matHits * 8; // Each material match adds points
+      score += matHits * 8;
     }
 
     // Dimension fit bonus (#3)
     if (filter.dimensions) {
       const w = parseFloat(p.width) || parseDimFromString(p.dimensions, 'w');
       if (w > 0) {
-        score += 10; // Products with dimensions get a boost
+        score += 10;
         const d = filter.dimensions;
         if (d.width_max && w <= d.width_max) score += 15;
         if (d.width_min && w >= d.width_min) score += 15;
       }
     }
 
-    // Quality score factor (#10) — stronger weight
+    // Quality score factor
     const qs = p.quality_score || 0;
-    if (qs > 70) score += 15;
-    else if (qs > 50) score += 10;
-    else if (qs > 30) score += 5;
+    if (qs > 70) score += 10;
+    else if (qs > 50) score += 6;
+    else if (qs > 30) score += 3;
 
-    // Image presence boost (#10)
-    if (p.image_url && p.image_url.length > 10) score += 8;
-    if (p.image_quality === "verified-hq") score += 5;
+    // Image presence boost
+    if (p.image_url && p.image_url.length > 10) score += 5;
+    if (p.image_quality === "verified-hq") score += 3;
     else if (p.image_quality === "broken" || p.image_quality === "missing") score -= 10;
 
-    // Dimensions/material data richness boost (#10)
-    if (p.dimensions) score += 5;
-    if (p.material) score += 3;
+    // Data richness boost
+    if (p.dimensions) score += 3;
+    if (p.material) score += 2;
 
     p._ai_score = score;
   }

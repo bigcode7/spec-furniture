@@ -45,7 +45,7 @@ const CATEGORY_PATTERNS = [
   { match: ["chair", "chairs"], categories: ["accent-chairs", "swivel-chairs"], related: ["dining-chairs"] },
 
   // Storage
-  { match: ["credenza", "credenzas", "sideboard", "sideboards", "buffet", "buffets", "server"], categories: ["credenzas"], related: ["media-consoles", "cabinets"] },
+  { match: ["credenza", "credenzas", "sideboard", "sideboards", "buffet", "buffets", "server"], categories: ["credenzas"], related: ["media-consoles"] },
   { match: ["media console", "media consoles", "tv stand", "tv console", "entertainment center", "entertainment console", "media cabinet"], categories: ["media-consoles"], related: ["credenzas"] },
   { match: ["dresser", "dressers", "chest of drawers", "double dresser", "tall dresser", "bureau"], categories: ["dressers"], related: ["chests"] },
   { match: ["bookcase", "bookcases", "bookshelf", "bookshelves", "etagere", "etageres", "shelving", "display shelf"], categories: ["bookcases"], related: [] },
@@ -132,9 +132,9 @@ export function detectQueryCategory(query, vendorId = null) {
       // Match as whole word(s) within the query
       const regex = new RegExp(`\\b${escapeRegex(term)}\\b`, "i");
       if (regex.test(q)) {
-        const allCategories = [...pattern.categories, ...pattern.related];
         return {
-          categories: allCategories,
+          categories: pattern.categories,
+          related: pattern.related,
           detected: term,
           type: "product",
         };
