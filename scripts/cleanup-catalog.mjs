@@ -6,6 +6,10 @@
  * 2. Generic category-page entries (e.g., "Swivel Chairs", "Dining Tables")
  * 3. Products with junk URLs (catalog, brochure, lookbook, download paths)
  * 4. Products with no image URL AND no description (likely navigation pages)
+ * 5. Names that are just "collection" or "the collection"
+ * 6. Page references (e.g., "Page 3")
+ * 7. Names containing "/" path separators (breadcrumb/navigation entries)
+ * 8. Names starting with "Page:" or "Page <number>" patterns
  *
  * Usage: node scripts/cleanup-catalog.mjs [--dry-run]
  */
@@ -143,6 +147,20 @@ function isJunkEntry(product) {
     return { reason: `page reference: "${name}"`, rule: 6 };
   }
 
+  // Rule 7: Name contains "/" path separators indicating breadcrumb/navigation entries
+  // Match names that start with "/" (e.g., "/All Products/Products By Room/Living Room/")
+  // which are clearly navigation breadcrumbs, not product names.
+  // Single or double "/" in the middle of names are common for sizes (5/0-6/6),
+  // color combos (TEAL / WHITE), or abbreviations (Qn/Kg), so we only flag leading "/".
+  if (name.startsWith("/")) {
+    return { reason: `breadcrumb/path in name: "${name}"`, rule: 7 };
+  }
+
+  // Rule 8: Name starts with "Page" followed by whitespace+number, or "Page:" patterns
+  if (/^page[\s:]+\d/i.test(name)) {
+    return { reason: `page pattern in name: "${name}"`, rule: 8 };
+  }
+
   return null;
 }
 
@@ -167,6 +185,8 @@ console.log(`  Rule 3 (junk URL path): ${ruleCounters[3] || 0}`);
 console.log(`  Rule 4 (no image + no description): ${ruleCounters[4] || 0}`);
 console.log(`  Rule 5 (name is just "collection"): ${ruleCounters[5] || 0}`);
 console.log(`  Rule 6 (page reference): ${ruleCounters[6] || 0}`);
+console.log(`  Rule 7 (breadcrumb/path in name): ${ruleCounters[7] || 0}`);
+console.log(`  Rule 8 (page: pattern in name): ${ruleCounters[8] || 0}`);
 
 console.log("\nSample junk entries:");
 for (const entry of junkEntries.slice(0, 20)) {

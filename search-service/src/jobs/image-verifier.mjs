@@ -233,41 +233,77 @@ function computeQualityLabel(width, height, contentLength) {
 /**
  * Try to extract og:image from a product page URL.
  */
-function extractOgImage(url, timeout = 8000) {
+function extractOgImage(url, timeout = 10000) {
   return new Promise((resolve) => {
     if (!url || !url.startsWith("http")) return resolve(null);
 
     const client = url.startsWith("https") ? https : http;
-    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0" } }, (res) => {
+    let resolved = false;
+    const finish = (val) => { if (!resolved) { resolved = true; resolve(val); } };
+
+    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) SPEC-Bot/1.0" } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
-        return resolve(null);
+        return finish(null);
       }
 
       let body = "";
       res.setEncoding("utf8");
       res.on("data", (chunk) => {
         body += chunk;
-        if (body.length > 50000) res.destroy();
+        if (body.length > 300000) res.destroy(); // larger limit for Vanguard pages (~293KB)
       });
-      res.on("end", () => {
+
+      const processBody = () => {
+        // 1. og:image meta tag
         const ogMatch = body.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i)
           || body.match(/content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
-        if (ogMatch && ogMatch[1]) return resolve(ogMatch[1]);
+        if (ogMatch && ogMatch[1]) return finish(ogMatch[1]);
 
-        const imgMatch = body.match(/<img[^>]+src=["']([^"']+(?:product|large|hero|main|detail)[^"']*\.(?:jpg|jpeg|png|webp))["']/i);
-        if (imgMatch && imgMatch[1]) {
-          const src = imgMatch[1].startsWith("//") ? "https:" + imgMatch[1] : imgMatch[1];
-          return resolve(src);
+        // 2. Find all <img> with absolute URLs to jpg/png/webp
+        const allImgs = [...body.matchAll(/<img[^>]+src=["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi)];
+        const productImgs = allImgs
+          .map(m => m[1])
+          .filter(s => !s.includes("logo") && !s.includes("icon") && !s.includes("svg") && !s.includes("spacer") && !s.includes("404"));
+
+        // Score images: prefer hi-res, product paths, larger dimensions
+        const scored = productImgs.map(src => {
+          let score = 0;
+          const widthParam = src.match(/width=(\d+)/i);
+          if (widthParam) score = parseInt(widthParam[1], 10);
+          const sizeInPath = src.match(/\/(\d{3,4})x(\d{3,4})\//i);
+          if (sizeInPath) score = Math.max(score, parseInt(sizeInPath[1], 10));
+          const sizeInName = src.match(/__(\d{2,4})x(\d{2,4})\./i);
+          if (sizeInName) score = Math.max(score, parseInt(sizeInName[1], 10));
+          if (/hires|large|hero|main|detail/i.test(src)) score += 800;
+          if (/product/i.test(src)) score += 300;
+          if (/thumbnail|thumb/i.test(src)) score += 100;
+          if (/80x80|50x50|tiny/i.test(src)) score -= 500;
+          return { src, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+
+        if (scored.length > 0) {
+          let best = scored[0].src;
+          // Upscale Vanguard 80x80 thumbnails to 600x600
+          if (best.includes("80x80")) {
+            best = best.replace(/\/80x80\//g, "/600x600/").replace(/__80x80\./g, "__600x600.");
+          }
+          if (scored[0].score > 0 || productImgs.length === 1) {
+            return finish(best);
+          }
         }
 
-        resolve(null);
-      });
-      res.on("error", () => resolve(null));
+        finish(null);
+      };
+
+      res.on("end", processBody);
+      res.on("close", processBody);
     });
 
-    req.on("error", () => resolve(null));
-    req.on("timeout", () => { req.destroy(); resolve(null); });
+    req.on("error", () => finish(null));
+    req.on("timeout", () => { req.destroy(); finish(null); });
   });
 }
 
@@ -287,7 +323,7 @@ export async function runImageVerification(catalogDB, options = {}) {
     return stats;
   }
 
-  const { batchSize = 15, delayMs = 300, recheckVerified = false, cacheImages = true } = options;
+  const { batchSize = 15, delayMs = 300, recheckVerified = false, cacheImages = true, vendorFilter = null } = options;
 
   running = true;
   stats = {
@@ -310,7 +346,11 @@ export async function runImageVerification(catalogDB, options = {}) {
   const allProducts = catalogDB.getAllProducts();
   const toCheck = [];
 
+  const vendorFilterLower = vendorFilter ? vendorFilter.map(v => v.toLowerCase()) : null;
   for (const product of allProducts) {
+    if (vendorFilterLower && !vendorFilterLower.some(v => (product.vendor_name || "").toLowerCase().includes(v))) {
+      continue;
+    }
     if (!recheckVerified && product.image_quality && product.image_checked_at) {
       if (product.image_quality === "verified-hq") stats.verified_hq++;
       else if (product.image_quality === "verified") stats.verified++;
@@ -329,12 +369,37 @@ export async function runImageVerification(catalogDB, options = {}) {
     await Promise.all(batch.map(async (product) => {
       try {
         if (!product.image_url) {
-          catalogDB.updateProductDirect(product.id, {
-            image_verified: false,
-            image_quality: "missing",
-            image_checked_at: new Date().toISOString(),
-          });
-          stats.no_image++;
+          // Try to find an image from the product page before giving up
+          let found = null;
+          if (product.product_url) {
+            found = await extractOgImage(product.product_url);
+            if (found) {
+              const repCheck = await checkImageUrl(found);
+              if (!repCheck.ok || !(repCheck.contentType || "").startsWith("image/")) found = null;
+            }
+          }
+          if (found) {
+            const dims = await fetchImageDimensions(found);
+            const quality = dims ? computeQualityLabel(dims.width, dims.height, dims.contentLength) : "verified";
+            catalogDB.updateProductDirect(product.id, {
+              image_url: found,
+              image_verified: true,
+              image_quality: quality,
+              image_width: dims?.width || null,
+              image_height: dims?.height || null,
+              image_checked_at: new Date().toISOString(),
+            });
+            stats.replaced++;
+            if (quality === "verified-hq") stats.verified_hq++;
+            else stats.verified++;
+          } else {
+            catalogDB.updateProductDirect(product.id, {
+              image_verified: false,
+              image_quality: "missing",
+              image_checked_at: new Date().toISOString(),
+            });
+            stats.no_image++;
+          }
           stats.checked++;
           return;
         }

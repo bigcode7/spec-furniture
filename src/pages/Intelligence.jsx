@@ -925,7 +925,7 @@ export default function Intelligence() {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] py-8 md:py-10">
+    <div className="min-h-screen bg-[#08090E] py-8 md:py-10">
       <div className="page-wrap max-w-6xl">
         {/* Header */}
         <motion.div

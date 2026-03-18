@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
-const PARTICLE_COUNT = 28;
-const PARALLAX_STRENGTH = 8;
+const PARTICLE_COUNT = 35;
+const PARALLAX_STRENGTH = 10;
 
 export default function ParticleField({ className = "" }) {
   const canvasRef = useRef(null);
@@ -27,16 +27,23 @@ export default function ParticleField({ className = "" }) {
     const h = () => canvas.offsetHeight;
 
     // Gold dust particles
-    particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => ({
-      x: Math.random() * w(),
-      y: Math.random() * h(),
-      vx: (Math.random() - 0.5) * 0.15,
-      vy: (Math.random() - 0.5) * 0.1 - 0.05, // slight upward drift
-      r: Math.random() * 1.8 + 0.6,
-      opacity: Math.random() * 0.5 + 0.2,
-      phase: Math.random() * Math.PI * 2,
-      depth: Math.random() * 0.7 + 0.3, // parallax depth
-    }));
+    // Each particle has its own speed, direction, and drift pattern
+    particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 0.12 + 0.03;
+      return {
+        x: Math.random() * w(),
+        y: Math.random() * h(),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.04, // slight upward bias
+        r: Math.random() * 2.0 + 0.5,
+        opacity: Math.random() * 0.5 + 0.15,
+        phase: Math.random() * Math.PI * 2,
+        driftFreq: Math.random() * 0.8 + 0.4, // unique drift frequency
+        driftAmp: Math.random() * 0.3 + 0.1,  // unique drift amplitude
+        depth: Math.random() * 0.8 + 0.2,
+      };
+    });
 
     const handleMouse = (e) => {
       mouseRef.current = {
@@ -63,9 +70,9 @@ export default function ParticleField({ className = "" }) {
         const px = mx * PARALLAX_STRENGTH * p.depth;
         const py = my * PARALLAX_STRENGTH * p.depth;
 
-        // Drift
-        p.x += p.vx;
-        p.y += p.vy;
+        // Drift with per-particle sinusoidal wobble
+        p.x += p.vx + Math.sin(t * p.driftFreq + p.phase) * p.driftAmp;
+        p.y += p.vy + Math.cos(t * p.driftFreq * 0.7 + p.phase) * p.driftAmp * 0.5;
 
         // Wrap
         if (p.x < -20) p.x = cw + 20;
@@ -82,9 +89,9 @@ export default function ParticleField({ className = "" }) {
 
         // Gold glow
         const grad = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, p.r * 4);
-        grad.addColorStop(0, `rgba(201, 169, 110, ${alpha * 0.8})`);
-        grad.addColorStop(0.4, `rgba(201, 169, 110, ${alpha * 0.2})`);
-        grad.addColorStop(1, `rgba(201, 169, 110, 0)`);
+        grad.addColorStop(0, `rgba(79, 107, 255, ${alpha * 0.8})`);
+        grad.addColorStop(0.4, `rgba(79, 107, 255, ${alpha * 0.2})`);
+        grad.addColorStop(1, `rgba(79, 107, 255, 0)`);
 
         ctx.beginPath();
         ctx.arc(drawX, drawY, p.r * 4, 0, Math.PI * 2);
@@ -94,7 +101,7 @@ export default function ParticleField({ className = "" }) {
         // Core bright dot
         ctx.beginPath();
         ctx.arc(drawX, drawY, p.r * 0.6, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(228, 206, 156, ${alpha})`;
+        ctx.fillStyle = `rgba(140, 160, 255, ${alpha})`;
         ctx.fill();
       }
     };

@@ -10,6 +10,9 @@ const STORAGE_KEYS = {
   alertNotifications: "spec_growth_alert_notifications",
   styleInteractions: "spec_growth_style_interactions",
   notifications: "spec_growth_notifications",
+  recentlyViewed: "spec_growth_recently_viewed",
+  quote: "spec_growth_quote",
+  quoteSettings: "spec_growth_quote_settings",
 };
 
 function readJson(key, fallback) {
@@ -277,6 +280,190 @@ export function normalizeSearchResult(result) {
     collection: result.collection,
     domain: result.domain,
   };
+}
+
+// ── Recently Viewed Products ────────────────────────────────
+
+export function getRecentlyViewed() {
+  return readJson(STORAGE_KEYS.recentlyViewed, []);
+}
+
+export function pushRecentlyViewed(product) {
+  if (!product?.id) return getRecentlyViewed();
+  const current = getRecentlyViewed().filter((entry) => entry.id !== product.id);
+  const entry = {
+    id: product.id,
+    product_name: product.product_name,
+    manufacturer_name: product.manufacturer_name,
+    image_url: product.image_url,
+    portal_url: product.portal_url,
+    material: product.material,
+    style: product.style,
+    collection: product.collection,
+    timestamp: new Date().toISOString(),
+  };
+  const next = [entry, ...current].slice(0, 10);
+  writeJson(STORAGE_KEYS.recentlyViewed, next);
+  return next;
+}
+
+// ── Quote Builder ────────────────────────────────────────────
+
+export function getQuote() {
+  return readJson(STORAGE_KEYS.quote, {
+    id: null,
+    name: "",
+    client_name: "",
+    designer_name: "",
+    rooms: [{ id: "room_default", name: "Living Room", items: [] }],
+    markup_percent: 0,
+    notes: "",
+    terms: "Prices valid for 30 days from quote date. Lead times are estimates and may vary. All items subject to availability.",
+    created_at: null,
+    updated_at: null,
+  });
+}
+
+export function saveQuote(quote) {
+  writeJson(STORAGE_KEYS.quote, { ...quote, updated_at: new Date().toISOString() });
+}
+
+export function addToQuote(product, roomId) {
+  const quote = getQuote();
+  if (!quote.id) {
+    quote.id = `quote_${Date.now()}`;
+    quote.created_at = new Date().toISOString();
+  }
+  // Find target room or use first
+  let room = quote.rooms.find(r => r.id === roomId) || quote.rooms[0];
+  if (!room) {
+    room = { id: "room_default", name: "Living Room", items: [] };
+    quote.rooms.push(room);
+  }
+  // Check if already in any room
+  for (const r of quote.rooms) {
+    if (r.items.some(i => i.id === product.id)) return { quote, added: false, alreadyExists: true };
+  }
+  room.items.push({
+    id: product.id,
+    product_name: product.product_name,
+    manufacturer_name: product.manufacturer_name,
+    image_url: product.image_url,
+    portal_url: product.portal_url,
+    retail_price: product.retail_price || null,
+    wholesale_price: product.wholesale_price || null,
+    material: product.material,
+    style: product.style,
+    sku: product.sku || "",
+    collection: product.collection || "",
+    dimensions: product.dimensions || null,
+    width: product.width || null,
+    depth: product.depth || null,
+    height: product.height || null,
+    description: product.description || product.snippet || "",
+    category: product.category || product.product_type || "",
+    vendor_id: product.vendor_id || "",
+    image_contain: product.image_contain || false,
+    quantity: 1,
+    notes: "",
+    added_at: new Date().toISOString(),
+  });
+  saveQuote(quote);
+  return { quote, added: true, alreadyExists: false };
+}
+
+export function removeFromQuote(productId) {
+  const quote = getQuote();
+  for (const room of quote.rooms) {
+    room.items = room.items.filter(i => i.id !== productId);
+  }
+  saveQuote(quote);
+  return quote;
+}
+
+export function updateQuoteItem(productId, updates) {
+  const quote = getQuote();
+  for (const room of quote.rooms) {
+    const item = room.items.find(i => i.id === productId);
+    if (item) Object.assign(item, updates);
+  }
+  saveQuote(quote);
+  return quote;
+}
+
+export function moveItemToRoom(productId, targetRoomId) {
+  const quote = getQuote();
+  let movedItem = null;
+  for (const room of quote.rooms) {
+    const idx = room.items.findIndex(i => i.id === productId);
+    if (idx !== -1) {
+      movedItem = room.items.splice(idx, 1)[0];
+      break;
+    }
+  }
+  if (movedItem) {
+    const target = quote.rooms.find(r => r.id === targetRoomId);
+    if (target) target.items.push(movedItem);
+  }
+  saveQuote(quote);
+  return quote;
+}
+
+export function addQuoteRoom(name) {
+  const quote = getQuote();
+  if (!quote.id) {
+    quote.id = `quote_${Date.now()}`;
+    quote.created_at = new Date().toISOString();
+  }
+  const room = {
+    id: `room_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: name || "New Room",
+    items: [],
+  };
+  quote.rooms.push(room);
+  saveQuote(quote);
+  return { quote, room };
+}
+
+export function removeQuoteRoom(roomId) {
+  const quote = getQuote();
+  quote.rooms = quote.rooms.filter(r => r.id !== roomId);
+  if (quote.rooms.length === 0) {
+    quote.rooms.push({ id: "room_default", name: "Living Room", items: [] });
+  }
+  saveQuote(quote);
+  return quote;
+}
+
+export function renameQuoteRoom(roomId, name) {
+  const quote = getQuote();
+  const room = quote.rooms.find(r => r.id === roomId);
+  if (room) room.name = name;
+  saveQuote(quote);
+  return quote;
+}
+
+export function getQuoteItemCount() {
+  const quote = getQuote();
+  return quote.rooms.reduce((sum, r) => sum + r.items.length, 0);
+}
+
+export function clearQuote() {
+  writeJson(STORAGE_KEYS.quote, null);
+}
+
+export function getQuoteSettings() {
+  return readJson(STORAGE_KEYS.quoteSettings, {
+    designer_name: "",
+    business_name: "",
+    email: "",
+    phone: "",
+    accent_color: "#C9A96E",
+  });
+}
+
+export function saveQuoteSettings(settings) {
+  writeJson(STORAGE_KEYS.quoteSettings, settings);
 }
 
 export function normalizeProduct(product) {

@@ -149,6 +149,7 @@ function mapShopifyProduct(sp, vendor) {
     style: null,
     color: variant?.title !== "Default Title" ? variant?.title : null,
     image_url: image?.src || null,
+    images: (sp.images || []).map(i => i.src).filter(Boolean).slice(0, 20),
     product_url: `https://${vendor.domain}/products/${sp.handle}`,
     description: stripHtml(sp.body_html || ""),
     retail_price: variant?.price ? parseFloat(variant.price) : null,

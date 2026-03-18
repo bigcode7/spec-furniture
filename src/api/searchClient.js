@@ -2,6 +2,21 @@ import { base44 } from "@/api/base44Client";
 
 const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL;
 
+export async function smartSearch(conversation) {
+  if (!externalSearchServiceUrl) throw new Error("Search service not configured");
+  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ conversation }),
+  });
+  if (!response.ok) throw new Error(`smart search error: ${response.status}`);
+  const data = await response.json();
+  return {
+    ...data,
+    products: Array.isArray(data.products) ? data.products.map(normalizeStandaloneResult) : [],
+  };
+}
+
 export async function searchProducts(query, options = {}) {
   if (externalSearchServiceUrl) {
     const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
@@ -87,6 +102,20 @@ function normalizeStandaloneResult(item) {
     fit_score: item.fit_score || null,
     material_badges: item.material_badges || [],
     dimensions: item.dimensions || null,
+    // AI visual tags
+    ai_visual_tags: item.ai_visual_tags || "",
+    // Extra fields for preview
+    color: item.color || null,
+    width: item.width || null,
+    depth: item.depth || null,
+    height: item.height || null,
+    category: item.category || null,
+    vendor_id: item.vendor_id || null,
+    description: item.description || null,
+    ingestion_source: item.ingestion_source || null,
+    created_at: item.created_at || null,
+    image_contain: item.image_contain || false,
+    images: (item.images || []).map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean),
   };
 }
 

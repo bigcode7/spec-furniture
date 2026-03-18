@@ -1,3 +1,22 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Load .env file if present
+const __server_dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.resolve(__server_dirname, "../.env");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
+  for (const line of envContent.split("\n")) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      const val = match[2].trim();
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
+
 import http from "node:http";
 import { readCatalog, readRuns, readVerifiedCatalog } from "./lib/store.mjs";
 import { searchCatalog } from "./lib/rank.mjs";
@@ -14,12 +33,19 @@ import { diversifyResults, getVendorDiversityStats } from "./lib/vendor-diversit
 import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl-scheduler.mjs";
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
 import { importFromCsv } from "./importers/csv-importer.mjs";
-import { buildAutocompleteIndex, autocompleteSearch, recordSearch } from "./lib/autocomplete-index.mjs";
-import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard } from "./lib/search-analytics.mjs";
+import { buildAutocompleteIndex, autocompleteSearch, smartAutocomplete, recordSearch } from "./lib/autocomplete-index.mjs";
+import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData } from "./lib/search-analytics.mjs";
 import { runImageVerification, getImageVerificationStatus, stopImageVerification } from "./jobs/image-verifier.mjs";
 import { runDeduplication, getDedupStatus } from "./jobs/dedup-job.mjs";
 import { runPhotoAnalysis, getPhotoAnalysisStatus, stopPhotoAnalysis } from "./jobs/photo-analyzer.mjs";
 import { runEnrichment, getEnrichmentStatus, stopEnrichment } from "./jobs/enrichment-job.mjs";
+import { runVisualTagger, getVisualTaggerStatus, stopVisualTagger } from "./jobs/visual-tagger.mjs";
+import { runImageFixer, getImageFixerStatus, stopImageFixer } from "./jobs/image-fixer.mjs";
+import { runDeepEnrichment, getDeepEnrichmentStatus, stopDeepEnrichment } from "./jobs/deep-enrichment-job.mjs";
+import { importBernhardt, getBernhardtStatus, stopBernhardt } from "./importers/bernhardt-importer.mjs";
+import { runCatalogCleanup, getCatalogCleanupStatus, stopCatalogCleanup } from "./jobs/catalog-cleanup-job.mjs";
+import { importMissingVendors, getMissingVendorsStatus, stopMissingVendors } from "./importers/missing-vendors-importer.mjs";
+import { importTheodoreAlexander, getTheodoreAlexanderStatus, stopTheodoreAlexander } from "./importers/theodore-alexander-importer.mjs";
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors } from "./lib/vector-store.mjs";
@@ -32,6 +58,8 @@ import { getMaterial, getAllMaterials, matchProductMaterial, checkMaterialSuitab
 import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, estimateFullCost, estimateCOMYardage, checkCOMAvailability } from "./lib/procurement-intel.mjs";
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp } from "./lib/ai-query-translator.mjs";
+import { askSearchBrain } from "./lib/search-brain.mjs";
+import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "127.0.0.1";
 const port = Number(process.env.SEARCH_SERVICE_PORT || 4310);
@@ -63,6 +91,15 @@ vectorIndexAll(getAllProducts()).then((stats) => {
 }).catch((err) => {
   console.error(`[server] Vector indexing failed: ${err.message}`);
 });
+
+// Initialize search enhancer (visual tag index, synonym expansion, collection/vendor profiles, click boosts)
+{
+  const clickData = getProductClickData();
+  initSearchEnhancer(getAllProducts(), {
+    productClicks: clickData.productClicks,
+    totalSearches: clickData.totalSearches,
+  });
+}
 
 const catalogDBInterface = {
   insertProducts: (products) => {
@@ -179,7 +216,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/vendors") {
-      return json(res, 200, { vendors: priorityVendors });
+      // Enrich vendor configs with product counts from catalog DB
+      const allProducts = getAllProducts();
+      const vendorCounts = {};
+      for (const p of allProducts) {
+        const vn = (p.vendor_name || p.manufacturer_name || "").toLowerCase();
+        vendorCounts[vn] = (vendorCounts[vn] || 0) + 1;
+      }
+      const enriched = priorityVendors.map(v => ({
+        ...v,
+        product_count: vendorCounts[v.name.toLowerCase()] || 0,
+        active_skus: vendorCounts[v.name.toLowerCase()] || 0,
+      }));
+      return json(res, 200, { vendors: enriched });
     }
 
     if (req.method === "GET" && req.url === "/catalog") {
@@ -425,6 +474,216 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { vendors: tradeVendors });
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // SMART SEARCH — Conversation-aware AI search
+    // One Haiku call per message with full conversation context.
+    // The AI sees everything and returns the perfect filter.
+    // ══════════════════════════════════════════════════════════════════
+    if (req.method === "POST" && req.url === "/smart-search") {
+      const body = await collectBody(req);
+      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
+
+      if (conversation.length === 0) {
+        return json(res, 400, { error: "conversation array required" });
+      }
+
+      const lastUserMsg = [...conversation].reverse().find(m => m.role === "user");
+      const queryText = lastUserMsg?.content || "";
+
+      // ── Step 1: Ask the AI brain to interpret the full conversation ──
+      const brain = await withTimeout(askSearchBrain(conversation), 10000, null);
+
+      if (!brain) {
+        // Fallback: basic keyword search with last user message
+        const results = searchCatalogDB(queryText, {}, 80);
+        const responseProducts = results.map(sanitizeSearchProduct);
+        return json(res, 200, {
+          products: responseProducts,
+          total: responseProducts.length,
+          assistant_message: `Found ${responseProducts.length} results for "${queryText}".`,
+          intent: { keywords: [queryText] },
+        });
+      }
+
+      // ── Step 2: Search the catalog using the AI's filters ──
+      const candidateMap = new Map();
+
+      // When specific vendors are requested, always load their full catalogs first
+      if (brain.vendor_ids?.length > 0) {
+        for (const vid of brain.vendor_ids) {
+          const vProducts = getProductsByVendor(vid);
+          for (const r of vProducts) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+      }
+
+      // Use AI's search_queries for smarter, multi-pronged search
+      const searchQueries = brain.search_queries?.length > 0
+        ? brain.search_queries
+        : (brain.keywords?.length > 0 ? brain.keywords : [queryText]);
+      for (const sq of [...new Set([...searchQueries, queryText])]) {
+        if (!sq || sq.length < 2) continue;
+        const sqResults = searchCatalogDB(sq, {}, 200);
+        for (const r of sqResults) {
+          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+        }
+      }
+
+      // Also search by category name
+      if (brain.category) {
+        const catQuery = brain.category.replace(/-/g, " ");
+        const catResults = searchCatalogDB(catQuery, {}, 200);
+        for (const r of catResults) {
+          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+        }
+      }
+
+      let results = Array.from(candidateMap.values());
+
+      // ── Step 3: Apply hard filters from the AI brain ──
+      // Vendor filter — always apply, never skip
+      if (brain.vendor_ids?.length > 0) {
+        const vidSet = new Set(brain.vendor_ids.map(v => v.toLowerCase()));
+        results = results.filter(p => vidSet.has((p.vendor_id || "").toLowerCase()));
+      }
+
+      // Category filter
+      if (brain.category) {
+        const cat = brain.category.toLowerCase().replace(/\s+/g, "-");
+        const catSingular = cat.replace(/s$/, "");
+        const catFiltered = results.filter(p => {
+          const pCat = (p.category || "").toLowerCase();
+          const pName = (p.product_name || "").toLowerCase();
+          return pCat.includes(catSingular) || pCat === cat || pName.includes(catSingular);
+        });
+        if (catFiltered.length > 0) results = catFiltered;
+      }
+
+      // Material filter — soft filter, boosts matching products but keeps others if too few match
+      if (brain.material) {
+        const mat = brain.material.toLowerCase();
+        const matWords = mat.split(/\s+/).filter(w => w.length > 2);
+        const matFiltered = results.filter(p => {
+          const text = `${p.material || ""} ${p.product_name || ""} ${p.description || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
+          return text.includes(mat) || matWords.every(w => text.includes(w));
+        });
+        // Only apply hard filter if enough results survive (at least 10% or 5 products)
+        if (matFiltered.length >= Math.min(5, results.length * 0.1)) {
+          results = matFiltered;
+        } else if (matFiltered.length > 0) {
+          // Boost matching products to the top but keep others
+          const matSet = new Set(matFiltered.map(p => p.id));
+          results.sort((a, b) => (matSet.has(b.id) ? 1 : 0) - (matSet.has(a.id) ? 1 : 0));
+        }
+      }
+
+      // Style filter — soft filter like material
+      if (brain.style) {
+        const sty = brain.style.toLowerCase();
+        const styFiltered = results.filter(p => {
+          const text = `${p.style || ""} ${p.product_name || ""} ${p.description || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
+          return text.includes(sty);
+        });
+        if (styFiltered.length >= Math.min(5, results.length * 0.1)) {
+          results = styFiltered;
+        } else if (styFiltered.length > 0) {
+          const stySet = new Set(styFiltered.map(p => p.id));
+          results.sort((a, b) => (stySet.has(b.id) ? 1 : 0) - (stySet.has(a.id) ? 1 : 0));
+        }
+      }
+
+      // Color filter — soft filter, boost matching but don't eliminate
+      if (brain.color) {
+        const col = brain.color.toLowerCase();
+        // Expand vague color terms
+        const colorExpansions = {
+          neutral: ["cream", "beige", "ivory", "oatmeal", "sand", "natural", "linen", "taupe", "tan", "white"],
+          warm: ["cognac", "camel", "rust", "terracotta", "amber", "gold", "warm"],
+          cool: ["gray", "silver", "slate", "charcoal", "cool"],
+          dark: ["black", "espresso", "ebony", "charcoal", "dark"],
+          light: ["white", "cream", "ivory", "light", "pale"],
+        };
+        const colorTerms = colorExpansions[col] || [col];
+        const colFiltered = results.filter(p => {
+          const text = `${p.color || ""} ${p.product_name || ""} ${p.material || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+          return colorTerms.some(c => text.includes(c));
+        });
+        if (colFiltered.length >= Math.min(5, results.length * 0.1)) {
+          results = colFiltered;
+        } else if (colFiltered.length > 0) {
+          const colSet = new Set(colFiltered.map(p => p.id));
+          results.sort((a, b) => (colSet.has(b.id) ? 1 : 0) - (colSet.has(a.id) ? 1 : 0));
+        }
+      }
+
+      // Price filter
+      if (brain.price_max) {
+        const pf = results.filter(p => (p.retail_price || 0) <= brain.price_max);
+        if (pf.length > 0) results = pf;
+      }
+      if (brain.price_min) {
+        const pf = results.filter(p => (p.retail_price || 0) >= brain.price_min);
+        if (pf.length > 0) results = pf;
+      }
+
+      // Exclude keywords
+      if (brain.exclude_keywords?.length > 0) {
+        const excludes = brain.exclude_keywords.map(k => k.toLowerCase());
+        results = results.filter(p => {
+          const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""}`.toLowerCase();
+          return !excludes.some(ex => text.includes(ex));
+        });
+      }
+
+      // ── Step 4: Score by keyword relevance ──
+      // Products matching MORE of the AI's keywords rank higher
+      const allTerms = [
+        ...(brain.keywords || []),
+        brain.category || "",
+        brain.material || "",
+        brain.style || "",
+        brain.color || "",
+      ].filter(Boolean).flatMap(k => k.toLowerCase().split(/\s+/)).filter(w => w.length > 2);
+      const uniqueTerms = [...new Set(allTerms)];
+
+      for (const p of results) {
+        const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.style || ""} ${p.color || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+        let matchCount = 0;
+        for (const term of uniqueTerms) {
+          if (text.includes(term)) matchCount++;
+        }
+        // Score: keyword match ratio (0-1) * 100 + quality_score for tiebreaking
+        p._relevance = (uniqueTerms.length > 0 ? (matchCount / uniqueTerms.length) : 0) * 100 + (p.quality_score || 0) * 0.01;
+      }
+      results.sort((a, b) => (b._relevance || 0) - (a._relevance || 0));
+
+      // Vendor diversity — if not locked to specific vendors, cap per vendor
+      if (!brain.vendor_ids || brain.vendor_ids.length === 0) {
+        const diversified = diversifyResults(results, {
+          maxPerVendor: 8,
+          topSlice: 40,
+          totalLimit: 80,
+          queryTerms: queryText.toLowerCase().split(/\s+/),
+        });
+        results = diversified;
+      }
+
+      const responseProducts = results.slice(0, 80).map(sanitizeSearchProduct);
+
+      return json(res, 200, {
+        products: responseProducts,
+        total: responseProducts.length,
+        assistant_message: brain.response || brain.summary || `Found ${responseProducts.length} results.`,
+        intent: brain,
+        diagnostics: {
+          brain_reasoning: brain.reasoning,
+          is_new_search: brain.is_new_search,
+          candidates_before_filter: candidateMap.size,
+        },
+      });
+    }
+
     if (req.method === "POST" && req.url === "/search") {
       const body = await collectBody(req);
       const query = String(body.query || "").trim();
@@ -548,17 +807,62 @@ const server = http.createServer(async (req, res) => {
           }
         }
 
+        // ── VISUAL TAG CROSS-MATCHING: Find products by visual tag synonyms ──
+        // Expands each keyword through the synonym map and finds products via the visual tag reverse index
+        const expandedKeywords = expandAllSynonyms(keywords);
+        for (const expanded of expandedKeywords) {
+          const tagMatches = findProductsBySynonymExpansion(expanded);
+          for (const pid of tagMatches) {
+            if (!candidateMap.has(pid)) {
+              const product = getProduct(pid);
+              if (product) candidateMap.set(pid, product);
+            }
+          }
+        }
+
         let candidates = Array.from(candidateMap.values());
-        console.log(`[search] AI filter for "${query}": ${candidates.length} candidates, filter=${JSON.stringify({ category: aiFilter.category, categories: aiFilter.categories, vendor: aiFilter.vendor, vendors: aiFilter.vendors, style: aiFilter.style, material: aiFilter.material, collection: aiFilter.collection, dimensions: aiFilter.dimensions, exclude_terms: aiFilter.exclude_terms })}`);
+        console.log(`[search] AI filter for "${query}": ${candidates.length} candidates (incl visual tag matches), filter=${JSON.stringify({ category: aiFilter.category, categories: aiFilter.categories, vendor: aiFilter.vendor, vendors: aiFilter.vendors, style: aiFilter.style, material: aiFilter.material, collection: aiFilter.collection, dimensions: aiFilter.dimensions, exclude_terms: aiFilter.exclude_terms })}`);
 
         // Apply AI filter (hard category + exclude + vendor + dimensions + material + scoring)
+        // Pass original query for vibe expansion
+        aiFilter._original_query = query;
         filteredResults = applyAIFilter(candidates, aiFilter);
+
+        // ── SEARCH ENHANCER: Apply all 6 zero-cost improvements ──
+        const vendorMatchScores = getMatchingVendors(keywords);
+        for (const p of filteredResults) {
+          const enhancedBonus = computeEnhancedScore(p, keywords, vendorMatchScores);
+          const baseScore = p._ai_score || 0;
+          p._ai_score = baseScore + enhancedBonus;
+          p._enhanced_bonus = enhancedBonus;
+        }
+
+        // Re-sort after enhanced scoring
+        filteredResults.sort((a, b) => (b._ai_score || 0) - (a._ai_score || 0));
+
         // Propagate AI score to relevance_score so downstream sorting uses it
         for (const p of filteredResults) {
           if (typeof p._ai_score === "number") {
             p.relevance_score = p._ai_score;
           }
         }
+        // ── HYBRID SEARCH: Merge keyword results with vector semantic results ──
+        try {
+          filteredResults = await hybridSearch(query, filteredResults, {
+            limit: 300,
+            vectorWeight: 0.5,
+            keywordWeight: 0.5,
+            getProduct,
+          });
+          const semanticOnly = filteredResults.filter(p => p._search_method === "semantic").length;
+          const hybridCount = filteredResults.filter(p => p._search_method === "hybrid").length;
+          if (semanticOnly > 0 || hybridCount > 0) {
+            console.log(`[search] Hybrid merge: ${hybridCount} in both, ${semanticOnly} semantic-only added`);
+          }
+        } catch (err) {
+          console.error(`[search] Hybrid search failed, using keyword-only:`, err.message);
+        }
+
         filteredResults = dedupeProducts(filteredResults);
         totalBeforeExclude = filteredResults.length;
 
@@ -1470,8 +1774,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/autocomplete") {
       const body = await collectBody(req);
       const query = String(body.query || body.partial || "").trim();
-      if (!query || query.length < 2) return json(res, 200, { suggestions: [] });
-      const results = autocompleteSearch(query, 8);
+      if (!query || query.length < 2) return json(res, 200, { suggestions: [], details: [] });
+      const results = smartAutocomplete(query, 8);
       return json(res, 200, { suggestions: results.map(r => r.text), details: results });
     }
 
@@ -1506,7 +1810,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── BACKGROUND JOBS ──
     if (req.method === "POST" && req.url === "/jobs/verify-images") {
-      runImageVerification(catalogDBInterface).catch(err => console.error("[image-verifier] Error:", err.message));
+      runImageVerification(catalogDBInterface, { cacheImages: false, batchSize: 25, delayMs: 200 }).catch(err => console.error("[image-verifier] Error:", err.message));
       return json(res, 202, { ok: true, message: "Image verification job started. Poll GET /jobs/status for progress." });
     }
 
@@ -1548,12 +1852,199 @@ const server = http.createServer(async (req, res) => {
       return json(res, 202, { ok: true, message: "Photo analysis job started. Poll GET /jobs/status for progress." });
     }
 
+    // ── Visual Tagger ──
+    if (req.method === "POST" && req.url === "/admin/visual-tagger/start") {
+      const body = await collectBody(req);
+      const opts = {
+        vendors: Array.isArray(body.vendors) ? body.vendors : undefined,
+        batchSize: Number(body.batch_size) || undefined,
+        delayMs: Number(body.delay_ms) || undefined,
+        maxProducts: Number(body.max_products) || undefined,
+        dryRun: body.dry_run === true,
+        skipTagged: body.skip_tagged !== false,
+      };
+      runVisualTagger(catalogDBInterface, opts).then(() => {
+        clearSearchCache();
+        console.log("[visual-tagger] Search cache cleared, visual tags now searchable");
+      }).catch(err => console.error("[visual-tagger] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Visual tagger job started.", status_url: "/admin/visual-tagger/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/visual-tagger/status") {
+      return json(res, 200, getVisualTaggerStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/visual-tagger/stop") {
+      stopVisualTagger();
+      return json(res, 200, { ok: true, message: "Visual tagger stop requested." });
+    }
+
+    // ── Image Fixer ──
+    if (req.method === "POST" && req.url === "/admin/image-fixer/start") {
+      const body = await collectBody(req);
+      runImageFixer(catalogDBInterface, {
+        dryRun: body.dry_run || false,
+        batchSize: body.batch_size || 10,
+        delayMs: body.delay_ms || 500,
+        vendorFilter: body.vendor_filter || null,
+      }).then(() => {
+        clearSearchCache();
+        console.log("[image-fixer] Search cache cleared after image fixes");
+      }).catch(err => console.error("[image-fixer] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Image fixer started.", status_url: "/admin/image-fixer/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/image-fixer/status") {
+      return json(res, 200, getImageFixerStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/image-fixer/stop") {
+      stopImageFixer();
+      return json(res, 200, { ok: true, message: "Image fixer stop requested." });
+    }
+
+    // Dry-run scan only (fast, no changes)
+    if (req.method === "POST" && req.url === "/admin/image-fixer/scan") {
+      const body = await collectBody(req);
+      runImageFixer(catalogDBInterface, {
+        dryRun: true,
+        vendorFilter: body.vendor_filter || null,
+      }).catch(err => console.error("[image-fixer] Scan error:", err.message));
+      return json(res, 202, { ok: true, message: "Image scan started (dry run).", status_url: "/admin/image-fixer/status" });
+    }
+
+    // ── Bernhardt Importer ──
+    if (req.method === "POST" && req.url === "/admin/bernhardt/start") {
+      const body = await collectBody(req);
+      importBernhardt(catalogDBInterface, {
+        enrichDetails: body.enrich_details !== false,
+        batchSize: body.batch_size || 3,
+        delayMs: body.delay_ms || 1000,
+      }).then(() => {
+        clearSearchCache();
+        console.log("[bernhardt] Search cache cleared");
+      }).catch(err => console.error("[bernhardt] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Bernhardt import started.", status_url: "/admin/bernhardt/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/bernhardt/status") {
+      return json(res, 200, getBernhardtStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/bernhardt/stop") {
+      stopBernhardt();
+      return json(res, 200, { ok: true, message: "Bernhardt import stop requested." });
+    }
+
+    // ── Cleanup bad enrichment data ──
+    if (req.method === "POST" && req.url === "/admin/deep-enrichment/cleanup") {
+      let cleaned = 0;
+      for (const product of getAllProducts()) {
+        if (product.page_status === 200 && product.dimensions && /cssanimation|borderradius|boxshadow/i.test(product.dimensions)) {
+          updateProductDirect(product.id, {
+            dimensions: null, width: null, depth: null, height: null,
+            material: null, frame_material: null, fill_type: null, spring_system: null,
+            leg_finish: null, top_material: null, wood_species: null, metal_finish: null,
+            features: null, style: null, style_tags: null, room_types: null,
+            seat_height: null, seat_depth: null, arm_height: null,
+            page_status: null, last_crawled_at: null,
+          });
+          cleaned++;
+        }
+      }
+      clearSearchCache();
+      return json(res, 200, { ok: true, cleaned });
+    }
+
+    // ── Deep Enrichment ──
+    if (req.method === "POST" && req.url === "/admin/deep-enrichment/start") {
+      const body = await collectBody(req);
+      runDeepEnrichment(catalogDBInterface, {
+        batchSize: body.batch_size || 5,
+        delayMs: body.delay_ms || 800,
+        vendorFilter: body.vendor_filter || null,
+      }).then(() => {
+        clearSearchCache();
+        console.log("[deep-enrichment] Search cache cleared after enrichment");
+      }).catch(err => console.error("[deep-enrichment] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Deep enrichment started.", status_url: "/admin/deep-enrichment/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/deep-enrichment/status") {
+      return json(res, 200, getDeepEnrichmentStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/deep-enrichment/stop") {
+      stopDeepEnrichment();
+      return json(res, 200, { ok: true, message: "Deep enrichment stop requested." });
+    }
+
+    // ── Catalog Cleanup endpoints ────────────────────────
+    if (req.method === "POST" && req.url === "/admin/catalog-cleanup/start") {
+      const body = await collectBody(req);
+      const options = {
+        checkImageUrls: body?.checkImageUrls ?? true,
+        httpCheckSample: body?.httpCheckSample ?? 2000,
+      };
+      runCatalogCleanup(catalogDBInterface, options).catch(err =>
+        console.error("[catalog-cleanup] Error:", err)
+      );
+      return json(res, 202, { ok: true, message: "Catalog cleanup started.", status_url: "/admin/catalog-cleanup/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/catalog-cleanup/status") {
+      return json(res, 200, getCatalogCleanupStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/catalog-cleanup/stop") {
+      stopCatalogCleanup();
+      return json(res, 200, { ok: true, message: "Catalog cleanup stop requested." });
+    }
+
+    // ── Missing Vendors Import endpoints ──────────────
+    if (req.method === "POST" && req.url === "/admin/missing-vendors/start") {
+      importMissingVendors(catalogDBInterface).catch(err =>
+        console.error("[missing-vendors] Error:", err)
+      );
+      return json(res, 202, { ok: true, message: "Missing vendors import started.", status_url: "/admin/missing-vendors/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/missing-vendors/status") {
+      return json(res, 200, getMissingVendorsStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/missing-vendors/stop") {
+      stopMissingVendors();
+      return json(res, 200, { ok: true, message: "Missing vendors import stop requested." });
+    }
+
+    // ── Theodore Alexander Import endpoints ──────────────
+    if (req.method === "POST" && req.url === "/admin/theodore-alexander/start") {
+      importTheodoreAlexander(catalogDBInterface).catch(err =>
+        console.error("[theodore-alexander] Error:", err)
+      );
+      return json(res, 202, { ok: true, message: "Theodore Alexander import started.", status_url: "/admin/theodore-alexander/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/theodore-alexander/status") {
+      return json(res, 200, getTheodoreAlexanderStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/theodore-alexander/stop") {
+      stopTheodoreAlexander();
+      return json(res, 200, { ok: true, message: "Theodore Alexander import stop requested." });
+    }
+
     if (req.method === "GET" && req.url === "/jobs/status") {
       return json(res, 200, {
         image_verification: getImageVerificationStatus(),
         deduplication: getDedupStatus(),
         enrichment: getEnrichmentStatus(),
         photo_analysis: getPhotoAnalysisStatus(),
+        visual_tagger: getVisualTaggerStatus(),
+        image_fixer: getImageFixerStatus(),
+        deep_enrichment: getDeepEnrichmentStatus(),
+        catalog_cleanup: getCatalogCleanupStatus(),
       });
     }
 
@@ -1561,6 +2052,7 @@ const server = http.createServer(async (req, res) => {
       stopImageVerification();
       stopEnrichment();
       stopPhotoAnalysis();
+      stopVisualTagger();
       return json(res, 200, { ok: true, message: "Stop signals sent to running jobs." });
     }
 
@@ -2582,9 +3074,14 @@ function sanitizeSearchProduct(product) {
     image_url: isAiDiscovery ? (product.image_url || null)
       : isLive ? (product.image_verified ? product.image_url : null)
       : (product.image_url || null),
+    images: Array.isArray(product.images) && product.images.length > 0
+      ? product.images.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean)
+      : (product.image_url ? [product.image_url] : []),
     product_url: isAiDiscovery ? (product.product_url || null)
       : isLive ? (product.product_url_verified ? product.product_url : null)
       : (product.product_url || null),
     retrieval_quality_score: Number(product.retrieval_quality_score || 0),
+    // Flag products with broken/missing images so frontend can show placeholder
+    image_available: hasValidProductImage(product.image_url),
   };
 }

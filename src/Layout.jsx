@@ -1,13 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles, FileText } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useState, useEffect, useRef } from "react";
 import CommandPalette from "@/components/CommandPalette";
 import SpecChat from "@/components/SpecChat";
 import AlertBell from "@/components/AlertBell";
 import NotificationCenter from "@/components/NotificationCenter";
+import QuotePanel from "@/components/QuotePanel";
+import { getQuoteItemCount } from "@/lib/growth-store";
+
+const EASE = [0.22, 1, 0.36, 1];
 
 const PRIMARY_NAV = [
   { label: "Home", path: "Dashboard", icon: Home },
@@ -22,15 +26,55 @@ const MORE_NAV = [
   { label: "Vendor Portal", path: "VendorDashboard", icon: BarChart3 },
 ];
 
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 50, restDelta: 0.001 });
+  return (
+    <motion.div
+      className="scroll-progress"
+      style={{ scaleX, width: "100%" }}
+    />
+  );
+}
+
+// ── App-wide gradient atmosphere ──
+function AppAtmosphere() {
+  return (
+    <div className="app-atmosphere">
+      <div className="glow glow-1" />
+      <div className="glow glow-2" />
+      <div className="glow glow-3" />
+    </div>
+  );
+}
+
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteCount, setQuoteCount] = useState(0);
   const moreRef = useRef(null);
   const location = useLocation();
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
+  }, []);
+
+  // Track quote item count — refresh on storage events and periodically
+  useEffect(() => {
+    setQuoteCount(getQuoteItemCount());
+    const onStorage = (e) => {
+      if (e.key === "spec_growth_quote") setQuoteCount(getQuoteItemCount());
+    };
+    window.addEventListener("storage", onStorage);
+    // Also listen for custom event dispatched when quote changes within same tab
+    const onQuoteChange = () => setQuoteCount(getQuoteItemCount());
+    window.addEventListener("spec-quote-change", onQuoteChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("spec-quote-change", onQuoteChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -65,6 +109,9 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen text-white">
+      {/* Living gradient atmosphere on every page */}
+      <AppAtmosphere />
+
       <header className="glass-header sticky top-0 z-40">
         <div className="page-wrap">
           <div className="flex h-14 items-center justify-between gap-4">
@@ -85,7 +132,7 @@ export default function Layout({ children, currentPageName }) {
                     key={item.path}
                     to={createPageUrl(item.path)}
                     className={`relative inline-flex items-center gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors ${
-                      active ? "text-gold" : "text-white/35 hover:text-white/60"
+                      active ? "text-white" : "text-white/35 hover:text-white/60"
                     }`}
                   >
                     {item.label}
@@ -95,7 +142,7 @@ export default function Layout({ children, currentPageName }) {
                         className="absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full"
                         style={{
                           background: "var(--gold)",
-                          boxShadow: "0 2px 12px rgba(201,169,110,0.4)",
+                          boxShadow: "0 2px 12px rgba(79,107,255,0.4)",
                         }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
@@ -109,7 +156,7 @@ export default function Layout({ children, currentPageName }) {
                 <button
                   onClick={() => setMoreOpen(!moreOpen)}
                   className={`relative inline-flex items-center gap-1.5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors ${
-                    isMoreActive ? "text-gold" : "text-white/35 hover:text-white/60"
+                    isMoreActive ? "text-white" : "text-white/35 hover:text-white/60"
                   }`}
                 >
                   More
@@ -118,7 +165,7 @@ export default function Layout({ children, currentPageName }) {
                     <motion.div
                       layoutId="nav-indicator"
                       className="absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full"
-                      style={{ background: "var(--gold)", boxShadow: "0 2px 12px rgba(201,169,110,0.4)" }}
+                      style={{ background: "var(--gold)", boxShadow: "0 2px 12px rgba(79,107,255,0.4)" }}
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
@@ -126,11 +173,17 @@ export default function Layout({ children, currentPageName }) {
                 <AnimatePresence>
                   {moreOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      initial={{ opacity: 0, y: -4, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute left-0 top-full mt-2 w-52 glass-surface rounded-xl z-50 py-1.5 overflow-hidden"
+                      exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                      transition={{ duration: 0.2, ease: EASE }}
+                      className="absolute left-0 top-full mt-2 w-52 rounded-xl z-50 py-1.5 overflow-hidden"
+                      style={{
+                        background: "rgba(15, 17, 25, 0.9)",
+                        backdropFilter: "blur(24px)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        boxShadow: "0 16px 48px rgba(0,0,0,0.5), 0 0 1px rgba(255,255,255,0.1)",
+                      }}
                     >
                       {moreItems.map((item) => (
                         <Link
@@ -139,8 +192,8 @@ export default function Layout({ children, currentPageName }) {
                           onClick={() => setMoreOpen(false)}
                           className={`flex items-center gap-3 px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.1em] transition-all ${
                             currentPageName === item.path
-                              ? "text-gold bg-gold/5"
-                              : "text-white/40 hover:text-gold/80 hover:bg-gold/5"
+                              ? "text-white bg-gold/8"
+                              : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
                           }`}
                         >
                           <item.icon className="h-3.5 w-3.5 opacity-50" />
@@ -166,6 +219,27 @@ export default function Layout({ children, currentPageName }) {
                 </kbd>
               </button>
 
+              {/* Quote counter */}
+              <button
+                onClick={() => setQuoteOpen(true)}
+                className="relative flex h-8 items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] px-3 text-xs transition-all hover:border-gold/20 hover:bg-white/[0.06]"
+                title="Quote Builder"
+              >
+                <FileText className="h-3.5 w-3.5 text-white/30" />
+                {quoteCount > 0 ? (
+                  <>
+                    <span className="text-white/50">Quote</span>
+                    <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1"
+                      style={{ background: "rgba(201,169,110,0.25)", color: "#C9A96E" }}
+                    >
+                      {quoteCount}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-white/25">Quote</span>
+                )}
+              </button>
+
               <NotificationCenter />
               <AlertBell />
 
@@ -174,9 +248,9 @@ export default function Layout({ children, currentPageName }) {
                   <div
                     className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white/80"
                     style={{
-                      background: "rgba(201,169,110,0.15)",
-                      border: "1px solid rgba(201,169,110,0.25)",
-                      boxShadow: "0 0 12px rgba(201,169,110,0.1)",
+                      background: "rgba(79,107,255,0.15)",
+                      border: "1px solid rgba(79,107,255,0.25)",
+                      boxShadow: "0 0 12px rgba(79,107,255,0.1)",
                     }}
                   >
                     {(user.full_name || user.email || "U")[0].toUpperCase()}
@@ -195,14 +269,18 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
+      {/* Thin gradient separator below nav */}
+      <div className="nav-separator" />
+      <ScrollProgress />
+
       <main className="relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3, ease: EASE }}
           >
             {children}
           </motion.div>
@@ -211,6 +289,11 @@ export default function Layout({ children, currentPageName }) {
 
       <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
       <SpecChat />
+      <QuotePanel
+        open={quoteOpen}
+        onClose={() => setQuoteOpen(false)}
+        onCountChange={(count) => setQuoteCount(count)}
+      />
     </div>
   );
 }

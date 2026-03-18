@@ -383,8 +383,15 @@ function extractProductFromHtml(html, url, vendor) {
     product.material = ld.material || null;
     product.category = ld.category || null;
     if (ld.image) {
-      const img = Array.isArray(ld.image) ? ld.image[0] : (typeof ld.image === "object" ? ld.image.url : ld.image);
-      product.image_url = resolveUrl(img, vendor.domain);
+      const ldImages = Array.isArray(ld.image) ? ld.image : [ld.image];
+      const resolvedLdImages = ldImages
+        .map(i => typeof i === "object" ? i.url : i)
+        .map(i => resolveUrl(i, vendor.domain))
+        .filter(Boolean);
+      if (resolvedLdImages.length > 0) {
+        product.image_url = resolvedLdImages[0];
+        product._ld_images = resolvedLdImages;
+      }
     }
     if (ld.offers) {
       const offers = Array.isArray(ld.offers) ? ld.offers[0] : ld.offers;
@@ -433,18 +440,57 @@ function extractProductFromHtml(html, url, vendor) {
     }
   }
 
-  // ── Image fallback ──
-  if (!product.image_url) {
-    const imgHints = vendor.profile?.image_path_hints || ["/products/", "/images/", "/media/"];
-    const imgPattern = /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi;
-    let im;
-    while ((im = imgPattern.exec(html)) !== null) {
-      if (imgHints.some((h) => im[1].includes(h))) {
-        product.image_url = resolveUrl(im[1], vendor.domain);
-        break;
-      }
+  // ── Collect ALL product images from HTML ──
+  const allHtmlImages = [];
+  const imgHints = vendor.profile?.image_path_hints || ["/products/", "/images/", "/media/"];
+  const imgPattern = /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi;
+  const seenSrcs = new Set();
+  let im;
+  while ((im = imgPattern.exec(html)) !== null) {
+    const src = resolveUrl(im[1], vendor.domain);
+    if (src && !seenSrcs.has(src) && imgHints.some((h) => src.includes(h))) {
+      seenSrcs.add(src);
+      allHtmlImages.push(src);
     }
   }
+
+  // Also grab og:image tags (some pages have multiple)
+  const ogPattern = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi;
+  let og;
+  while ((og = ogPattern.exec(html)) !== null) {
+    const src = resolveUrl(og[1], vendor.domain);
+    if (src && !seenSrcs.has(src)) {
+      seenSrcs.add(src);
+      allHtmlImages.push(src);
+    }
+  }
+
+  // Image fallback for primary
+  if (!product.image_url && allHtmlImages.length > 0) {
+    product.image_url = allHtmlImages[0];
+  }
+
+  // ── Assemble images array: LD images first, then HTML images, deduped ──
+  const finalImages = [];
+  const finalSeen = new Set();
+  for (const src of [...(product._ld_images || []), ...allHtmlImages]) {
+    if (!finalSeen.has(src)) {
+      finalSeen.add(src);
+      finalImages.push(src);
+    }
+  }
+  // Ensure primary image_url is first
+  if (product.image_url && !finalSeen.has(product.image_url)) {
+    finalImages.unshift(product.image_url);
+  } else if (product.image_url && finalImages[0] !== product.image_url) {
+    const idx = finalImages.indexOf(product.image_url);
+    if (idx > 0) {
+      finalImages.splice(idx, 1);
+      finalImages.unshift(product.image_url);
+    }
+  }
+  product.images = finalImages.slice(0, 20); // cap at 20 images
+  delete product._ld_images;
 
   // ── Price fallback ──
   if (!product.retail_price) {

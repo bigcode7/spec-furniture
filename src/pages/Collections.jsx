@@ -306,7 +306,7 @@ export default function Collections() {
   // --- DETAIL VIEW ---
   if (isDetail) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] text-white">
+      <div className="min-h-screen bg-[#08090E] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back button */}
           <motion.button
@@ -420,7 +420,7 @@ export default function Collections() {
 
   // --- COLLECTION LIST VIEW ---
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-screen bg-[#08090E] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div

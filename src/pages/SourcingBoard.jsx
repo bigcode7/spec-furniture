@@ -1,66 +1,120 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
-  FolderKanban,
-  Package,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  Users,
-  Share2,
-  Palette,
-  Loader2,
-  Search,
-  ImageOff,
-  ChevronRight,
-  X,
-  AlertTriangle,
-  Sparkles,
-  Building2,
+  FolderKanban, Package, CheckCircle, Search, ImageOff, X, Sparkles, Building2,
+  Plus, Loader2, Users, Palette, DollarSign, ArrowRight, ExternalLink,
+  RefreshCw, Trash2, ChevronDown, ChevronUp, Send, MessageSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310").replace(/\/$/, "");
-
-const STATUS_CONFIG = {
-  sourcing: { color: "bg-gold/10 text-gold/70 border-gold/20", label: "Needs Sourcing", icon: Search },
-  "options-ready": { color: "bg-amber-500/20 text-amber-400 border-amber-500/30", label: "Options Ready", icon: Package },
-  selected: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Selected", icon: CheckCircle },
-  ordered: { color: "bg-purple-500/20 text-purple-400 border-purple-500/30", label: "Ordered", icon: Clock },
-  delivered: { color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Delivered", icon: CheckCircle },
-};
-
-const PRIORITY_CONFIG = {
-  high: "bg-red-500/20 text-red-400 border-red-500/30",
-  medium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  low: "bg-white/[0.05] text-white/50 border-white/[0.06]",
-};
-
-function formatRoomType(type) {
-  return (type || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatStyle(style) {
-  return (style || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount || 0);
 }
 
-function ProductOptionCard({ product, onSelect }) {
-  const [imgError, setImgError] = useState(false);
+function formatRoomType(type) {
+  return (type || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ── Product Slot: Empty State ──
+
+function EmptyProductSlot({ item, projectId, roomId, projectStyle, onUpdate }) {
+  const [loading, setLoading] = useState(false);
+
+  const searchQuery = encodeURIComponent(
+    `${projectStyle || ""} ${item.name || item.category || ""}`.trim()
+  );
+
+  const handleAutoSource = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${roomId}/auto-source`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_id: item.id }),
+      });
+      if (res.ok) onUpdate();
+    } catch { /* */ }
+    setLoading(false);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="shrink-0 w-52 border border-white/[0.06] glass-surface rounded-xl overflow-hidden"
+      className="group relative rounded-xl border-2 border-dashed border-white/[0.06] hover:border-gold/30 bg-white/[0.02] hover:bg-gold/[0.03] transition-all overflow-hidden"
     >
-      <div className="w-full h-32 bg-white/[0.03] flex items-center justify-center">
+      <div className="aspect-square flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-10 h-10 rounded-xl bg-white/[0.04] group-hover:bg-gold/10 flex items-center justify-center mb-3 transition-colors">
+          <Plus className="w-5 h-5 text-white/20 group-hover:text-gold transition-colors" />
+        </div>
+        <p className="text-sm font-medium text-white/40 group-hover:text-white/70 transition-colors mb-0.5">
+          {item.name || item.category || "Item"}
+        </p>
+        {item.quantity > 1 && (
+          <p className="text-[10px] text-white/25">Qty: {item.quantity}</p>
+        )}
+      </div>
+
+      {/* Action buttons on hover */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-[#08090E]/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1.5">
+          <Link
+            to={`${createPageUrl("Search")}?q=${searchQuery}`}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gold/20 hover:bg-gold/30 text-gold text-xs font-medium transition-colors"
+          >
+            <Search className="w-3 h-3" />
+            Find pieces
+          </Link>
+          <button
+            onClick={handleAutoSource}
+            disabled={loading}
+            className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white/50 text-xs transition-colors"
+          >
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Product Slot: Filled State ──
+
+function FilledProductSlot({ item, projectId, roomId, onUpdate }) {
+  const [imgError, setImgError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const product = item.selected_product;
+
+  const handleRemove = async () => {
+    try {
+      await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${roomId}/items/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selected_product: null, status: "sourcing" }),
+      });
+      onUpdate();
+    } catch { /* */ }
+  };
+
+  const handleFindSimilar = () => {
+    const q = encodeURIComponent(product.name || item.name);
+    window.location.href = `${createPageUrl("Search")}?q=${q}`;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="group relative rounded-xl border border-gold/20 bg-gold/[0.03] overflow-hidden transition-all hover:border-gold/40"
+    >
+      {/* Product image */}
+      <div className="aspect-square bg-white/[0.03] relative overflow-hidden">
         {product.image_url && !imgError ? (
           <img
             src={product.image_url}
@@ -69,315 +123,318 @@ function ProductOptionCard({ product, onSelect }) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <ImageOff className="w-8 h-8 text-white/20" />
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageOff className="w-8 h-8 text-white/15" />
+          </div>
         )}
+
+        {/* Gold selected indicator */}
+        <div className="absolute top-2 right-2">
+          <div className="w-6 h-6 rounded-full bg-gold/90 flex items-center justify-center shadow-lg">
+            <CheckCircle className="w-3.5 h-3.5 text-black" />
+          </div>
+        </div>
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <button
+            onClick={handleFindSimilar}
+            className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
+          >
+            <RefreshCw className="w-3 h-3 inline mr-1" />
+            Swap
+          </button>
+          <button
+            onClick={handleRemove}
+            className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-red-500/30 text-white text-xs font-medium transition-colors"
+          >
+            <Trash2 className="w-3 h-3 inline mr-1" />
+            Remove
+          </button>
+          {product.portal_url && (
+            <a
+              href={product.portal_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
       </div>
+
+      {/* Product info */}
       <div className="p-3">
         <p className="text-sm font-medium text-white truncate">{product.name}</p>
         <p className="text-xs text-white/40 truncate">{product.vendor}</p>
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-sm font-semibold text-white">{formatCurrency(product.price)}</span>
-          <Button
-            size="sm"
-            onClick={() => onSelect(product)}
-            className="bg-white/10 hover:bg-white/20 text-white text-xs px-2.5 py-1 h-auto rounded-lg"
-          >
-            Select
-          </Button>
-        </div>
+        {product.price > 0 && (
+          <p className="text-sm font-semibold text-gold mt-1">{formatCurrency(product.price)}</p>
+        )}
+      </div>
+
+      {/* Category label */}
+      <div className="absolute top-2 left-2">
+        <span className="px-2 py-0.5 rounded-md bg-black/50 backdrop-blur-sm text-[10px] text-white/60 font-medium">
+          {item.name || item.category}
+        </span>
       </div>
     </motion.div>
   );
 }
 
-function SelectedProductCard({ product, onChangeClick }) {
-  const [imgError, setImgError] = useState(false);
-  return (
-    <div className="flex items-center gap-3 p-3 border border-gold/20 bg-gold/[0.05] rounded-xl">
-      <div className="w-16 h-16 rounded-lg bg-white/[0.03] flex items-center justify-center shrink-0 overflow-hidden">
-        {product.image_url && !imgError ? (
-          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
-        ) : (
-          <ImageOff className="w-5 h-5 text-white/20" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{product.name}</p>
-        <p className="text-xs text-white/40">{product.vendor} &middot; {formatCurrency(product.price)}</p>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onChangeClick}
-        className="border-white/[0.06] text-white/60 hover:text-white text-xs shrink-0"
-      >
-        Change
-      </Button>
-    </div>
-  );
-}
+// ── Room Section ──
 
-function OrderedProductCard({ product, item }) {
-  return (
-    <div className="flex items-center gap-3 p-3 border border-purple-500/20 bg-purple-500/[0.05] rounded-xl">
-      <Clock className="w-5 h-5 text-purple-400 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{product.name}</p>
-        <p className="text-xs text-white/40">
-          Ordered {item.order_date || "recently"} &middot; Lead time: {item.lead_time || "TBD"}
-        </p>
-      </div>
-      <span className="text-sm font-medium text-white/60">{formatCurrency(product.price)}</span>
-    </div>
-  );
-}
+function RoomSection({ room, projectId, projectStyle, onUpdate, defaultExpanded }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const items = room.items || [];
+  const sourcedCount = items.filter(i => i.selected_product).length;
+  const totalItems = items.length;
+  const progress = totalItems > 0 ? (sourcedCount / totalItems) * 100 : 0;
+  const [autoSourcing, setAutoSourcing] = useState(false);
 
-function DeliveredProductCard({ product }) {
-  return (
-    <div className="flex items-center gap-3 p-3 border border-emerald-500/20 bg-emerald-500/[0.05] rounded-xl">
-      <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{product.name}</p>
-        <p className="text-xs text-white/40">{product.vendor}</p>
-      </div>
-      <span className="text-sm font-medium text-white/60">{formatCurrency(product.price)}</span>
-    </div>
-  );
-}
-
-function FurnitureItemCard({ item, projectId, roomId, onUpdate }) {
-  const [sourcingLoading, setSourcingLoading] = useState(false);
-  const [selectingProduct, setSelectingProduct] = useState(null);
-  // scrollRef unused but available for horizontal scroll
-
-  const StatusIcon = STATUS_CONFIG[item.status]?.icon || Package;
-
-  const handleAutoSource = async () => {
-    setSourcingLoading(true);
+  const handleAutoSourceAll = async () => {
+    setAutoSourcing(true);
     try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${roomId}/auto-source`, {
+      await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${room.id}/auto-source`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: item.id }),
       });
-      if (!res.ok) throw new Error("Failed to auto-source");
-      const data = await res.json();
-      onUpdate(data);
-    } catch {
-      // silently fail
-    } finally {
-      setSourcingLoading(false);
-    }
-  };
-
-  const handleSelect = async (product) => {
-    setSelectingProduct(product.id || product.name);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${roomId}/items/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selected_product: product, status: "selected" }),
-      });
-      if (!res.ok) throw new Error("Failed to select product");
-      const data = await res.json();
-      onUpdate(data);
-    } catch {
-      // silently fail
-    } finally {
-      setSelectingProduct(null);
-    }
-  };
-
-  const handleChange = async () => {
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${roomId}/items/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selected_product: null, status: "sourcing" }),
-      });
-      if (!res.ok) throw new Error("Failed to reset");
-      const data = await res.json();
-      onUpdate(data);
-    } catch {
-      // silently fail
-    }
+      onUpdate();
+    } catch { /* */ }
+    setAutoSourcing(false);
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="border border-white/[0.06] glass-surface rounded-xl p-4"
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <StatusIcon className="w-4 h-4 text-white/40" />
-          <div>
-            <h4 className="text-sm font-medium text-white">{item.name}</h4>
-            {item.quantity > 1 && (
-              <span className="text-xs text-white/40">Qty: {item.quantity}</span>
-            )}
+    <div className="mb-6">
+      {/* Room header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 rounded-xl glass-surface hover:bg-white/[0.04] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gold/10 flex items-center justify-center">
+            <Building2 className="w-4.5 h-4.5 text-gold" />
+          </div>
+          <div className="text-left">
+            <h3 className="text-base font-display font-semibold text-white">
+              {room.name || formatRoomType(room.type)}
+            </h3>
+            <p className="text-xs text-white/40 mt-0.5">
+              {sourcedCount} of {totalItems} items sourced
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {item.priority && (
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${PRIORITY_CONFIG[item.priority] || PRIORITY_CONFIG.low}`}>
-              {item.priority}
-            </Badge>
-          )}
-          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_CONFIG[item.status]?.color || ""}`}>
-            {STATUS_CONFIG[item.status]?.label || item.status}
+
+        <div className="flex items-center gap-3">
+          {/* Progress bar */}
+          <div className="w-32 hidden sm:block">
+            <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.5 }}
+                className={`h-full rounded-full ${progress === 100 ? "bg-emerald-400" : "bg-gold"}`}
+              />
+            </div>
+          </div>
+
+          <Badge variant="outline" className={`text-xs px-2 py-0.5 ${
+            progress === 100 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+            progress > 50 ? "bg-gold/10 text-gold border-gold/20" :
+            "bg-white/[0.05] text-white/40 border-white/[0.06]"
+          }`}>
+            {Math.round(progress)}%
           </Badge>
-        </div>
-      </div>
 
-      {/* Content based on status */}
-      {item.status === "sourcing" && (
-        <div className="flex gap-2">
-          <Button
-            onClick={handleAutoSource}
-            disabled={sourcingLoading}
-            className="flex-1 btn-gold rounded-lg gap-2"
-            variant="ghost"
+          {expanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+        </div>
+      </button>
+
+      {/* Room content */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
           >
-            {sourcingLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Sourcing...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Auto-Source
-              </>
-            )}
-          </Button>
-          <Link
-            to={`${createPageUrl("Search")}?q=${encodeURIComponent(item.search_query || item.name)}`}
-            className="flex items-center gap-1.5 px-3 rounded-lg border border-white/[0.06] text-xs text-white/50 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
-          >
-            <Search className="w-3.5 h-3.5" />
-            Search
-          </Link>
-        </div>
-      )}
+            <div className="pt-4 px-1">
+              {/* Auto-source button for unsourced rooms */}
+              {sourcedCount < totalItems && (
+                <div className="mb-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutoSourceAll}
+                    disabled={autoSourcing}
+                    className="border-white/[0.06] text-white/50 hover:text-gold hover:border-gold/30 gap-1.5 text-xs"
+                  >
+                    {autoSourcing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    Auto-Source Remaining
+                  </Button>
+                </div>
+              )}
 
-      {item.status === "options-ready" && item.options && (
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin scrollbar-thumb-white/10">
-          {item.options.map((product, i) => (
-            <ProductOptionCard key={product.id || i} product={product} onSelect={handleSelect} />
-          ))}
-        </div>
-      )}
-
-      {item.status === "selected" && item.selected_product && (
-        <SelectedProductCard product={item.selected_product} onChangeClick={handleChange} />
-      )}
-
-      {item.status === "ordered" && item.selected_product && (
-        <OrderedProductCard product={item.selected_product} item={item} />
-      )}
-
-      {item.status === "delivered" && item.selected_product && (
-        <DeliveredProductCard product={item.selected_product} />
-      )}
-    </motion.div>
+              {/* Product slot grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {items.map((item) => (
+                  item.selected_product ? (
+                    <FilledProductSlot
+                      key={item.id}
+                      item={item}
+                      projectId={projectId}
+                      roomId={room.id}
+                      onUpdate={onUpdate}
+                    />
+                  ) : (
+                    <EmptyProductSlot
+                      key={item.id}
+                      item={item}
+                      projectId={projectId}
+                      roomId={room.id}
+                      projectStyle={projectStyle}
+                      onUpdate={onUpdate}
+                    />
+                  )
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
-function StyleCheckPanel({ data, onClose }) {
-  const scoreColor = data.score >= 80 ? "text-emerald-400" : data.score >= 60 ? "text-amber-400" : "text-red-400";
-  const scoreBg = data.score >= 80 ? "bg-emerald-500" : data.score >= 60 ? "bg-amber-500" : "bg-red-500";
+// ── AI Chat Sidebar ──
+
+function AIChatSidebar({ project, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const suggestions = [
+    "What coffee tables would pair with my sofa?",
+    "I'm over budget — suggest cheaper swaps",
+    `Show me ${project?.style?.replace(/-/g, " ") || "modern"} accent chairs`,
+    "What am I still missing?",
+  ];
+
+  const handleSend = async (text) => {
+    const msg = text || input.trim();
+    if (!msg) return;
+    setInput("");
+    setMessages(prev => [...prev, { role: "user", text: msg }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${SEARCH_URL}/ai/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: msg,
+          context: {
+            project_id: project?.id,
+            project_name: project?.name,
+            style: project?.style,
+            budget: project?.budget,
+            rooms: project?.rooms?.map(r => ({
+              type: r.type,
+              items: r.items?.map(i => ({
+                name: i.name,
+                selected: i.selected_product?.name,
+                vendor: i.selected_product?.vendor,
+              })),
+            })),
+          },
+        }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "ai", text: data.response || data.message || "I can help you with that." }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "ai", text: "Sorry, I couldn't process that request." }]);
+    }
+    setLoading(false);
+  };
 
   return (
-    <motion.div
-      initial={{ x: "100%" }}
-      animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed top-0 right-0 h-full w-full max-w-md z-50 border-l border-white/[0.06] glass-surface bg-[#0a0a0f]/95 backdrop-blur-xl overflow-y-auto"
-    >
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-display font-semibold text-white flex items-center gap-2">
-            <Palette className="w-5 h-5 text-gold" />
-            Style Coherence
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/[0.05] text-white/40 hover:text-white">
-            <X className="w-5 h-5" />
+    <div className="w-80 border-l border-white/[0.06] bg-white/[0.02] flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-gold" />
+          <span className="text-sm font-medium text-white">AI Assistant</span>
+        </div>
+        <button onClick={onClose} className="p-1 rounded hover:bg-white/[0.05] text-white/30 hover:text-white/60">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-white/30 mb-3">Try asking:</p>
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => handleSend(s)}
+                className="w-full text-left text-xs p-2.5 rounded-lg border border-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`text-sm ${msg.role === "user" ? "text-right" : ""}`}>
+            <div className={`inline-block max-w-[90%] px-3 py-2 rounded-xl ${
+              msg.role === "user"
+                ? "bg-gold/20 text-gold/90"
+                : "bg-white/[0.04] text-white/70 border border-white/[0.06]"
+            }`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex items-center gap-2 text-white/30 text-sm">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Thinking...
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="p-3 border-t border-white/[0.06]">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Ask about your project..."
+            className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-gold/30"
+          />
+          <button
+            onClick={() => handleSend()}
+            disabled={!input.trim() || loading}
+            className="px-3 py-2 rounded-lg bg-gold/20 hover:bg-gold/30 text-gold disabled:opacity-30 transition-colors"
+          >
+            <Send className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Score */}
-        <div className="text-center mb-8">
-          <div className={`text-5xl font-bold ${scoreColor} mb-1`}>{data.score}</div>
-          <p className="text-sm text-white/40">out of 100</p>
-          <div className="w-full h-2 bg-white/[0.05] rounded-full mt-4 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${data.score}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className={`h-full rounded-full ${scoreBg}`}
-            />
-          </div>
-        </div>
-
-        {/* Material Conflicts */}
-        {data.material_conflicts?.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-white/60 mb-3 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
-              Material Conflicts
-            </h3>
-            <div className="space-y-2">
-              {data.material_conflicts.map((conflict, i) => (
-                <div key={i} className="p-3 border border-amber-500/10 bg-amber-500/[0.03] rounded-lg text-sm text-white/70">
-                  {conflict}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Color Conflicts */}
-        {data.color_conflicts?.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-medium text-white/60 mb-3 flex items-center gap-2">
-              <Palette className="w-4 h-4 text-red-400" />
-              Color Conflicts
-            </h3>
-            <div className="space-y-2">
-              {data.color_conflicts.map((conflict, i) => (
-                <div key={i} className="p-3 border border-red-500/10 bg-red-500/[0.03] rounded-lg text-sm text-white/70">
-                  {conflict}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Suggestions */}
-        {data.suggestions?.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-white/60 mb-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              Suggestions
-            </h3>
-            <div className="space-y-2">
-              {data.suggestions.map((suggestion, i) => (
-                <div key={i} className="p-3 border border-emerald-500/10 bg-emerald-500/[0.03] rounded-lg text-sm text-white/70">
-                  {suggestion}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </motion.div>
+    </div>
   );
 }
+
+// ── Project List View (when no project selected) ──
 
 function ProjectListView() {
   const [projects, setProjects] = useState([]);
@@ -398,13 +455,12 @@ function ProjectListView() {
             <h1 className="text-2xl font-display font-semibold text-white">Sourcing Projects</h1>
             <p className="text-sm text-white/30 mt-1">{projects.length} projects</p>
           </div>
-          <Button
-            onClick={() => (window.location.href = createPageUrl("ProjectIntake"))}
-            className="btn-gold gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            New Project
-          </Button>
+          <Link to="/Projects?tab=intake">
+            <Button className="btn-gold gap-2">
+              <Sparkles className="w-4 h-4" />
+              New Project
+            </Button>
+          </Link>
         </div>
 
         {loading ? (
@@ -415,48 +471,49 @@ function ProjectListView() {
           <div className="text-center py-20">
             <FolderKanban className="w-12 h-12 text-white/10 mx-auto mb-4" />
             <h2 className="text-lg font-display font-medium text-white/50 mb-2">No projects yet</h2>
-            <p className="text-sm text-white/25 mb-6 max-w-md mx-auto">
-              Create a new project to start sourcing furniture room by room with AI-powered recommendations.
-            </p>
-            <Button
-              onClick={() => (window.location.href = createPageUrl("ProjectIntake"))}
-              className="btn-gold gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              Create First Project
-            </Button>
+            <p className="text-sm text-white/25 mb-6">Start by describing your project. AI builds the sourcing plan.</p>
+            <Link to="/Projects?tab=intake">
+              <Button className="btn-gold gap-2">
+                <Sparkles className="w-4 h-4" />
+                Create First Project
+              </Button>
+            </Link>
           </div>
         ) : (
           <div className="grid gap-4">
-            {projects.map((proj) => (
-              <motion.a
-                key={proj.id}
-                href={createPageUrl("SourcingBoard") + "?project=" + proj.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.01 }}
-                className="block border border-white/[0.06] glass-surface rounded-xl p-5 hover:bg-white/[0.04] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-white font-medium">{proj.name}</h3>
-                    <p className="text-sm text-white/30 mt-1">
-                      {proj.client_name && `${proj.client_name} · `}
-                      {proj.room_count || 0} rooms · {proj.item_count || 0} items
-                      {proj.style && ` · ${proj.style.replace(/-/g, " ")}`}
-                    </p>
+            {projects.map((proj) => {
+              const totalItems = proj.item_count || 0;
+              const sourcedItems = proj.rooms?.reduce((s, r) => s + (r.items || []).filter(i => i.selected_product).length, 0) || 0;
+              const progress = totalItems > 0 ? Math.round((sourcedItems / totalItems) * 100) : 0;
+
+              return (
+                <a
+                  key={proj.id}
+                  href={`/Projects?tab=sourcing&project=${proj.id}`}
+                  className="block border border-white/[0.06] glass-surface rounded-xl p-5 hover:bg-white/[0.04] hover:border-gold/20 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium">{proj.name}</h3>
+                      <p className="text-sm text-white/30 mt-1">
+                        {proj.client_name && `${proj.client_name} · `}
+                        {proj.room_count || 0} rooms · {totalItems} items
+                        {proj.style && ` · ${proj.style.replace(/-/g, " ")}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-gold">{progress}%</span>
+                        <div className="w-20 h-1.5 bg-white/[0.06] rounded-full mt-1">
+                          <div className={`h-full rounded-full ${progress === 100 ? "bg-emerald-400" : "bg-gold"}`} style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-white/20" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {proj.budget?.total > 0 && (
-                      <Badge variant="secondary" className="bg-white/[0.05] text-white/50 border-0">
-                        ${(proj.budget.total / 1000).toFixed(0)}k budget
-                      </Badge>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-white/20" />
-                  </div>
-                </div>
-              </motion.a>
-            ))}
+                </a>
+              );
+            })}
           </div>
         )}
       </div>
@@ -464,28 +521,18 @@ function ProjectListView() {
   );
 }
 
+// ── Main Sourcing Board ──
+
 export default function SourcingBoard() {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get("project");
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedRoomIndex, setSelectedRoomIndex] = useState(0);
-  const [autoSourcingAll, setAutoSourcingAll] = useState(false);
-  const [styleCheckData, setStyleCheckData] = useState(null);
-  const [showStyleCheck, setShowStyleCheck] = useState(false);
-  const [styleCheckLoading, setStyleCheckLoading] = useState(false);
-  const [shareLink, setShareLink] = useState(null);
-  const [shareLoading, setShareLoading] = useState(false);
-  const [costSummary, setCostSummary] = useState(null);
-  const [showCostSummary, setShowCostSummary] = useState(false);
-  const [costLoading, setCostLoading] = useState(false);
-
-  const projectId = new URLSearchParams(window.location.search).get("project");
+  const [showChat, setShowChat] = useState(false);
 
   const fetchProject = useCallback(async () => {
-    if (!projectId) {
-      setLoading(false);
-      return;
-    }
+    if (!projectId) { setLoading(false); return; }
     try {
       const res = await fetch(`${SEARCH_URL}/projects/${projectId}`);
       if (!res.ok) throw new Error("Failed to load project");
@@ -498,95 +545,9 @@ export default function SourcingBoard() {
     }
   }, [projectId]);
 
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
+  useEffect(() => { fetchProject(); }, [fetchProject]);
 
-  const selectedRoom = project?.rooms?.[selectedRoomIndex];
-
-  // If no project ID, show project list (after all hooks)
   if (!projectId) return <ProjectListView />;
-
-  const budgetUsed = project?.rooms?.reduce((total, room) => {
-    return total + (room.items || []).reduce((roomTotal, item) => {
-      if (item.selected_product?.price) return roomTotal + item.selected_product.price * (item.quantity || 1);
-      return roomTotal;
-    }, 0);
-  }, 0) || 0;
-
-  const handleAutoSourceAll = async () => {
-    if (!selectedRoom) return;
-    setAutoSourcingAll(true);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/rooms/${selectedRoom.id}/auto-source`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Failed to auto-source room");
-      await fetchProject();
-    } catch {
-      // silently fail
-    } finally {
-      setAutoSourcingAll(false);
-    }
-  };
-
-  const handleStyleCheck = async () => {
-    setStyleCheckLoading(true);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/style-check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Style check failed");
-      const data = await res.json();
-      setStyleCheckData(data);
-      setShowStyleCheck(true);
-    } catch {
-      // silently fail
-    } finally {
-      setStyleCheckLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    setShareLoading(true);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/share`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Share failed");
-      const data = await res.json();
-      const token = data.share_token || data.token;
-      const link = `${window.location.origin}${createPageUrl("ClientPortal")}?token=${token}`;
-      setShareLink(link);
-      navigator.clipboard?.writeText(link);
-    } catch {
-      // silently fail
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  const handleCostSummary = async () => {
-    setCostLoading(true);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects/${projectId}/cost-summary`);
-      if (!res.ok) throw new Error("Failed to load cost summary");
-      const data = await res.json();
-      setCostSummary(data);
-      setShowCostSummary(true);
-    } catch {
-      // silently fail
-    } finally {
-      setCostLoading(false);
-    }
-  };
-
-  const handleItemUpdate = () => {
-    fetchProject();
-  };
 
   if (loading) {
     return (
@@ -600,283 +561,148 @@ export default function SourcingBoard() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-4" />
-          <p className="text-white/60">{error || "Project not found"}</p>
-          <Button
-            onClick={() => (window.location.href = createPageUrl("ProjectIntake"))}
-            className="mt-4 bg-white/10 hover:bg-white/20 text-white"
-          >
-            New Project
-          </Button>
+          <Package className="w-10 h-10 text-red-400/50 mx-auto mb-4" />
+          <p className="text-white/60 mb-4">{error || "Project not found"}</p>
+          <Link to="/Projects?tab=intake">
+            <Button className="btn-gold">New Project</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
+  // Compute stats
+  const rooms = project.rooms || [];
+  const totalItems = rooms.reduce((s, r) => s + (r.items?.length || 0), 0);
+  const sourcedItems = rooms.reduce((s, r) => s + (r.items || []).filter(i => i.selected_product).length, 0);
+  const overallProgress = totalItems > 0 ? Math.round((sourcedItems / totalItems) * 100) : 0;
+  const budgetTotal = typeof project.budget === "object" ? project.budget?.total : project.budget;
+  const budgetUsed = rooms.reduce((total, room) => {
+    return total + (room.items || []).reduce((roomTotal, item) => {
+      if (item.selected_product?.price) return roomTotal + item.selected_product.price * (item.quantity || 1);
+      return roomTotal;
+    }, 0);
+  }, 0);
+
   return (
-    <div className="min-h-screen flex">
-      {/* ─── Left Sidebar ─── */}
-      <aside className="w-72 shrink-0 border-r border-white/[0.06] bg-white/[0.03] p-4 overflow-y-auto">
-        {/* Project Info Card */}
-        <div className="border border-white/[0.06] glass-surface rounded-xl p-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FolderKanban className="w-5 h-5 text-gold" />
-            <h2 className="text-sm font-display font-semibold text-white truncate">{project.name}</h2>
-          </div>
-          <div className="space-y-2 text-xs text-white/50">
-            {project.client_name && (
-              <div className="flex items-center gap-2">
-                <Users className="w-3.5 h-3.5" />
-                <span>{project.client_name}</span>
-              </div>
-            )}
-            {project.style && (
-              <div className="flex items-center gap-2">
-                <Palette className="w-3.5 h-3.5" />
-                <span>{formatStyle(project.style)}</span>
-              </div>
-            )}
-            {project.budget > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-3.5 h-3.5" />
-                    <span>Budget</span>
-                  </div>
-                  <span className="text-white/70">
-                    {formatCurrency(budgetUsed)} / {formatCurrency(project.budget)}
+    <div className="flex h-[calc(100vh-52px)]">
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+
+          {/* ── Project Summary Card ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-gold/20 bg-gold/[0.03] p-5 mb-6"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-xl font-display font-bold text-white">{project.name}</h1>
+                  <Badge variant="outline" className="bg-gold/10 text-gold border-gold/20 text-xs">
+                    {overallProgress}% sourced
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/40">
+                  {project.client_name && (
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" /> {project.client_name}
+                    </span>
+                  )}
+                  {project.style && (
+                    <span className="flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5" /> {project.style.replace(/-/g, " ")}
+                    </span>
+                  )}
+                  {budgetTotal > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      {formatCurrency(budgetUsed)} / {formatCurrency(budgetTotal)}
+                      {budgetUsed > budgetTotal && (
+                        <span className="text-red-400 text-xs font-medium ml-1">Over budget</span>
+                      )}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5" /> {rooms.length} rooms · {totalItems} items
                   </span>
                 </div>
-                <Progress
-                  value={Math.min((budgetUsed / project.budget) * 100, 100)}
-                  className="h-1.5 bg-white/[0.05]"
-                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowChat(!showChat)}
+                  className={`border-white/[0.06] text-xs gap-1.5 ${showChat ? "text-gold border-gold/20 bg-gold/10" : "text-white/50 hover:text-white"}`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  AI Assist
+                </Button>
+                <Link to={`/Projects?tab=present&project=${projectId}`}>
+                  <Button size="sm" className="btn-gold text-xs gap-1.5">
+                    <Send className="w-3.5 h-3.5" />
+                    Present
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Overall progress bar */}
+            {totalItems > 0 && (
+              <div className="mt-4">
+                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${overallProgress}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className={`h-full rounded-full ${overallProgress === 100 ? "bg-emerald-400" : "bg-gold"}`}
+                  />
+                </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Room List */}
-        <div className="space-y-1">
-          <p className="label-caps text-white/30 px-2 mb-2">
-            Rooms
-          </p>
-          {project.rooms?.map((room, index) => {
-            const totalItems = room.items?.length || 0;
-            const completedItems = (room.items || []).filter(
-              (i) => i.status === "selected" || i.status === "ordered" || i.status === "delivered"
-            ).length;
-            return (
-              <button
-                key={room.id || index}
-                onClick={() => setSelectedRoomIndex(index)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors ${
-                  selectedRoomIndex === index
-                    ? "bg-gold/10 text-gold border border-gold/20"
-                    : "text-white/50 hover:bg-white/[0.03] hover:text-white/70 border border-transparent"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    <span className="text-sm font-medium">{formatRoomType(room.type)}</span>
-                  </div>
-                  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${selectedRoomIndex === index ? "rotate-90" : ""}`} />
-                </div>
-                <div className="flex items-center gap-2 mt-1 ml-6">
-                  <div className="flex-1 h-1 bg-white/[0.05] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gold rounded-full transition-all"
-                      style={{ width: totalItems > 0 ? `${(completedItems / totalItems) * 100}%` : "0%" }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-white/30">
-                    {completedItems}/{totalItems}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </aside>
-
-      {/* ─── Main Area ─── */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Top Bar */}
-        <div className="sticky top-0 z-10 border-b border-white/[0.06] bg-[#0a0a0f]/80 backdrop-blur-xl px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-display font-semibold text-white">
-                {selectedRoom ? formatRoomType(selectedRoom.type) : "Select a room"}
-              </h1>
-              {selectedRoom?.size_sqft && (
-                <Badge variant="outline" className="border-white/[0.06] text-white/40 text-xs">
-                  {selectedRoom.size_sqft} sqft
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAutoSourceAll}
-                disabled={autoSourcingAll}
-                className="border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.05] gap-1.5 text-xs"
-              >
-                {autoSourcingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                Auto-Source All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStyleCheck}
-                disabled={styleCheckLoading}
-                className="border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.05] gap-1.5 text-xs"
-              >
-                {styleCheckLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Palette className="w-3.5 h-3.5" />}
-                Style Check
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleShare}
-                disabled={shareLoading}
-                className="border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.05] gap-1.5 text-xs"
-              >
-                {shareLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
-                Share with Client
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCostSummary}
-                disabled={costLoading}
-                className="border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.05] gap-1.5 text-xs"
-              >
-                {costLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
-                Cost Summary
-              </Button>
-            </div>
-          </div>
-
-          {/* Share link notification */}
-          <AnimatePresence>
-            {shareLink && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
-              >
-                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="text-xs text-emerald-400 truncate flex-1">{shareLink}</span>
-                <button onClick={() => setShareLink(null)} className="text-white/40 hover:text-white">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Items Grid */}
-        <div className="p-6">
-          {selectedRoom && selectedRoom.items?.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {selectedRoom.items.map((item) => (
-                <FurnitureItemCard
-                  key={item.id}
-                  item={item}
-                  projectId={projectId}
-                  roomId={selectedRoom.id}
-                  onUpdate={handleItemUpdate}
-                />
-              ))}
-            </div>
+          {/* ── Room-by-Room Product Board ── */}
+          {rooms.length > 0 ? (
+            rooms.map((room, i) => (
+              <RoomSection
+                key={room.id || i}
+                room={room}
+                projectId={projectId}
+                projectStyle={project.style}
+                onUpdate={fetchProject}
+                defaultExpanded={i === 0}
+              />
+            ))
           ) : (
             <div className="text-center py-20">
-              <Package className="w-10 h-10 text-white/20 mx-auto mb-3" />
-              <p className="text-white/40">No items in this room yet.</p>
+              <Building2 className="w-10 h-10 text-white/15 mx-auto mb-3" />
+              <p className="text-white/40 mb-4">No rooms in this project yet.</p>
+              <Link to="/Projects?tab=intake">
+                <Button variant="outline" className="border-white/[0.06] text-white/50 hover:text-gold">
+                  Go back to Intake
+                </Button>
+              </Link>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Cost Summary Overlay */}
-        <AnimatePresence>
-          {showCostSummary && costSummary && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-              onClick={() => setShowCostSummary(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg border border-white/[0.06] glass-surface rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-display font-semibold text-white flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-gold" />
-                    Cost Summary
-                  </h2>
-                  <button onClick={() => setShowCostSummary(false)} className="p-2 rounded-lg hover:bg-white/[0.05] text-white/40">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Total */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-sm text-white/50 mb-1">
-                    <span>Total Spent</span>
-                    <span>{formatCurrency(costSummary.total_spent)} / {formatCurrency(costSummary.total_budget)}</span>
-                  </div>
-                  <Progress
-                    value={costSummary.total_budget > 0 ? Math.min((costSummary.total_spent / costSummary.total_budget) * 100, 100) : 0}
-                    className="h-2 bg-white/[0.05]"
-                  />
-                  <p className="text-xs text-white/30 mt-1">
-                    {formatCurrency((costSummary.total_budget || 0) - (costSummary.total_spent || 0))} remaining
-                  </p>
-                </div>
-
-                {/* Per-room breakdown */}
-                {costSummary.rooms?.map((room, i) => (
-                  <div key={i} className="mb-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-white/70">{formatRoomType(room.type)}</span>
-                      <span className="text-white/50">{formatCurrency(room.spent)}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gold rounded-full"
-                        style={{ width: costSummary.total_spent > 0 ? `${(room.spent / costSummary.total_spent) * 100}%` : "0%" }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-
-      {/* ─── Style Check Panel ─── */}
+      {/* ── AI Chat Sidebar ── */}
       <AnimatePresence>
-        {showStyleCheck && styleCheckData && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/30"
-              onClick={() => setShowStyleCheck(false)}
-            />
-            <StyleCheckPanel data={styleCheckData} onClose={() => setShowStyleCheck(false)} />
-          </>
+        {showChat && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <AIChatSidebar project={project} onClose={() => setShowChat(false)} />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

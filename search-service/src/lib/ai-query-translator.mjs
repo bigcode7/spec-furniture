@@ -72,6 +72,14 @@ CRITICAL RULES:
 - "mission style bookcase" → style: "mission", category: "bookcases", vendor hint: "Stickley"
 - "large dining table seats 10" → category: "dining-tables", dimensions.width_min: 108, dimensions.seats: 10
 - For room queries like "bedroom" use categories array: ["beds","nightstands","dressers","chests","mirrors"]
+- CUSHION CONFIGS are trade terms, NOT dimensions or prices: "3 over 3" = three back cushions over three seat cushions, "2 over 2" = two over two, "bench seat" = single seat cushion, "tight back" = no back cushions. Include these as keywords, NOT as dimensions or price values.
+- SYNONYM EXPANSION is critical. The "keywords" array must include the TRADE TERMS that match the user's intent, not just their exact words. Interior designers and consumers use different words for the same thing:
+  - "cozy round chair" → keywords should include: "barrel chair", "tub chair", "swivel chair", "round back", "curved", "upholstered"
+  - "big comfy sofa" → keywords should include: "deep seat", "oversized", "extra deep", "wide", "plush", "feather down"
+  - "skinny table for behind couch" → keywords should include: "console table", "sofa table", "narrow", "slim"
+  - "fancy dining table" → keywords should include: "formal", "luxury", "pedestal", "extension", "inlay"
+  - "dark moody bedroom" → keywords should include: "espresso", "ebony", "dark finish", "charcoal", "noir", "java"
+  - Always include 3-5 furniture TRADE TERMS that match the user's natural language meaning
 - Return ONLY valid JSON. No markdown, no explanation.`;
 
 const EXAMPLES = [
@@ -106,6 +114,22 @@ const EXAMPLES = [
   {
     query: "mission style bookcase",
     response: '{"category":"bookcases","categories":null,"vendor":null,"collection":null,"style":"mission","material":"wood","material_expanded":["oak","quarter sawn oak","cherry","solid wood"],"color":null,"keywords":["mission","bookcase","bookshelf","arts and crafts","craftsman","stickley","shelving"],"exclude_terms":[],"exclude_categories":["cabinets","credenzas","media-consoles"],"dimensions":null,"price_max":null,"price_min":null,"price_tier":null,"sort_preference":"relevance"}'
+  },
+  {
+    query: "3 over 3 sofa",
+    response: '{"category":"sofas","categories":null,"vendor":null,"collection":null,"style":null,"material":null,"material_expanded":null,"color":null,"keywords":["3 over 3","three over three","three cushion","loose back","loose cushion","sofa"],"exclude_terms":[],"exclude_categories":["sectionals","loveseats","accent-chairs"],"dimensions":null,"price_max":null,"price_min":null,"price_tier":null,"sort_preference":"relevance"}'
+  },
+  {
+    query: "cozy round chair",
+    response: '{"category":"accent-chairs","categories":["accent-chairs","swivel-chairs"],"vendor":null,"collection":null,"style":null,"material":null,"material_expanded":null,"color":null,"keywords":["barrel chair","tub chair","swivel chair","round back","curved","upholstered","club chair","cozy","round"],"exclude_terms":[],"exclude_categories":["dining-chairs","bar-stools","desks"],"dimensions":null,"price_max":null,"price_min":null,"price_tier":null,"sort_preference":"relevance"}'
+  },
+  {
+    query: "big comfy sofa",
+    response: '{"category":"sofas","categories":["sofas","sectionals"],"vendor":null,"collection":null,"style":null,"material":null,"material_expanded":null,"color":null,"keywords":["deep seat","oversized","extra deep","wide","plush","feather down","sofa","large","comfortable"],"exclude_terms":[],"exclude_categories":["loveseats","accent-chairs","dining-chairs"],"dimensions":null,"price_max":null,"price_min":null,"price_tier":null,"sort_preference":"relevance"}'
+  },
+  {
+    query: "skinny table for behind couch",
+    response: '{"category":"console-tables","categories":null,"vendor":null,"collection":null,"style":null,"material":null,"material_expanded":null,"color":null,"keywords":["console table","sofa table","narrow","slim","behind sofa","hall table","entry table"],"exclude_terms":[],"exclude_categories":["dining-tables","coffee-tables","desks","beds"],"dimensions":{"width_max":null,"width_min":null,"depth_max":18,"height_max":null,"seats":null},"price_max":null,"price_min":null,"price_tier":null,"sort_preference":"relevance"}'
   },
 ];
 
@@ -172,10 +196,38 @@ export async function translateQuery(query) {
     // Enrich with local parsing for dimensions/price that AI might miss
     enrichWithLocalParsing(filter, query);
 
+    // Sanitize garbage numeric values AFTER enrichment (e.g. "3 over 3" → price_min: 3, width_min: 3)
+    sanitizeNumericValues(filter, query);
+
     return filter;
   } catch (err) {
     // Fall back to local parsing
     return localParse(query);
+  }
+}
+
+/**
+ * Sanitize garbage numeric values from AI parse.
+ * Trade terms like "3 over 3" get misinterpreted as price_min: 3 or dimensions.width_min: 3.
+ * Real furniture dimensions are never < 10 inches. Real prices are never < $50.
+ */
+function sanitizeNumericValues(filter, query) {
+  // Price sanity: luxury furniture is never under $50
+  if (filter.price_min != null && filter.price_min < 50) filter.price_min = null;
+  if (filter.price_max != null && filter.price_max < 50) filter.price_max = null;
+
+  // Dimension sanity: no real furniture dimension is under 10 inches
+  if (filter.dimensions && typeof filter.dimensions === "object") {
+    for (const key of Object.keys(filter.dimensions)) {
+      const val = filter.dimensions[key];
+      if (val != null && typeof val === "number" && key !== "seats" && val < 10) {
+        filter.dimensions[key] = null;
+      }
+    }
+    // Remove dimensions object if all values are null
+    if (Object.values(filter.dimensions).every(v => v == null)) {
+      filter.dimensions = null;
+    }
   }
 }
 
@@ -458,6 +510,18 @@ function localParse(query) {
     }
   }
 
+  // ── Cushion config detection (trade terms like "3 over 3", "2 over 2") ──
+  const cushionMatch = q.match(/\b(\d)\s+over\s+(\d)\b/i);
+  if (cushionMatch) {
+    const phrase = cushionMatch[0]; // e.g. "3 over 3"
+    filter.keywords.push(phrase);
+    filter.keywords.push("loose cushion", "loose back");
+    // Nullify any dimensions/price extracted from the cushion config number
+    filter.dimensions = null;
+    filter.price_min = null;
+    filter.price_max = null;
+  }
+
   // ── Build keywords ──
   // Remove stop words, vendor names, dimension/price fragments
   const stopWords = new Set(["the", "a", "an", "and", "or", "for", "in", "on", "to", "of", "my", "me", "i", "is", "it", "with", "that", "this", "from", "its", "something", "put", "behind", "want", "looking", "need", "find", "show", "get"]);
@@ -477,7 +541,9 @@ function localParse(query) {
   cleanQ = cleanQ.replace(/seats?\s+\d+/gi, "");
 
   const words = cleanQ.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-  filter.keywords = [...new Set(words)];
+  // Merge with any keywords already added (e.g. cushion config phrases)
+  const existingKw = filter.keywords || [];
+  filter.keywords = [...new Set([...existingKw, ...words])];
 
   // Add category-related keywords
   if (filter.category) {
@@ -514,6 +580,7 @@ function localParse(query) {
         }
       }
     }
+    sanitizeNumericValues(filter, query);
     return filter;
   }
   return null;
@@ -531,7 +598,7 @@ export function applyAIFilter(products, filter) {
 
   // ── HARD FILTER: Category ──
   // True hard filter — but falls back to unfiltered if it would return 0.
-  // Also checks product name for the category keyword as a secondary signal.
+  // Also cross-checks product name to catch miscategorized products.
   if (filter.category) {
     const fc = filter.category.toLowerCase().replace(/\s+/g, "-");
     const catWord = fc.replace(/-/g, " ");
@@ -540,14 +607,14 @@ export function applyAIFilter(products, filter) {
       const cat = (p.category || "").toLowerCase();
       const name = (p.product_name || "").toLowerCase();
       // Exact category match or singular/plural
-      if (cat === fc || cat === fc + "s" || cat + "s" === fc || cat.startsWith(fc + "-") || fc.startsWith(cat + "-")) {
-        return true;
-      }
-      // Fallback: check product name for the category keyword
-      if (name.includes(catSingular) || name.includes(catWord)) {
-        return true;
-      }
-      return false;
+      const catMatch = cat === fc || cat === fc + "s" || cat + "s" === fc || cat.startsWith(fc + "-") || fc.startsWith(cat + "-");
+      // Name-based fallback
+      const nameMatch = name.includes(catSingular) || name.includes(catWord);
+      if (!catMatch && !nameMatch) return false;
+      // Cross-check: reject products whose name clearly indicates a DIFFERENT product type
+      // e.g., "Sofa with Hidden Console" should NOT appear in console-tables results
+      if (nameContainsConflictingType(name, fc)) return false;
+      return true;
     });
     if (catFiltered.length > 0) results = catFiltered;
   } else if (filter.categories?.length > 0) {
@@ -555,7 +622,10 @@ export function applyAIFilter(products, filter) {
     const catFiltered = results.filter(p => {
       const cat = (p.category || "").toLowerCase();
       const name = (p.product_name || "").toLowerCase();
-      if (catNorms.some(fc => cat === fc || cat === fc + "s" || cat + "s" === fc)) {
+      const catMatch = catNorms.some(fc => cat === fc || cat === fc + "s" || cat + "s" === fc);
+      if (catMatch) {
+        // Cross-check: reject products with conflicting type in name
+        if (catNorms.every(fc => nameContainsConflictingType(name, fc))) return false;
         return true;
       }
       // Name-based fallback
@@ -580,9 +650,18 @@ export function applyAIFilter(products, filter) {
 
   // ── HARD FILTER: Exclude terms (no sectionals, without leather, etc.) ──
   if (filter.exclude_terms?.length > 0) {
+    // Expand exclude terms to include singular/plural variants
+    const expandedExclude = [];
+    for (const term of filter.exclude_terms) {
+      const t = term.toLowerCase();
+      expandedExclude.push(t);
+      if (t.endsWith("s")) expandedExclude.push(t.slice(0, -1)); // sectionals → sectional
+      else expandedExclude.push(t + "s"); // sectional → sectionals
+    }
+    const uniqueExclude = [...new Set(expandedExclude)];
     results = results.filter(p => {
       const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
-      return !filter.exclude_terms.some(term => text.includes(term.toLowerCase()));
+      return !uniqueExclude.some(term => text.includes(term));
     });
   }
 
@@ -648,7 +727,7 @@ export function applyAIFilter(products, filter) {
       : [filter.material.toLowerCase()];
 
     const matResults = results.filter(p => {
-      const text = `${p.material || ""} ${p.description || ""} ${p.product_name || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+      const text = `${p.material || ""} ${p.description || ""} ${p.product_name || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
       return matTerms.some(m => text.includes(m));
     });
     // Only hard filter if it keeps at least 10 results — otherwise just boost in scoring
@@ -663,7 +742,15 @@ export function applyAIFilter(products, filter) {
   }
 
   // ── SCORING: Enhanced keyword relevance ──
-  const keywords = (filter.keywords || []).map(k => k.toLowerCase());
+  let keywords = (filter.keywords || []).map(k => k.toLowerCase());
+
+  // ── VIBE EXPANSION: Map abstract vibe phrases to concrete search terms ──
+  const queryLower = (filter._original_query || keywords.join(" ")).toLowerCase();
+  const vibeExpansions = expandVibeKeywords(queryLower);
+  if (vibeExpansions.length > 0) {
+    keywords = [...keywords, ...vibeExpansions];
+  }
+
   const filterCategory = (filter.category || "").toLowerCase().replace(/\s+/g, "-");
   const filterCategories = (filter.categories || []).map(c => c.toLowerCase().replace(/\s+/g, "-"));
   const allFilterCats = filterCategory ? [filterCategory, ...filterCategories] : filterCategories;
@@ -689,7 +776,7 @@ export function applyAIFilter(products, filter) {
     // ── PRODUCT NAME CONTAINS SEARCH TERMS: +25 per hit ──
     for (const kw of keywords) {
       if (name.includes(kw)) score += 25;
-      else if (visualTags.includes(kw)) score += 15;
+      else if (visualTags.includes(kw)) score += 20;
       else if (collection.includes(kw)) score += 12;
       else if (desc.includes(kw)) score += 8;
       else if (searchable.includes(kw)) score += 3;
@@ -707,7 +794,7 @@ export function applyAIFilter(products, filter) {
     // ── STYLE MATCH: +15 ──
     if (filter.style) {
       const styleLower = filter.style.toLowerCase();
-      if (name.includes(styleLower) || desc.includes(styleLower) || (p.style || "").toLowerCase().includes(styleLower)) {
+      if (name.includes(styleLower) || desc.includes(styleLower) || (p.style || "").toLowerCase().includes(styleLower) || visualTags.includes(styleLower)) {
         score += 15;
       }
     }
@@ -715,7 +802,7 @@ export function applyAIFilter(products, filter) {
     // ── MATERIAL MATCH: +15 ──
     if (filter.material) {
       const matLower = filter.material.toLowerCase();
-      if (material.includes(matLower) || name.includes(matLower) || desc.includes(matLower)) {
+      if (material.includes(matLower) || name.includes(matLower) || desc.includes(matLower) || visualTags.includes(matLower)) {
         score += 15;
       }
     }
@@ -723,7 +810,7 @@ export function applyAIFilter(products, filter) {
     // Color match bonus
     if (filter.color) {
       const colorLower = filter.color.toLowerCase();
-      if (name.includes(colorLower) || desc.includes(colorLower) || (p.color || "").toLowerCase().includes(colorLower)) {
+      if (name.includes(colorLower) || desc.includes(colorLower) || (p.color || "").toLowerCase().includes(colorLower) || visualTags.includes(colorLower)) {
         score += 12;
       }
     }
@@ -736,11 +823,16 @@ export function applyAIFilter(products, filter) {
       } else if (name.includes(collLower)) {
         score += 35;
       }
+      // When browsing a collection, prefer core furniture over accessories/lighting
+      const coreCats = ["sofas", "sectionals", "accent-chairs", "dining-tables", "dining-chairs", "beds", "credenzas", "coffee-tables", "desks", "dressers", "nightstands", "bookcases", "console-tables"];
+      if (coreCats.includes(productCat)) {
+        score += 15; // Core furniture gets a boost in collection browsing
+      }
     }
 
     // Material hierarchy match bonus (#6)
     if (filter.material_expanded?.length > 0) {
-      const matText = `${material} ${desc} ${name}`;
+      const matText = `${material} ${desc} ${name} ${visualTags}`;
       let matHits = 0;
       for (const m of filter.material_expanded) {
         if (matText.includes(m.toLowerCase())) matHits++;
@@ -817,6 +909,70 @@ export function applyAIFilter(products, filter) {
   }
 
   return results;
+}
+
+/**
+ * VIBE EXPANSION — Map abstract aesthetic phrases to concrete furniture attributes.
+ * These phrases don't match product names directly, so we expand them into
+ * searchable terms that DO appear in product descriptions and tags.
+ */
+const VIBE_MAP = {
+  "quiet luxury": ["refined", "subtle", "natural", "muted", "understated", "elegant", "premium", "cashmere", "linen", "silk", "walnut", "oak", "brass"],
+  "moody": ["dark", "rich", "deep", "dramatic", "charcoal", "ebony", "espresso", "noir", "black", "mahogany"],
+  "moody dark": ["dark", "rich", "dramatic", "charcoal", "ebony", "espresso", "noir", "black", "mahogany", "smoked"],
+  "light airy": ["light", "airy", "white", "cream", "ivory", "natural", "linen", "rattan", "wicker", "whitewash", "bleached"],
+  "warm modern": ["warm", "modern", "texture", "natural", "wood", "boucle", "linen", "woven", "organic", "oak", "walnut"],
+  "old money": ["traditional", "classic", "refined", "mahogany", "leather", "brass", "library", "tufted", "nailhead", "carved"],
+  "california casual": ["casual", "relaxed", "natural", "linen", "wood", "woven", "organic", "coastal", "rattan", "light"],
+  "lots of texture": ["textured", "boucle", "woven", "rattan", "linen", "chenille", "wool", "raffia", "jute", "carved"],
+  "hotel lobby": ["commercial", "hospitality", "statement", "large scale", "durable", "premium", "upholstered"],
+  "commercial grade": ["commercial", "hospitality", "contract", "durable", "performance"],
+  "formal dining": ["formal", "traditional", "elegant", "upholstered", "carved", "mahogany"],
+  "statement": ["bold", "sculptural", "dramatic", "unique", "accent", "showpiece"],
+  "collected": ["eclectic", "vintage", "antique", "curated", "layered"],
+  "cozy": ["comfortable", "plush", "soft", "upholstered", "deep seat", "cushion"],
+};
+
+function expandVibeKeywords(query) {
+  const expansions = [];
+  for (const [vibe, terms] of Object.entries(VIBE_MAP)) {
+    if (query.includes(vibe)) {
+      for (const term of terms) {
+        if (!expansions.includes(term)) expansions.push(term);
+      }
+    }
+  }
+  return expansions;
+}
+
+/**
+ * Cross-check: does a product name contain a product type that conflicts
+ * with the target category? Catches miscategorized products.
+ * e.g., "Power Sofa with Hidden Console" → conflicts with "console-tables"
+ */
+const CONFLICTING_TYPES = {
+  "console-tables": ["sofa", "sectional", "recliner", "loveseat", "chair", "bed", "dresser", "desk"],
+  "side-tables": ["sofa", "sectional", "recliner", "loveseat", "bed", "dresser", "desk"],
+  "coffee-tables": ["sofa", "sectional", "recliner", "loveseat", "bed", "dresser", "desk"],
+  "sofas": ["dining table", "coffee table", "console table", "nightstand", "dresser", "bookcase", "desk", "bed"],
+  "accent-chairs": ["sofa", "sectional", "dining table", "coffee table", "bed", "dresser", "desk"],
+  "dining-chairs": ["sofa", "sectional", "coffee table", "bed", "dresser", "desk", "bookcase"],
+  "dining-tables": ["sofa", "sectional", "bed", "dresser", "bookcase", "desk"],
+  "beds": ["sofa", "dining table", "coffee table", "desk", "bookcase"],
+  "credenzas": ["sofa", "bed", "dining table", "desk", "bookcase", "display cabinet"],
+  "bookcases": ["sofa", "bed", "dining table", "credenza", "dresser"],
+  "nightstands": ["sofa", "dining table", "coffee table", "desk", "bed", "dresser"],
+};
+
+function nameContainsConflictingType(name, targetCategory) {
+  const conflicts = CONFLICTING_TYPES[targetCategory];
+  if (!conflicts) return false;
+  for (const conflict of conflicts) {
+    // Check as whole word to avoid false positives
+    const regex = new RegExp(`\\b${conflict}s?\\b`, "i");
+    if (regex.test(name)) return true;
+  }
+  return false;
 }
 
 /**

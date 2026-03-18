@@ -920,7 +920,7 @@ export default function RoomDesigner() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex h-full min-h-screen flex-col bg-[#0a0a0f] text-white">
+    <div className="flex h-full min-h-screen flex-col bg-[#08090E] text-white">
       {/* ---- Top Bar ---- */}
       <header className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-5 py-3">
         <LayoutGrid className="h-5 w-5 text-gold" />

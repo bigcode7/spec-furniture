@@ -123,7 +123,7 @@ function SwapPanel({ item, alternatives, onSelect, onClose }) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg border border-white/[0.06] bg-[#0a0a0f] rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
+        className="w-full max-w-lg border border-white/[0.06] bg-[#08090E] rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <div>

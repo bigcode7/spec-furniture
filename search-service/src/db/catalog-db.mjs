@@ -190,6 +190,7 @@ function normalizeProduct(raw, source = "manual") {
     style: raw.style || null,
     color: color,
     image_url: raw.image_url || null,
+    images: Array.isArray(raw.images) ? raw.images : (raw.image_url ? [raw.image_url] : []),
     product_url: raw.product_url || null,
     description: raw.description ? String(raw.description).slice(0, 300) : null,
     retail_price: typeof raw.retail_price === "number" ? raw.retail_price : null,
@@ -199,6 +200,10 @@ function normalizeProduct(raw, source = "manual") {
     created_at: raw.created_at || now,
     updated_at: now,
     last_verified_at: raw.last_verified_at || null,
+    ai_visual_tags: raw.ai_visual_tags || null,
+    ai_category_mismatch: raw.ai_category_mismatch || null,
+    ai_suggested_category: raw.ai_suggested_category || null,
+    image_quality: raw.image_quality || null,
     search_text: "",
   };
 
@@ -456,6 +461,7 @@ function scoreProduct(product, queryTokens, originalQuery) {
   // Product name is king — if the search term is in the name, it's the right product
   const fields = [
     { tokens: tokenize(product.product_name), boost: 5.0 },
+    { tokens: tokenize(product.ai_visual_tags), boost: 5.0 }, // Visual tags = equal to product name
     { tokens: tokenize(product.category), boost: 4.0 },
     { tokens: tokenize(product.collection), boost: 2.5 },
     { tokens: tokenize(product.vendor_name), boost: 2.0 },
@@ -525,8 +531,12 @@ function scoreProduct(product, queryTokens, originalQuery) {
   }
 
   // Image quality: broken/missing ranked lower, HQ boosted
-  if (product.image_quality === "broken" || product.image_quality === "missing") {
+  if (product.bad_image) {
+    totalScore *= 0.40; // Heavy penalty — bad_image products must NOT appear in top 20
+  } else if (product.image_quality === "broken" || product.image_quality === "missing") {
     totalScore *= 0.80; // Stronger penalty
+  } else if (product.needs_better_image) {
+    totalScore *= 0.92; // Mild penalty for known-bad images
   } else if (product.image_quality === "verified-hq") {
     totalScore *= 1.08;
   }
@@ -650,6 +660,10 @@ export function insertProduct(raw) {
     unindexProduct(product.id, existing);
     // Preserve original created_at on update
     product.created_at = existing.created_at;
+    // Preserve existing images if new product has none
+    if ((!product.images || product.images.length === 0) && existing.images?.length > 0) {
+      product.images = existing.images;
+    }
   }
 
   products.set(product.id, product);
@@ -677,6 +691,10 @@ export function insertProducts(rawProducts) {
     const existing = products.get(product.id);
     if (existing) {
       product.created_at = existing.created_at;
+      // Preserve existing images if new product has none
+      if ((!product.images || product.images.length === 0) && existing.images?.length > 0) {
+        product.images = existing.images;
+      }
       unindexProduct(product.id, existing);
       updated++;
     } else {
@@ -1338,6 +1356,12 @@ export function setVendorCrawlMeta(vendorId, meta) {
 /**
  * Clear the search cache and reset stats.
  */
+export function flushToDisk() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = null;
+  writeToDisk();
+}
+
 export function clearSearchCache() {
   searchCache.clear();
   // Don't reset hit/miss counters — they track lifetime stats

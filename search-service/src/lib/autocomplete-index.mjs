@@ -25,6 +25,31 @@ const popularSearches = new Map();
 /** Whether index has been built */
 let built = false;
 
+// ── Cross-reference combo maps for smart autocomplete ──
+
+/** vendor name (lowercase) → Map<category (display), count> */
+let vendorCategoryCombos = new Map();
+
+/** material (lowercase) → Map<category (display), count> */
+let materialCategoryCombos = new Map();
+
+/** Raw vendor counts (lowercase key → display name) */
+let vendorDisplayNames = new Map();
+
+/** Raw material counts (lowercase key → display name) */
+let materialDisplayNames = new Map();
+
+/** Raw category counts (lowercase key → display name) */
+let categoryDisplayNames = new Map();
+
+/** adjective (lowercase) → Map<category (display), count> — built from product names/descriptions */
+let adjectiveCategoryCombos = new Map();
+
+const COMMON_ADJECTIVES = [
+  "round", "square", "large", "small", "tall", "low", "wide", "narrow",
+  "modern", "traditional", "contemporary",
+];
+
 /**
  * Build the autocomplete index from all products.
  *
@@ -32,6 +57,13 @@ let built = false;
  */
 export function buildAutocompleteIndex(products) {
   entries = new Map();
+  vendorCategoryCombos = new Map();
+  materialCategoryCombos = new Map();
+  adjectiveCategoryCombos = new Map();
+  vendorDisplayNames = new Map();
+  materialDisplayNames = new Map();
+  categoryDisplayNames = new Map();
+
   const nameCounts = new Map();
   const vendorCounts = new Map();
   const collectionCounts = new Map();
@@ -39,11 +71,16 @@ export function buildAutocompleteIndex(products) {
   const materialCounts = new Map();
   const styleCounts = new Map();
 
-  for (const product of products) {
+  // We need to iterate products twice (once to collect, once for combos),
+  // so collect into array first
+  const allProducts = [...products];
+
+  for (const product of allProducts) {
     // Vendor names
     if (product.vendor_name) {
       const v = product.vendor_name.trim();
       vendorCounts.set(v, (vendorCounts.get(v) || 0) + 1);
+      vendorDisplayNames.set(v.toLowerCase(), v);
     }
 
     // Collections
@@ -59,6 +96,7 @@ export function buildAutocompleteIndex(products) {
       const cat = product.category.replace(/-/g, " ").trim();
       if (cat.length > 2) {
         categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+        categoryDisplayNames.set(cat.toLowerCase(), cat);
       }
     }
 
@@ -67,6 +105,7 @@ export function buildAutocompleteIndex(products) {
       const m = product.material.trim();
       if (m.length > 2) {
         materialCounts.set(m, (materialCounts.get(m) || 0) + 1);
+        materialDisplayNames.set(m.toLowerCase(), m);
       }
     }
 
@@ -82,6 +121,38 @@ export function buildAutocompleteIndex(products) {
     if (product.product_name && product.product_name.length > 5) {
       const n = product.product_name.trim();
       nameCounts.set(n, (nameCounts.get(n) || 0) + 1);
+    }
+
+    // ── Build cross-reference combo maps ──
+
+    const catDisplay = product.category ? product.category.replace(/-/g, " ").trim() : null;
+
+    // Vendor + Category combos
+    if (product.vendor_name && catDisplay && catDisplay.length > 2) {
+      const vKey = product.vendor_name.trim().toLowerCase();
+      if (!vendorCategoryCombos.has(vKey)) vendorCategoryCombos.set(vKey, new Map());
+      const catMap = vendorCategoryCombos.get(vKey);
+      catMap.set(catDisplay, (catMap.get(catDisplay) || 0) + 1);
+    }
+
+    // Material + Category combos
+    if (product.material && catDisplay && catDisplay.length > 2) {
+      const mKey = product.material.trim().toLowerCase();
+      if (!materialCategoryCombos.has(mKey)) materialCategoryCombos.set(mKey, new Map());
+      const catMap = materialCategoryCombos.get(mKey);
+      catMap.set(catDisplay, (catMap.get(catDisplay) || 0) + 1);
+    }
+
+    // Adjective + Category combos (check product name and description for adjectives)
+    if (catDisplay && catDisplay.length > 2) {
+      const searchText = [product.product_name || "", product.description || ""].join(" ").toLowerCase();
+      for (const adj of COMMON_ADJECTIVES) {
+        if (searchText.includes(adj)) {
+          if (!adjectiveCategoryCombos.has(adj)) adjectiveCategoryCombos.set(adj, new Map());
+          const catMap = adjectiveCategoryCombos.get(adj);
+          catMap.set(catDisplay, (catMap.get(catDisplay) || 0) + 1);
+        }
+      }
     }
   }
 
@@ -210,11 +281,107 @@ export function autocompleteSearch(query, limit = 8) {
     const key = match.text.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    results.push({ text: match.text, type: match.type });
+    results.push({ text: match.text, type: match.type, count: match.count || 0 });
     if (results.length >= limit) break;
   }
 
   return results;
+}
+
+/**
+ * Smart autocomplete that generates rich combo suggestions.
+ *
+ * Detects if partial matches a vendor, material, or adjective prefix and
+ * generates combo suggestions (e.g., "Bernhardt sofas (120)") with counts.
+ * Falls back to the standard autocompleteSearch for unrecognized partials.
+ *
+ * @param {string} query - Partial search input
+ * @param {number} limit - Max suggestions (default 8)
+ * @returns {Array<{ text: string, type: string, count: number }>}
+ */
+export function smartAutocomplete(query, limit = 8) {
+  if (!built || !query) return [];
+
+  const q = query.toLowerCase().trim();
+  if (q.length < 2) return [];
+
+  const comboResults = [];
+
+  // 1. Check if query matches a vendor name prefix → vendor + top category combos
+  for (const [vendorKey, displayName] of vendorDisplayNames) {
+    if (vendorKey.startsWith(q) || displayName.toLowerCase().startsWith(q)) {
+      const catMap = vendorCategoryCombos.get(vendorKey);
+      if (catMap) {
+        const topCats = [...catMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit);
+        for (const [catDisplay, count] of topCats) {
+          comboResults.push({
+            text: `${displayName} ${catDisplay}`,
+            type: "vendor-category",
+            count,
+          });
+        }
+      }
+    }
+  }
+
+  // 2. Check if query matches a material prefix → material + top category combos
+  for (const [matKey, displayName] of materialDisplayNames) {
+    if (matKey.startsWith(q) || displayName.toLowerCase().startsWith(q)) {
+      const catMap = materialCategoryCombos.get(matKey);
+      if (catMap) {
+        const topCats = [...catMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit);
+        for (const [catDisplay, count] of topCats) {
+          comboResults.push({
+            text: `${displayName} ${catDisplay}`,
+            type: "material-category",
+            count,
+          });
+        }
+      }
+    }
+  }
+
+  // 3. Check if query matches an adjective prefix → adjective + category combos
+  for (const adj of COMMON_ADJECTIVES) {
+    if (adj.startsWith(q) || q === adj) {
+      const catMap = adjectiveCategoryCombos.get(adj);
+      if (catMap) {
+        const topCats = [...catMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit);
+        for (const [catDisplay, count] of topCats) {
+          comboResults.push({
+            text: `${adj} ${catDisplay}`,
+            type: "adjective-category",
+            count,
+          });
+        }
+      }
+    }
+  }
+
+  // If we found combo results, sort by count descending, deduplicate, and limit
+  if (comboResults.length > 0) {
+    comboResults.sort((a, b) => b.count - a.count);
+
+    const seen = new Set();
+    const results = [];
+    for (const item of comboResults) {
+      const key = item.text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(item);
+      if (results.length >= limit) break;
+    }
+    return results;
+  }
+
+  // 4. Fall back to existing token-match autocomplete
+  return autocompleteSearch(query, limit);
 }
 
 /**

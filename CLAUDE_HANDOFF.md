@@ -2,7 +2,7 @@
 
 ## What SPEC Is
 
-AI-native furniture sourcing platform for interior designers. Dark-mode premium UI (Linear meets design magazine). Search any furniture query, get real products from real vendors with images, prices, and direct links. Compare up to 6 products side-by-side. Generate professional PDF quotes.
+AI-native furniture sourcing platform for interior designers. Dark-mode premium UI (Linear meets design magazine). Conversational AI search across 18,500+ real products from 20 trade vendors. Compare up to 6 products side-by-side. Build quotes with room grouping, markup, and professional PDF generation. Deep furniture industry knowledge baked into every AI response.
 
 ## Running the App
 
@@ -21,6 +21,13 @@ npm run lint
 npm run build
 ```
 
+## Catalog Stats
+
+- **18,502 total products** across 20 trade vendors
+- Top vendors: Hooker Furniture (3,710), Theodore Alexander (2,191), Caracole (1,525), Baker (1,421), Hickory Chair (1,397), Universal (1,336), Bernhardt (1,313), Stickley (1,173), Hancock & Moore (1,055), Vanguard (921), Highland House (828), Wesley Hall (680), Lexington (662)
+- 30+ categories including accent-chairs (2,147), sofas (1,730), dining-tables (1,235), dining-chairs (1,173), side-tables (1,165), beds (1,144)
+- Image verification running — checks HEAD status, content-type, dimensions, auto-replaces broken images from og:image fallback
+
 ## Architecture Overview
 
 ### Frontend (Vite + React 18 + Tailwind 3)
@@ -28,12 +35,13 @@ npm run build
 | File | Purpose |
 |------|---------|
 | `src/pages/Landing.jsx` | Hero page — particle field animation, animated typography, glow search bar, vendor marquee, stat counters, feature cards |
-| `src/pages/Search.jsx` | Core search — AI loading sequence, AI summary card, results grid (2-5 cols), compare tray, product cards with hover effects |
+| `src/pages/Search.jsx` | Core search — conversational AI chat, AI summary card, results grid (2-5 cols), compare tray, add-to-quote, product detail panel with multi-image gallery |
 | `src/pages/Compare.jsx` | Side-by-side comparison (up to 6 products), specs table, PDF quote generator |
-| `src/Layout.jsx` | Dark glass nav header, page transitions (framer-motion), CommandPalette integration |
-| `src/api/searchClient.js` | Frontend search client — calls search service POST /search, normalizes results for UI |
-| `src/lib/growth-store.js` | localStorage state — compare items (max 6), recent searches, favorites |
-| `src/lib/quote-generator.js` | jsPDF — professional PDF with SPEC branding, cover page, product pages with images, clickable vendor links |
+| `src/Layout.jsx` | Dark glass nav header, page transitions (framer-motion), CommandPalette, QuotePanel, quote counter badge |
+| `src/api/searchClient.js` | Frontend search client — calls POST /smart-search with conversation array, normalizes results including image object→URL mapping |
+| `src/lib/growth-store.js` | localStorage state — compare items (max 6), recent searches, favorites, **quote system** (rooms, items, quantities, notes, markup, designer settings) |
+| `src/lib/quote-generator.js` | jsPDF — professional PDF with cover page, room dividers, product pages with markup-adjusted pricing, summary page with signature line |
+| `src/components/QuotePanel.jsx` | Slide-out quote builder — room groups, per-item quantity/notes, designer markup, PDF download, designer settings persistence |
 | `src/components/ParticleField.jsx` | Canvas constellation animation, mouse interaction, 80 particles, 30fps mobile cap |
 | `src/components/AILoadingSequence.jsx` | 4-step animated loading (parse → expand → scan → rank) |
 | `src/components/CommandPalette.jsx` | Cmd+K modal — quick nav, recent searches, uses shadcn Command component |
@@ -44,111 +52,112 @@ npm run build
 
 | File | Purpose |
 |------|---------|
-| `search-service/src/server.mjs` | HTTP server — routes: /health, /vendors, /catalog, /runs, /seed, /ingest, /search |
-| `search-service/src/lib/ai-search.mjs` | **Anthropic API integration** — 5 AI functions (see below) |
+| `search-service/src/server.mjs` | HTTP server — routes: /health, /vendors, /catalog, /smart-search, /jobs/*, /admin/*. Smart search with conversational AI, soft filtering, color expansion |
+| `search-service/src/lib/search-brain.mjs` | **Claude Haiku AI brain** — conversation-aware query understanding, furniture knowledge system prompt, structured JSON extraction (search params + assistant message) |
+| `search-service/src/lib/catalog-intelligence.mjs` | Auto-generated catalog intelligence — vendor profiles, category leaders, collection maps, price tiers from live product data. Cached 30min |
+| `search-service/src/lib/furniture-knowledge.mjs` | Static furniture knowledge base — vendor deep expertise (tiers 1-4), room planning rules, material durability, construction, style mixing, spatial planning, trade process, trends |
+| `search-service/src/lib/ai-search.mjs` | Legacy Anthropic API integration — 5 AI functions (parse, expand, discover, rank, summarize) with fallback to hardcoded rules |
 | `search-service/src/lib/query-intelligence.mjs` | Hardcoded fallback — category/style/material/color/vendor rules, query variant generation |
 | `search-service/src/lib/discover.mjs` | Live vendor crawling — native search paths + DuckDuckGo fallback, parallel per vendor |
 | `search-service/src/lib/vendor-product.mjs` | HTML product extraction — JSON-LD, __NEXT_DATA__, og:tags, embedded state, verification scoring |
 | `search-service/src/lib/rank.mjs` | Token-match ranking — query overlap, intent matching, verification bonuses, 0-99 score |
 | `search-service/src/lib/ingest.mjs` | Catalog ingestion — seed + live modes, dedup, verified catalog sync |
-| `search-service/src/lib/store.mjs` | JSON file storage — catalog.json, verified-catalog.json, runs.json |
-| `search-service/src/lib/normalize.mjs` | Text normalization, tokenization, slugification |
+| `search-service/src/db/catalog-db.mjs` | JSON-file catalog database — getAllProducts, updateProductDirect, getProductCount, vendor/category queries |
+| `search-service/src/jobs/image-verifier.mjs` | Background image audit — HEAD check, dimension extraction, og:image replacement for broken URLs, quality labeling (verified-hq/verified/low-quality/broken/missing) |
+| `search-service/src/jobs/image-fixer.mjs` | Image repair — finds replacement images for flagged products |
+| `search-service/src/jobs/full-catalog-crawl.mjs` | Full re-crawl of all vendor catalogs |
 | `search-service/src/config/vendors.mjs` | 28+ vendor configs with domains, discovery paths, profile metadata |
-| `search-service/src/data/sample-catalog.mjs` | 60+ seed products across 15+ categories, 27 vendors |
 | `search-service/src/adapters/` | Vendor-specific crawl adapters |
 
-## AI Search Layer (ai-search.mjs)
+## Smart Search (POST /smart-search)
 
-Uses Anthropic API (claude-sonnet-4-20250514) with graceful fallback to hardcoded rules when API is unavailable.
+The primary search endpoint. Conversational, AI-powered.
 
-### 5 AI Functions
-
-1. **`aiParseAndExpand(query)`** — Combined parse + expand in one API call
-   - Takes ANY natural language query and extracts: product_type, style, material, color, vendor, max_price, room_type, size, attributes
-   - Understands jargon: MCM → mid-century modern, "under 2k" → $2000, "performance fabric" → material
-   - Generates 8-12 search variants using furniture industry knowledge (synonym chains, vendor phrasings, category adjacents)
-   - Fallback: `buildSearchIntent()` + `buildQueryVariants()` from query-intelligence.mjs
-
-2. **`aiDiscoverProducts(query, intent)`** — Web search discovery
-   - Uses Anthropic API with `web_search_20250305` tool to find real products on vendor websites
-   - Returns structured product objects (name, vendor, image URL, product URL, price, category, material, style)
-   - Products tagged with `ingestion_source: "ai-discovery"`
-
-3. **`aiRankResults(query, intent, products)`** — Semantic relevance ranking
-   - Re-ranks top 30 candidates by TRUE relevance (not just keyword overlap)
-   - Each product gets a reasoning string explaining match quality
-   - Fallback: keeps existing rank order
-
-4. **`aiGenerateSummary(query, intent, products)`** — Natural language summary
-   - Generates 1-2 sentence design consultant summary specific to actual results
-   - Mentions vendors, price ranges, style trends, actionable suggestions
-   - Example: "Found 17 tufted options from 13 vendors... Consider filtering by leather material."
-
-5. **Individual `aiParseIntent()` and `aiExpandQuery()`** — Available but the combined call is used by default
-
-### Rate Limit Handling
-
-- Tier 1 API limits: 30k input tokens/min
-- Rate limit tracker (`rateLimitedUntil`) skips subsequent calls when limited
-- Retry with backoff (up to 2 retries, waits for retry-after header)
-- Server warmup is disabled to preserve rate budget for searches
-- All AI calls have generous timeouts (20-45s) to accommodate retries
-
-### API Key
-
-Set `ANTHROPIC_API_KEY` env var. Without it, all AI functions silently fall back to hardcoded logic. The app works either way.
-
-## Search Pipeline (POST /search)
-
-1. **AI Parse + Expand** (20s timeout) → structured intent + 8-12 query variants
-2. **Catalog lookup** → existing products from catalog.json + verified-catalog.json
-3. **Parallel Discovery**:
-   - Crawler-based: `discoverAcrossVariants()` hits vendor search pages + DuckDuckGo
-   - AI web search: `aiDiscoverProducts()` uses Anthropic web_search tool
-4. **Merge & Dedupe** all sources
-5. **Token-match ranking** via `searchCatalog()` (rank.mjs)
-6. **Result selection**: verified first, then directional catalog fallback, up to 50 results
-7. **Parallel AI post-processing**:
-   - `aiRankResults()` re-ranks by semantic relevance
-   - `aiGenerateSummary()` generates natural language summary
-8. **Response** includes: `query`, `intent`, `ai_summary`, `total`, `result_mode`, `diagnostics`, `products`
-
-## Response Fields
-
+### Request
 ```json
 {
-  "query": "tufted leather chesterfield sofa",
-  "intent": { "product_type": "sofa", "style": "chesterfield", "material": "leather", "ai_parsed": true, ... },
-  "ai_summary": "Found 17 tufted options from 13 vendors...",
-  "total": 17,
-  "result_mode": "directional-catalog-fallback | verified-vendor-results | ai-discovery-results",
-  "diagnostics": { "ai_parsed": true, "ai_ranked": true, "ai_discovered_count": 0, "query_variants": [...], ... },
-  "products": [{ "product_name": "...", "vendor_name": "...", "image_url": "...", "product_url": "...", "relevance_score": 95, "reasoning": "...", ... }]
+  "conversation": [
+    { "role": "user", "content": "hooker and bernhardt sofas" },
+    { "role": "assistant", "content": "...", "resultSummary": "Showed 45 results..." },
+    { "role": "user", "content": "just fabric versions" }
+  ]
 }
 ```
 
-## Frontend Search Client (searchClient.js)
+### Pipeline
+1. **AI Brain** (Claude Haiku `claude-haiku-4-5-20251001`) — reads full conversation + catalog intelligence + furniture knowledge → extracts structured search params (keywords, vendors, categories, materials, styles, colors, price range, sort) + generates natural assistant message
+2. **Catalog search** — keyword matching against 18,500+ products
+3. **Soft filtering** — vendor, category, material, style, color filters boost matching products rather than eliminating non-matching (prevents empty results)
+4. **Color expansion** — maps vague terms ("neutral" → cream/beige/ivory/oatmeal/sand, "warm" → cognac/camel/rust/terracotta, etc.)
+5. **Price filtering** — hard filter when max_price specified
+6. **Sorting** — relevance (default), price_asc, price_desc, newest
+7. **Response** — products array + assistant_message + search metadata
 
-`normalizeStandaloneResult()` maps backend fields to UI fields. Key logic:
-- `isAiDiscovery` / `isLiveResult` flags determine trust level
-- AI-discovered products pass through image_url and product_url
-- Seed/catalog products pass through assets if present
-- Live-crawled products only show verified assets
-- `match_label`: "Verified vendor result" | "AI discovered" | "Live result pending verification" | "Catalog match"
+### Key Design Decisions
+- **Soft filters over hard filters**: Material, style, and color filters boost matching products to the top instead of eliminating non-matching when too few products match (threshold: 5 or 10% of results). This prevents "1 result" situations.
+- **Image normalization**: Images stored as mixed format (objects `{url, type, priority}` vs plain URL strings). Normalized to URL strings in 3 places: server sanitizeSearchProduct, client normalizeStandaloneResult, detail panel productImages builder.
+- **Conversation context**: The AI brain sees the full conversation history including previous result summaries, enabling follow-ups like "just fabric versions", "anything in blue", "what would pair with the first one".
 
-## Vendor Coverage
+## Quote Builder
 
-28+ vendors configured in `vendors.mjs`:
-- **High-end**: Hooker, Bernhardt, Four Hands, Universal, Theodore Alexander, Caracole, Century, Baker, Vanguard, Lexington, Bassett, Stickley
-- **Retail**: RH, West Elm, IKEA, Wayfair, CB2, Pottery Barn, Crate & Barrel
-- **Modern/DTC**: Article, Arhaus, Ethan Allen, Joybird, Castlery, Room & Board, Blu Dot, DWR
-- **Office**: Herman Miller, Knoll
+Full quote system with localStorage persistence.
 
-Each vendor has: domain, asset hosts, title suffixes, product path tokens, rejection tokens, image path hints, discovery search_paths, category_paths.
+### Data Model (growth-store.js)
+```javascript
+{
+  id: "quote_...",
+  name: "Untitled Quote",
+  client_name: "",
+  designer_name: "",
+  rooms: [{ id: "room_...", name: "Living Room", items: [...] }],
+  markup_percent: 30,
+  notes: "",
+  terms: "..."
+}
+```
 
-## Seed Catalog (sample-catalog.mjs)
+### Features
+- Add to quote from search results (overlay button on product cards + detail panel)
+- Room-based organization with add/rename/delete rooms
+- Per-item: quantity, notes, move between rooms
+- Designer markup percentage (private, not shown to client)
+- Room subtotals and grand total with markup applied
+- Designer settings (business name, name, email, phone) persisted separately
+- PDF generation: cover page → room dividers → product pages → summary with signature line
+- Custom event dispatch (`spec-quote-change`) for cross-component state sync
 
-60+ products across: swivel chair (12), sofa/sectional (10), dining table (7), coffee table (4), dining chair (4), bed (3), credenza (3), desk (2), office chair (3), accent chair (4), nightstand (2), bookcase (2), console table (2), dresser (2), lighting (2), rug (2), bar stool (2), ottoman (1), mirror (1).
+## Search Accuracy (Verified)
+
+**20/20 test queries pass** (test-search.py):
+- leather sofa, modern dining table seats 8, Bernhardt accent chairs, boucle swivel chair, walnut credenza, upholstered king bed traditional, Hooker home office, marble cocktail table, performance fabric sectional, coastal bedroom furniture, Baker Thomas Pheasant collection, narrow console table under 14 inches deep, bar stools counter height, channel back dining chair velvet, outdoor sofa commercial grade, Theodore Alexander accent tables, tight back sofa neutral, round dining table for 6, statement accent chair for foyer, quiet luxury bedroom
+
+**3/3 conversational flows pass** (test-convo.py, 12 total steps):
+1. hooker/bernhardt sofas → fabric → blue → cocktail table pairing
+2. modern accent chair <$3k → Baker → traditional → matching ottoman
+3. dining table seats 10 → round → chairs for walnut → sideboard
+
+## Furniture Knowledge System
+
+The AI brain includes two layers of domain knowledge:
+
+### Auto-Generated (catalog-intelligence.mjs)
+- Vendor profiles with product counts, top categories, price ranges
+- Category leaders (which vendors dominate which categories)
+- Collection pairing maps
+- Price tier segmentation
+- Refreshes every 30 minutes from live catalog data
+
+### Static Knowledge (furniture-knowledge.mjs)
+- Vendor deep expertise: 4 tiers with collections, price ranges, lead times, specialties
+- Room planning rules: living room sizing, dining table seating, rug sizing, chandelier sizing, height relationships
+- Material durability: fabrics ranked 1-8, wood types, stone types, metals
+- Upholstery construction: cushion types, fill types, frame construction, welt/trim, arm styles, COM
+- Style mixing: 80/20 rule, color theory 60-30-10
+- Spatial planning: room composition formulas, budget allocation, traffic/spacing
+- Trade process: lead times by vendor type, freight, pricing/markup
+- Trends 2025-2026
+- Hospitality/commercial specs: CAL 133, ADA
+- Outdoor furniture, sustainability
 
 ## UI Theme
 
@@ -159,41 +168,31 @@ Each vendor has: domain, asset hosts, title suffixes, product path tokens, rejec
 - Glass panels: `bg-white/5 border-white/10 backdrop-blur-xl`
 - Animations: framer-motion for page transitions, scroll reveals, loading sequences
 
-## Important Rules
+## Nav Structure
 
-- Do not show price unless verified
-- Do not show image unless vendor-hosted and verified (or from seed/AI discovery)
-- Do not show product link unless canonical vendor URL is verified (or from seed/AI discovery)
-- Prefer honest directional fallback over fake certainty
-- AI functions must always have graceful fallbacks to hardcoded logic
+**Primary nav**: Home (Dashboard), Search, Projects, Intelligence
+**More menu**: Compare, Showcase, Vendor Portal
+**Header right**: Search bar, Quote counter badge, Notifications, User menu
 
-## Known Limitations
+## Background Jobs
 
-1. **API rate limits** — Tier 1 (30k tokens/min) means AI features can be slow with retries. Upgrades automatically as usage grows.
-2. **AI web search discovery** — Often returns 0 products because the web_search call is token-heavy and gets rate-limited. Works better with higher tier.
-3. **Live crawling** — Many vendor sites block bots or use JS rendering. DuckDuckGo fallback helps but coverage varies.
-4. **Seed catalog** — 60+ products provide baseline results but don't cover every niche query.
+All triggered via POST and polled via GET /jobs/status:
 
-## Best Next Work
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /jobs/verify-images` | Image verification — HEAD check, dimension inspection, og:image replacement |
+| `POST /jobs/dedup` | Deduplication across vendors |
+| `POST /admin/deep-enrichment/start` | Re-crawl product pages for missing fields |
+| `POST /admin/catalog-cleanup/start` | Name cleaning, description fixing, image flagging |
 
-### Backend
-- Build vendor-specific listing page extractors for top vendors (Hooker, Bernhardt, Four Hands) to improve verified product yield
-- Increase seed catalog coverage for underrepresented categories (outdoor, kids, lighting, accessories, rugs)
-- Add response caching to reduce redundant API calls for repeated queries
-- Consider using claude-haiku for cheaper AI calls (parse/expand/summary don't need Sonnet)
+## Known Issues / Post-Launch Work
 
-### Frontend
-- Add loading skeletons for product cards
-- Add filter pills (product type, material, style, vendor, price range) that actually filter results
-- Add favorites/saved products to localStorage
-- Build Dashboard page with catalog stats, recent searches, vendor coverage
-- Improve mobile responsiveness at 375px width
-- Add price display on product cards when available
-
-### Infrastructure
-- Deploy to a server (the app is currently localhost-only)
-- Set up proper env var management for API keys
-- Consider a real database instead of JSON files for catalog storage
+1. **Low-count vendors need re-crawl**: Lee Industries (1), Four Hands (3), CR Laine (13), Sherrill (18) — their crawl adapters may need fixing
+2. **Theodore Alexander decor** — import was interrupted, decor category incomplete
+3. **Visual tagger** — stopped at 11,310/35,698 products (Caracole). Resume to complete AI visual tagging
+4. **Mobile responsiveness** — not fully tested at 375px
+5. **Shareable client quote link** — planned but not yet built
+6. **Deploy** — currently localhost-only
 
 ## Test Commands
 
@@ -201,16 +200,23 @@ Each vendor has: domain, asset hosts, title suffixes, product path tokens, rejec
 # Health check
 curl -s http://127.0.0.1:4310/health
 
-# Search (AI-powered)
-curl -s -X POST http://127.0.0.1:4310/search \
+# Smart search (conversational)
+curl -s -X POST http://127.0.0.1:4310/smart-search \
   -H 'content-type: application/json' \
-  -d '{"query":"MCM accent chair under 2k","allow_seed_results":true}'
+  -d '{"conversation":[{"role":"user","content":"leather sofa"}]}'
 
-# Diverse test queries
-# "72 inch walnut credenza"
-# "tufted leather chesterfield sofa"
-# "marble top console table under $2000"
-# "king size upholstered bed frame in cream"
-# "rattan outdoor lounge"
-# "ergonomic office chair"
-# "blue velvet sofa"
+# Catalog stats
+curl -s http://127.0.0.1:4310/catalog/stats
+
+# Job status
+curl -s http://127.0.0.1:4310/jobs/status
+
+# Run search accuracy tests (20 queries)
+python3 search-service/test-search.py
+
+# Run conversational flow tests (3 flows, 12 steps)
+python3 search-service/test-convo.py
+
+# Trigger image verification
+curl -s -X POST http://127.0.0.1:4310/jobs/verify-images
+```

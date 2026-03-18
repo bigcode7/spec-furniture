@@ -208,6 +208,7 @@ export function buildProductText(product) {
   if (product.color) parts.push(product.color);
   if (product.description) parts.push(product.description.slice(0, 200));
   if (product.dimensions) parts.push(product.dimensions);
+  if (product.ai_visual_tags) parts.push(product.ai_visual_tags.slice(0, 150));
 
   // Add top tags (skip single-letter and very common ones)
   const tags = (product.tags || [])

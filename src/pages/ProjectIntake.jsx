@@ -137,7 +137,7 @@ export default function ProjectIntake() {
             budget: typeof budget === "number" ? { total: budget } : budget,
           }),
         });
-        window.location.href = createPageUrl("SourcingBoard") + "?project=" + project.id;
+        window.location.href = "/Projects?tab=sourcing&project=" + project.id;
         return;
       }
 
@@ -165,7 +165,7 @@ export default function ProjectIntake() {
         });
       }
 
-      window.location.href = createPageUrl("SourcingBoard") + "?project=" + newId;
+      window.location.href = "/Projects?tab=sourcing&project=" + newId;
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -373,7 +373,7 @@ export default function ProjectIntake() {
                       className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gold/30 focus:ring-2 focus:ring-gold/10 appearance-none"
                     >
                       {STYLES.map((s) => (
-                        <option key={s} value={s} className="bg-[#0a0a0f]">
+                        <option key={s} value={s} className="bg-[#08090E]">
                           {formatStyle(s)}
                         </option>
                       ))}
@@ -455,7 +455,7 @@ export default function ProjectIntake() {
                             <option
                               key={rt}
                               value={rt}
-                              className="bg-[#0a0a0f]"
+                              className="bg-[#08090E]"
                             >
                               {formatRoomType(rt)}
                             </option>
@@ -471,9 +471,9 @@ export default function ProjectIntake() {
                             onChange={(e) => updateRoom(index, "size", e.target.value)}
                             className="bg-transparent border-none text-white/40 focus:outline-none text-xs appearance-none cursor-pointer"
                           >
-                            <option value="small" className="bg-[#0a0a0f]">Small</option>
-                            <option value="medium" className="bg-[#0a0a0f]">Medium</option>
-                            <option value="large" className="bg-[#0a0a0f]">Large</option>
+                            <option value="small" className="bg-[#08090E]">Small</option>
+                            <option value="medium" className="bg-[#08090E]">Medium</option>
+                            <option value="large" className="bg-[#08090E]">Large</option>
                           </select>
                         </div>
                         <Badge

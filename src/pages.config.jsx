@@ -125,6 +125,7 @@ export const PAGES = {
     "Discover": DiscoverRedirect,
     "Collections": CollectionsRedirect,
     "Showcase": Showcase,
+    "Assistant": () => <Navigate to="/Search" replace />,
 }
 
 export const pagesConfig = {

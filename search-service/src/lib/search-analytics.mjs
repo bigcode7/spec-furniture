@@ -284,3 +284,10 @@ export function getAnalyticsDashboard() {
     hourly_volume: hourlyVolume,
   };
 }
+
+/**
+ * Get raw click data for search enhancement.
+ */
+export function getProductClickData() {
+  return { productClicks, totalSearches: searchLog.length };
+}
