@@ -211,7 +211,11 @@ export function updateUser(userId, updates) {
     return { ok: false, error: "User not found" };
   }
 
-  const allowed = ["full_name", "business_name", "role"];
+  const allowed = [
+    "full_name", "business_name", "role",
+    "phone", "location", "membership_id",
+    "preferences", "notifications",
+  ];
   for (const key of allowed) {
     if (updates[key] !== undefined) {
       userRecord[key] = updates[key];
@@ -220,6 +224,57 @@ export function updateUser(userId, updates) {
 
   saveUsers();
   return { ok: true, user: sanitizeUser(userRecord) };
+}
+
+/**
+ * Change user password.
+ */
+export async function changePassword(userId, { current_password, new_password }) {
+  if (!current_password || !new_password) {
+    return { ok: false, error: "Current and new password are required" };
+  }
+  if (new_password.length < 8) {
+    return { ok: false, error: "New password must be at least 8 characters" };
+  }
+
+  const userRecord = Object.values(users).find(u => u.id === userId);
+  if (!userRecord) {
+    return { ok: false, error: "User not found" };
+  }
+
+  const valid = await verifyPassword(current_password, userRecord.password_hash);
+  if (!valid) {
+    return { ok: false, error: "Current password is incorrect" };
+  }
+
+  userRecord.password_hash = await hashPassword(new_password);
+  saveUsers();
+  return { ok: true };
+}
+
+/**
+ * Delete user account permanently.
+ */
+export function deleteUser(userId) {
+  const email = Object.keys(users).find(e => users[e].id === userId);
+  if (!email) {
+    return { ok: false, error: "User not found" };
+  }
+  delete users[email];
+  saveUsers();
+  return { ok: true };
+}
+
+/**
+ * Export all user data (GDPR-style).
+ */
+export function exportUserData(userId) {
+  const userRecord = Object.values(users).find(u => u.id === userId);
+  if (!userRecord) {
+    return { ok: false, error: "User not found" };
+  }
+  const { password_hash, ...data } = userRecord;
+  return { ok: true, data: { profile: data, exported_at: new Date().toISOString() } };
 }
 
 /**

@@ -64,7 +64,7 @@ import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, e
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
-import { registerUser, loginUser, getUserFromToken, updateUser, extractToken } from "./lib/auth-store.mjs";
+import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData } from "./lib/auth-store.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
@@ -333,6 +333,31 @@ const server = http.createServer(async (req, res) => {
       if (!auth.ok) return json(res, 401, auth);
       const body = await collectBody(req);
       const result = updateUser(auth.user.id, body);
+      return json(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "POST" && req.url === "/auth/change-password") {
+      const token = extractToken(req.headers.authorization);
+      const auth = getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, auth);
+      const body = await collectBody(req);
+      const result = await changePassword(auth.user.id, body);
+      return json(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "DELETE" && req.url === "/auth/me") {
+      const token = extractToken(req.headers.authorization);
+      const auth = getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, auth);
+      const result = deleteUser(auth.user.id);
+      return json(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "GET" && req.url === "/auth/export") {
+      const token = extractToken(req.headers.authorization);
+      const auth = getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, auth);
+      const result = exportUserData(auth.user.id);
       return json(res, result.ok ? 200 : 400, result);
     }
 

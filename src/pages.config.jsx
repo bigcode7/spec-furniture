@@ -8,6 +8,7 @@
 import Landing from './pages/Landing';
 import Search from './pages/Search';
 import Quotes from './pages/Quotes';
+import Account from './pages/Account';
 import About from './pages/About';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
@@ -20,6 +21,7 @@ export const PAGES = {
     "Landing": Landing,
     "Search": Search,
     "Quotes": Quotes,
+    "Account": Account,
     "About": About,
     "Privacy": Privacy,
     "Terms": Terms,

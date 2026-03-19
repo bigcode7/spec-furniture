@@ -109,6 +109,25 @@ export function getCachedUser() {
   return getStoredUser();
 }
 
+export async function changePassword({ current_password, new_password }) {
+  const { status, data } = await authFetch("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ current_password, new_password }),
+  });
+  return data;
+}
+
+export async function deleteAccount() {
+  const { status, data } = await authFetch("/auth/me", { method: "DELETE" });
+  if (data.ok) clearAuth();
+  return data;
+}
+
+export async function exportData() {
+  const { status, data } = await authFetch("/auth/export");
+  return data;
+}
+
 export function getToken() {
   return getStoredToken();
 }

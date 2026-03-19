@@ -104,9 +104,30 @@ function AccountDropdown({ user, logout }) {
 
             {/* Menu items */}
             <div className="py-1.5">
-              <DropdownItem icon={User} label="My Account" disabled />
-              <DropdownItem icon={Tag} label="My Trade Discounts" disabled />
-              <DropdownItem icon={Settings} label="Settings" disabled />
+              <Link
+                to="/Account"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+              >
+                <User className="h-4 w-4 text-white/25" />
+                My Account
+              </Link>
+              <Link
+                to="/Account?section=discounts"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+              >
+                <Tag className="h-4 w-4 text-white/25" />
+                My Trade Discounts
+              </Link>
+              <Link
+                to="/Account?section=preferences"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+              >
+                <Settings className="h-4 w-4 text-white/25" />
+                Settings
+              </Link>
               <a
                 href="mailto:support@spekd.ai"
                 className="flex items-center gap-3 px-4 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
