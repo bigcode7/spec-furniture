@@ -369,11 +369,13 @@ const server = http.createServer(async (req, res) => {
         const vn = (p.vendor_name || p.manufacturer_name || "").toLowerCase();
         vendorCounts[vn] = (vendorCounts[vn] || 0) + 1;
       }
-      const enriched = priorityVendors.map(v => ({
-        ...v,
-        product_count: vendorCounts[v.name.toLowerCase()] || 0,
-        active_skus: vendorCounts[v.name.toLowerCase()] || 0,
-      }));
+      const enriched = priorityVendors
+        .map(v => ({
+          ...v,
+          product_count: vendorCounts[v.name.toLowerCase()] || 0,
+          active_skus: vendorCounts[v.name.toLowerCase()] || 0,
+        }))
+        .filter(v => v.product_count > 0);
       return json(res, 200, { vendors: enriched });
     }
 

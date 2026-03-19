@@ -357,7 +357,7 @@ export default function Landing() {
   const totalVendors = vendors.length || 0;
   const marqueeNames = vendorNames.length > 0 ? vendorNames : [
     "Bernhardt", "Hooker Furniture", "Century Furniture", "Vanguard",
-    "Four Hands", "Caracole", "Baker Furniture", "Lee Industries",
+    "Caracole", "Baker Furniture", "Theodore Alexander", "Stickley",
   ];
 
   return (
