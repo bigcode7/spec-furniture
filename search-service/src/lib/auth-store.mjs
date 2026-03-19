@@ -15,8 +15,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 
-// Token secret — generated once per server start, or use env var
-const TOKEN_SECRET = process.env.AUTH_SECRET || crypto.randomBytes(32).toString("hex");
+// Token secret — persisted to file so tokens survive server restarts
+const SECRET_FILE = path.join(DATA_DIR, ".auth-secret");
+function getOrCreateSecret() {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  try {
+    if (fs.existsSync(SECRET_FILE)) {
+      const saved = fs.readFileSync(SECRET_FILE, "utf8").trim();
+      if (saved.length >= 32) return saved;
+    }
+  } catch {}
+  const secret = crypto.randomBytes(32).toString("hex");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SECRET_FILE, secret);
+  } catch {}
+  return secret;
+}
+const TOKEN_SECRET = getOrCreateSecret();
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ── In-memory user store backed by JSON file ──

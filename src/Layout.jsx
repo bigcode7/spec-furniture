@@ -276,6 +276,8 @@ export default function Layout({ children, currentPageName }) {
             {/* Center nav */}
             <nav className="flex items-center gap-0.5">
               {NAV_ITEMS.map((item) => {
+                // Hide Quotes nav for guests
+                if (item.path === "Quotes" && !user) return null;
                 const active = currentPageName === item.path;
                 return (
                   <Link

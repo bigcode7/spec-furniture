@@ -15,6 +15,8 @@ import {
 } from "@/lib/growth-store";
 import { generateQuotePdf } from "@/lib/quote-generator";
 import { useTradePricing } from "@/lib/TradePricingContext";
+import { useAuth } from "@/lib/AuthContext";
+import { Lock, UserPlus as UserPlusIcon } from "lucide-react";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -34,7 +36,47 @@ function formatUsd(n) {
 
 export default function Quotes() {
   const navigate = useNavigate();
+  const { user, navigateToLogin } = useAuth();
   const { mode, getPrice, fmtPrice, hasDiscounts } = useTradePricing();
+
+  // Gate: must be logged in to access quotes
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#08090E] text-white">
+        <div className="max-w-lg mx-auto px-4 py-32 flex flex-col items-center text-center">
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-2xl mb-6"
+            style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
+          >
+            <Lock className="h-7 w-7 text-[#C9A96E]" />
+          </div>
+          <h2 className="text-xl font-semibold text-white/90 mb-2">Sign in to build quotes</h2>
+          <p className="text-sm text-white/40 mb-6 max-w-sm">
+            Create a free account to save products, build quotes, and generate professional PDFs for your clients.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigateToLogin("signup")}
+              className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:brightness-110"
+              style={{
+                background: "linear-gradient(135deg, #C9A96E, #B8944F)",
+                color: "#0A0B10",
+              }}
+            >
+              <UserPlusIcon className="h-4 w-4" />
+              Create Free Account
+            </button>
+            <button
+              onClick={() => navigateToLogin("login")}
+              className="rounded-xl px-6 py-3 text-sm font-medium text-white/50 hover:text-white/80 border border-white/[0.08] hover:border-white/[0.15] transition-all"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* state */
   const [favorites, setFavorites] = useState(getFavorites());
