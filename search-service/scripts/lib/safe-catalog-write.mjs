@@ -16,14 +16,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const DEFAULT_DB_PATH = "./search-service/data/catalog.db.json";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_DB_PATH = path.resolve(__dirname, "../../data/catalog.db.json");
 
 /**
  * Load catalog and take a vendor snapshot.
  */
 export function loadCatalog(dbPath = DEFAULT_DB_PATH) {
-  const raw = fs.readFileSync(dbPath, "utf8");
+  const resolved = path.resolve(dbPath);
+  const raw = fs.readFileSync(resolved, "utf8");
   const data = JSON.parse(raw);
   const products = Array.isArray(data.products) ? data.products : Object.values(data.products || {});
 
@@ -34,7 +37,7 @@ export function loadCatalog(dbPath = DEFAULT_DB_PATH) {
     vendorCounts[v] = (vendorCounts[v] || 0) + 1;
   }
 
-  return { data, products, vendorCounts, dbPath };
+  return { data, products, vendorCounts, dbPath: resolved };
 }
 
 /**
@@ -49,7 +52,7 @@ export function loadCatalog(dbPath = DEFAULT_DB_PATH) {
  * @param {boolean} opts.allowMassDeletion - Skip the >500 drop check
  */
 export function safeSave(data, newProducts, vendorCounts, opts = {}) {
-  const dbPath = opts.dbPath || DEFAULT_DB_PATH;
+  const dbPath = path.resolve(opts.dbPath || DEFAULT_DB_PATH);
   const forceDeleteVendors = opts.forceDeleteVendors || new Set();
   const allowMassDeletion = opts.allowMassDeletion || false;
 
