@@ -20,7 +20,7 @@ import { getSynonyms, expandQuery, expandMaterial, parseDimensionConstraints, pa
 import { extractTags } from "../lib/product-tagger.mjs";
 import { normalizeToMasterCategory } from "../lib/category-normalizer.mjs";
 import { computeQualityScore } from "../lib/quality-scorer.mjs";
-import { inferCategoryFromName } from "../lib/query-category-filter.mjs";
+import { inferCategoryFromName, detectQueryCategory } from "../lib/query-category-filter.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -971,6 +971,32 @@ export function searchCatalogDB(query, filters = {}, limit = 50) {
 
     if (score > 0) {
       results.push({ ...product, relevance_score: score });
+    }
+  }
+
+  // ── Rug demotion — prevent 10k rugs from drowning out furniture ──
+  // Explicit rug queries ("rug", "area rug", "runner") → no change
+  // Category-specific queries ("dining table", "sofa") → exclude rugs entirely
+  // Open/room queries ("modern living room") → demote rugs below furniture
+  const queryCat = detectQueryCategory(cleanedQuery, vendorHardFilter);
+  const isRugQuery = queryCat.type === "product" && queryCat.categories?.includes("area-rugs");
+
+  if (!isRugQuery && results.length > 0) {
+    const isSpecificCategory = queryCat.type === "product" || queryCat.type === "natural-language";
+
+    for (let i = results.length - 1; i >= 0; i--) {
+      const cat = (results[i].category || "").toLowerCase();
+      const isRug = cat === "area-rugs" || cat === "rugs" || cat.includes("rug");
+
+      if (isRug) {
+        if (isSpecificCategory) {
+          // Hard exclude: "dining table" should NEVER return rugs
+          results.splice(i, 1);
+        } else {
+          // Soft demote: open/room/vendor queries — push rugs below furniture
+          results[i].relevance_score = Math.max(results[i].relevance_score * 0.3, 0.1);
+        }
+      }
     }
   }
 
