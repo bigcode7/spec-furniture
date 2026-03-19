@@ -494,7 +494,7 @@ function ShowcaseGallery({ onSelectProject }) {
             <h1 className="text-3xl font-display font-bold text-white">Showcase</h1>
           </div>
           <p className="section-copy text-sm max-w-xl">
-            See how designers source with SPEC -- get inspired, save products, start your own project
+            See how designers source with Spekd -- get inspired, save products, start your own project
           </p>
         </div>
 
@@ -516,7 +516,7 @@ function ShowcaseGallery({ onSelectProject }) {
         {/* Error */}
         {error && !loading && (
           <div className="text-center py-24">
-            <p className="text-white/30 text-sm">Could not load projects. Make sure the SPEC service is running.</p>
+            <p className="text-white/30 text-sm">Could not load projects. Make sure the Spekd service is running.</p>
           </div>
         )}
 

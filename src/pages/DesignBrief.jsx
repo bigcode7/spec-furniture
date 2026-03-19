@@ -138,7 +138,7 @@ export default function DesignBrief() {
           </h1>
         </div>
         <p className="text-white/30 text-sm mb-8">
-          Describe your project and SPEC generates a comprehensive sourcing plan
+          Describe your project and Spekd generates a comprehensive sourcing plan
         </p>
 
         {/* Intake Form */}

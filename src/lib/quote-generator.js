@@ -33,7 +33,8 @@ const COLORS = {
  * Generate a professional PDF quote from the current quote builder state.
  * Called from QuotePanel — uses items array with _room, _quantity, and markup-adjusted prices.
  */
-export async function generateQuotePdf(items, projectName = "Untitled Quote") {
+export async function generateQuotePdf(items, projectName = "Untitled Quote", options = {}) {
+  const { pdfMode = "client" } = options; // "client" (retail/markup) or "trade" (trade prices)
   const quote = getQuote();
   const settings = getQuoteSettings();
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -90,7 +91,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote") {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text("Product Selection & Quote", margin, subtitleY);
+  doc.text(pdfMode === "trade" ? "Internal Trade Pricing" : "Product Selection & Quote", margin, subtitleY);
 
   // Date
   subtitleY += 10;
@@ -136,10 +137,10 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote") {
     doc.text(stat.label, x, statsY + 22);
   });
 
-  // Powered by SPEC
+  // Powered by Spekd
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text("Powered by SPEC", margin, pageHeight - 15);
+  doc.text("Powered by Spekd", margin, pageHeight - 15);
 
   // ── Preload images ──────────────────────────────────────────
   const [narrativesData, imageCache] = await Promise.all([
@@ -483,7 +484,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote") {
 
   // Download
   const filename = sanitizeFilename(projectName || quote.client_name || "Quote");
-  doc.save(`SPEC-Quote-${filename}.pdf`);
+  const suffix = pdfMode === "trade" ? "-TRADE" : "";
+  doc.save(`Spekd-Quote-${filename}${suffix}.pdf`);
 }
 
 function buildSpecRows(item) {
@@ -502,7 +504,8 @@ function buildSpecRows(item) {
   if (dimStr) rows.push({ label: "Dimensions", value: dimStr });
 
   // Show price (already markup-adjusted if applicable)
-  if (item.retail_price) rows.push({ label: "Price", value: `$${Number(item.retail_price).toLocaleString()}` });
+  const priceLabel = item._is_trade ? "Est. Trade" : "Price";
+  if (item.retail_price) rows.push({ label: priceLabel, value: `$${Number(item.retail_price).toLocaleString()}` });
   if ((item._quantity || 1) > 1) rows.push({ label: "Quantity", value: String(item._quantity) });
   if (item.lead_time_weeks) rows.push({ label: "Lead Time", value: `${item.lead_time_weeks} weeks` });
   if (item.manufacturer_name) rows.push({ label: "Vendor", value: item.manufacturer_name });
@@ -514,7 +517,7 @@ function drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text(`Powered by SPEC`, margin, pageHeight - 12);
+  doc.text(`Powered by Spekd`, margin, pageHeight - 12);
   doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 12, { align: "right" });
 }
 

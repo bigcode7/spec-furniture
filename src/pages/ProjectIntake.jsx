@@ -193,7 +193,7 @@ export default function ProjectIntake() {
                   className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold/15 bg-gold/10 text-[9px] font-bold uppercase tracking-[0.3em] text-gold/70 mb-6"
                 >
                   <Sparkles className="w-4 h-4 text-gold" />
-                  SPEC Sourcing Brain
+                  Spekd Sourcing Brain
                 </motion.div>
                 <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">
                   Tell us about your project

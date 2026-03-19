@@ -28,11 +28,17 @@ import {
   Star,
   FileText,
   ClipboardCheck,
+  Info,
+  Sparkles,
+  TrendingUp,
+  AlertTriangle,
+  ClipboardList,
+  ChevronRight,
 } from "lucide-react";
 import DiscoverBrowser from "@/components/DiscoverBrowser";
 import CollectionBrowser from "@/components/CollectionBrowser";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, conversationalSearch, findSimilarProducts, trackProductClick, trackProductCompare } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, conversationalSearch, findSimilarProducts, listSearch, trackProductClick, trackProductCompare } from "@/api/searchClient";
 import FitScoreBadge from "@/components/FitScoreBadge";
 import MaterialBadges from "@/components/MaterialBadges";
 import AddToProjectMenu from "@/components/AddToProjectMenu";
@@ -53,6 +59,8 @@ import {
   addToQuote,
   getQuoteItemCount,
 } from "@/lib/growth-store";
+import { useGuestGate } from "@/lib/GuestGate";
+import { useTradePricing } from "@/lib/TradePricingContext";
 
 const EXAMPLE_SEARCHES = [
   "walnut dining table for 8, mid-century modern",
@@ -216,6 +224,8 @@ export default function SearchPage() {
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState(null);
   const [diagnostics, setDiagnostics] = useState(null);
+  const [vendorComparison, setVendorComparison] = useState(null);
+  const [zeroResultGuidance, setZeroResultGuidance] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
   const [compareItems, setCompareItems] = useState([]);
   const [intent, setIntent] = useState(null);
@@ -241,6 +251,12 @@ export default function SearchPage() {
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
 
+  // List mode — multi-item sourcing lists
+  const [listMode, setListMode] = useState(false);
+  const [listResults, setListResults] = useState(null); // { overview_message, items: [...] }
+  const [showPasteList, setShowPasteList] = useState(false);
+  const [pasteListValue, setPasteListValue] = useState("");
+
   // Preview panel
   const [previewProduct, setPreviewProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -258,6 +274,9 @@ export default function SearchPage() {
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
   const navigate = useNavigate();
+
+  // Guest gate — track searches, gate features
+  const { trackSearch, requireAccount, isGuest } = useGuestGate();
 
   const hasConversation = messages.length > 0;
 
@@ -317,10 +336,70 @@ export default function SearchPage() {
     return () => observer.disconnect();
   }, [loading, loadingMore, hasMoreLocal, hasMoreServer, sorted.length, hasConversation]);
 
+  // ── LIST DETECTION ──
+  const detectList = (text) => {
+    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return null;
+    // Check for numbered items, bullets, or dashes
+    const listPatterns = lines.filter(l =>
+      /^\d+[\.\)]\s/.test(l) || /^[-•*]\s/.test(l) || /^[a-z]\)\s/i.test(l)
+    );
+    if (listPatterns.length >= 2) {
+      return lines.map(l => l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-•*]\s*/, "").replace(/^[a-z]\)\s*/i, "").trim()).filter(l => l.length > 3);
+    }
+    // Multiple lines that each look like a product description
+    if (lines.length >= 2 && lines.every(l => l.length > 5 && l.length < 200)) {
+      return lines;
+    }
+    return null;
+  };
+
+  // ── LIST SEARCH ──
+  const runListSearch = async (items) => {
+    setInputValue("");
+    setPasteListValue("");
+    setShowPasteList(false);
+    setLoading(true);
+    setError(null);
+    setListMode(true);
+    setListResults(null);
+    setAllResults([]);
+    setPreviewProduct(null);
+
+    const userMsg = { role: "user", content: `📋 Sourcing list (${items.length} items):\n${items.map((it, i) => `${i + 1}. ${it}`).join("\n")}`, timestamp: Date.now() };
+    setMessages([userMsg]);
+    window.history.replaceState({}, "", `/Search?q=list`);
+
+    try {
+      const data = await listSearch(items);
+      setListResults(data);
+      const assistantMsg = {
+        role: "assistant",
+        content: data.overview_message || `Processed ${items.length} items.`,
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch {
+      setError("List search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── SEARCH ──
   const runSearch = async (q, searchOptions = {}) => {
     if (!q.trim()) return;
     const trimmed = q.trim();
+
+    // Detect multi-item lists
+    const listItems = detectList(trimmed);
+    if (listItems && listItems.length >= 2) {
+      return runListSearch(listItems);
+    }
+
+    // Clear list mode when doing single search
+    setListMode(false);
+    setListResults(null);
     setInputValue("");
     setLoading(true);
     setError(null);
@@ -388,6 +467,8 @@ export default function SearchPage() {
       setAllResults(products);
       setIntent(data.intent || null);
       setDiagnostics(data.diagnostics || null);
+      setVendorComparison(data.vendor_comparison || null);
+      setZeroResultGuidance(data.zero_result_guidance || null);
 
       const assistantMsg = {
         role: "assistant",
@@ -397,6 +478,7 @@ export default function SearchPage() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setRecentSearches(pushRecentSearch(trimmed));
+      trackSearch(); // Track for guest signup prompt
     } catch {
       setError("Search failed. Please try again.");
     } finally {
@@ -465,6 +547,12 @@ export default function SearchPage() {
     setAllResults([]);
     setIntent(null);
     setDiagnostics(null);
+    setVendorComparison(null);
+    setZeroResultGuidance(null);
+    setListMode(false);
+    setListResults(null);
+    setShowPasteList(false);
+    setPasteListValue("");
     setError(null);
     setInputValue("");
     setClientFilters({});
@@ -565,28 +653,34 @@ export default function SearchPage() {
     if (!q) return;
     const exists = savedSearches.some(s => s.query.toLowerCase() === q.toLowerCase());
     if (exists) {
+      // Unsaving is always allowed
       const next = removeSavedSearch(q);
       setSavedSearches(next);
     } else {
-      const next = saveSearch(q, { resultCount: allResults.length });
-      setSavedSearches(next);
+      requireAccount("save-search", null, () => {
+        const next = saveSearch(q, { resultCount: allResults.length });
+        setSavedSearches(next);
+      });
     }
   };
 
   const handleToggleFavorite = (product) => {
-    const { next } = toggleFavorite(normalizeSearchResult(product));
-    setFavorites(next);
+    requireAccount("favorite", product, () => {
+      const { next } = toggleFavorite(normalizeSearchResult(product));
+      setFavorites(next);
+    });
   };
 
   const handleAddToQuote = (product) => {
-    const { added, alreadyExists } = addToQuote(product);
-    if (added) {
-      setQuoteIds(prev => new Set([...prev, product.id]));
-      setQuoteToast(product.product_name);
-      setTimeout(() => setQuoteToast(null), 2200);
-      // Notify nav bar to update count
-      window.dispatchEvent(new CustomEvent("spec-quote-change"));
-    }
+    requireAccount("quote", product, () => {
+      const { added, alreadyExists } = addToQuote(product);
+      if (added) {
+        setQuoteIds(prev => new Set([...prev, product.id]));
+        setQuoteToast(product.product_name);
+        setTimeout(() => setQuoteToast(null), 2200);
+        window.dispatchEvent(new CustomEvent("spec-quote-change"));
+      }
+    });
   };
 
   const isSearchSaved = savedSearches.some(s => s.query.toLowerCase() === (lastQueryRef.current || "").toLowerCase());
@@ -696,7 +790,7 @@ export default function SearchPage() {
               </div>
             </form>
 
-            {/* Example searches */}
+            {/* Example searches + Paste List */}
             <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
               {EXAMPLE_SEARCHES.map((example, i) => (
                 <span key={example} className="flex items-center gap-2">
@@ -707,6 +801,67 @@ export default function SearchPage() {
                 </span>
               ))}
             </div>
+
+            {/* Paste Your List button */}
+            <div className="mt-5 flex justify-center">
+              <button
+                onClick={() => setShowPasteList(!showPasteList)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-gold/70 hover:border-gold/20 transition-all text-sm"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Paste Your List
+              </button>
+            </div>
+
+            {/* Paste List expanded area */}
+            <AnimatePresence>
+              {showPasteList && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ClipboardList className="h-4 w-4 text-gold/50" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-gold/60">Paste your sourcing list</span>
+                    </div>
+                    <p className="text-[11px] text-white/30 mb-3">
+                      One item per line. Use numbers, bullets, or just line breaks. We'll source every item.
+                    </p>
+                    <textarea
+                      value={pasteListValue}
+                      onChange={(e) => setPasteListValue(e.target.value)}
+                      placeholder={"1. White oak 60\" media console\n2. Contemporary oval dining table under 60\" wide\n3. 50\" contemporary mirror\n4. Accent chairs for a law office"}
+                      className="w-full h-32 bg-black/20 rounded-lg border border-white/[0.06] p-3 text-sm text-white/70 placeholder:text-white/15 outline-none focus:border-gold/20 transition-colors resize-none"
+                    />
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[10px] text-white/20">
+                        {pasteListValue.split("\n").filter(l => l.trim()).length} items detected
+                      </span>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setShowPasteList(false); setPasteListValue(""); }}
+                          className="px-3 py-1.5 rounded-lg text-xs text-white/30 hover:text-white/50 transition-colors">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            const items = pasteListValue.split("\n").map(l => l.trim()).filter(l => l.length > 3);
+                            if (items.length >= 2) runListSearch(items.map(l => l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-•*]\s*/, "").trim()));
+                          }}
+                          disabled={pasteListValue.split("\n").filter(l => l.trim().length > 3).length < 2}
+                          className="btn-gold px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Search className="h-3 w-3" /> Source All Items
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Recently viewed products only — no search history */}
             {recentlyViewed.length > 0 && (
@@ -722,9 +877,9 @@ export default function SearchPage() {
                   {recentlyViewed.slice(0, 10).map((p) => (
                     <button key={p.id} onClick={() => openPreview(p)}
                       className="shrink-0 w-[100px] group">
-                      <div className="aspect-square rounded-lg overflow-hidden bg-white/[0.02] border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5">
+                      <div className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                         {p.image_url ? (
-                          <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                          <img src={p.image_url} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                             {(p.manufacturer_name || "?")[0]}
@@ -733,6 +888,9 @@ export default function SearchPage() {
                       </div>
                       <div className="text-[10px] text-white/30 truncate group-hover:text-white/50 transition-colors">{p.product_name}</div>
                       <div className="text-[9px] text-white/15 truncate">{p.manufacturer_name}</div>
+                      {p.retail_price > 0 && (
+                        <div className="text-[10px] text-white/40 font-medium">${p.retail_price.toLocaleString()}</div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -865,8 +1023,115 @@ export default function SearchPage() {
               />
             )}
 
-            {/* ── Product grid ── */}
-            {!loading && visibleProducts.length > 0 && (
+            {/* ── Zero-result guidance ── */}
+            {!loading && zeroResultGuidance && allResults.length < 3 && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.03] px-4 py-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-400/60 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] text-white/60 leading-relaxed">{zeroResultGuidance.suggestion}</p>
+                    {zeroResultGuidance.searched_for?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {zeroResultGuidance.searched_for.map((term, i) => (
+                          <span key={i} className="rounded-full bg-amber-500/10 border border-amber-500/15 px-2 py-0.5 text-[9px] text-amber-300/60">
+                            {term}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Vendor comparison bar ── */}
+            {!loading && vendorComparison && vendorComparison.length >= 2 && allResults.length > 0 && (
+              <VendorComparisonBar comparison={vendorComparison} />
+            )}
+
+            {/* ── List search results (grouped by item) ── */}
+            {!loading && listMode && listResults?.items?.length > 0 && (
+              <motion.div key="list-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                {listResults.items.map((item, itemIdx) => (
+                  <div key={itemIdx} className="mb-8">
+                    {/* Section header */}
+                    <div className="flex items-center gap-3 mb-3 mt-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gold/10 text-gold/70 text-xs font-bold shrink-0">
+                        {item.item_number}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white/80 truncate">{item.original_text}</div>
+                        {item.summary && item.summary !== item.original_text && (
+                          <div className="text-[11px] text-white/30 mt-0.5">{item.summary}</div>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        {item.dimension_notes && (
+                          <span className="text-[10px] text-white/20 border border-white/[0.06] rounded px-1.5 py-0.5">{item.dimension_notes}</span>
+                        )}
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                          item.total >= 3 ? "bg-green-500/10 text-green-400/70" :
+                          item.total > 0 ? "bg-yellow-500/10 text-yellow-400/70" :
+                          "bg-white/[0.03] text-white/20"
+                        }`}>
+                          {item.total > 0 ? `${item.total} found` : "no matches"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Feasibility note */}
+                    {item.feasibility === "unlikely" && item.feasibility_note && (
+                      <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-400/60 mt-0.5 shrink-0" />
+                        <span className="text-[11px] text-amber-300/60">{item.feasibility_note}</span>
+                      </div>
+                    )}
+
+                    {/* Product cards for this item */}
+                    {item.products.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                        {item.products.slice(0, 8).map((product, pIdx) => (
+                          <ProductCard
+                            key={product.id || pIdx}
+                            item={product}
+                            index={pIdx}
+                            isCompared={compareItems.some((c) => c.id === product.id)}
+                            isFavorited={isFavorited(product.id)}
+                            isInQuote={quoteIds.has(product.id)}
+                            onToggleCompare={() => handleToggleCompare(product)}
+                            onToggleFavorite={() => handleToggleFavorite(product)}
+                            onAddToQuote={() => handleAddToQuote(product)}
+                            onPreview={() => openPreview(product)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-white/[0.04] bg-white/[0.01] p-4 text-center">
+                        <span className="text-[11px] text-white/20">No matching products in our catalog yet</span>
+                      </div>
+                    )}
+
+                    {/* Separator */}
+                    {itemIdx < listResults.items.length - 1 && (
+                      <div className="mt-6 border-t border-white/[0.04]" />
+                    )}
+                  </div>
+                ))}
+
+                {/* List summary */}
+                <div className="mt-4 mb-8 rounded-xl border border-gold/10 bg-gold/[0.02] p-4">
+                  <div className="flex items-center gap-2 text-xs text-gold/50">
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    <span className="font-semibold">
+                      {listResults.total_items} items sourced — {listResults.total_products} total products found
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Product grid (single search mode) ── */}
+            {!loading && !listMode && visibleProducts.length > 0 && (
               <motion.div key={messages.length} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {visibleProducts.map((item, idx) => (
@@ -968,6 +1233,7 @@ export default function SearchPage() {
             similarLoading={similarLoading}
             onToggleCompare={handleToggleCompare}
             onToggleFavorite={handleToggleFavorite}
+            onAddToQuote={handleAddToQuote}
             isCompared={compareItems.some(c => c.id === previewProduct.id)}
             isFavorited={isFavorited(previewProduct.id)}
             onOpenPreview={openPreview}
@@ -1234,14 +1500,87 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
 
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
+function VendorComparisonBar({ comparison }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!comparison || comparison.length < 2) return null;
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left hover:bg-white/[0.03] transition-colors">
+        <Sparkles className="h-3.5 w-3.5 text-gold/50 shrink-0" />
+        <span className="text-[11px] text-white/40 flex-1">
+          Comparing {comparison.length} vendors · {comparison.map(v => v.vendor.split(" ")[0]).join(", ")}
+        </span>
+        <ChevronDown className={`h-3 w-3 text-white/20 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }} className="overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 px-1 pt-2">
+              {comparison.map((v, i) => (
+                <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-gold/60 mb-1.5 truncate">{v.vendor}</div>
+                  <div className="text-[11px] text-white/50 mb-1">{v.count} result{v.count !== 1 ? "s" : ""}</div>
+                  {v.price_range && (
+                    <div className="text-[10px] text-white/30">
+                      ${v.price_range.min.toLocaleString()} – ${v.price_range.max.toLocaleString()}
+                      <span className="text-white/15 ml-1">avg ${v.price_range.avg.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {v.materials?.length > 0 && (
+                    <div className="text-[9px] text-white/20 mt-1 truncate">{v.materials.join(", ")}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function MatchExplanation({ explanation }) {
+  if (!explanation?.signals?.length) return null;
+  const iconForType = (type) => {
+    switch (type) {
+      case "attribute": return <Check className="h-2.5 w-2.5 text-emerald-400/70" />;
+      case "keyword": return <Search className="h-2.5 w-2.5 text-blue-400/70" />;
+      case "visual": return <Eye className="h-2.5 w-2.5 text-purple-400/70" />;
+      case "vendor": return <Star className="h-2.5 w-2.5 text-gold/70" />;
+      case "price": return <TrendingUp className="h-2.5 w-2.5 text-emerald-400/70" />;
+      case "context": return <Sparkles className="h-2.5 w-2.5 text-amber-400/70" />;
+      default: return <Check className="h-2.5 w-2.5 text-white/30" />;
+    }
+  };
+  return (
+    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.2 }} className="overflow-hidden">
+      <div className="px-4 pb-3 pt-1 border-t border-white/[0.04]">
+        <div className="flex flex-wrap gap-1.5">
+          {explanation.signals.map((s, i) => (
+            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 text-[9px] text-white/50">
+              {iconForType(s.type)}
+              {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggleCompare, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
+  const { getPrice, fmtPrice } = useTradePricing();
 
-  const price = item.retail_price || item.wholesale_price;
-  const priceStr = price ? `$${Number(price).toLocaleString()}` : null;
+  const priceInfo = getPrice(item);
+  const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
 
   return (
@@ -1259,17 +1598,17 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
       }}
     >
       {/* Image — landscape for studio shots, tall for lifestyle */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: item.image_contain ? "4/3" : "3/4", backgroundColor: item.image_contain ? "#ffffff" : "rgba(255,255,255,0.02)" }}>
+      <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
                 <div className="loading-emblem" style={{ width: 12, height: 12 }} />
               </div>
             )}
             <img src={item.image_url} alt={item.product_name}
               className={`h-full w-full transition-all duration-700 ${imgLoaded ? "opacity-100" : "opacity-0"} ${hovered ? "scale-[1.03]" : "scale-100"}`}
-              style={{ objectFit: item.image_contain ? "contain" : "cover", padding: item.image_contain ? "16px" : "0", transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
+              style={{ objectFit: "contain", padding: "12px", transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
         ) : (
@@ -1326,7 +1665,12 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
         <h3 className="product-name text-white/90 line-clamp-2 mb-2">{item.product_name}</h3>
         {materialStyle && <div className="text-[12px] text-white/25 truncate mb-2">{materialStyle}</div>}
         <div className="flex items-center gap-2 flex-wrap">
-          {priceStr && <span className="text-[13px] font-semibold text-gold/80">{priceStr}</span>}
+          {priceStr && (
+            <span className={`text-[13px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
+              {priceInfo.isTrade && <span className="text-[9px] uppercase tracking-wider mr-1 opacity-70">{priceInfo.label}</span>}
+              {priceStr}
+            </span>
+          )}
           {item.fit_score && <FitScoreBadge fit={item.fit_score.fit} score={item.fit_score.score} reason={item.fit_score.reason} />}
         </div>
         {item.material_badges && item.material_badges.length > 0 && (
@@ -1334,10 +1678,17 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
         )}
       </div>
 
-      {/* Hover actions */}
+      {/* Why this result + Hover actions */}
       <div className="card-link px-3 pb-2.5 flex items-center justify-between">
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           <AddToProjectMenu product={item} size="sm" />
+          {item.match_explanation?.signals?.length > 0 && (
+            <button data-action onClick={(e) => { e.stopPropagation(); setShowWhy(!showWhy); }}
+              className="flex items-center gap-1 text-[9px] text-white/20 hover:text-white/50 transition-colors ml-1">
+              <Info className="h-2.5 w-2.5" />
+              {showWhy ? "Hide" : "Why?"}
+            </button>
+          )}
         </div>
         {item.portal_url && (
           <a href={item.portal_url} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} data-action
@@ -1346,15 +1697,19 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
           </a>
         )}
       </div>
+      <AnimatePresence>
+        {showWhy && <MatchExplanation explanation={item.match_explanation} />}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
-function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleCompare, onToggleFavorite, isCompared, isFavorited, onOpenPreview }) {
+function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleCompare, onToggleFavorite, onAddToQuote, isCompared, isFavorited, onOpenPreview }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const { getPrice, fmtPrice } = useTradePricing();
 
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === "Escape") onClose(); };
@@ -1373,7 +1728,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
     return product.image_url ? [product.image_url] : [];
   })();
 
-  const price = product.retail_price || product.wholesale_price;
+  const priceInfo = getPrice(product);
   const tags = (product.ai_visual_tags || "").split(",").map(t => t.trim()).filter(Boolean);
   const dims = [];
   if (product.width) dims.push(`${product.width}" W`);
@@ -1409,15 +1764,15 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
-              <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/[0.04]" style={{ backgroundColor: product.image_contain ? "#ffffff" : "rgba(255,255,255,0.02)" }}>
+              <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/[0.04]" style={{ backgroundColor: "#ffffff" }}>
                 {productImages.length > 0 ? (
                   <>
                     {!imgLoaded && (
-                      <div className="absolute inset-0 flex items-center justify-center"><div className="loading-emblem" style={{ width: 16, height: 16 }} /></div>
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}><div className="loading-emblem" style={{ width: 16, height: 16 }} /></div>
                     )}
                     <img src={productImages[activeImageIdx]} alt={product.product_name}
                       className={`h-full w-full transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-                      style={{ objectFit: product.image_contain ? "contain" : "cover", padding: product.image_contain ? "16px" : "0" }}
+                      style={{ objectFit: "contain", padding: "16px" }}
                       onLoad={() => setImgLoaded(true)} />
                     {productImages.length > 1 && (
                       <>
@@ -1454,9 +1809,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all ${
                         i === activeImageIdx ? "border-gold/40 ring-1 ring-gold/20" : "border-white/[0.06] hover:border-white/15 opacity-60 hover:opacity-100"
                       }`}
-                      style={{ backgroundColor: product.image_contain ? "#ffffff" : "transparent" }}
+                      style={{ backgroundColor: "#ffffff" }}
                     >
-                      <img src={src} alt="" style={{ objectFit: product.image_contain ? "contain" : "cover", padding: product.image_contain ? "4px" : "0" }} className="h-full w-full" />
+                      <img src={src} alt="" style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
                     </button>
                   ))}
                 </div>
@@ -1476,9 +1831,10 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               </h2>
 
               {/* Price */}
-              {price && (
-                <div className="text-lg font-semibold text-gold/80">
-                  ${Number(price).toLocaleString()}
+              {priceInfo.price && (
+                <div className={`text-lg font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
+                  {priceInfo.isTrade && <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>}
+                  {fmtPrice(priceInfo.price)}
                 </div>
               )}
 
@@ -1556,10 +1912,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   {isCompared ? "Compared" : "Compare"}
                 </button>
                 <AddToProjectMenu product={product} />
-                <button onClick={() => {
-                    const { added } = addToQuote(product);
-                    if (added) window.dispatchEvent(new CustomEvent("spec-quote-change"));
-                  }}
+                <button onClick={() => onAddToQuote(product)}
                   className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10">
                   <FileText className="h-3 w-3" />
                   Add to Quote
@@ -1594,9 +1947,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                 {similarProducts.map((sp) => (
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
-                    <div className="aspect-[4/3] rounded-lg overflow-hidden bg-white/[0.02] border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5">
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                       {sp.image_url ? (
-                        <img src={sp.image_url} alt="" className="h-full w-full object-cover" />
+                        <img src={sp.image_url} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                           {(sp.manufacturer_name || "?")[0]}
@@ -1605,9 +1958,14 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     </div>
                     <div className="text-[9px] font-bold uppercase tracking-wider text-gold/50 truncate">{sp.manufacturer_name}</div>
                     <div className="text-[11px] text-white/50 truncate group-hover:text-white/70 transition-colors">{sp.product_name}</div>
-                    {(sp.retail_price || sp.wholesale_price) && (
-                      <div className="text-[10px] text-gold/60">${Number(sp.retail_price || sp.wholesale_price).toLocaleString()}</div>
-                    )}
+                    {(() => {
+                      const spPrice = getPrice(sp);
+                      return spPrice.price ? (
+                        <div className={`text-[10px] ${spPrice.isTrade ? "text-emerald-400/60" : "text-gold/60"}`}>
+                          {spPrice.isTrade ? `${spPrice.label} ` : ""}{fmtPrice(spPrice.price)}
+                        </div>
+                      ) : null;
+                    })()}
                   </button>
                 ))}
               </div>

@@ -15,7 +15,7 @@
  *   /google-shopping.xml
  */
 
-const USER_AGENT = "SPEC-Catalog/1.0 (furniture-catalog; contact@spec.design)";
+const USER_AGENT = "Spekd-Catalog/1.0 (furniture-catalog; contact@spekd.design)";
 const FETCH_TIMEOUT_MS = 30_000; // Feeds can be large
 const MAX_FEED_SIZE = 50_000_000; // 50MB cap
 

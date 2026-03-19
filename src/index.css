@@ -219,10 +219,11 @@
   /* ════════ KICKER / SECTION LABELS ════════ */
   .kicker {
     @apply inline-flex items-center gap-2 rounded-full px-4 py-1.5;
+    font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     color: var(--gold);
     border: 1px solid rgba(79,107,255,0.15);
     background: rgba(79,107,255,0.06);
@@ -244,10 +245,11 @@
   }
 
   .label-caps {
+    font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     color: var(--warm-gray);
   }
 
@@ -935,8 +937,9 @@ button:active, a:active, [role="button"]:active {
 
 /* ── Section headers ── */
 .section-label {
+  font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
   color: var(--warm-gray);

@@ -1,5 +1,5 @@
 /**
- * SPEC Design Brain — The Thinking Layer
+ * Spekd Design Brain — The Thinking Layer
  *
  * Every search flows through this module first. It doesn't match keywords —
  * it REASONS about what a designer wants before touching the catalog.

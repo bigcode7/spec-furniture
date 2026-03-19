@@ -9,7 +9,7 @@
  * Expected yield: 500–5000 product URLs per vendor.
  */
 
-const USER_AGENT = "SPEC-Catalog/1.0 (furniture-catalog; contact@spec.design)";
+const USER_AGENT = "Spekd-Catalog/1.0 (furniture-catalog; contact@spekd.design)";
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_SIZE = 200_000; // 200KB — enough for meta/JSON-LD extraction
 const CONCURRENCY = 3;

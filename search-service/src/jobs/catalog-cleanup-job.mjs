@@ -419,7 +419,7 @@ async function checkImageUrl(url) {
     const res = await fetch(url, {
       method: "HEAD",
       signal: controller.signal,
-      headers: { "user-agent": "SPEC-Catalog/1.0" },
+      headers: { "user-agent": "Spekd-Catalog/1.0" },
       redirect: "follow",
     });
     clearTimeout(timer);

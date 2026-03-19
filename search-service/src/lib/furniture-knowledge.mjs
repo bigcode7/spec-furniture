@@ -265,7 +265,7 @@ FREIGHT & DELIVERY:
 PRICING:
 - Trade/wholesale/net: what the designer pays the vendor (usually 40-50% off retail/MSRP)
 - Designer markup: typically 25-35% above net to client
-- SPEC should show retail/MSRP pricing, never wholesale. The margin is part of the designer's business model.
+- Spekd should show retail/MSRP pricing, never wholesale. The margin is part of the designer's business model.
 
 MINIMUM ORDERS: some vendors require $2,500-$10,000 opening order for new accounts. After initial order, most have no minimums.
 

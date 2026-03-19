@@ -168,9 +168,7 @@ function FilledProductSlot({ item, projectId, roomId, onUpdate }) {
       <div className="p-3">
         <p className="text-sm font-medium text-white truncate">{product.name}</p>
         <p className="text-xs text-white/40 truncate">{product.vendor}</p>
-        {product.price > 0 && (
-          <p className="text-sm font-semibold text-gold mt-1">{formatCurrency(product.price)}</p>
-        )}
+        <p className="text-sm font-semibold text-gold mt-1">{product.price > 0 ? formatCurrency(product.price) : "Price on request"}</p>
       </div>
 
       {/* Category label */}

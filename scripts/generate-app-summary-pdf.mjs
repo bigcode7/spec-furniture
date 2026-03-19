@@ -7,7 +7,7 @@ const sections = [
   {
     title: "What It Is",
     lines: [
-      "SPEC is a React/Vite furniture sourcing app built on Base44.",
+      "Spekd is a React/Vite furniture sourcing app built on Base44.",
       "It combines manufacturer search, comparison, cart/order routing, and catalog workflows in one interface.",
     ],
   },
@@ -99,7 +99,7 @@ function pushText(text, x, currentY, fontSize) {
   content.push(`BT /F1 ${fontSize} Tf 1 0 0 1 ${x} ${currentY} Tm (${escapePdfText(text)}) Tj ET`);
 }
 
-pushText("Furniture Home Hub / SPEC App Summary", page.marginX, y, fonts.title.size);
+pushText("Furniture Home Hub / Spekd App Summary", page.marginX, y, fonts.title.size);
 y -= fonts.title.leading;
 pushText("Repo-based one-page summary generated on 2026-03-09", page.marginX, y, 8);
 y -= 18;

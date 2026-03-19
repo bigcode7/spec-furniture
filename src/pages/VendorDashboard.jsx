@@ -521,10 +521,10 @@ export default function VendorDashboard() {
           </p>
           <Button
             className="btn-gold px-6"
-            onClick={() => window.location.href = "mailto:sales@spec.design"}
+            onClick={() => window.location.href = "mailto:sales@spekd.design"}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            Contact sales@spec.design
+            Contact sales@spekd.design
           </Button>
         </motion.div>
       </div>

@@ -11,7 +11,7 @@
  * Detection: Fetch /products.json — if it returns valid JSON, it's Shopify.
  */
 
-const USER_AGENT = "SPEC-Catalog/1.0 (furniture-catalog; contact@spec.design)";
+const USER_AGENT = "Spekd-Catalog/1.0 (furniture-catalog; contact@spekd.design)";
 const FETCH_TIMEOUT_MS = 15_000;
 const PAGE_SIZE = 250; // Shopify max per page
 const MAX_PAGES = 100; // Safety cap

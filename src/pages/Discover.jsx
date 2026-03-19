@@ -73,15 +73,28 @@ function ProductCard({ product, compareItems, favorites, onToggleCompare, onTogg
         </div>
       )}
 
+      {/* Always-visible product info */}
+      <div className="p-2.5">
+        <p className="text-xs text-white/70 font-medium line-clamp-1">{product.product_name || product.name}</p>
+        <div className="flex items-center justify-between mt-0.5">
+          <p className="text-[10px] text-white/30 truncate">{product.manufacturer_name || ""}</p>
+          {(product.retail_price || product.wholesale_price) ? (
+            <span className="text-xs font-semibold text-white/60 shrink-0 ml-2">
+              ${(product.retail_price || product.wholesale_price || 0).toLocaleString()}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3">
         <p className="text-sm text-white font-medium line-clamp-2">{product.product_name || product.name}</p>
         {product.manufacturer_name && (
           <p className="text-xs text-white/50 mt-0.5">{product.manufacturer_name}</p>
         )}
-        {(product.wholesale_price || product.retail_price) && (
-          <p className="text-sm text-white mt-1">
-            ${(product.wholesale_price || product.retail_price || 0).toLocaleString()}
+        {(product.retail_price || product.wholesale_price) && (
+          <p className="text-sm text-white font-semibold mt-1">
+            ${(product.retail_price || product.wholesale_price || 0).toLocaleString()}
           </p>
         )}
 

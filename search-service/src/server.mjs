@@ -20,6 +20,7 @@ if (fs.existsSync(envPath)) {
 import http from "node:http";
 import { readCatalog, readRuns, readVerifiedCatalog } from "./lib/store.mjs";
 import { searchCatalog } from "./lib/rank.mjs";
+import { normalizeText } from "./lib/normalize.mjs";
 import { getCatalogSummary, ingestVendors, seedSampleCatalog } from "./lib/ingest.mjs";
 import { priorityVendors } from "./config/vendors.mjs";
 import { discoverLiveVendorProducts } from "./lib/discover.mjs";
@@ -46,6 +47,10 @@ import { importBernhardt, getBernhardtStatus, stopBernhardt } from "./importers/
 import { runCatalogCleanup, getCatalogCleanupStatus, stopCatalogCleanup } from "./jobs/catalog-cleanup-job.mjs";
 import { importMissingVendors, getMissingVendorsStatus, stopMissingVendors } from "./importers/missing-vendors-importer.mjs";
 import { importTheodoreAlexander, getTheodoreAlexanderStatus, stopTheodoreAlexander } from "./importers/theodore-alexander-importer.mjs";
+import { importRowe, getRoweStatus, stopRowe } from "./importers/rowe-importer.mjs";
+import { importBaker, getBakerStatus, stopBaker } from "./importers/baker-importer.mjs";
+import { importHancockMoore, getHancockMooreStatus, stopHancockMoore } from "./importers/hancock-moore-importer.mjs";
+import { importCRLaine, getCRLaineStatus, stopCRLaine } from "./importers/crlaine-importer.mjs";
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors } from "./lib/vector-store.mjs";
@@ -59,6 +64,7 @@ import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, e
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
+import { registerUser, loginUser, getUserFromToken, updateUser, extractToken } from "./lib/auth-store.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "127.0.0.1";
@@ -67,6 +73,93 @@ const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id)
 
 // ── Initialize catalog database ──
 await initCatalogDB();
+
+// ── Fix miscategorized products ──
+for (const product of getAllProducts()) {
+  // Bed pillows, bed catalogs are accessories not beds
+  if (product.category === "beds") {
+    const name = (product.product_name || "").toLowerCase();
+    if (name.includes("pillow") || /catalog$/i.test(name.trim())) {
+      updateProductDirect(product.id, { category: "accessories" });
+    }
+  }
+}
+
+// ── Remove non-furniture items from catalog ──
+{
+  const junkCategories = new Set(["fabric", "leather", "finishes", "book"]);
+  const junkPatterns = [
+    /\bfabric$/i,        // "Piazza Lagoon Fabric"
+    /\bleather$/i,        // "Mont Blanc Adriatic Leather"
+    /\bfinish$/i,         // "Walnut Grove Finish"
+    /\bcatalog$/i,        // "Hudson Valley Catalog"
+    /\bmembership\b/i,    // "Collector's Club Membership Subscription"
+    /\bsubscription\b/i,
+    /testing page/i,
+  ];
+  // Scraped category/listing pages (pipe in name = HTML title)
+  const scrapedPagePattern = /\|/;
+  // Stickley finish codes like "812 Warm Walnut", "Oak 509 Raven"
+  const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
+  const stickleyFinishNumPattern = /^8\d{2}\s+\w/; // 800-812 series finishes
+
+  let removedCount = 0;
+  for (const product of getAllProducts()) {
+    const name = (product.product_name || "").trim();
+    const cat = (product.category || "").toLowerCase();
+    let shouldRemove = false;
+
+    // Remove by category
+    if (junkCategories.has(cat)) shouldRemove = true;
+
+    // Remove by name pattern
+    if (!shouldRemove) {
+      for (const pat of junkPatterns) {
+        if (pat.test(name)) { shouldRemove = true; break; }
+      }
+    }
+
+    // Remove scraped HTML pages (name contains "|" like "Sofas | CRLAINE")
+    if (!shouldRemove && scrapedPagePattern.test(name)) shouldRemove = true;
+
+    // Remove Stickley wood finish samples
+    if (!shouldRemove && product.vendor_id === "stickley") {
+      if (finishCodePattern.test(name) || stickleyFinishNumPattern.test(name)) shouldRemove = true;
+    }
+
+    // Remove Hooker "Page" swatch cards (all share SKU HD40046)
+    if (!shouldRemove && product.vendor_id === "hooker") {
+      if (/^page\s+\w+\s*-\s*\w+/i.test(name) && (product.sku || "").startsWith("HD40046")) shouldRemove = true;
+    }
+
+    if (shouldRemove) {
+      deleteProduct(product.id);
+      removedCount++;
+    }
+  }
+  if (removedCount > 0) {
+    console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
+  }
+
+  // Fix settees miscategorized as sofas
+  let setteeFixCount = 0;
+  for (const product of getAllProducts()) {
+    const name = (product.product_name || "").toLowerCase();
+    const cat = (product.category || "").toLowerCase();
+    if (cat === "sofas" && name.includes("settee")) {
+      updateProductDirect(product.id, { category: "settees" });
+      setteeFixCount++;
+    }
+    // Fix swivel chairs/recliners miscategorized as sofas
+    if (cat === "sofas" && (name.includes("swivel") || name.includes("recliner")) && !name.includes("sofa")) {
+      updateProductDirect(product.id, { category: "accent-chairs" });
+      setteeFixCount++;
+    }
+  }
+  if (setteeFixCount > 0) {
+    console.log(`[startup] Re-categorized ${setteeFixCount} settees/chairs out of sofas`);
+  }
+}
 
 // ── Initialize project store ──
 initProjectStore();
@@ -205,7 +298,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204, {
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "access-control-allow-headers": "content-type",
+        "access-control-allow-headers": "content-type, authorization",
       });
       res.end();
       return;
@@ -213,6 +306,34 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && req.url === "/health") {
       return json(res, 200, { ok: true });
+    }
+
+    // ── AUTH ENDPOINTS ──────────────────────────────────────────
+    if (req.method === "POST" && req.url === "/auth/register") {
+      const body = await readBody(req);
+      const result = await registerUser(body);
+      return json(res, result.ok ? 201 : 400, result);
+    }
+
+    if (req.method === "POST" && req.url === "/auth/login") {
+      const body = await readBody(req);
+      const result = await loginUser(body);
+      return json(res, result.ok ? 200 : 401, result);
+    }
+
+    if (req.method === "GET" && req.url === "/auth/me") {
+      const token = extractToken(req.headers.authorization);
+      const result = getUserFromToken(token);
+      return json(res, result.ok ? 200 : 401, result);
+    }
+
+    if (req.method === "PUT" && req.url === "/auth/me") {
+      const token = extractToken(req.headers.authorization);
+      const auth = getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, auth);
+      const body = await readBody(req);
+      const result = updateUser(auth.user.id, body);
+      return json(res, result.ok ? 200 : 400, result);
     }
 
     if (req.method === "GET" && req.url === "/vendors") {
@@ -353,7 +474,8 @@ const server = http.createServer(async (req, res) => {
       const sourceProduct = getProduct(productId);
       let similar;
       const vectorStats = getVectorStoreStats();
-      if (vectorStats.ready && vectorStats.total_vectors > 0) {
+      const useVectors = vectorStats.ready && vectorStats.total_vectors > 0;
+      if (useVectors) {
         const filter = sameVendor ? null : (id) => {
           const p = getProduct(id);
           return p && p.vendor_id !== sourceProduct?.vendor_id;
@@ -363,11 +485,34 @@ const server = http.createServer(async (req, res) => {
         similar = findSimilarProducts(productId, limit, sameVendor);
       }
 
+      // Annotate similar products with match reasons relative to source
+      const annotated = similar.map(p => {
+        const sim = sanitizeSearchProduct(p);
+        if (sourceProduct) {
+          const signals = [];
+          if (p.category && p.category === sourceProduct.category) signals.push({ type: "attribute", label: `same category: ${p.category}`, strength: "strong" });
+          if (p.style && p.style === sourceProduct.style) signals.push({ type: "attribute", label: `${p.style} style`, strength: "strong" });
+          if (p.material && sourceProduct.material && normalizeText(p.material).includes(normalizeText(sourceProduct.material).split(" ")[0])) {
+            signals.push({ type: "attribute", label: `similar material`, strength: "medium" });
+          }
+          if (p.retail_price && sourceProduct.retail_price) {
+            const ratio = p.retail_price / sourceProduct.retail_price;
+            if (ratio >= 0.6 && ratio <= 1.6) signals.push({ type: "price", label: "similar price range", strength: "medium" });
+          }
+          if (p.vendor_id !== sourceProduct.vendor_id) {
+            signals.push({ type: "vendor", label: `from ${p.vendor_name || p.vendor_id}`, strength: "medium" });
+          }
+          const score = useVectors ? (p._similarity ? Math.round(p._similarity * 100) : null) : null;
+          sim.match_explanation = { signals, score };
+        }
+        return sim;
+      });
+
       return json(res, 200, {
         source_product_id: productId,
-        products: similar.map(sanitizeSearchProduct),
-        total: similar.length,
-        method: vectorStats.ready && vectorStats.total_vectors > 0 ? "semantic" : "tags",
+        products: annotated,
+        total: annotated.length,
+        method: useVectors ? "semantic" : "tags",
       });
     }
 
@@ -491,11 +636,57 @@ const server = http.createServer(async (req, res) => {
       const queryText = lastUserMsg?.content || "";
 
       // ── Step 1: Ask the AI brain to interpret the full conversation ──
-      const brain = await withTimeout(askSearchBrain(conversation), 10000, null);
+      const brain = await withTimeout(askSearchBrain(conversation), 15000, null);
 
       if (!brain) {
-        // Fallback: basic keyword search with last user message
-        const results = searchCatalogDB(queryText, {}, 80);
+        // Fallback: basic keyword search with vendor detection from query
+        const queryLower = queryText.toLowerCase();
+        const categoryWords = new Set(["chair", "table", "sofa", "lamp", "light", "mirror", "bench", "stool", "cabinet", "shelf", "desk", "chest", "ottoman", "fabric", "leather", "wood", "metal", "glass"]);
+        const fallbackVendors = [];
+        for (const v of tradeVendors) {
+          const nameWords = v.name.toLowerCase().split(/\s+/);
+          if (nameWords.some(w => w.length > 3 && !categoryWords.has(w) && queryLower.includes(w)) || queryLower.includes(v.id)) {
+            fallbackVendors.push(v.id);
+          }
+        }
+
+        let results;
+        if (fallbackVendors.length > 0) {
+          // Load vendor catalogs and interleave
+          const candidateMap = new Map();
+          for (const vid of fallbackVendors) {
+            for (const r of getProductsByVendor(vid)) {
+              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+            }
+          }
+          // Also run text search
+          for (const r of searchCatalogDB(queryText, {}, 200)) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+          const vidSet = new Set(fallbackVendors);
+          results = Array.from(candidateMap.values()).filter(p => vidSet.has(p.vendor_id));
+          // Round-robin interleave for multi-vendor
+          if (fallbackVendors.length > 1) {
+            const buckets = {};
+            for (const p of results) {
+              const vid = p.vendor_id;
+              if (!buckets[vid]) buckets[vid] = [];
+              buckets[vid].push(p);
+            }
+            const interleaved = [];
+            const maxLen = Math.max(...Object.values(buckets).map(b => b.length), 0);
+            for (let i = 0; i < maxLen && interleaved.length < 80; i++) {
+              for (const vid of fallbackVendors) {
+                if (buckets[vid]?.[i]) interleaved.push(buckets[vid][i]);
+              }
+            }
+            results = interleaved;
+          }
+          results = results.slice(0, 80);
+        } else {
+          results = searchCatalogDB(queryText, {}, 80);
+        }
+
         const responseProducts = results.map(sanitizeSearchProduct);
         return json(res, 200, {
           products: responseProducts,
@@ -503,6 +694,22 @@ const server = http.createServer(async (req, res) => {
           assistant_message: `Found ${responseProducts.length} results for "${queryText}".`,
           intent: { keywords: [queryText] },
         });
+      }
+
+      // ── Step 1b: Augment vendor_ids from query text if brain missed them ──
+      if (!brain.vendor_ids || brain.vendor_ids.length === 0) {
+        const queryLower = queryText.toLowerCase();
+        const catWords = new Set(["chair", "table", "sofa", "lamp", "light", "mirror", "bench", "stool", "cabinet", "shelf", "desk", "chest", "ottoman", "fabric", "leather", "wood", "metal", "glass"]);
+        const detectedVendors = [];
+        for (const v of tradeVendors) {
+          const nameWords = v.name.toLowerCase().split(/\s+/);
+          if (nameWords.some(w => w.length > 3 && !catWords.has(w) && queryLower.includes(w)) || queryLower.includes(v.id)) {
+            detectedVendors.push(v.id);
+          }
+        }
+        if (detectedVendors.length > 0) {
+          brain.vendor_ids = detectedVendors;
+        }
       }
 
       // ── Step 2: Search the catalog using the AI's filters ──
@@ -530,11 +737,16 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      // Also search by category name
+      // Also search by category name — both text search AND filter-based to ensure full coverage
       if (brain.category) {
         const catQuery = brain.category.replace(/-/g, " ");
         const catResults = searchCatalogDB(catQuery, {}, 200);
         for (const r of catResults) {
+          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+        }
+        // Filter-based search ensures we get ALL products in this category
+        const catFilterResults = searchCatalogDB("", { category: brain.category }, 2000);
+        for (const r of catFilterResults) {
           if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
         }
       }
@@ -548,14 +760,14 @@ const server = http.createServer(async (req, res) => {
         results = results.filter(p => vidSet.has((p.vendor_id || "").toLowerCase()));
       }
 
-      // Category filter
+      // Category filter — match on category field only (not product name) to avoid false positives
       if (brain.category) {
         const cat = brain.category.toLowerCase().replace(/\s+/g, "-");
         const catSingular = cat.replace(/s$/, "");
+        const catRegex = new RegExp(`(^|[^a-z])${catSingular.replace(/-/g, "[- ]")}(s|es)?([^a-z]|$)`, "i");
         const catFiltered = results.filter(p => {
           const pCat = (p.category || "").toLowerCase();
-          const pName = (p.product_name || "").toLowerCase();
-          return pCat.includes(catSingular) || pCat === cat || pName.includes(catSingular);
+          return pCat === cat || pCat === catSingular || catRegex.test(pCat);
         });
         if (catFiltered.length > 0) results = catFiltered;
       }
@@ -617,13 +829,13 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      // Price filter
+      // Price filter — keep products without prices (unknown price ≠ wrong price)
       if (brain.price_max) {
-        const pf = results.filter(p => (p.retail_price || 0) <= brain.price_max);
+        const pf = results.filter(p => !p.retail_price || p.retail_price <= brain.price_max);
         if (pf.length > 0) results = pf;
       }
       if (brain.price_min) {
-        const pf = results.filter(p => (p.retail_price || 0) >= brain.price_min);
+        const pf = results.filter(p => !p.retail_price || p.retail_price >= brain.price_min);
         if (pf.length > 0) results = pf;
       }
 
@@ -650,16 +862,92 @@ const server = http.createServer(async (req, res) => {
       for (const p of results) {
         const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.style || ""} ${p.color || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
         let matchCount = 0;
+        const matchedTerms = [];
         for (const term of uniqueTerms) {
-          if (text.includes(term)) matchCount++;
+          if (text.includes(term)) { matchCount++; matchedTerms.push(term); }
         }
         // Score: keyword match ratio (0-1) * 100 + quality_score for tiebreaking
         p._relevance = (uniqueTerms.length > 0 ? (matchCount / uniqueTerms.length) : 0) * 100 + (p.quality_score || 0) * 0.01;
+
+        // Build match explanation for "Why this result?"
+        const signals = [];
+        if (brain.category && (p.category || "").toLowerCase().includes(brain.category.replace(/-/g, " ").split("-")[0])) {
+          signals.push({ type: "attribute", label: `${p.category} match`, strength: "strong" });
+        }
+        if (brain.material && (p.material || "").toLowerCase().includes(brain.material.toLowerCase())) {
+          signals.push({ type: "attribute", label: `${p.material} material`, strength: "strong" });
+        }
+        if (brain.style && (p.style || "").toLowerCase().includes(brain.style.toLowerCase())) {
+          signals.push({ type: "attribute", label: `${p.style} style`, strength: "strong" });
+        }
+        if (brain.color && text.includes(brain.color.toLowerCase())) {
+          signals.push({ type: "attribute", label: `${brain.color} color`, strength: "strong" });
+        }
+        if (brain.keywords?.length > 0) {
+          const kwMatches = brain.keywords.filter(k => text.includes(k.toLowerCase()));
+          if (kwMatches.length > 0) signals.push({ type: "keyword", label: kwMatches.join(", "), strength: kwMatches.length >= 2 ? "strong" : "medium" });
+        }
+        if (brain.vendor_ids?.length > 0 && brain.vendor_ids.includes(p.vendor_id)) {
+          signals.push({ type: "vendor", label: `${p.vendor_name || p.vendor_id} selected`, strength: "strong" });
+        }
+        if (p.ai_visual_tags && brain.keywords?.length > 0) {
+          const vizTags = p.ai_visual_tags.toLowerCase();
+          const vizMatches = brain.keywords.filter(k => vizTags.includes(k.toLowerCase()));
+          if (vizMatches.length > 0) signals.push({ type: "visual", label: vizMatches.join(", "), strength: "medium" });
+        }
+        // Project context signals
+        if (brain.project_context?.description) {
+          if (brain.project_context.commercial && (p.material || "").toLowerCase().match(/leather|vinyl|performance|crypton/)) {
+            signals.push({ type: "context", label: "commercial-grade for project", strength: "medium" });
+          }
+          if (brain.project_context.price_tier === "premium" && p.retail_price > 3000) {
+            signals.push({ type: "context", label: "premium tier for project", strength: "medium" });
+          }
+        }
+        p.match_explanation = { signals, score: Math.round(p._relevance) };
       }
-      results.sort((a, b) => (b._relevance || 0) - (a._relevance || 0));
+      // Price-based sorting: if query asks for cheapest/lowest price, sort by price ascending
+      const priceSortTerms = ["cheapest", "lowest price", "least expensive", "most affordable", "budget"];
+      const wantsLowestPrice = priceSortTerms.some(t => queryText.toLowerCase().includes(t));
+      if (wantsLowestPrice) {
+        // Sort products with known prices first, by ascending price
+        results.sort((a, b) => {
+          const priceA = a.wholesale_price || a.retail_price || Infinity;
+          const priceB = b.wholesale_price || b.retail_price || Infinity;
+          return priceA - priceB;
+        });
+      } else {
+        results.sort((a, b) => (b._relevance || 0) - (a._relevance || 0));
+      }
+
+      // Multi-vendor balance: when comparing specific vendors, ensure all are represented
+      if (brain.vendor_ids?.length > 1) {
+        const vendorBuckets = {};
+        const other = [];
+        for (const p of results) {
+          const vid = (p.vendor_id || "").toLowerCase();
+          if (brain.vendor_ids.map(v => v.toLowerCase()).includes(vid)) {
+            if (!vendorBuckets[vid]) vendorBuckets[vid] = [];
+            vendorBuckets[vid].push(p);
+          } else {
+            other.push(p);
+          }
+        }
+        // Round-robin interleave from each vendor
+        const interleaved = [];
+        const maxLen = Math.max(...Object.values(vendorBuckets).map(b => b.length), 0);
+        for (let i = 0; i < maxLen && interleaved.length < 80; i++) {
+          for (const vid of brain.vendor_ids) {
+            const bucket = vendorBuckets[vid.toLowerCase()];
+            if (bucket && bucket[i]) interleaved.push(bucket[i]);
+          }
+        }
+        results = interleaved;
+      }
 
       // Vendor diversity — if not locked to specific vendors, cap per vendor
-      if (!brain.vendor_ids || brain.vendor_ids.length === 0) {
+      // Skip diversification when sorting by price (preserves price ordering)
+      if ((!brain.vendor_ids || brain.vendor_ids.length === 0) && !wantsLowestPrice) {
         const diversified = diversifyResults(results, {
           maxPerVendor: 8,
           topSlice: 40,
@@ -669,18 +957,319 @@ const server = http.createServer(async (req, res) => {
         results = diversified;
       }
 
+      // Safety net: if too few results after all filters, fall back to less restrictive search
+      if (results.length < 3 && brain.search_queries?.length > 0) {
+        const fallbackMap = new Map();
+        for (const sq of brain.search_queries) {
+          for (const r of searchCatalogDB(sq, {}, 100)) {
+            if (!fallbackMap.has(r.id)) fallbackMap.set(r.id, r);
+          }
+        }
+        // Add fallback results (skip vendor/category filters)
+        let fallbackResults = Array.from(fallbackMap.values());
+        if (brain.vendor_ids?.length > 0) {
+          const vidSet = new Set(brain.vendor_ids.map(v => v.toLowerCase()));
+          const vendorFiltered = fallbackResults.filter(p => vidSet.has((p.vendor_id || "").toLowerCase()));
+          if (vendorFiltered.length > 3) fallbackResults = vendorFiltered;
+        }
+        // Add to existing results (dedup)
+        const existingIds = new Set(results.map(p => p.id));
+        for (const r of fallbackResults) {
+          if (!existingIds.has(r.id)) results.push(r);
+        }
+      }
+
       const responseProducts = results.slice(0, 80).map(sanitizeSearchProduct);
+
+      // ── Step 5: Build vendor comparison intelligence ──
+      let vendor_comparison = null;
+      if (responseProducts.length > 0) {
+        const vendorGroups = {};
+        for (const p of responseProducts.slice(0, 40)) {
+          const vid = p.vendor_id || "unknown";
+          if (!vendorGroups[vid]) vendorGroups[vid] = { name: p.vendor_name || p.manufacturer_name || vid, products: [], prices: [] };
+          vendorGroups[vid].products.push(p);
+          if (p.retail_price) vendorGroups[vid].prices.push(p.retail_price);
+        }
+        const vendors = Object.values(vendorGroups).filter(v => v.products.length > 0);
+        if (vendors.length >= 2) {
+          vendor_comparison = vendors.slice(0, 6).map(v => ({
+            vendor: v.name,
+            count: v.products.length,
+            price_range: v.prices.length > 0
+              ? { min: Math.min(...v.prices), max: Math.max(...v.prices), avg: Math.round(v.prices.reduce((a, b) => a + b, 0) / v.prices.length) }
+              : null,
+            top_product: v.products[0]?.product_name || null,
+            materials: [...new Set(v.products.map(p => p.material).filter(Boolean))].slice(0, 3),
+          }));
+        }
+      }
+
+      // ── Step 6: Zero-result intelligence ──
+      let zero_result_guidance = null;
+      if (responseProducts.length < 3) {
+        const searchedFor = [
+          brain.category?.replace(/-/g, " "),
+          brain.material,
+          brain.style,
+          brain.color,
+          ...(brain.keywords || []),
+        ].filter(Boolean);
+
+        zero_result_guidance = {
+          searched_for: searchedFor,
+          candidates_found: candidateMap.size,
+          after_filters: responseProducts.length,
+          suggestion: responseProducts.length === 0
+            ? `No exact matches found for "${searchedFor.join(" + ")}". Try broadening your search — remove a filter or try a different material/style.`
+            : `Only ${responseProducts.length} close match${responseProducts.length > 1 ? "es" : ""} found. Consider loosening your criteria for more options.`,
+        };
+      }
 
       return json(res, 200, {
         products: responseProducts,
         total: responseProducts.length,
         assistant_message: brain.response || brain.summary || `Found ${responseProducts.length} results.`,
         intent: brain,
+        vendor_comparison,
+        zero_result_guidance,
         diagnostics: {
           brain_reasoning: brain.reasoning,
           is_new_search: brain.is_new_search,
           candidates_before_filter: candidateMap.size,
         },
+      });
+    }
+
+    // ── LIST SEARCH — Process multi-item sourcing lists ──
+    if (req.method === "POST" && req.url === "/list-search") {
+      const body = await collectBody(req);
+      const items = Array.isArray(body.items) ? body.items : [];
+
+      if (items.length === 0) {
+        return json(res, 400, { error: "items array required" });
+      }
+
+      // Step 1: Ask Haiku to parse ALL items in one call
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      let parsedItems = null;
+
+      if (apiKey) {
+        try {
+          const listPrompt = items.map((item, i) => `${i + 1}. ${item}`).join("\n");
+          const parseResponse = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "anthropic-version": "2023-06-01",
+              "x-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 2048,
+              system: `You are a furniture sourcing expert parsing a designer's product list. For each item, extract structured search filters.
+
+CATEGORY NAMES (use exact): sofas, sectionals, loveseats, settees, accent-chairs, swivel-chairs, dining-chairs, bar-stools, counter-stools, recliners, ottomans, benches, chaises, daybeds, beds, nightstands, dressers, chests, armoires, cocktail-tables, side-tables, console-tables, dining-tables, desks, bookcases, media-cabinets, bar-cabinets, buffets, credenzas, mirrors, lighting, floor-lamps, table-lamps, chandeliers, pendants, rugs, art, accessories, outdoor-seating, outdoor-dining, outdoor-tables
+
+Return ONLY valid JSON — an array of objects, one per item:
+[
+  {
+    "item_number": 1,
+    "original_text": "the original item text",
+    "summary": "Brief expert description of what we're searching for (1 sentence)",
+    "category": "media-cabinets" or null,
+    "material": "oak" or null,
+    "style": "contemporary" or null,
+    "color": null,
+    "keywords": ["wall-mount", "media console"],
+    "search_queries": ["white oak media console", "oak wall mount media cabinet"],
+    "price_max": null,
+    "dimension_notes": "60 inches wide" or null,
+    "feasibility": "strong" or "possible" or "unlikely",
+    "feasibility_note": null or "We don't carry rugs from most trade vendors yet"
+  }
+]
+
+feasibility:
+- "strong": We definitely carry this category from trade vendors
+- "possible": We might have some, worth searching
+- "unlikely": This is a category we likely don't have (e.g., specific rug brands, outdoor cushions, window treatments)
+
+Be specific with search_queries — generate 2-3 targeted queries per item.`,
+              messages: [{ role: "user", content: `A designer pasted this sourcing list:\n${listPrompt}\n\nParse each item into structured search filters.` }],
+            }),
+          });
+
+          if (parseResponse.ok) {
+            const parseData = await parseResponse.json();
+            const parseText = parseData.content?.[0]?.text || "";
+            const jsonMatch = parseText.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              parsedItems = JSON.parse(jsonMatch[0]);
+            }
+          }
+        } catch (err) {
+          console.error("[list-search] AI parse error:", err.message);
+        }
+      }
+
+      // Step 2: If AI parsing failed, create basic parsed items from raw text
+      if (!parsedItems) {
+        parsedItems = items.map((item, i) => ({
+          item_number: i + 1,
+          original_text: item,
+          summary: item,
+          category: null,
+          material: null,
+          style: null,
+          color: null,
+          keywords: item.toLowerCase().split(/\s+/).filter(w => w.length > 2),
+          search_queries: [item],
+          price_max: null,
+          dimension_notes: null,
+          feasibility: "possible",
+          feasibility_note: null,
+        }));
+      }
+
+      // Step 3: Run searches for each item
+      const results = [];
+      for (const parsed of parsedItems) {
+        const candidateMap = new Map();
+
+        // Search using AI queries
+        const queries = parsed.search_queries?.length > 0 ? parsed.search_queries : [parsed.original_text];
+        for (const sq of queries) {
+          if (!sq || sq.length < 2) continue;
+          const sqResults = searchCatalogDB(sq, {}, 200);
+          for (const r of sqResults) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+
+        // Also search by category
+        if (parsed.category) {
+          const catQuery = parsed.category.replace(/-/g, " ");
+          const catResults = searchCatalogDB(catQuery, {}, 200);
+          for (const r of catResults) {
+            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
+          }
+        }
+
+        let itemResults = Array.from(candidateMap.values());
+
+        // Apply category filter
+        if (parsed.category) {
+          const cat = parsed.category.toLowerCase().replace(/\s+/g, "-");
+          const catSingular = cat.replace(/s$/, "");
+          const catFiltered = itemResults.filter(p => {
+            const pCat = (p.category || "").toLowerCase();
+            return pCat.includes(catSingular) || pCat === cat;
+          });
+          if (catFiltered.length > 0) itemResults = catFiltered;
+        }
+
+        // Apply material filter (soft)
+        if (parsed.material) {
+          const mat = parsed.material.toLowerCase();
+          const matFiltered = itemResults.filter(p => {
+            const text = `${p.material || ""} ${p.product_name || ""} ${p.description || ""}`.toLowerCase();
+            return text.includes(mat);
+          });
+          if (matFiltered.length >= 3) itemResults = matFiltered;
+        }
+
+        // Apply style filter (soft)
+        if (parsed.style) {
+          const sty = parsed.style.toLowerCase();
+          const styFiltered = itemResults.filter(p => {
+            const text = `${p.style || ""} ${p.product_name || ""}`.toLowerCase();
+            return text.includes(sty);
+          });
+          if (styFiltered.length >= 3) itemResults = styFiltered;
+        }
+
+        // Apply price filter
+        if (parsed.price_max) {
+          const pf = itemResults.filter(p => (p.retail_price || 0) <= parsed.price_max);
+          if (pf.length > 0) itemResults = pf;
+        }
+
+        // Score by keyword relevance
+        const allTerms = [
+          ...(parsed.keywords || []),
+          parsed.category || "",
+          parsed.material || "",
+          parsed.style || "",
+        ].filter(Boolean).flatMap(k => k.toLowerCase().split(/[\s-]+/)).filter(w => w.length > 2);
+        const uniqueTerms = [...new Set(allTerms)];
+
+        for (const p of itemResults) {
+          const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.style || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+          let matchCount = 0;
+          for (const term of uniqueTerms) {
+            if (text.includes(term)) matchCount++;
+          }
+          p._relevance = (uniqueTerms.length > 0 ? (matchCount / uniqueTerms.length) : 0) * 100 + (p.quality_score || 0) * 0.01;
+        }
+        itemResults.sort((a, b) => (b._relevance || 0) - (a._relevance || 0));
+
+        // Vendor diversity
+        const diversified = diversifyResults(itemResults, {
+          maxPerVendor: 4,
+          topSlice: 20,
+          totalLimit: 12,
+          queryTerms: (parsed.original_text || "").toLowerCase().split(/\s+/),
+        });
+
+        const products = diversified.map(sanitizeSearchProduct);
+
+        results.push({
+          item_number: parsed.item_number,
+          original_text: parsed.original_text,
+          summary: parsed.summary || parsed.original_text,
+          category: parsed.category,
+          feasibility: parsed.feasibility || "possible",
+          feasibility_note: parsed.feasibility_note || null,
+          dimension_notes: parsed.dimension_notes || null,
+          products,
+          total: products.length,
+        });
+      }
+
+      // Build overview AI message
+      const totalFound = results.reduce((sum, r) => sum + r.total, 0);
+      const strongItems = results.filter(r => r.total >= 3);
+      const weakItems = results.filter(r => r.total > 0 && r.total < 3);
+      const emptyItems = results.filter(r => r.total === 0);
+
+      // Collect vendor names across all results
+      const allVendors = new Set();
+      for (const r of results) {
+        for (const p of r.products) {
+          if (p.vendor_name || p.manufacturer_name) allVendors.add(p.vendor_name || p.manufacturer_name);
+        }
+      }
+      const vendorList = [...allVendors].slice(0, 5).join(", ");
+
+      let overviewMessage = `Got your list — sourcing all ${items.length} items.`;
+      if (strongItems.length > 0) {
+        overviewMessage += ` Found strong matches for ${strongItems.length} item${strongItems.length > 1 ? "s" : ""}`;
+        if (vendorList) overviewMessage += ` from ${vendorList}`;
+        overviewMessage += ".";
+      }
+      if (weakItems.length > 0) {
+        overviewMessage += ` ${weakItems.length} item${weakItems.length > 1 ? "s" : ""} had limited results.`;
+      }
+      if (emptyItems.length > 0) {
+        overviewMessage += ` ${emptyItems.length} item${emptyItems.length > 1 ? "s" : ""} didn't match our catalog — noted for future sourcing.`;
+      }
+
+      return json(res, 200, {
+        overview_message: overviewMessage,
+        items: results,
+        total_items: results.length,
+        total_products: totalFound,
       });
     }
 
@@ -2035,6 +2624,69 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, message: "Theodore Alexander import stop requested." });
     }
 
+    // ── Rowe Furniture Import ──
+    if (req.method === "POST" && req.url === "/admin/rowe/start") {
+      importRowe(catalogDBInterface).then(() => {
+        clearSearchCache();
+        console.log("[rowe] Search cache cleared after import");
+      }).catch(err => console.error("[rowe] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Rowe import started.", status_url: "/admin/rowe/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/rowe/status") {
+      return json(res, 200, getRoweStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/rowe/stop") {
+      stopRowe();
+      return json(res, 200, { ok: true, message: "Rowe import stop requested." });
+    }
+
+    if (req.method === "POST" && req.url === "/admin/baker/start") {
+      importBaker(catalogDBInterface).then(r => console.log("[baker] Import finished:", r.phase))
+        .catch(e => console.error("[baker] Import error:", e));
+      return json(res, 202, { ok: true, message: "Baker import started.", status_url: "/admin/baker/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/baker/status") {
+      return json(res, 200, getBakerStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/baker/stop") {
+      stopBaker();
+      return json(res, 200, { ok: true, message: "Baker import stop requested." });
+    }
+
+    if (req.method === "POST" && req.url === "/admin/hancock-moore/start") {
+      importHancockMoore(catalogDBInterface).then(r => console.log("[hm] Import finished:", r.phase))
+        .catch(e => console.error("[hm] Import error:", e));
+      return json(res, 202, { ok: true, message: "Hancock & Moore import started.", status_url: "/admin/hancock-moore/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/hancock-moore/status") {
+      return json(res, 200, getHancockMooreStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/hancock-moore/stop") {
+      stopHancockMoore();
+      return json(res, 200, { ok: true, message: "Hancock & Moore import stop requested." });
+    }
+
+    if (req.method === "POST" && req.url === "/admin/cr-laine/start") {
+      importCRLaine(catalogDBInterface).then(r => console.log("[crl] Import finished:", r.phase))
+        .catch(e => console.error("[crl] Import error:", e));
+      return json(res, 202, { ok: true, message: "CR Laine import started.", status_url: "/admin/cr-laine/status" });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/cr-laine/status") {
+      return json(res, 200, getCRLaineStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/cr-laine/stop") {
+      stopCRLaine();
+      return json(res, 200, { ok: true, message: "CR Laine import stop requested." });
+    }
+
     if (req.method === "GET" && req.url === "/jobs/status") {
       return json(res, 200, {
         image_verification: getImageVerificationStatus(),
@@ -3076,12 +3728,17 @@ function sanitizeSearchProduct(product) {
       : (product.image_url || null),
     images: Array.isArray(product.images) && product.images.length > 0
       ? product.images.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean)
-      : (product.image_url ? [product.image_url] : []),
+      : Array.isArray(product.alternate_images) && product.alternate_images.length > 0
+        ? [product.image_url, ...product.alternate_images].filter(Boolean)
+        : (product.image_url ? [product.image_url] : []),
+    image_contain: product.image_contain || false,
     product_url: isAiDiscovery ? (product.product_url || null)
       : isLive ? (product.product_url_verified ? product.product_url : null)
       : (product.product_url || null),
     retrieval_quality_score: Number(product.retrieval_quality_score || 0),
     // Flag products with broken/missing images so frontend can show placeholder
     image_available: hasValidProductImage(product.image_url),
+    // Match explanation for "Why this result?" feature
+    match_explanation: product.match_explanation || null,
   };
 }

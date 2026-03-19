@@ -1,7 +1,7 @@
 /**
  * Trade Vendor Registry
  *
- * SPEC is a trade-only platform for the professional furniture industry.
+ * Spekd is a trade-only platform for the professional furniture industry.
  * These are established home furnishings manufacturers and trade brands
  * that sell through retailers, designers, reps, and dealer networks.
  * They show at High Point Market and sell through to-the-trade showrooms.

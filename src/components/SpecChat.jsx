@@ -8,7 +8,7 @@ const STORAGE_KEY = "spec_chat_history";
 const WELCOME_MESSAGE = {
   role: "assistant",
   content:
-    "I'm SPEC AI, your furniture sourcing assistant. Ask me anything about products, vendors, materials, or design.",
+    "I'm Spekd AI, your furniture sourcing assistant. Ask me anything about products, vendors, materials, or design.",
   products: null,
   suggested_searches: null,
 };
@@ -101,7 +101,7 @@ function TypingIndicator() {
           />
         ))}
       </div>
-      <span className="ml-2 text-xs text-white/40">SPEC AI is thinking...</span>
+      <span className="ml-2 text-xs text-white/40">Spekd AI is thinking...</span>
     </div>
   );
 }
@@ -121,8 +121,8 @@ function MessageBubble({ message, onSuggestedClick }) {
         {!isUser && (
           <div className="mb-1 flex items-center gap-1.5">
             <span className="spec-diamond h-3 w-3 text-gold" />
-            <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-gold/70">
-              SPEC AI
+            <span className="font-brand text-[10px] font-semibold uppercase tracking-widest text-gold/70">
+              Spekd AI
             </span>
           </div>
         )}
@@ -296,7 +296,7 @@ export default function SpecChat() {
                   <span className="spec-diamond text-gold" />
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-semibold uppercase tracking-widest text-gold">SPEC AI</h3>
+                  <h3 className="font-brand text-sm font-semibold uppercase tracking-widest text-gold">Spekd AI</h3>
                   <p className="text-[11px] text-white/40">
                     Furniture sourcing assistant
                   </p>

@@ -119,6 +119,24 @@ function normalizeStandaloneResult(item) {
   };
 }
 
+export async function listSearch(items) {
+  if (!externalSearchServiceUrl) throw new Error("Search service not configured");
+  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/list-search`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) throw new Error(`list search error: ${response.status}`);
+  const data = await response.json();
+  return {
+    ...data,
+    items: (data.items || []).map(item => ({
+      ...item,
+      products: (item.products || []).map(normalizeStandaloneResult),
+    })),
+  };
+}
+
 export async function visualSearch(imageBase64) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/visual-search`, {

@@ -1,7 +1,7 @@
 /**
  * Priority Vendor Profiles for HTML Crawling
  *
- * SPEC is a trade-only platform. These are established home furnishings
+ * Spekd is a trade-only platform. These are established home furnishings
  * manufacturers and trade brands that sell through retailers, designers,
  * reps, and dealer networks.
  *

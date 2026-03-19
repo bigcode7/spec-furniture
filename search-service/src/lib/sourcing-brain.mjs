@@ -1,4 +1,4 @@
-// ── SPEC Sourcing Brain ──
+// ── Spekd Sourcing Brain ──
 // Core intelligence module for furniture sourcing projects
 
 // ── Room Template Library ──

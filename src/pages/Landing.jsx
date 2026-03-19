@@ -88,7 +88,7 @@ function IntentDecoder() {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spec.ai/understand</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/understand</div>
       </div>
       <div className="p-6">
         {/* Input */}
@@ -139,7 +139,7 @@ function MockVendorUI({ vendors }) {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spec.ai/vendors</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/vendors</div>
       </div>
       <div className="p-5 space-y-3">
         {topVendors.map((v) => (
@@ -169,7 +169,7 @@ function MockAIChatUI({ chatData }) {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spec.ai/chat</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/chat</div>
       </div>
       <div className="p-5 space-y-4">
         <div className="flex justify-end">
@@ -220,7 +220,7 @@ function MockProjectUI() {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spec.ai/projects</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/projects</div>
       </div>
       <div className="p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -391,7 +391,7 @@ export default function Landing() {
                 className="h-px flex-1 max-w-[80px] bg-gradient-to-r from-transparent to-gold/30"
                 style={{ transformOrigin: "right" }}
               />
-              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold gold-glow-text">
+              <span className="font-brand text-[11px] font-semibold uppercase tracking-[0.22em] text-gold gold-glow-text">
                 AI-Native Furniture Intelligence
               </span>
               <motion.div
@@ -403,12 +403,24 @@ export default function Landing() {
               />
             </motion.div>
 
+            {/* Brand name */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
+              className="mb-6"
+            >
+              <span className="font-brand text-3xl sm:text-4xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
+                SPEKD
+              </span>
+            </motion.div>
+
             {/* Headline */}
             <motion.h1
-              className="font-display text-6xl sm:text-7xl md:text-8xl lg:text-[92px] leading-[1.02] text-white"
+              className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-[80px] leading-[1.05] text-white"
               initial={{ clipPath: "inset(0 100% 0 0)" }}
               animate={{ clipPath: "inset(0 0% 0 0)" }}
-              transition={{ duration: 0.8, delay: 0.5, ease: EASE }}
+              transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
             >
               The future of
               <br />
@@ -424,7 +436,7 @@ export default function Landing() {
               style={{ color: "var(--warm-gray)" }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.9, ease: EASE }}
+              transition={{ duration: 0.5, delay: 1.0, ease: EASE }}
             >
               {totalProducts > 0
                 ? `Search ${totalProducts.toLocaleString()}+ products across ${totalVendors} trade vendors.`
@@ -440,7 +452,7 @@ export default function Landing() {
               className="mt-14 mx-auto max-w-2xl relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 1.1, ease: EASE }}
+              transition={{ duration: 0.5, delay: 1.2, ease: EASE }}
             >
               <div className="absolute -inset-10 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(79,107,255,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
@@ -467,7 +479,7 @@ export default function Landing() {
               className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.3, ease: EASE }}
+              transition={{ duration: 0.5, delay: 1.4, ease: EASE }}
             >
               {EXAMPLE_SEARCHES.map((s, i) => (
                 <span key={s} className="flex items-center gap-2">
@@ -517,7 +529,7 @@ export default function Landing() {
       <FeatureSection
         kicker="Design Intelligence"
         title={<>It understands what<br /><span className="text-gold">you actually mean</span></>}
-        description="Type the way you'd talk to a colleague. SPEC's AI decodes your intent — material, style, budget, function — then expands it into dozens of search variants across every vendor simultaneously."
+        description="Type the way you'd talk to a colleague. Spekd's AI decodes your intent — material, style, budget, function — then expands it into dozens of search variants across every vendor simultaneously."
         mockUI={<IntentDecoder />}
         icon={Brain}
       />
@@ -542,7 +554,7 @@ export default function Landing() {
       <FeatureSection
         kicker="Conversational Search"
         title={<>Source with<br /><span className="text-gold">AI that understands</span></>}
-        description="Go beyond keywords. SPEC's AI understands materials, styles, dimensions, and design intent. Ask follow-up questions, refine results, and get curated recommendations in real time."
+        description="Go beyond keywords. Spekd's AI understands materials, styles, dimensions, and design intent. Ask follow-up questions, refine results, and get curated recommendations in real time."
         mockUI={<MockAIChatUI chatData={chatMockup} />}
         icon={Brain}
       />
@@ -616,7 +628,7 @@ export default function Landing() {
           </Reveal>
           <Reveal delay={0.15} className="mt-5">
             <p className="text-base md:text-lg max-w-lg mx-auto" style={{ color: "var(--warm-gray)" }}>
-              Join the designers already using SPEC to find the perfect piece, faster than ever.
+              Join the designers already using Spekd to find the perfect piece, faster than ever.
             </p>
           </Reveal>
 
@@ -661,7 +673,7 @@ export default function Landing() {
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                 <span className="spec-diamond mr-1" />
-                <span className="font-display text-lg tracking-[0.15em] text-white/80">SPEC</span>
+                <span className="font-brand text-lg tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
               <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">
                 AI-native furniture intelligence for the trade.
@@ -694,7 +706,7 @@ export default function Landing() {
           </div>
           <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent mb-6" />
           <div className="flex items-center justify-between text-[11px] text-white/20">
-            <span>&copy; {new Date().getFullYear()} SPEC. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Spekd. All rights reserved.</span>
             <span className="hidden sm:inline">Built with AI for the furniture trade.</span>
           </div>
         </div>

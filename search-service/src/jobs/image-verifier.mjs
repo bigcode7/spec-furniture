@@ -55,7 +55,7 @@ function checkImageUrl(url, timeout = 5000) {
     }
 
     const client = url.startsWith("https") ? https : http;
-    const req = client.request(url, { method: "HEAD", timeout, headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0" } }, (res) => {
+    const req = client.request(url, { method: "HEAD", timeout, headers: { "User-Agent": "Mozilla/5.0 Spekd-Bot/1.0" } }, (res) => {
       const contentType = res.headers["content-type"] || "";
       const contentLength = parseInt(res.headers["content-length"] || "0", 10);
 
@@ -87,7 +87,7 @@ function fetchImageDimensions(url, timeout = 8000) {
     if (!url || !url.startsWith("http")) return resolve(null);
 
     const client = url.startsWith("https") ? https : http;
-    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0", Range: "bytes=0-65535" } }, (res) => {
+    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 Spekd-Bot/1.0", Range: "bytes=0-65535" } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return fetchImageDimensions(res.headers.location, timeout).then(resolve);
       }
@@ -187,7 +187,7 @@ function cacheImage(productId, imageUrl, timeout = 10000) {
     const safeId = productId.replace(/[^a-zA-Z0-9_-]/g, "_");
     const client = imageUrl.startsWith("https") ? https : http;
 
-    const req = client.get(imageUrl, { timeout, headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0" } }, (res) => {
+    const req = client.get(imageUrl, { timeout, headers: { "User-Agent": "Mozilla/5.0 Spekd-Bot/1.0" } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return cacheImage(productId, res.headers.location, timeout).then(resolve);
       }
@@ -241,7 +241,7 @@ function extractOgImage(url, timeout = 10000) {
     let resolved = false;
     const finish = (val) => { if (!resolved) { resolved = true; resolve(val); } };
 
-    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) SPEC-Bot/1.0" } }, (res) => {
+    const req = client.get(url, { timeout, headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Spekd-Bot/1.0" } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         return finish(null);

@@ -15,7 +15,7 @@
  * Also includes vendor-specific adapters for known API patterns.
  */
 
-const USER_AGENT = "SPEC-Catalog/1.0 (furniture-catalog; contact@spec.design)";
+const USER_AGENT = "Spekd-Catalog/1.0 (furniture-catalog; contact@spekd.design)";
 const FETCH_TIMEOUT_MS = 20_000;
 
 // ── Progress ─────────────────────────────────────────────────

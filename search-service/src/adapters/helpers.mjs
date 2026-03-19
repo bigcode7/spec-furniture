@@ -1,7 +1,7 @@
 import { sampleCatalog } from "../data/sample-catalog.mjs";
 import { extractVendorProductDocument, extractVendorProductLinks, normalizeVendorUrl } from "../lib/vendor-product.mjs";
 
-const USER_AGENT = "Mozilla/5.0 (compatible; SPECSearchBot/1.0; +https://spec.local)";
+const USER_AGENT = "Mozilla/5.0 (compatible; SpekdSearchBot/1.0; +https://spekd.design)";
 
 export function buildSeedAdapter(vendorId, options = {}) {
   return {

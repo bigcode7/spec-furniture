@@ -54,7 +54,7 @@ for (const [groupId, group] of Object.entries(CATEGORY_TREE)) {
 const CATEGORY_MAP = {
   // ── Seating ──
   "sofa": "sofas", "sofas": "sofas", "couch": "sofas", "couches": "sofas",
-  "settee": "sofas", "settees": "sofas", "divan": "sofas", "divans": "sofas",
+  "settee": "settees", "settees": "settees", "divan": "sofas", "divans": "sofas",
   "loveseat": "loveseats", "loveseats": "loveseats", "love seat": "loveseats",
   "sectional": "sectionals", "sectionals": "sectionals",
   "sectional sofa": "sectionals", "sectional sofas": "sectionals",

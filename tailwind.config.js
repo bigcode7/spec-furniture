@@ -13,6 +13,7 @@ module.exports = {
   			sans: ['"Plus Jakarta Sans"', 'Inter', 'Segoe UI', 'sans-serif'],
   			serif: ['"Instrument Serif"', '"Playfair Display"', 'Georgia', 'serif'],
   			display: ['"Instrument Serif"', '"Playfair Display"', 'Georgia', 'serif'],
+  			brand: ['"Space Grotesk"', '"Plus Jakarta Sans"', 'sans-serif'],
   			body: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
   		},
   		colors: {

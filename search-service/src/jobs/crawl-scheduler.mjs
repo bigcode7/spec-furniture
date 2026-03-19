@@ -1,5 +1,5 @@
 /**
- * Background Crawl Scheduler for SPEC Furniture Search
+ * Background Crawl Scheduler for Spekd Furniture Search
  *
  * Crawls vendor websites on a tier-based schedule using direct HTTP requests
  * and HTML parsing. No AI API calls. Products are stored in the local catalog DB.
@@ -16,7 +16,7 @@ import { tradeVendors } from "../config/trade-vendors.mjs";
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const LOG_PREFIX = "[crawl-scheduler]";
-const USER_AGENT = "SPEC-Crawler/1.0 (furniture-search; contact@spec.design)";
+const USER_AGENT = "Spekd-Crawler/1.0 (furniture-search; contact@spekd.design)";
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_HTML_SIZE = 500_000;
 const SCHEDULER_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes

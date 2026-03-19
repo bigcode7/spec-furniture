@@ -182,7 +182,7 @@ function buildSearchSummary({ intent, safeResults, vendorCount, fallbackMode, ve
   const basis = parts.length ? parts.join(" ") : "search brief";
   const source = verifiedCount > 0 ? "verified vendor-backed" : fallbackMode ? "catalog-backed" : "live vendor-backed";
 
-  return `SPEC translated this request into a ${source} ${basis} shortlist across ${vendorCount || safeResults.length} vendor options.`;
+  return `Spekd translated this request into a ${source} ${basis} shortlist across ${vendorCount || safeResults.length} vendor options.`;
 }
 
 function buildSearchRecommendation({ intent, top, underBudget, fallbackMode, liveCount, verifiedCount }) {
@@ -204,14 +204,14 @@ function buildSearchRecommendation({ intent, top, underBudget, fallbackMode, liv
 
 function buildCoverageNote({ liveCount, fallbackMode, vendorCount, verifiedCount, resultMode }) {
   if (verifiedCount > 0) {
-    return `SPEC is prioritizing verified vendor assets across ${vendorCount || verifiedCount} manufacturers for this shortlist.`;
+    return `Spekd is prioritizing verified vendor assets across ${vendorCount || verifiedCount} manufacturers for this shortlist.`;
   }
   if (liveCount > 0) {
-    return `SPEC found live product candidates, but they still need stronger verification before they can be treated as trusted vendor results.`;
+    return `Spekd found live product candidates, but they still need stronger verification before they can be treated as trusted vendor results.`;
   }
   if (fallbackMode) {
     return resultMode === "directional-catalog-fallback"
-      ? "Live vendor retrieval is still thin, so SPEC is using the normalized catalog to preserve sourcing flow."
+      ? "Live vendor retrieval is still thin, so Spekd is using the normalized catalog to preserve sourcing flow."
       : "No verified vendor assets were found for this brief yet.";
   }
   return null;

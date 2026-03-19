@@ -19,8 +19,59 @@ export function searchCatalog(products, queryInput, filters = {}, intent = null)
       rank: index + 1,
       relevance_score: entry.score,
       reasoning: entry.reasoning,
+      match_explanation: entry.match_explanation,
       ...entry.product,
     }));
+}
+
+/**
+ * Build a structured match explanation for the "Why this result?" feature.
+ * Returns an object with categorized match signals.
+ */
+function buildMatchExplanation(product, matched, score, intent, filters) {
+  const explanation = {
+    signals: [],      // Human-readable match reasons
+    score: score,     // Numeric relevance score (0-99)
+  };
+
+  // Attribute matches
+  for (const m of matched) {
+    if (m === "type match") {
+      explanation.signals.push({ type: "attribute", label: `${product.category || "category"} match`, strength: "strong" });
+    } else if (m === "style match" || m === "style filter") {
+      explanation.signals.push({ type: "attribute", label: `${product.style || intent?.style || "style"} style`, strength: "strong" });
+    } else if (m === "material match" || m === "material filter") {
+      explanation.signals.push({ type: "attribute", label: `${product.material || intent?.material || "material"} material`, strength: "strong" });
+    } else if (m === "color match") {
+      const col = (product.colors || []).find(c => normalizeText(c).includes(normalizeText(intent?.color || ""))) || intent?.color;
+      explanation.signals.push({ type: "attribute", label: `${col || "color"} color`, strength: "strong" });
+    } else if (m === "vendor match" || m === "vendor filter") {
+      explanation.signals.push({ type: "vendor", label: `${product.vendor_name || "vendor"} selected`, strength: "strong" });
+    } else if (m === "within budget" || m === "within price") {
+      explanation.signals.push({ type: "price", label: "within budget", strength: "medium" });
+    } else if (m === "category filter") {
+      explanation.signals.push({ type: "attribute", label: `${product.category || "category"} category`, strength: "strong" });
+    } else if (m === "exact query phrase") {
+      explanation.signals.push({ type: "keyword", label: "exact phrase match", strength: "strong" });
+    } else if (m.includes("token match")) {
+      explanation.signals.push({ type: "keyword", label: m, strength: "medium" });
+    } else if (m === "strong token coverage") {
+      explanation.signals.push({ type: "keyword", label: "high keyword relevance", strength: "strong" });
+    } else if (m === "within lead time") {
+      explanation.signals.push({ type: "logistics", label: "fast delivery", strength: "medium" });
+    }
+  }
+
+  // Add visual tag matches if available
+  if (intent?.keywords?.length > 0 && product.ai_visual_tags) {
+    const tags = product.ai_visual_tags.toLowerCase();
+    const matchedTags = intent.keywords.filter(k => tags.includes(k.toLowerCase()));
+    if (matchedTags.length > 0) {
+      explanation.signals.push({ type: "visual", label: matchedTags.join(", "), strength: "medium" });
+    }
+  }
+
+  return explanation;
 }
 
 function scoreProduct(product, variants, filters, intent) {
@@ -100,6 +151,31 @@ function scoreProduct(product, variants, filters, intent) {
     }
   }
 
+  // Project context boost — if the brain extracted project context, boost matching products
+  if (intent?.project_context) {
+    const ctx = intent.project_context;
+    if (ctx.commercial && product.material) {
+      const commercialMats = ["leather", "vinyl", "performance", "crypton", "sunbrella"];
+      if (commercialMats.some(m => normalizeText(product.material).includes(m))) {
+        score += 6;
+        matched.push("commercial-grade material");
+      }
+    }
+    if (ctx.price_tier === "premium" && product.retail_price > 3000) {
+      score += 4;
+      matched.push("premium tier");
+    } else if (ctx.price_tier === "value" && product.retail_price && product.retail_price < 2000) {
+      score += 4;
+      matched.push("value tier");
+    }
+    if (ctx.style_boost) {
+      if (normalizeText(product.style || "").includes(normalizeText(ctx.style_boost))) {
+        score += 5;
+        matched.push(`${ctx.style_boost} style context`);
+      }
+    }
+  }
+
   if (filters.category && normalizeText(product.category).includes(normalizeText(filters.category))) {
     score += 18;
     matched.push("category filter");
@@ -147,10 +223,13 @@ function scoreProduct(product, variants, filters, intent) {
   if (product.ingestion_source === "live-crawler") score += 8;
   if (product.ingestion_source === "live-discovery") score += 5;
 
+  const finalScore = Math.max(0, Math.min(99, Math.round(score)));
+
   return {
     product,
-    score: Math.max(0, Math.min(99, Math.round(score))),
+    score: finalScore,
     reasoning: matched.length ? matched.join(" · ") : "weak match",
+    match_explanation: buildMatchExplanation(product, matched, finalScore, intent, filters),
   };
 }
 

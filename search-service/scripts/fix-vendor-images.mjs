@@ -20,7 +20,7 @@ function fetchPage(url, timeout = 12000) {
 
     const req = https.get(url, {
       timeout,
-      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 SPEC-Bot/1.0" },
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Spekd-Bot/1.0" },
     }, (res) => {
       if (res.statusCode !== 200) { res.resume(); return finish(null); }
       let body = "";

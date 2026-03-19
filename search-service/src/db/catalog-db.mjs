@@ -1,7 +1,7 @@
 /**
  * Catalog Database — Persistent JSON-backed product store with in-memory indexing
  *
- * Foundation of the three-tier search architecture for SPEC furniture platform.
+ * Foundation of the three-tier search architecture for Spekd furniture platform.
  * Tier 1 (this): local catalog handles ~95% of searches with zero API cost.
  *
  * Storage: JSON file at search-service/data/catalog.db.json

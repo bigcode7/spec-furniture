@@ -190,7 +190,7 @@ function fetchProductPageImages(productUrl, vendorDomain, timeout = 12000) {
     const req = client.get(productUrl, {
       timeout,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 SPEC-Bot/1.0",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Spekd-Bot/1.0",
         "Accept": "text/html,application/xhtml+xml",
       },
     }, (res) => {
@@ -366,7 +366,7 @@ function checkImageUrl(url, timeout = 6000) {
     const req = client.request(url, {
       method: "HEAD",
       timeout,
-      headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0" },
+      headers: { "User-Agent": "Mozilla/5.0 Spekd-Bot/1.0" },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return checkImageUrl(res.headers.location, timeout).then(resolve);
@@ -389,7 +389,7 @@ function fetchImageDimensions(url, timeout = 8000) {
     const client = url.startsWith("https") ? https : http;
     const req = client.get(url, {
       timeout,
-      headers: { "User-Agent": "Mozilla/5.0 SPEC-Bot/1.0", Range: "bytes=0-65535" },
+      headers: { "User-Agent": "Mozilla/5.0 Spekd-Bot/1.0", Range: "bytes=0-65535" },
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return fetchImageDimensions(res.headers.location, timeout).then(resolve);

@@ -287,7 +287,7 @@ export default function ClientPortal() {
         {/* Footer */}
         <div className="text-center mt-12 pt-8 border-t border-white/[0.06]">
           <p className="text-xs text-white/20">
-            Powered by SPEC Sourcing Brain
+            Powered by Spekd Sourcing Brain
           </p>
         </div>
       </div>

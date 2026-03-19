@@ -3,7 +3,7 @@ import { normalizeText } from "./normalize.mjs";
 import { extractVendorProductDocument, extractVendorProductLinks, looksProductLike, normalizeVendorUrl } from "./vendor-product.mjs";
 import { aiExtractProduct } from "./ai-search.mjs";
 
-const USER_AGENT = "Mozilla/5.0 (compatible; SPECSearchBot/1.0; +https://spec.local)";
+const USER_AGENT = "Mozilla/5.0 (compatible; SpekdSearchBot/1.0; +https://spekd.design)";
 
 export async function discoverLiveVendorProducts(query, { vendorIds = [], maxVendors = 8, perVendor = 2, intent = null } = {}) {
   const vendors = (vendorIds.length

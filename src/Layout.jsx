@@ -1,8 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles, FileText } from "lucide-react";
+import { Search, GitCompare, Home, LogOut, FolderOpen, ClipboardList, Package2, Brain, BarChart3, ChevronDown, Sparkles, FileText, UserPlus } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { base44 } from "@/api/base44Client";
 import { useState, useEffect, useRef } from "react";
 import CommandPalette from "@/components/CommandPalette";
 import SpecChat from "@/components/SpecChat";
@@ -10,6 +9,9 @@ import AlertBell from "@/components/AlertBell";
 import NotificationCenter from "@/components/NotificationCenter";
 import QuotePanel from "@/components/QuotePanel";
 import { getQuoteItemCount } from "@/lib/growth-store";
+import { useAuth } from "@/lib/AuthContext";
+import PriceToggle from "@/components/PriceToggle";
+import TradeDiscountSettings from "@/components/TradeDiscountSettings";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -49,17 +51,14 @@ function AppAtmosphere() {
 }
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
+  const { user, navigateToLogin, logout } = useAuth();
   const [commandOpen, setCommandOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteCount, setQuoteCount] = useState(0);
+  const [tradeSettingsOpen, setTradeSettingsOpen] = useState(false);
   const moreRef = useRef(null);
   const location = useLocation();
-
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   // Track quote item count — refresh on storage events and periodically
   useEffect(() => {
@@ -118,8 +117,8 @@ export default function Layout({ children, currentPageName }) {
             {/* Wordmark */}
             <Link to={createPageUrl("Landing")} className="flex items-center gap-2">
               <span className="spec-diamond mr-1" />
-              <span className="font-display text-lg tracking-[0.12em] text-white/90" style={{ letterSpacing: "0.15em" }}>
-                SPEC
+              <span className="font-brand text-lg tracking-[0.2em] text-white/90 font-medium">
+                SPEKD
               </span>
             </Link>
 
@@ -219,6 +218,9 @@ export default function Layout({ children, currentPageName }) {
                 </kbd>
               </button>
 
+              {/* Trade pricing toggle */}
+              <PriceToggle />
+
               {/* Quote counter */}
               <button
                 onClick={() => setQuoteOpen(true)}
@@ -243,7 +245,19 @@ export default function Layout({ children, currentPageName }) {
               <NotificationCenter />
               <AlertBell />
 
+              {/* Trade discount settings */}
               {user && (
+                <button
+                  onClick={() => setTradeSettingsOpen(true)}
+                  className="flex h-8 items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] px-2.5 text-[10px] font-semibold uppercase tracking-wider transition-all hover:border-emerald-400/20 hover:bg-white/[0.06]"
+                  style={{ color: "rgba(110,180,140,0.5)" }}
+                  title="Trade Discount Settings"
+                >
+                  %
+                </button>
+              )}
+
+              {user ? (
                 <div className="flex items-center gap-2">
                   <div
                     className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white/80"
@@ -256,13 +270,26 @@ export default function Layout({ children, currentPageName }) {
                     {(user.full_name || user.email || "U")[0].toUpperCase()}
                   </div>
                   <button
-                    onClick={() => base44.auth.logout()}
+                    onClick={() => logout()}
                     className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/40"
                     title="Sign out"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                   </button>
                 </div>
+              ) : (
+                <button
+                  onClick={() => navigateToLogin("signup")}
+                  className="flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:brightness-110"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.1))",
+                    border: "1px solid rgba(201,169,110,0.3)",
+                    color: "#C9A96E",
+                  }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Sign Up Free
+                </button>
               )}
             </div>
           </div>
@@ -293,6 +320,10 @@ export default function Layout({ children, currentPageName }) {
         open={quoteOpen}
         onClose={() => setQuoteOpen(false)}
         onCountChange={(count) => setQuoteCount(count)}
+      />
+      <TradeDiscountSettings
+        open={tradeSettingsOpen}
+        onClose={() => setTradeSettingsOpen(false)}
       />
     </div>
   );

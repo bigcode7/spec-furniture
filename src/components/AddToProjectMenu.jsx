@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { FolderKanban, Plus, Check, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGuestGate } from "@/lib/GuestGate";
 
 const SEARCH_URL = (
   import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310"
@@ -23,6 +24,7 @@ export default function AddToProjectMenu({ product, size = "sm" }) {
   const [added, setAdded] = useState(null); // { projectId, roomId, itemName }
   const menuRef = useRef(null);
   const navigate = useNavigate();
+  const { requireAccount } = useGuestGate();
 
   // Close on outside click
   useEffect(() => {
@@ -37,24 +39,26 @@ export default function AddToProjectMenu({ product, size = "sm" }) {
   }, [open]);
 
   // Load projects when opening
-  const handleOpen = async () => {
+  const handleOpen = () => {
     if (open) {
       setOpen(false);
       setSelectedProject(null);
       return;
     }
-    setOpen(true);
-    setLoading(true);
-    try {
-      const res = await fetch(`${SEARCH_URL}/projects`);
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data.projects || []);
+    requireAccount("project", product, async () => {
+      setOpen(true);
+      setLoading(true);
+      try {
+        const res = await fetch(`${SEARCH_URL}/projects`);
+        if (res.ok) {
+          const data = await res.json();
+          setProjects(data.projects || []);
+        }
+      } catch {
+        setProjects([]);
       }
-    } catch {
-      setProjects([]);
-    }
-    setLoading(false);
+      setLoading(false);
+    });
   };
 
   // Add product to a specific room item

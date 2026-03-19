@@ -11,8 +11,10 @@ import {
   clearQuote, getQuoteSettings, saveQuoteSettings, getQuoteItemCount,
 } from "@/lib/growth-store";
 import { generateQuotePdf } from "@/lib/quote-generator";
+import { useTradePricing } from "@/lib/TradePricingContext";
 
 export default function QuotePanel({ open, onClose, onCountChange }) {
+  const { mode, getPrice, fmtPrice, hasDiscounts } = useTradePricing();
   const [quote, setQuote] = useState(getQuote());
   const [settings, setSettings] = useState(getQuoteSettings());
   const [expandedRooms, setExpandedRooms] = useState({});
@@ -48,10 +50,15 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
   const totalItems = quote.rooms.reduce((s, r) => s + r.items.length, 0);
 
   const getItemPrice = (item) => {
-    const base = Number(item.retail_price) || Number(item.wholesale_price) || 0;
+    const priceInfo = getPrice(item);
+    const base = priceInfo.price;
     if (!base) return null;
     const markup = quote.markup_percent || 0;
     return markup > 0 ? base * (1 + markup / 100) : base;
+  };
+
+  const getItemPriceInfo = (item) => {
+    return getPrice(item);
   };
 
   const getRoomTotal = (room) => {
@@ -127,18 +134,27 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
     refresh();
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGeneratePdf = async (pdfMode) => {
     setGenerating(true);
     try {
       const allItems = quote.rooms.flatMap(r =>
-        r.items.map(item => ({
-          ...item,
-          retail_price: getItemPrice(item),
-          _room: r.name,
-          _quantity: item.quantity || 1,
-        }))
+        r.items.map(item => {
+          const priceInfo = getPrice(item);
+          const base = priceInfo.price || 0;
+          const markup = quote.markup_percent || 0;
+          const clientPrice = markup > 0 ? base * (1 + markup / 100) : base;
+          return {
+            ...item,
+            retail_price: pdfMode === "trade" ? (priceInfo.isTrade ? priceInfo.price : base) : clientPrice,
+            _trade_price: priceInfo.isTrade ? priceInfo.price : null,
+            _is_trade: priceInfo.isTrade,
+            _price_label: priceInfo.label,
+            _room: r.name,
+            _quantity: item.quantity || 1,
+          };
+        })
       );
-      await generateQuotePdf(allItems, quote.name || "Untitled Quote");
+      await generateQuotePdf(allItems, quote.name || "Untitled Quote", { pdfMode });
     } catch (err) {
       console.error("PDF generation failed:", err);
     }
@@ -385,6 +401,7 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
                                 onNotes={(n) => handleNotes(item.id, n)}
                                 onMoveToRoom={(rid) => handleMoveToRoom(item.id, rid)}
                                 getItemPrice={() => getItemPrice(item)}
+                                getItemPriceInfo={() => getItemPriceInfo(item)}
                                 dimStr={() => dimStr(item)}
                               />
                             ))}
@@ -490,10 +507,17 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
                   )}
                 </div>
 
+                {/* Mode indicator */}
+                {mode === "trade" && hasDiscounts && (
+                  <div className="flex items-center gap-2 text-[10px] text-emerald-400/50">
+                    <span className="uppercase tracking-wider font-semibold">Trade pricing active</span>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
                   <button
-                    onClick={handleGeneratePdf}
+                    onClick={() => handleGeneratePdf("client")}
                     disabled={generating}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                     style={{
@@ -501,10 +525,27 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
                       border: "1px solid rgba(201,169,110,0.3)",
                       color: "#C9A96E",
                     }}
+                    title="Client-facing PDF with retail/marked-up prices"
                   >
                     <Download className="h-4 w-4" />
-                    {generating ? "Generating..." : "Download PDF"}
+                    {generating ? "Generating..." : "Client PDF"}
                   </button>
+                  {mode === "trade" && hasDiscounts && (
+                    <button
+                      onClick={() => handleGeneratePdf("trade")}
+                      disabled={generating}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(110,180,140,0.2), rgba(110,180,140,0.1))",
+                        border: "1px solid rgba(110,180,140,0.25)",
+                        color: "rgba(110,180,140,0.8)",
+                      }}
+                      title="Internal PDF with trade prices"
+                    >
+                      <Download className="h-4 w-4" />
+                      Trade PDF
+                    </button>
+                  )}
                   <button
                     onClick={handleClear}
                     className="px-4 py-2.5 rounded-xl text-xs text-white/25 hover:text-red-400/60 hover:bg-red-400/[0.06] border border-white/[0.06] transition-all"
@@ -521,10 +562,11 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
   );
 }
 
-function QuoteItem({ item, rooms, currentRoomId, onRemove, onQuantity, onNotes, onMoveToRoom, getItemPrice, dimStr }) {
+function QuoteItem({ item, rooms, currentRoomId, onRemove, onQuantity, onNotes, onMoveToRoom, getItemPrice, getItemPriceInfo, dimStr }) {
   const [showNotes, setShowNotes] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const price = getItemPrice();
+  const priceInfo = getItemPriceInfo?.() || { isTrade: false };
   const dims = dimStr();
 
   return (
@@ -569,10 +611,11 @@ function QuoteItem({ item, rooms, currentRoomId, onRemove, onQuantity, onNotes, 
             </div>
 
             {price ? (
-              <span className="text-xs text-white/50">
+              <span className={`text-xs ${priceInfo.isTrade ? "text-emerald-400/50" : "text-white/50"}`}>
+                {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-70">Est. Trade </span>}
                 ${Math.round(price).toLocaleString()}
                 {(item.quantity || 1) > 1 && (
-                  <span className="text-white/25"> x{item.quantity} = ${Math.round(price * (item.quantity || 1)).toLocaleString()}</span>
+                  <span className={priceInfo.isTrade ? "text-emerald-400/25" : "text-white/25"}> x{item.quantity} = ${Math.round(price * (item.quantity || 1)).toLocaleString()}</span>
                 )}
               </span>
             ) : (
