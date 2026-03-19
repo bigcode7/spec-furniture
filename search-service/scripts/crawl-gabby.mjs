@@ -388,9 +388,11 @@ async function main() {
   }
 
   // Load existing catalog and merge
-  const db = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+  const { loadCatalog, safeSave } = await import("./lib/safe-catalog-write.mjs");
+  const catalog = loadCatalog(DB_PATH);
+  const db = catalog.data;
 
-  // Remove any existing Gabby products
+  // Remove any existing Gabby products (only this vendor)
   const before = db.products.length;
   db.products = db.products.filter(p => p.vendor_id !== VENDOR_ID);
   const removed = before - db.products.length;
@@ -398,11 +400,12 @@ async function main() {
 
   // Add new products
   db.products.push(...mapped);
-  db.product_count = db.products.length;
-  db.saved_at = new Date().toISOString();
 
-  fs.writeFileSync(DB_PATH, JSON.stringify(db));
-  console.log(`\nSaved to catalog. Total catalog products: ${db.product_count}`);
+  safeSave(db, db.products, catalog.vendorCounts, {
+    dbPath: DB_PATH,
+    forceDeleteVendors: new Set([VENDOR_ID]),
+  });
+  console.log(`\nSaved to catalog. Total catalog products: ${db.products.length}`);
 
   // Sample products
   console.log("\n=== Sample Products ===");

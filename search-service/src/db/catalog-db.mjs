@@ -324,6 +324,10 @@ function loadFromDisk() {
       }
     }
 
+    // Take initial vendor snapshot for safety checks
+    lastKnownVendorCounts = snapshotVendorCounts();
+    console.log(`[catalog-db] Vendor snapshot: ${lastKnownVendorCounts.size} vendors tracked`);
+
     return true;
   } catch (err) {
     console.error(`[catalog-db] Failed to load from disk: ${err.message}`);
@@ -331,11 +335,63 @@ function loadFromDisk() {
   }
 }
 
+/** Track vendor counts for safety checks */
+let lastKnownVendorCounts = new Map();
+
+function snapshotVendorCounts() {
+  const counts = new Map();
+  for (const product of products.values()) {
+    const vid = product.vendor_id || "unknown";
+    counts.set(vid, (counts.get(vid) || 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Safety check: detect if any vendor lost all products or if total dropped too much.
+ * Returns { safe: boolean, warnings: string[] }
+ */
+function validateBeforeWrite() {
+  const warnings = [];
+  const currentCounts = snapshotVendorCounts();
+
+  if (lastKnownVendorCounts.size > 0) {
+    // Check for vendors that completely disappeared
+    for (const [vendor, prevCount] of lastKnownVendorCounts) {
+      const newCount = currentCounts.get(vendor) || 0;
+      if (prevCount >= 10 && newCount === 0) {
+        warnings.push(`VENDOR WIPED: "${vendor}" had ${prevCount} products, now has 0`);
+      }
+    }
+
+    // Check for unexpected large drops (>500 products lost)
+    const prevTotal = [...lastKnownVendorCounts.values()].reduce((a, b) => a + b, 0);
+    const newTotal = products.size;
+    const dropped = prevTotal - newTotal;
+    if (dropped > 500) {
+      warnings.push(`MASS DELETION: ${dropped} products lost (${prevTotal} → ${newTotal})`);
+    }
+  }
+
+  return { safe: warnings.length === 0, warnings };
+}
+
 /**
  * Serialize and write the database to disk.
  */
 function writeToDisk() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  // Safety check before writing
+  const { safe, warnings } = validateBeforeWrite();
+  if (!safe) {
+    for (const w of warnings) console.error(`[catalog-db] ⚠ SAFETY WARNING: ${w}`);
+    console.error(`[catalog-db] ⚠ Write blocked — ${warnings.length} safety violation(s). Use forceWriteToDisk() to override.`);
+    return;
+  }
+
+  // Update vendor snapshot after successful validation
+  lastKnownVendorCounts = snapshotVendorCounts();
 
   // Stream-write products to avoid holding entire JSON in memory.
   // Exclude search_text and tags from disk (rebuilt on load).
@@ -358,6 +414,31 @@ function writeToDisk() {
 
   // Atomic rename
   fs.renameSync(tmpPath, DB_PATH);
+  console.log(`[catalog-db] Saved ${products.size} products to disk`);
+}
+
+/**
+ * Force write to disk, bypassing safety checks. Use only when you intentionally
+ * want to allow large deletions (e.g. cleanup scripts with --force flag).
+ */
+function forceWriteToDisk() {
+  console.warn(`[catalog-db] ⚠ Force-writing ${products.size} products (safety checks bypassed)`);
+  lastKnownVendorCounts = snapshotVendorCounts();
+
+  const tmpPath = DB_PATH + ".tmp";
+  const fd = fs.openSync(tmpPath, "w");
+  fs.writeSync(fd, `{"version":1,"saved_at":"${new Date().toISOString()}","product_count":${products.size},"products":[\n`);
+  let first = true;
+  for (const product of products.values()) {
+    if (!first) fs.writeSync(fd, ",\n");
+    first = false;
+    const { search_text, tags, ...slim } = product;
+    fs.writeSync(fd, JSON.stringify(slim));
+  }
+  fs.writeSync(fd, `\n],"vendor_crawl_meta":${JSON.stringify(Object.fromEntries(vendorCrawlMeta))}}\n`);
+  fs.closeSync(fd);
+  fs.renameSync(tmpPath, DB_PATH);
+  console.warn(`[catalog-db] Force-saved ${products.size} products`);
 }
 
 /**
@@ -1295,11 +1376,46 @@ export function updateProductDirect(id, fields) {
 
 /**
  * Delete a product by ID. Used by dedup job.
+ * Safety: tracks per-vendor deletion counts and blocks if a vendor is being wiped.
  */
+const _deletionBatch = new Map(); // vendor_id → count in current batch
+let _deletionBatchTimer = null;
+
 export function deleteProduct(id) {
   const product = products.get(id);
   if (!product) return false;
 
+  // Track vendor-level deletion counts
+  const vid = product.vendor_id || "unknown";
+  _deletionBatch.set(vid, (_deletionBatch.get(vid) || 0) + 1);
+
+  // Check if we're deleting too many from one vendor (>90% of their products)
+  const vendorTotal = lastKnownVendorCounts.get(vid) || 0;
+  const deletedFromVendor = _deletionBatch.get(vid);
+  if (vendorTotal >= 20 && deletedFromVendor >= vendorTotal * 0.9) {
+    console.error(`[catalog-db] ⚠ BLOCKED: Attempted to delete ${deletedFromVendor}/${vendorTotal} "${vid}" products. Use --force-delete-vendor=${vid} to override.`);
+    return false;
+  }
+
+  unindexProduct(id, product);
+  products.delete(id);
+  clearSearchCache();
+  scheduleSave();
+
+  // Reset batch tracker after inactivity
+  if (_deletionBatchTimer) clearTimeout(_deletionBatchTimer);
+  _deletionBatchTimer = setTimeout(() => { _deletionBatch.clear(); _deletionBatchTimer = null; }, 10000);
+
+  return true;
+}
+
+/**
+ * Force-delete a product, bypassing vendor protection.
+ * Only use when explicitly intended (e.g. --force-delete-vendor flag).
+ */
+export function forceDeleteProduct(id) {
+  const product = products.get(id);
+  if (!product) return false;
   unindexProduct(id, product);
   products.delete(id);
   clearSearchCache();
@@ -1390,6 +1506,8 @@ export function flushToDisk() {
   saveTimer = null;
   writeToDisk();
 }
+
+export { forceWriteToDisk, snapshotVendorCounts };
 
 export function clearSearchCache() {
   searchCache.clear();

@@ -12,14 +12,17 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadCatalog, safeSave } from "./lib/safe-catalog-write.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../data/catalog.db.json");
+const apply = process.argv.includes("--apply");
 
 console.log("Loading catalog...");
-const raw = readFileSync(DB_PATH, "utf8");
-const db = JSON.parse(raw);
-const products = db.products || [];
+const catalog = loadCatalog(DB_PATH);
+const db = catalog.data;
+const products = catalog.products;
+const vendorCounts = catalog.vendorCounts;
 
 console.log(`Loaded ${products.length} products\n`);
 
@@ -326,10 +329,13 @@ for (const [vendor, s] of vendorOrder) {
 }
 
 // Save cleaned catalog
-console.log(`\nSaving cleaned catalog...`);
-db.products = cleanedProducts;
-writeFileSync(DB_PATH, JSON.stringify(db, null, 0));
-console.log(`Saved ${cleanedProducts.length} products to ${DB_PATH}`);
+if (apply) {
+  console.log(`\nSaving cleaned catalog...`);
+  safeSave(db, cleanedProducts, vendorCounts, { dbPath: DB_PATH });
+  console.log(`Saved ${cleanedProducts.length} products to ${DB_PATH}`);
+} else {
+  console.log(`\n[DRY RUN] Would save ${cleanedProducts.length} products. Use --apply to write changes.`);
+}
 
 // Final summary
 console.log(`\n${"═".repeat(70)}`);

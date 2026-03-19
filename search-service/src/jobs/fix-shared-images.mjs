@@ -76,8 +76,14 @@ async function main() {
     fixed++;
   }
 
-  // Write back
-  fs.writeFileSync("./search-service/data/catalog.db.json", JSON.stringify(data));
+  // Write back using safe utility
+  const { safeSave, loadCatalog } = await import("../../scripts/lib/safe-catalog-write.mjs");
+  const snapshot = {};
+  for (const p of data.products) {
+    const v = p.vendor_id || "unknown";
+    snapshot[v] = (snapshot[v] || 0) + 1;
+  }
+  safeSave(data, data.products, snapshot, { dbPath: "./search-service/data/catalog.db.json" });
   console.log(`\n  Fixed: ${fixed} products — shared images removed`);
   console.log(`  Catalog still has ${data.products.length} products`);
   console.log("  Run batch scraper to re-populate correct per-product images");

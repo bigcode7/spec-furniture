@@ -1,10 +1,13 @@
 import fs from 'fs';
 
+// NOTE: This list must include ALL vendors in the catalog.
+// Missing a vendor here = that vendor gets silently deleted.
 const KEEP = new Set([
   'bernhardt', 'hooker', 'century', 'universal', 'vanguard',
   'cr-laine', 'lee-industries', 'sherrill', 'wesley-hall',
   'hancock-moore', 'hickory-chair', 'highland-house',
-  'lexington', 'theodore-alexander', 'baker', 'caracole', 'stickley', 'rowe'
+  'lexington', 'theodore-alexander', 'baker', 'caracole', 'stickley', 'rowe',
+  'norwalk', 'surya', 'gabby', 'fourhands', 'loloi', 'visual-comfort',
 ]);
 
 // Load enriched (small) file — has better data for products it covers

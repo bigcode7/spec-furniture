@@ -19,6 +19,7 @@
  */
 
 import fs from "node:fs";
+import { loadCatalog, safeSave } from "./lib/safe-catalog-write.mjs";
 
 const apply = process.argv.includes("--apply");
 const DB_PATH = "./search-service/data/catalog.db.json";
@@ -153,7 +154,9 @@ async function main() {
   }
 
   // 3. Load catalog
-  const data = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+  const catalog = loadCatalog(DB_PATH);
+  const data = catalog.data;
+  const vendorCounts = catalog.vendorCounts;
   const century = data.products.filter(p => p.vendor_id === "century");
   console.log(`Century products in catalog: ${century.length}`);
 
@@ -302,7 +305,7 @@ async function main() {
       console.log(`\n  Added ${newProducts.length} new Century products`);
     }
 
-    fs.writeFileSync(DB_PATH, JSON.stringify(data));
+    safeSave(data, data.products, vendorCounts, { dbPath: DB_PATH });
     console.log("  ✓ Catalog saved");
   } else {
     console.log("\n  [DRY RUN] Use --apply to write changes");

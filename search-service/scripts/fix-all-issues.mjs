@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import https from "node:https";
 import http from "node:http";
+import { loadCatalog, safeSave } from "./lib/safe-catalog-write.mjs";
 
 const apply = process.argv.includes("--apply");
 const DB_PATH = "./search-service/data/catalog.db.json";
@@ -183,8 +184,11 @@ async function main() {
   console.log("  FIX ALL DATA QUALITY ISSUES");
   console.log("═══════════════════════════════════════════════════════\n");
 
-  const data = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-  let products = data.products;
+  const catalog = loadCatalog(DB_PATH);
+  const data = catalog.data;
+  let products = catalog.products;
+  const vendorCounts = catalog.vendorCounts;
+  data.products = products; // ensure array reference
   console.log(`Total products in catalog: ${products.length}\n`);
 
   // ────────────────────────────────────────────────────────────
@@ -377,7 +381,7 @@ async function main() {
 
   if (apply) {
     console.log("\n  Writing updated catalog...");
-    fs.writeFileSync(DB_PATH, JSON.stringify(data));
+    safeSave(data, products, vendorCounts, { dbPath: DB_PATH });
     console.log("  ✓ Catalog saved");
   } else {
     console.log("\n  [DRY RUN] Use --apply to write changes");

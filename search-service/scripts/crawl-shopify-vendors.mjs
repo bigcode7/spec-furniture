@@ -365,22 +365,27 @@ async function main() {
   // ── Save to catalog ──
   if (results.length > 0) {
     console.log("\n\n=== Saving to catalog ===");
-    const db = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+    const { loadCatalog, safeSave } = await import("./lib/safe-catalog-write.mjs");
+    const catalog = loadCatalog(DB_PATH);
+    const db = catalog.data;
 
+    const replacedVendors = new Set();
     for (const { vendor, mapped } of results) {
       const before = db.products.length;
       db.products = db.products.filter(p => p.vendor_id !== vendor.id);
       const removed = before - db.products.length;
       if (removed > 0) console.log(`  Removed ${removed} existing ${vendor.name} products`);
+      replacedVendors.add(vendor.id);
 
       db.products.push(...mapped);
       console.log(`  Added ${mapped.length} ${vendor.name} products`);
     }
 
-    db.product_count = db.products.length;
-    db.saved_at = new Date().toISOString();
-    fs.writeFileSync(DB_PATH, JSON.stringify(db));
-    console.log(`\n  Total catalog: ${db.product_count} products`);
+    safeSave(db, db.products, catalog.vendorCounts, {
+      dbPath: DB_PATH,
+      forceDeleteVendors: replacedVendors,
+    });
+    console.log(`\n  Total catalog: ${db.products.length} products`);
   }
 
   // ── Summary ──

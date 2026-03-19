@@ -561,6 +561,10 @@ const server = http.createServer(async (req, res) => {
         for (const id of body.ids) { if (deleteProduct(id)) deleted++; }
       }
       if (body.vendor_name) {
+        // Vendor-wide deletion requires explicit force flag
+        if (!body.force_delete_vendor) {
+          return json(res, 400, { ok: false, error: `Deleting all products for vendor "${body.vendor_name}" requires force_delete_vendor: true` });
+        }
         const all = getAllProducts();
         for (const p of all) {
           if (p.vendor_name === body.vendor_name) { if (deleteProduct(p.id)) deleted++; }
