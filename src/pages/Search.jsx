@@ -1,63 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   X,
   AlertCircle,
-  History,
-  GitCompare,
-  Check,
   Camera,
   Loader2,
   RefreshCw,
   ArrowRight,
   Layers,
   Send,
-  Compass,
-  Package,
   ExternalLink,
   Heart,
-  Bookmark,
-  BookmarkCheck,
   ArrowUpDown,
   Eye,
   ChevronDown,
-  SlidersHorizontal,
-  Clock,
-  Star,
   FileText,
   ClipboardCheck,
-  Info,
-  Sparkles,
-  TrendingUp,
   AlertTriangle,
   ClipboardList,
-  ChevronRight,
 } from "lucide-react";
-import DiscoverBrowser from "@/components/DiscoverBrowser";
-import CollectionBrowser from "@/components/CollectionBrowser";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, conversationalSearch, findSimilarProducts, listSearch, trackProductClick, trackProductCompare } from "@/api/searchClient";
-import FitScoreBadge from "@/components/FitScoreBadge";
-import MaterialBadges from "@/components/MaterialBadges";
-import AddToProjectMenu from "@/components/AddToProjectMenu";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
-  getCompareItems,
-  toggleCompareItem,
   normalizeSearchResult,
   trackStyleInteraction,
-  getSavedSearches,
-  saveSearch,
-  removeSavedSearch,
   toggleFavorite,
   getFavorites,
   getRecentlyViewed,
   pushRecentlyViewed,
   addToQuote,
-  getQuoteItemCount,
 } from "@/lib/growth-store";
 import { useGuestGate } from "@/lib/GuestGate";
 import { useTradePricing } from "@/lib/TradePricingContext";
@@ -100,12 +74,6 @@ function getInitialQuery() {
   const params = new URLSearchParams(window.location.search);
   return params.get("q") || "";
 }
-
-const MODE_TABS = [
-  { key: "search", label: "Search", icon: Search },
-  { key: "discover", label: "Discover", icon: Compass },
-  { key: "collections", label: "Collections", icon: Package },
-];
 
 // ─── CLIENT-SIDE FILTER HELPERS ────────────────────────────────
 function extractFacets(products) {
@@ -206,16 +174,6 @@ function sortProducts(products, sortKey) {
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeMode = searchParams.get("mode") || "search";
-
-  const setActiveMode = (mode) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (mode === "search") next.delete("mode");
-      else next.set("mode", mode);
-      return next;
-    });
-  };
 
   const [inputValue, setInputValue] = useState("");
   const [allResults, setAllResults] = useState([]); // full result set from server
@@ -223,12 +181,8 @@ export default function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState(null);
-  const [diagnostics, setDiagnostics] = useState(null);
-  const [vendorComparison, setVendorComparison] = useState(null);
   const [zeroResultGuidance, setZeroResultGuidance] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
-  const [compareItems, setCompareItems] = useState([]);
-  const [intent, setIntent] = useState(null);
 
   // Client-side filters, sort, pagination
   const [clientFilters, setClientFilters] = useState({});
@@ -254,27 +208,22 @@ export default function SearchPage() {
   // List mode — multi-item sourcing lists
   const [listMode, setListMode] = useState(false);
   const [listResults, setListResults] = useState(null); // { overview_message, items: [...] }
-  const [showPasteList, setShowPasteList] = useState(false);
-  const [pasteListValue, setPasteListValue] = useState("");
 
   // Preview panel
   const [previewProduct, setPreviewProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [similarLoading, setSimilarLoading] = useState(false);
 
-  // Saved searches
-  const [savedSearches, setSavedSearches] = useState([]);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [quoteIds, setQuoteIds] = useState(new Set());
   const [quoteToast, setQuoteToast] = useState(null);
+  const [favoriteToast, setFavoriteToast] = useState(null);
 
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
-  const navigate = useNavigate();
-
   // Guest gate — track searches, gate features
   const { trackSearch, requireAccount, isGuest } = useGuestGate();
 
@@ -291,8 +240,6 @@ export default function SearchPage() {
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
-    setCompareItems(getCompareItems());
-    setSavedSearches(getSavedSearches());
     setRecentlyViewed(getRecentlyViewed());
     setFavorites(getFavorites());
     // Build set of product IDs currently in quote
@@ -357,8 +304,6 @@ export default function SearchPage() {
   // ── LIST SEARCH ──
   const runListSearch = async (items) => {
     setInputValue("");
-    setPasteListValue("");
-    setShowPasteList(false);
     setLoading(true);
     setError(null);
     setListMode(true);
@@ -465,9 +410,6 @@ export default function SearchPage() {
       }
 
       setAllResults(products);
-      setIntent(data.intent || null);
-      setDiagnostics(data.diagnostics || null);
-      setVendorComparison(data.vendor_comparison || null);
       setZeroResultGuidance(data.zero_result_guidance || null);
 
       const assistantMsg = {
@@ -545,14 +487,9 @@ export default function SearchPage() {
     setMessages([]);
     setSessionId(crypto.randomUUID());
     setAllResults([]);
-    setIntent(null);
-    setDiagnostics(null);
-    setVendorComparison(null);
     setZeroResultGuidance(null);
     setListMode(false);
     setListResults(null);
-    setShowPasteList(false);
-    setPasteListValue("");
     setError(null);
     setInputValue("");
     setClientFilters({});
@@ -564,13 +501,6 @@ export default function SearchPage() {
     lastQueryRef.current = "";
     window.history.replaceState({}, "", "/Search");
     inputRef.current?.focus();
-  };
-
-  const handleToggleCompare = (item) => {
-    const { next } = toggleCompareItem(normalizeSearchResult(item));
-    setCompareItems(next);
-    trackProductCompare(item.id);
-    trackStyleInteraction(item.id, "compare");
   };
 
   const handleInputChange = (value) => {
@@ -648,26 +578,12 @@ export default function SearchPage() {
     setVisibleCount(INITIAL_PAGE_SIZE);
   };
 
-  const handleToggleSaveSearch = () => {
-    const q = lastQueryRef.current;
-    if (!q) return;
-    const exists = savedSearches.some(s => s.query.toLowerCase() === q.toLowerCase());
-    if (exists) {
-      // Unsaving is always allowed
-      const next = removeSavedSearch(q);
-      setSavedSearches(next);
-    } else {
-      requireAccount("save-search", null, () => {
-        const next = saveSearch(q, { resultCount: allResults.length });
-        setSavedSearches(next);
-      });
-    }
-  };
-
   const handleToggleFavorite = (product) => {
     requireAccount("favorite", product, () => {
-      const { next } = toggleFavorite(normalizeSearchResult(product));
+      const { next, added } = toggleFavorite(normalizeSearchResult(product));
       setFavorites(next);
+      setFavoriteToast(added ? "Saved to favorites" : "Removed from favorites");
+      setTimeout(() => setFavoriteToast(null), 2000);
     });
   };
 
@@ -683,55 +599,14 @@ export default function SearchPage() {
     });
   };
 
-  const isSearchSaved = savedSearches.some(s => s.query.toLowerCase() === (lastQueryRef.current || "").toLowerCase());
   const isFavorited = (id) => favorites.some(f => f.id === id);
-
-  const intentTags = intent
-    ? [
-        intent.product_type?.replace(/_/g, " "),
-        intent.style,
-        intent.material,
-        intent.color,
-        intent.vendor,
-        intent.max_price ? `Under $${intent.max_price.toLocaleString()}` : null,
-      ].filter(Boolean)
-    : [];
 
   // ──────────────────────────────────────────────
   // RENDER
   // ──────────────────────────────────────────────
 
-  const modeSelector = (
-    <div className="flex justify-center pt-5 pb-2 px-4">
-      <div className="inline-flex glass-surface rounded-full p-1 gap-0.5">
-        {MODE_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeMode === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveMode(tab.key)}
-              className={`px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.15em] rounded-full transition-all flex items-center gap-2 ${
-                isActive
-                  ? "bg-gold/10 text-gold border border-gold/20"
-                  : "text-white/30 hover:text-white/50 border border-transparent"
-              }`}
-            >
-              <Icon className="h-3 w-3" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  if (activeMode === "discover") return <div className="relative min-h-screen">{modeSelector}<DiscoverBrowser /></div>;
-  if (activeMode === "collections") return <div className="relative min-h-screen">{modeSelector}<CollectionBrowser /></div>;
-
   return (
     <div className="relative min-h-screen">
-      {modeSelector}
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
@@ -739,38 +614,46 @@ export default function SearchPage() {
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full max-w-2xl">
             {/* Hero */}
             <div className="text-center mb-10">
-              <div className="flex items-center justify-center gap-4 mb-8">
-                <div className="h-px flex-1 max-w-[60px] bg-gradient-to-r from-transparent to-gold/30" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-gold/70">AI-Powered Sourcing</span>
-                <div className="h-px flex-1 max-w-[60px] bg-gradient-to-l from-transparent to-gold/30" />
-              </div>
               <h1 className="font-display text-5xl md:text-6xl text-white mb-4" style={{ textShadow: "0 0 40px rgba(79,107,255,0.15)" }}>
                 Find the perfect <span className="text-gold">piece</span>
               </h1>
               <p className="text-sm max-w-md mx-auto" style={{ color: "var(--warm-gray)" }}>
-                Search like you'd describe it to a colleague. Natural language, trade terms, brand names — it all works.
+                Search like you'd describe it to a colleague. Paste a sourcing list and we'll find every item.
               </p>
             </div>
 
-            {/* Search input */}
+            {/* Search input — textarea that auto-grows for multi-line lists */}
             <form onSubmit={handleSubmit}>
               <div className="relative">
                 <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20">
-                  <div className="flex items-center">
-                    <div className="ml-5 shrink-0"><div className="spec-diamond" /></div>
-                    <input
+                  <div className="flex items-start">
+                    <div className="ml-5 mt-5 shrink-0"><div className="spec-diamond" /></div>
+                    <textarea
                       ref={inputRef}
                       value={inputValue}
-                      onChange={(e) => handleInputChange(e.target.value)}
+                      onChange={(e) => {
+                        handleInputChange(e.target.value);
+                        // Auto-resize
+                        e.target.style.height = "auto";
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+                      }}
+                      onKeyDown={(e) => {
+                        // Submit on Enter (without Shift) only if single-line
+                        if (e.key === "Enter" && !e.shiftKey && !inputValue.includes("\n")) {
+                          e.preventDefault();
+                          handleSubmit(e);
+                        }
+                      }}
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder='Try "walnut credenza" or "3 over 3 sofa in performance fabric"...'
-                      className="h-16 w-full bg-transparent px-4 text-sm text-white/80 placeholder:text-white/20 outline-none"
+                      placeholder={'Try "walnut credenza" or paste a sourcing list...'}
+                      className="min-h-[64px] w-full bg-transparent px-4 py-5 text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
+                      rows={1}
                       autoFocus
                     />
-                    <div className="flex items-center gap-1.5 pr-3">
+                    <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0">
                       {inputValue && (
-                        <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); }}
+                        <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); if (inputRef.current) { inputRef.current.style.height = "auto"; } }}
                           className="flex h-8 w-8 items-center justify-center rounded-xl text-white/20 hover:bg-white/5 hover:text-white/40 transition-colors">
                           <X className="h-4 w-4" />
                         </button>
@@ -790,7 +673,7 @@ export default function SearchPage() {
               </div>
             </form>
 
-            {/* Example searches + Paste List */}
+            {/* Suggested searches */}
             <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
               {EXAMPLE_SEARCHES.map((example, i) => (
                 <span key={example} className="flex items-center gap-2">
@@ -801,67 +684,6 @@ export default function SearchPage() {
                 </span>
               ))}
             </div>
-
-            {/* Paste Your List button */}
-            <div className="mt-5 flex justify-center">
-              <button
-                onClick={() => setShowPasteList(!showPasteList)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-gold/70 hover:border-gold/20 transition-all text-sm"
-              >
-                <ClipboardList className="h-4 w-4" />
-                Paste Your List
-              </button>
-            </div>
-
-            {/* Paste List expanded area */}
-            <AnimatePresence>
-              {showPasteList && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ClipboardList className="h-4 w-4 text-gold/50" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gold/60">Paste your sourcing list</span>
-                    </div>
-                    <p className="text-[11px] text-white/30 mb-3">
-                      One item per line. Use numbers, bullets, or just line breaks. We'll source every item.
-                    </p>
-                    <textarea
-                      value={pasteListValue}
-                      onChange={(e) => setPasteListValue(e.target.value)}
-                      placeholder={"1. White oak 60\" media console\n2. Contemporary oval dining table under 60\" wide\n3. 50\" contemporary mirror\n4. Accent chairs for a law office"}
-                      className="w-full h-32 bg-black/20 rounded-lg border border-white/[0.06] p-3 text-sm text-white/70 placeholder:text-white/15 outline-none focus:border-gold/20 transition-colors resize-none"
-                    />
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-[10px] text-white/20">
-                        {pasteListValue.split("\n").filter(l => l.trim()).length} items detected
-                      </span>
-                      <div className="flex gap-2">
-                        <button onClick={() => { setShowPasteList(false); setPasteListValue(""); }}
-                          className="px-3 py-1.5 rounded-lg text-xs text-white/30 hover:text-white/50 transition-colors">
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => {
-                            const items = pasteListValue.split("\n").map(l => l.trim()).filter(l => l.length > 3);
-                            if (items.length >= 2) runListSearch(items.map(l => l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-•*]\s*/, "").trim()));
-                          }}
-                          disabled={pasteListValue.split("\n").filter(l => l.trim().length > 3).length < 2}
-                          className="btn-gold px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Search className="h-3 w-3" /> Source All Items
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Recently viewed products only — no search history */}
             {recentlyViewed.length > 0 && (
@@ -904,38 +726,16 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-0 z-30 border-b border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
+          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="spec-diamond" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70">Sourcing Assistant</span>
-                {diagnostics?.total_catalog_size && (
-                  <span className="text-[10px] text-white/15">{diagnostics.total_catalog_size.toLocaleString()} products indexed</span>
-                )}
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70">Results</span>
               </div>
-              <div className="flex items-center gap-2">
-                {intentTags.length > 0 && (
-                  <div className="hidden sm:flex items-center gap-1.5">
-                    {intentTags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="rounded-full bg-gold/10 border border-gold/15 px-2.5 py-0.5 text-[10px] font-medium text-gold/60 uppercase tracking-wider">{tag}</span>
-                    ))}
-                  </div>
-                )}
-                {/* Save search button */}
-                {lastQueryRef.current && (
-                  <button onClick={handleToggleSaveSearch}
-                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] transition-colors ${
-                      isSearchSaved ? "text-gold/70 bg-gold/10" : "text-white/25 hover:bg-white/5 hover:text-gold/50"
-                    }`}>
-                    {isSearchSaved ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
-                    {isSearchSaved ? "Saved" : "Save"}
-                  </button>
-                )}
-                <button onClick={handleNewSearch}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors">
-                  <RefreshCw className="h-3 w-3" /> New
-                </button>
-              </div>
+              <button onClick={handleNewSearch}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors">
+                <RefreshCw className="h-3 w-3" /> New Search
+              </button>
             </div>
           </div>
 
@@ -1044,11 +844,6 @@ export default function SearchPage() {
               </motion.div>
             )}
 
-            {/* ── Vendor comparison bar ── */}
-            {!loading && vendorComparison && vendorComparison.length >= 2 && allResults.length > 0 && (
-              <VendorComparisonBar comparison={vendorComparison} />
-            )}
-
             {/* ── List search results (grouped by item) ── */}
             {!loading && listMode && listResults?.items?.length > 0 && (
               <motion.div key="list-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -1095,10 +890,8 @@ export default function SearchPage() {
                             key={product.id || pIdx}
                             item={product}
                             index={pIdx}
-                            isCompared={compareItems.some((c) => c.id === product.id)}
                             isFavorited={isFavorited(product.id)}
                             isInQuote={quoteIds.has(product.id)}
-                            onToggleCompare={() => handleToggleCompare(product)}
                             onToggleFavorite={() => handleToggleFavorite(product)}
                             onAddToQuote={() => handleAddToQuote(product)}
                             onPreview={() => openPreview(product)}
@@ -1139,10 +932,8 @@ export default function SearchPage() {
                       key={item.id || idx}
                       item={item}
                       index={idx}
-                      isCompared={compareItems.some((c) => c.id === item.id)}
                       isFavorited={isFavorited(item.id)}
                       isInQuote={quoteIds.has(item.id)}
-                      onToggleCompare={() => handleToggleCompare(item)}
                       onToggleFavorite={() => handleToggleFavorite(item)}
                       onAddToQuote={() => handleAddToQuote(item)}
                       onPreview={() => openPreview(item)}
@@ -1231,47 +1022,11 @@ export default function SearchPage() {
             onFindSimilar={handlePreviewFindSimilar}
             similarProducts={similarProducts}
             similarLoading={similarLoading}
-            onToggleCompare={handleToggleCompare}
             onToggleFavorite={handleToggleFavorite}
             onAddToQuote={handleAddToQuote}
-            isCompared={compareItems.some(c => c.id === previewProduct.id)}
             isFavorited={isFavorited(previewProduct.id)}
             onOpenPreview={openPreview}
           />
-        )}
-      </AnimatePresence>
-
-      {/* Compare Tray */}
-      <AnimatePresence>
-        {compareItems.length > 0 && (
-          <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-16 inset-x-0 z-50 glass-surface border-t border-gold/10" style={{ borderRadius: 0 }}>
-            <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
-              <div className="flex items-center gap-2 flex-1 overflow-x-auto">
-                {compareItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 rounded-lg border border-gold/10 bg-gold/5 px-2.5 py-1.5 shrink-0">
-                    {item.thumbnail ? (
-                      <img src={item.thumbnail} alt="" className="h-7 w-7 rounded object-cover" />
-                    ) : (
-                      <div className="h-7 w-7 rounded bg-gold/10 flex items-center justify-center text-[10px] text-gold/50 font-display">
-                        {(item.manufacturer_name || "?")[0]}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="text-[11px] text-white/70 truncate max-w-[100px]">{item.product_name}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/20">{compareItems.length}/6</span>
-                <button onClick={() => navigate(createPageUrl("Compare"))} disabled={compareItems.length < 2}
-                  className="btn-gold flex items-center gap-1.5 h-8 px-4 rounded-lg text-[11px] font-semibold disabled:opacity-30">
-                  <GitCompare className="h-3 w-3" /> Compare
-                </button>
-              </div>
-            </div>
-          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1295,80 +1050,26 @@ export default function SearchPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
 
-
-// ─── LANDING HISTORY ──────────────────────────────────────────
-function LandingHistory({ recentSearches, savedSearches, recentlyViewed, onSearch, onOpenPreview }) {
-  const hasRecent = recentSearches.length > 0;
-  const hasSaved = savedSearches.length > 0;
-  const hasViewed = recentlyViewed.length > 0;
-  if (!hasRecent && !hasSaved && !hasViewed) return null;
-
-  return (
-    <div className="mt-10 space-y-8">
-      {/* Recently viewed products */}
-      {hasViewed && (
-        <div>
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="h-px flex-1 max-w-[40px] bg-gradient-to-r from-transparent to-white/[0.06]" />
-            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/20 flex items-center gap-1.5">
-              <Eye className="h-3 w-3" /> Recently Viewed
-            </span>
-            <div className="h-px flex-1 max-w-[40px] bg-gradient-to-l from-transparent to-white/[0.06]" />
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 justify-center">
-            {recentlyViewed.slice(0, 10).map((p) => (
-              <button key={p.id} onClick={() => onOpenPreview(p)}
-                className="shrink-0 w-[100px] group">
-                <div className="aspect-square rounded-lg overflow-hidden bg-white/[0.02] border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
-                      {(p.manufacturer_name || "?")[0]}
-                    </div>
-                  )}
-                </div>
-                <div className="text-[10px] text-white/30 truncate group-hover:text-white/50 transition-colors">{p.product_name}</div>
-                <div className="text-[9px] text-white/15 truncate">{p.manufacturer_name}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent + saved searches */}
-      {(hasRecent || hasSaved) && (
-        <div>
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="h-px flex-1 max-w-[40px] bg-gradient-to-r from-transparent to-white/[0.06]" />
-            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/20 flex items-center gap-1.5">
-              <History className="h-3 w-3" /> {hasSaved ? "Searches" : "Recent"}
-            </span>
-            <div className="h-px flex-1 max-w-[40px] bg-gradient-to-l from-transparent to-white/[0.06]" />
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {/* Saved searches first */}
-            {savedSearches.slice(0, 4).map((entry) => (
-              <button key={entry.query} onClick={() => onSearch(entry.query)}
-                className="rounded-full border border-gold/15 bg-gold/5 px-3.5 py-1.5 text-[11px] text-gold/50 transition-all hover:border-gold/25 hover:text-gold/70 flex items-center gap-1.5">
-                <BookmarkCheck className="h-2.5 w-2.5" />
-                {entry.query}
-              </button>
-            ))}
-            {/* Recent searches */}
-            {recentSearches.slice(0, 5).map((entry) => (
-              <button key={entry} onClick={() => onSearch(entry)}
-                className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-1.5 text-[11px] text-white/25 transition-all hover:border-gold/15 hover:text-gold/50">
-                {entry}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Favorite Toast */}
+      <AnimatePresence>
+        {favoriteToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl"
+            style={{
+              background: "rgba(12, 13, 20, 0.95)",
+              border: "1px solid rgba(201,169,110,0.25)",
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            <Heart className="h-4 w-4 text-gold" />
+            <span className="text-sm text-white/80">{favoriteToast}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1500,83 +1201,11 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
 
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
-function VendorComparisonBar({ comparison }) {
-  const [expanded, setExpanded] = useState(false);
-  if (!comparison || comparison.length < 2) return null;
-  return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-      <button onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left hover:bg-white/[0.03] transition-colors">
-        <Sparkles className="h-3.5 w-3.5 text-gold/50 shrink-0" />
-        <span className="text-[11px] text-white/40 flex-1">
-          Comparing {comparison.length} vendors · {comparison.map(v => v.vendor.split(" ")[0]).join(", ")}
-        </span>
-        <ChevronDown className={`h-3 w-3 text-white/20 transition-transform ${expanded ? "rotate-180" : ""}`} />
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 px-1 pt-2">
-              {comparison.map((v, i) => (
-                <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gold/60 mb-1.5 truncate">{v.vendor}</div>
-                  <div className="text-[11px] text-white/50 mb-1">{v.count} result{v.count !== 1 ? "s" : ""}</div>
-                  {v.price_range && (
-                    <div className="text-[10px] text-white/30">
-                      ${v.price_range.min.toLocaleString()} – ${v.price_range.max.toLocaleString()}
-                      <span className="text-white/15 ml-1">avg ${v.price_range.avg.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {v.materials?.length > 0 && (
-                    <div className="text-[9px] text-white/20 mt-1 truncate">{v.materials.join(", ")}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-function MatchExplanation({ explanation }) {
-  if (!explanation?.signals?.length) return null;
-  const iconForType = (type) => {
-    switch (type) {
-      case "attribute": return <Check className="h-2.5 w-2.5 text-emerald-400/70" />;
-      case "keyword": return <Search className="h-2.5 w-2.5 text-blue-400/70" />;
-      case "visual": return <Eye className="h-2.5 w-2.5 text-purple-400/70" />;
-      case "vendor": return <Star className="h-2.5 w-2.5 text-gold/70" />;
-      case "price": return <TrendingUp className="h-2.5 w-2.5 text-emerald-400/70" />;
-      case "context": return <Sparkles className="h-2.5 w-2.5 text-amber-400/70" />;
-      default: return <Check className="h-2.5 w-2.5 text-white/30" />;
-    }
-  };
-  return (
-    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-      transition={{ duration: 0.2 }} className="overflow-hidden">
-      <div className="px-4 pb-3 pt-1 border-t border-white/[0.04]">
-        <div className="flex flex-wrap gap-1.5">
-          {explanation.signals.map((s, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 text-[9px] text-white/50">
-              {iconForType(s.type)}
-              {s.label}
-            </span>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggleCompare, onToggleFavorite, onAddToQuote, onPreview }) {
+function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  const [showWhy, setShowWhy] = useState(false);
   const { getPrice, fmtPrice } = useTradePricing();
 
   const priceInfo = getPrice(item);
@@ -1620,12 +1249,6 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
 
         {/* Overlay buttons */}
         <div className="absolute top-2 left-2 flex gap-1.5">
-          <button data-action onClick={(e) => { e.stopPropagation(); onToggleCompare(); }}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isCompared ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 opacity-0 group-hover:opacity-100 hover:bg-black/60"
-            }`}>
-            {isCompared ? <Check className="h-3 w-3" /> : <GitCompare className="h-3 w-3" />}
-          </button>
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
               isFavorited ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 opacity-0 group-hover:opacity-100 hover:bg-black/60"
@@ -1671,25 +1294,11 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
               {priceStr}
             </span>
           )}
-          {item.fit_score && <FitScoreBadge fit={item.fit_score.fit} score={item.fit_score.score} reason={item.fit_score.reason} />}
         </div>
-        {item.material_badges && item.material_badges.length > 0 && (
-          <div className="mt-2"><MaterialBadges badges={item.material_badges.slice(0, 3)} /></div>
-        )}
       </div>
 
-      {/* Why this result + Hover actions */}
-      <div className="card-link px-3 pb-2.5 flex items-center justify-between">
-        <div className="flex gap-1 items-center">
-          <AddToProjectMenu product={item} size="sm" />
-          {item.match_explanation?.signals?.length > 0 && (
-            <button data-action onClick={(e) => { e.stopPropagation(); setShowWhy(!showWhy); }}
-              className="flex items-center gap-1 text-[9px] text-white/20 hover:text-white/50 transition-colors ml-1">
-              <Info className="h-2.5 w-2.5" />
-              {showWhy ? "Hide" : "Why?"}
-            </button>
-          )}
-        </div>
+      {/* Hover actions */}
+      <div className="card-link px-3 pb-2.5 flex items-center justify-end">
         {item.portal_url && (
           <a href={item.portal_url} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} data-action
             className="text-[10px] font-medium text-gold/60 flex items-center gap-1 hover:text-gold/80 transition-colors">
@@ -1697,16 +1306,13 @@ function ProductCard({ item, index, isCompared, isFavorited, isInQuote, onToggle
           </a>
         )}
       </div>
-      <AnimatePresence>
-        {showWhy && <MatchExplanation explanation={item.match_explanation} />}
-      </AnimatePresence>
     </motion.div>
   );
 }
 
 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
-function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleCompare, onToggleFavorite, onAddToQuote, isCompared, isFavorited, onOpenPreview }) {
+function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const { getPrice, fmtPrice } = useTradePricing();
@@ -1892,11 +1498,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 </div>
               )}
 
-              {/* Material badges */}
-              {product.material_badges && product.material_badges.length > 0 && (
-                <div><MaterialBadges badges={product.material_badges} /></div>
-              )}
-
               {/* Action buttons */}
               <div className="flex flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
@@ -1904,14 +1505,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
-                <button onClick={() => onToggleCompare(product)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all ${
-                    isCompared ? "border-gold/30 bg-gold/10 text-gold" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
-                  }`}>
-                  <GitCompare className="h-3 w-3" />
-                  {isCompared ? "Compared" : "Compare"}
-                </button>
-                <AddToProjectMenu product={product} />
                 <button onClick={() => onAddToQuote(product)}
                   className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10">
                   <FileText className="h-3 w-3" />
