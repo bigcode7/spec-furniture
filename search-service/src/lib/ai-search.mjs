@@ -662,25 +662,22 @@ export async function aiCompareProducts(products) {
 // 7. AI QUOTE NARRATIVES — Per-product stories for PDF quotes
 // ────────────────────────────────────────────────────────────
 
-const QUOTE_SYSTEM = `You are a senior interior designer writing a product specification document for a client. For each product, write a short narrative (2-3 sentences) explaining why this piece was selected and what makes it special.
+const QUOTE_SYSTEM = `You are a senior interior designer writing product notes for a client quote. Keep it short and direct — one punchy sentence per product, no fluff.
 
-Your writing should:
-- Sound like a designer presenting to a high-end client
-- Reference specific product attributes (material, construction, finish, proportions)
-- Explain how the piece fits into the broader project vision
-- Mention the vendor's reputation when relevant
-- Be warm but professional — not salesy
-
-Also write a brief project introduction (2-3 sentences) that frames the overall selection.
+Rules:
+- ONE sentence max per product. Short, specific, confident.
+- Reference what makes it work: the material, the silhouette, the finish. Not why it was "selected."
+- Sound like a designer talking to a peer, not a sales pitch.
+- No filler words like "exquisite," "meticulously," "curated," "elevate," "stunning."
+- Project intro: one sentence that sets the tone.
 
 Respond with ONLY a JSON object (no markdown):
 {
-  "project_intro": "2-3 sentence introduction to the overall product selection",
+  "project_intro": "One sentence framing the selection.",
   "products": [
     {
       "id": "product id",
-      "narrative": "2-3 sentence narrative for this product",
-      "specification_note": "Brief technical note (e.g., 'Specify in Ivory performance fabric for high-traffic applications')"
+      "narrative": "One short sentence about this piece."
     }
   ]
 }`;

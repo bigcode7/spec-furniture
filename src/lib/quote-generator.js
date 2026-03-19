@@ -30,11 +30,43 @@ const COLORS = {
 };
 
 /**
+ * Draw an image preserving its aspect ratio within a bounding box.
+ * Centers the image horizontally and vertically, with white background.
+ */
+function drawImageContained(doc, imgData, boxX, boxY, boxW, boxH) {
+  // White background for the image area
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(boxX, boxY, boxW, boxH, 3, 3, "F");
+
+  if (!imgData || !imgData.dataUrl) return;
+
+  const imgW = imgData.width;
+  const imgH = imgData.height;
+  if (!imgW || !imgH) return;
+
+  const padding = 4; // mm padding inside the box
+  const availW = boxW - padding * 2;
+  const availH = boxH - padding * 2;
+
+  const scaleW = availW / imgW;
+  const scaleH = availH / imgH;
+  const scale = Math.min(scaleW, scaleH);
+
+  const drawW = imgW * scale;
+  const drawH = imgH * scale;
+
+  // Center within box
+  const drawX = boxX + (boxW - drawW) / 2;
+  const drawY = boxY + (boxH - drawH) / 2;
+
+  doc.addImage(imgData.dataUrl, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
+}
+
+/**
  * Generate a professional PDF quote from the current quote builder state.
- * Called from QuotePanel — uses items array with _room, _quantity, and markup-adjusted prices.
  */
 export async function generateQuotePdf(items, projectName = "Untitled Quote", options = {}) {
-  const { pdfMode = "client" } = options; // "client" (retail/markup) or "trade" (trade prices)
+  const { pdfMode = "client" } = options;
   const quote = getQuote();
   const settings = getQuoteSettings();
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -46,6 +78,15 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   // ── Page 1: Cover ─────────────────────────────────────────
   doc.setFillColor(...COLORS.black);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
+
+  // Designer logo (top-right)
+  if (settings.logo_data_url) {
+    try {
+      doc.addImage(settings.logo_data_url, "PNG", pageWidth - margin - 40, 20, 40, 20, undefined, "FAST");
+    } catch {
+      // Logo failed — skip silently
+    }
+  }
 
   // Gold accent line
   doc.setFillColor(...COLORS.gold);
@@ -181,7 +222,6 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   }
 
   // ── Product Pages ──────────────────────────────────────────
-  // Group by room for room headers
   const rooms = new Map();
   for (const item of items) {
     const room = item._room || "Selections";
@@ -246,27 +286,27 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
         doc.text(`QTY: ${item._quantity}`, pageWidth - margin, 14, { align: "right" });
       }
 
-      // Product image
-      const imgData = imageCache.get(item.id);
+      // Product image — aspect-ratio-preserving
+      const imgCached = imageCache.get(item.id);
       const imgY = 26;
-      const imgHeight = 85;
+      const imgBoxHeight = 85;
 
-      if (imgData) {
+      if (imgCached) {
         try {
-          doc.addImage(imgData, "JPEG", margin, imgY, contentWidth, imgHeight, undefined, "FAST");
+          drawImageContained(doc, imgCached, margin, imgY, contentWidth, imgBoxHeight);
         } catch {
-          drawImagePlaceholder(doc, margin, imgY, contentWidth, imgHeight, item);
+          drawImagePlaceholder(doc, margin, imgY, contentWidth, imgBoxHeight, item);
         }
       } else {
-        drawImagePlaceholder(doc, margin, imgY, contentWidth, imgHeight, item);
+        drawImagePlaceholder(doc, margin, imgY, contentWidth, imgBoxHeight, item);
       }
 
       if (item.portal_url) {
-        doc.link(margin, imgY, contentWidth, imgHeight, { url: item.portal_url });
+        doc.link(margin, imgY, contentWidth, imgBoxHeight, { url: item.portal_url });
       }
 
       // Vendor name
-      let y = imgY + imgHeight + 10;
+      let y = imgY + imgBoxHeight + 10;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(...COLORS.gold);
@@ -285,24 +325,24 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
       y += nameLines.length * 7 + 6;
 
-      // AI Narrative
+      // AI Narrative — short one-liner
       const narrative = narrativeMap.get(item.id);
       if (narrative?.narrative) {
         doc.setFont("helvetica", "italic");
         doc.setFontSize(9);
-        doc.setTextColor(...COLORS.gold);
-        const narrativeLines = doc.splitTextToSize(narrative.narrative, contentWidth).slice(0, 4);
+        doc.setTextColor(...COLORS.lightGray);
+        const narrativeLines = doc.splitTextToSize(narrative.narrative, contentWidth).slice(0, 2);
         doc.text(narrativeLines, margin, y);
         y += narrativeLines.length * 4.5 + 5;
       }
 
-      // Description
+      // Description fallback (only if no AI narrative)
       const desc = item.snippet || item.description;
       if (desc && !narrative?.narrative) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.lightGray);
-        const descLines = doc.splitTextToSize(desc, contentWidth).slice(0, 3);
+        const descLines = doc.splitTextToSize(desc, contentWidth).slice(0, 2);
         doc.text(descLines, margin, y);
         y += descLines.length * 4.5 + 6;
       } else {
@@ -334,16 +374,6 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.gold);
         const noteLines = doc.splitTextToSize(`Note: ${item.notes}`, contentWidth - 16);
-        doc.text(noteLines, margin + 8, y + 3);
-        y += noteLines.length * 4 + 6;
-      }
-
-      // AI Specification Note
-      if (narrative?.specification_note) {
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(8);
-        doc.setTextColor(...COLORS.gold);
-        const noteLines = doc.splitTextToSize(`${narrative.specification_note}`, contentWidth - 16);
         doc.text(noteLines, margin + 8, y + 3);
         y += noteLines.length * 4 + 6;
       }
@@ -491,9 +521,14 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 function buildSpecRows(item) {
   const rows = [];
   if (item.material) rows.push({ label: "Material", value: item.material });
-  if (item.style) rows.push({ label: "Style", value: item.style });
   if (item.collection) rows.push({ label: "Collection", value: item.collection });
   if (item.sku) rows.push({ label: "SKU", value: item.sku });
+
+  // Show price (already markup-adjusted if applicable)
+  const priceLabel = item._is_trade ? "Est. Trade" : "Price";
+  if (item.retail_price) rows.push({ label: priceLabel, value: `$${Number(item.retail_price).toLocaleString()}` });
+
+  if (item.manufacturer_name) rows.push({ label: "Vendor", value: item.manufacturer_name });
 
   // Dimensions
   const dims = [];
@@ -503,12 +538,8 @@ function buildSpecRows(item) {
   const dimStr = dims.join(" x ") || item.dimensions || null;
   if (dimStr) rows.push({ label: "Dimensions", value: dimStr });
 
-  // Show price (already markup-adjusted if applicable)
-  const priceLabel = item._is_trade ? "Est. Trade" : "Price";
-  if (item.retail_price) rows.push({ label: priceLabel, value: `$${Number(item.retail_price).toLocaleString()}` });
   if ((item._quantity || 1) > 1) rows.push({ label: "Quantity", value: String(item._quantity) });
   if (item.lead_time_weeks) rows.push({ label: "Lead Time", value: `${item.lead_time_weeks} weeks` });
-  if (item.manufacturer_name) rows.push({ label: "Vendor", value: item.manufacturer_name });
   if (rows.length === 0) rows.push({ label: "Status", value: "Contact vendor for details" });
   return rows;
 }
@@ -533,7 +564,6 @@ function drawImagePlaceholder(doc, x, y, w, h, item) {
 
 async function preloadImages(items) {
   const cache = new Map();
-  // Deduplicate by id (same product in multiple quantities)
   const seen = new Set();
   const tasks = items.filter(item => {
     if (seen.has(item.id)) return false;
@@ -543,8 +573,8 @@ async function preloadImages(items) {
     const url = item.thumbnail || item.image_url;
     if (!url) return;
     try {
-      const dataUrl = await fetchImageAsDataUrl(url);
-      if (dataUrl) cache.set(item.id, dataUrl);
+      const result = await fetchImageWithDimensions(url);
+      if (result) cache.set(item.id, result);
     } catch {
       // Skip failed images
     }
@@ -553,7 +583,10 @@ async function preloadImages(items) {
   return cache;
 }
 
-async function fetchImageAsDataUrl(url) {
+/**
+ * Fetch image and return data URL + natural dimensions for aspect-ratio rendering.
+ */
+async function fetchImageWithDimensions(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -563,6 +596,8 @@ async function fetchImageAsDataUrl(url) {
         const maxDim = 800;
         let w = img.naturalWidth;
         let h = img.naturalHeight;
+        const origW = w;
+        const origH = h;
         if (w > maxDim || h > maxDim) {
           const scale = maxDim / Math.max(w, h);
           w = Math.round(w * scale);
@@ -572,7 +607,11 @@ async function fetchImageAsDataUrl(url) {
         canvas.height = h;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        resolve({
+          dataUrl: canvas.toDataURL("image/jpeg", 0.85),
+          width: origW,
+          height: origH,
+        });
       } catch {
         resolve(null);
       }

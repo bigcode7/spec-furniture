@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, HeartOff, Plus, Minus, Trash2, FileText, ChevronDown, ChevronRight,
   Edit3, Download, FolderPlus, Package, DollarSign, MessageSquare, Settings,
-  ArrowRightLeft, Search, XCircle, ShoppingBag, Star,
+  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X,
 } from "lucide-react";
 import {
   getFavorites, toggleFavorite,
@@ -48,8 +48,6 @@ export default function Quotes() {
     return expanded;
   });
 
-  const [editingName, setEditingName] = useState(false);
-  const [editingClient, setEditingClient] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showMarkup, setShowMarkup] = useState(false);
@@ -143,8 +141,6 @@ export default function Quotes() {
     q[field] = value;
     saveQuote(q);
     refreshQuote();
-    if (field === "name") setEditingName(false);
-    if (field === "client_name") setEditingClient(false);
   };
 
   const handleMarkup = (val) => {
@@ -386,64 +382,45 @@ export default function Quotes() {
             style={{ background: "rgba(255,255,255,0.015)" }}
           >
             <div className="px-6 py-5 border-b border-white/[0.06]">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {/* Settings toggle */}
-                  <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="p-1.5 rounded-lg text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
-                    title="Quote settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </button>
-                </div>
+              <div className="flex items-center justify-between mb-4">
                 <div className="text-[10px] text-white/20">
                   {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
+                {/* Settings toggle */}
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+                  title="Designer info & logo"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Settings
+                </button>
               </div>
 
-              {/* Quote name */}
-              <div className="space-y-1.5">
-                {editingName ? (
-                  <input
-                    ref={nameRef}
-                    autoFocus
-                    defaultValue={quote.name}
-                    placeholder="Quote name — e.g., Thompson Residence"
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                    onBlur={(e) => handleSaveName("name", e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveName("name", e.target.value); }}
-                  />
-                ) : (
-                  <button
-                    onClick={() => setEditingName(true)}
-                    className="flex items-center gap-2 text-base font-medium text-white/70 hover:text-white transition-colors group"
-                  >
-                    <span>{quote.name || "Untitled Quote"}</span>
-                    <Edit3 className="h-3.5 w-3.5 opacity-0 group-hover:opacity-50" />
-                  </button>
-                )}
+              {/* Project name — always visible input */}
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase tracking-[0.2em] text-white/25 font-semibold">Project Name</label>
+                <input
+                  ref={nameRef}
+                  value={quote.name || ""}
+                  onChange={(e) => handleSaveName("name", e.target.value)}
+                  placeholder="e.g., Thompson Residence — Living Room Refresh"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 text-base font-medium text-white placeholder:text-white/15 focus:outline-none focus:border-gold/30 transition-colors"
+                />
 
                 {/* Client name */}
-                {editingClient ? (
-                  <input
-                    ref={clientRef}
-                    autoFocus
-                    defaultValue={quote.client_name}
-                    placeholder="Client name"
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                    onBlur={(e) => handleSaveName("client_name", e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveName("client_name", e.target.value); }}
-                  />
-                ) : (
-                  <button
-                    onClick={() => setEditingClient(true)}
-                    className="flex items-center gap-2 text-xs text-white/30 hover:text-white/50 transition-colors group"
-                  >
-                    <span>{quote.client_name || "Add client name"}</span>
-                    <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50" />
-                  </button>
-                )}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-[9px] uppercase tracking-[0.2em] text-white/25 font-semibold">Client</label>
+                    <input
+                      ref={clientRef}
+                      value={quote.client_name || ""}
+                      onChange={(e) => handleSaveName("client_name", e.target.value)}
+                      placeholder="Client name"
+                      className="w-full mt-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-gold/30 transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -485,6 +462,51 @@ export default function Quotes() {
                         placeholder="Phone"
                         className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
                       />
+                    </div>
+
+                    {/* Logo upload */}
+                    <div className="pt-2 border-t border-white/[0.06]">
+                      <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-2">
+                        Your Logo (appears on PDF cover)
+                      </div>
+                      {settings.logo_data_url ? (
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-24 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center overflow-hidden p-1">
+                            <img src={settings.logo_data_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                          </div>
+                          <button
+                            onClick={() => handleSaveSettings({ logo_data_url: "" })}
+                            className="flex items-center gap-1 text-[10px] text-white/25 hover:text-red-400/60 transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-white/[0.1] hover:border-gold/30 text-[11px] text-white/30 hover:text-white/50 transition-colors">
+                          <ImagePlus className="h-4 w-4" />
+                          Upload logo (PNG, JPG)
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/svg+xml"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 500_000) {
+                                alert("Logo must be under 500KB");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                handleSaveSettings({ logo_data_url: reader.result });
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
                 </motion.div>

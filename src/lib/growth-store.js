@@ -459,6 +459,7 @@ export function getQuoteSettings() {
     email: "",
     phone: "",
     accent_color: "#C9A96E",
+    logo_data_url: "",
   });
 }
 
