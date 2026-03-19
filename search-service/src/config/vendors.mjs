@@ -364,6 +364,27 @@ export const priorityVendors = [
     },
   },
   {
+    id: "norwalk",
+    name: "Norwalk Furniture",
+    domain: "norwalkfurniture.com",
+    profile: {
+      asset_hosts: ["norwalkfurniture.com", "www.norwalkfurniture.com"],
+      title_suffixes: ["| Norwalk Furniture", "| Norwalk"],
+      product_path_tokens: ["product", "products"],
+      reject_path_tokens: ["search", "customer", "checkout", "catalogsearch", "cms", "fabrics"],
+      image_path_hints: ["/media/catalog/product/"],
+    },
+    discovery: {
+      // Magento 2 with ?p=N&product_list_limit=100 pagination
+      scraper: "norwalk-scraper.mjs",
+    },
+    traits: {
+      com_available: true,
+      customizable: true,
+      made_to_order: true,
+    },
+  },
+  {
     id: "surya",
     name: "Surya",
     domain: "surya.com",

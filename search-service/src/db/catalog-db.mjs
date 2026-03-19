@@ -204,6 +204,9 @@ function normalizeProduct(raw, source = "manual") {
     ai_category_mismatch: raw.ai_category_mismatch || null,
     ai_suggested_category: raw.ai_suggested_category || null,
     image_quality: raw.image_quality || null,
+    com_available: raw.com_available || false,
+    customizable: raw.customizable || false,
+    made_to_order: raw.made_to_order || false,
     search_text: "",
   };
 
