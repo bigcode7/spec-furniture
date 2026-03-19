@@ -71,130 +71,127 @@ const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
 const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id);
 
+// ── Health flag — set true after heavy init completes ──
+let serviceReady = false;
+
 // ── Initialize catalog database ──
 await initCatalogDB();
 
-// ── Fix miscategorized products ──
-for (const product of getAllProducts()) {
-  // Bed pillows, bed catalogs are accessories not beds
-  if (product.category === "beds") {
-    const name = (product.product_name || "").toLowerCase();
-    if (name.includes("pillow") || /catalog$/i.test(name.trim())) {
-      updateProductDirect(product.id, { category: "accessories" });
-    }
-  }
-}
-
-// ── Remove non-furniture items from catalog ──
-{
-  const junkCategories = new Set(["fabric", "leather", "finishes", "book"]);
-  const junkPatterns = [
-    /\bfabric$/i,        // "Piazza Lagoon Fabric"
-    /\bleather$/i,        // "Mont Blanc Adriatic Leather"
-    /\bfinish$/i,         // "Walnut Grove Finish"
-    /\bcatalog$/i,        // "Hudson Valley Catalog"
-    /\bmembership\b/i,    // "Collector's Club Membership Subscription"
-    /\bsubscription\b/i,
-    /testing page/i,
-  ];
-  // Scraped category/listing pages (pipe in name = HTML title)
-  const scrapedPagePattern = /\|/;
-  // Stickley finish codes like "812 Warm Walnut", "Oak 509 Raven"
-  const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
-  const stickleyFinishNumPattern = /^8\d{2}\s+\w/; // 800-812 series finishes
-
-  let removedCount = 0;
+// ── Deferred heavy init — runs AFTER server.listen so Railway sees the port immediately ──
+async function runHeavyInit() {
+  // Fix miscategorized products
   for (const product of getAllProducts()) {
-    const name = (product.product_name || "").trim();
-    const cat = (product.category || "").toLowerCase();
-    let shouldRemove = false;
-
-    // Remove by category
-    if (junkCategories.has(cat)) shouldRemove = true;
-
-    // Remove by name pattern
-    if (!shouldRemove) {
-      for (const pat of junkPatterns) {
-        if (pat.test(name)) { shouldRemove = true; break; }
+    if (product.category === "beds") {
+      const name = (product.product_name || "").toLowerCase();
+      if (name.includes("pillow") || /catalog$/i.test(name.trim())) {
+        updateProductDirect(product.id, { category: "accessories" });
       }
     }
-
-    // Remove scraped HTML pages (name contains "|" like "Sofas | CRLAINE")
-    if (!shouldRemove && scrapedPagePattern.test(name)) shouldRemove = true;
-
-    // Remove Stickley wood finish samples
-    if (!shouldRemove && product.vendor_id === "stickley") {
-      if (finishCodePattern.test(name) || stickleyFinishNumPattern.test(name)) shouldRemove = true;
-    }
-
-    // Remove Hooker "Page" swatch cards (all share SKU HD40046)
-    if (!shouldRemove && product.vendor_id === "hooker") {
-      if (/^page\s+\w+\s*-\s*\w+/i.test(name) && (product.sku || "").startsWith("HD40046")) shouldRemove = true;
-    }
-
-    if (shouldRemove) {
-      deleteProduct(product.id);
-      removedCount++;
-    }
-  }
-  if (removedCount > 0) {
-    console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
   }
 
-  // Fix settees miscategorized as sofas
-  let setteeFixCount = 0;
-  for (const product of getAllProducts()) {
-    const name = (product.product_name || "").toLowerCase();
-    const cat = (product.category || "").toLowerCase();
-    if (cat === "sofas" && name.includes("settee")) {
-      updateProductDirect(product.id, { category: "settees" });
-      setteeFixCount++;
+  // Remove non-furniture items from catalog
+  {
+    const junkCategories = new Set(["fabric", "leather", "finishes", "book"]);
+    const junkPatterns = [
+      /\bfabric$/i,
+      /\bleather$/i,
+      /\bfinish$/i,
+      /\bcatalog$/i,
+      /\bmembership\b/i,
+      /\bsubscription\b/i,
+      /testing page/i,
+    ];
+    const scrapedPagePattern = /\|/;
+    const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
+    const stickleyFinishNumPattern = /^8\d{2}\s+\w/;
+
+    let removedCount = 0;
+    for (const product of getAllProducts()) {
+      const name = (product.product_name || "").trim();
+      const cat = (product.category || "").toLowerCase();
+      let shouldRemove = false;
+
+      if (junkCategories.has(cat)) shouldRemove = true;
+
+      if (!shouldRemove) {
+        for (const pat of junkPatterns) {
+          if (pat.test(name)) { shouldRemove = true; break; }
+        }
+      }
+
+      if (!shouldRemove && scrapedPagePattern.test(name)) shouldRemove = true;
+
+      if (!shouldRemove && product.vendor_id === "stickley") {
+        if (finishCodePattern.test(name) || stickleyFinishNumPattern.test(name)) shouldRemove = true;
+      }
+
+      if (!shouldRemove && product.vendor_id === "hooker") {
+        if (/^page\s+\w+\s*-\s*\w+/i.test(name) && (product.sku || "").startsWith("HD40046")) shouldRemove = true;
+      }
+
+      if (shouldRemove) {
+        deleteProduct(product.id);
+        removedCount++;
+      }
     }
-    // Fix swivel chairs/recliners miscategorized as sofas
-    if (cat === "sofas" && (name.includes("swivel") || name.includes("recliner")) && !name.includes("sofa")) {
-      updateProductDirect(product.id, { category: "accent-chairs" });
-      setteeFixCount++;
+    if (removedCount > 0) {
+      console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
+    }
+
+    let setteeFixCount = 0;
+    for (const product of getAllProducts()) {
+      const name = (product.product_name || "").toLowerCase();
+      const cat = (product.category || "").toLowerCase();
+      if (cat === "sofas" && name.includes("settee")) {
+        updateProductDirect(product.id, { category: "settees" });
+        setteeFixCount++;
+      }
+      if (cat === "sofas" && (name.includes("swivel") || name.includes("recliner")) && !name.includes("sofa")) {
+        updateProductDirect(product.id, { category: "accent-chairs" });
+        setteeFixCount++;
+      }
+    }
+    if (setteeFixCount > 0) {
+      console.log(`[startup] Re-categorized ${setteeFixCount} settees/chairs out of sofas`);
     }
   }
-  if (setteeFixCount > 0) {
-    console.log(`[startup] Re-categorized ${setteeFixCount} settees/chairs out of sofas`);
-  }
-}
 
-// ── Initialize project store ──
-initProjectStore();
+  // Initialize project store
+  initProjectStore();
 
-// Re-normalize categories with master tree + compute quality scores
-renormalizeAllCategories();
-recomputeAllQualityScores();
+  // Re-normalize categories with master tree + compute quality scores
+  renormalizeAllCategories();
+  recomputeAllQualityScores();
 
-// Build autocomplete index from catalog data
-buildAutocompleteIndex(getAllProducts());
+  // Build autocomplete index from catalog data
+  buildAutocompleteIndex(getAllProducts());
 
-// Initialize analytics
-initAnalytics();
+  // Initialize analytics
+  initAnalytics();
 
-// Initialize vector store (loads cached vectors, model downloads on first run)
-// Gracefully degrades if @xenova/transformers is not installed — search still works via keyword + AI
-await initVectorStore().catch((err) => {
-  console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
-});
-
-// Index products into vector store in background (non-blocking)
-// Only generates embeddings for products not yet indexed
-vectorIndexAll(getAllProducts()).then((stats) => {
-  if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
-}).catch((err) => {
-  console.error(`[server] Vector indexing failed: ${err.message}`);
-});
-
-// Initialize search enhancer (visual tag index, synonym expansion, collection/vendor profiles, click boosts)
-{
-  const clickData = getProductClickData();
-  initSearchEnhancer(getAllProducts(), {
-    productClicks: clickData.productClicks,
-    totalSearches: clickData.totalSearches,
+  // Initialize vector store (gracefully degrades if @xenova/transformers missing)
+  await initVectorStore().catch((err) => {
+    console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
   });
+
+  // Index products into vector store in background (non-blocking)
+  vectorIndexAll(getAllProducts()).then((stats) => {
+    if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
+  }).catch((err) => {
+    console.error(`[server] Vector indexing failed: ${err.message}`);
+  });
+
+  // Initialize search enhancer
+  {
+    const clickData = getProductClickData();
+    initSearchEnhancer(getAllProducts(), {
+      productClicks: clickData.productClicks,
+      totalSearches: clickData.totalSearches,
+    });
+  }
+
+  serviceReady = true;
+  console.log(`[server] Heavy init complete — service fully ready`);
 }
 
 const catalogDBInterface = {
@@ -308,7 +305,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/health") {
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, ready: serviceReady });
     }
 
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
@@ -3563,18 +3560,20 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 });
 
 server.listen(port, host, () => {
-  console.log(`search-service listening on http://${host}:${port}`);
-  // Initialize catalog database and start crawl scheduler
-  startCrawlScheduler(catalogDBInterface);
+  console.log(`[server] Listening on http://${host}:${port} (PORT=${port})`);
 
-  // Schedule image verification every 6 hours
-  setInterval(() => {
-    runImageVerification(catalogDBInterface, { batchSize: 15, delayMs: 300 })
-      .catch(err => console.error("[server] Image verification failed:", err.message));
-  }, 6 * 60 * 60 * 1000);
+  // Run heavy init AFTER listening so Railway sees the port immediately
+  runHeavyInit().then(() => {
+    startCrawlScheduler(catalogDBInterface);
 
-  // Warmup disabled to preserve API rate limit budget for searches
-  // queueLiveWarmup();
+    // Schedule image verification every 6 hours
+    setInterval(() => {
+      runImageVerification(catalogDBInterface, { batchSize: 15, delayMs: 300 })
+        .catch(err => console.error("[server] Image verification failed:", err.message));
+    }, 6 * 60 * 60 * 1000);
+  }).catch((err) => {
+    console.error(`[server] Heavy init failed: ${err.message}`);
+  });
 });
 
 function queueLiveWarmup() {
