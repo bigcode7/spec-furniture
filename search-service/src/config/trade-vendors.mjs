@@ -25,8 +25,9 @@ export const tradeVendors = [
   { id: "baker", name: "Baker Furniture", domain: "bakerfurniture.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "accents"] },
   { id: "stickley", name: "Stickley", domain: "stickley.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "storage"] },
   { id: "cr-laine", name: "CR Laine", domain: "crlaine.com", tier: 1, categories: ["seating", "accents"] },
-  { id: "lee-industries", name: "Lee Industries", domain: "leeindustries.com", tier: 1, categories: ["seating", "tables", "accents", "outdoor"] },
+  { id: "lee-industries", name: "Lee Industries", domain: "www.leeindustries.com", tier: 1, categories: ["seating", "tables", "accents", "outdoor"] },
   { id: "sherrill", name: "Sherrill Furniture", domain: "sherrillfurniture.com", tier: 1, categories: ["seating", "tables", "accents"] },
+  { id: "miles-talbott", name: "Miles Talbott", domain: "themtcompany.com", tier: 1, categories: ["seating", "tables", "accents"] },
 
   // ── TIER 2 — HIGH PRIORITY ─────────────────────────────
   { id: "arteriors", name: "Arteriors", domain: "arteriorshome.com", tier: 2, categories: ["lighting", "tables", "accents", "mirrors", "storage"] },

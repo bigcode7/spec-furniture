@@ -709,6 +709,9 @@ export default function Landing() {
             <span>&copy; {new Date().getFullYear()} Spekd. All rights reserved.</span>
             <span className="hidden sm:inline">Built with AI for the furniture trade.</span>
           </div>
+          <p className="text-[10px] text-white/10 text-center mt-4 max-w-xl mx-auto leading-relaxed">
+            All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
+          </p>
         </div>
       </footer>
     </div>

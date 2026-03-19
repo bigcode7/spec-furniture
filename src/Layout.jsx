@@ -314,6 +314,12 @@ export default function Layout({ children, currentPageName }) {
         </AnimatePresence>
       </main>
 
+      <footer className="relative mt-20 border-t border-white/[0.04] py-6">
+        <p className="text-[10px] text-white/10 text-center max-w-xl mx-auto leading-relaxed">
+          All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
+        </p>
+      </footer>
+
       <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
       <SpecChat />
       <QuotePanel

@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "search:service": "node search-service/src/server.mjs",
     "search:seed": "node search-service/src/seed.mjs",
-    "search:crawl": "node search-service/src/jobs/full-catalog-crawl.mjs"
+    "search:crawl": "node search-service/src/jobs/full-catalog-crawl.mjs",
+    "search:batch-scrape": "node search-service/src/jobs/batch-vendor-scrape.mjs",
+    "search:fix-vendors": "node search-service/src/jobs/fix-vendor-names.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.18",

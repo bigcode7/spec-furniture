@@ -210,9 +210,10 @@ function extractProductLinks(html, vendor) {
   const domain = vendor.domain;
   const productTokens = vendor.profile?.product_path_tokens || ["product", "products"];
   const rejectTokens = vendor.profile?.reject_path_tokens || [];
+  const minPathSegments = vendor.profile?.min_path_segments || 0;
 
   // Extract all anchor hrefs
-  const anchorPattern = /<a[^>]+href="([^"]+)"[^>]*>/gi;
+  const anchorPattern = /<a[^>]+href=["']([^"']+)["'][^>]*>/gi;
   let match;
   while ((match = anchorPattern.exec(html)) !== null) {
     const href = match[1];
@@ -226,12 +227,26 @@ function extractProductLinks(html, vendor) {
       if (!host.endsWith(domain.replace(/^www\./, ""))) continue;
 
       const path = parsedUrl.pathname.toLowerCase();
+      const fullUrl = (path + parsedUrl.search).toLowerCase();
 
       // Reject non-product paths
       if (rejectTokens.some((token) => path === `/${token}` || path === `/${token}/`)) continue;
 
-      // Accept paths containing product tokens
-      if (productTokens.some((token) => path.includes(`/${token}/`) || path.includes(`/${token}`))) {
+      // Min path segments check
+      if (minPathSegments > 0) {
+        const segments = path.split("/").filter(Boolean);
+        if (segments.length < minPathSegments) continue;
+      }
+
+      // Accept paths containing product tokens (check path and filename for .aspx/.php patterns)
+      const isProduct = productTokens.some((token) => {
+        const lower = token.toLowerCase();
+        return path.includes(`/${lower}/`) || path.includes(`/${lower}`) ||
+               path.includes(`${lower}.aspx`) || path.includes(`${lower}.php`) ||
+               fullUrl.includes(`/${lower}/`);
+      });
+
+      if (isProduct) {
         links.add(resolved);
       }
     } catch {
@@ -255,7 +270,12 @@ function extractProductFromPage(html, url, vendor) {
     category: null,
     material: null,
     style: null,
+    color: null,
+    dimensions: null,
+    sku: null,
+    collection: null,
     image_url: null,
+    images: [],
     product_url: url,
     description: null,
     retail_price: null,
@@ -272,6 +292,16 @@ function extractProductFromPage(html, url, vendor) {
     product.image_url = product.image_url || normalizeImage(jsonLd.image, vendor) || null;
     product.category = product.category || jsonLd.category || null;
     product.material = product.material || jsonLd.material || null;
+    product.sku = product.sku || jsonLd.sku || jsonLd.mpn || jsonLd.productID || null;
+    product.color = product.color || jsonLd.color || null;
+    // Collect all JSON-LD images
+    if (jsonLd.image) {
+      const imgs = Array.isArray(jsonLd.image) ? jsonLd.image : [jsonLd.image];
+      for (const img of imgs) {
+        const resolved = normalizeImage(img, vendor);
+        if (resolved) product.images.push(resolved);
+      }
+    }
     if (jsonLd.offers) {
       const offers = Array.isArray(jsonLd.offers) ? jsonLd.offers[0] : jsonLd.offers;
       product.retail_price = parsePrice(offers.price || offers.highPrice) || null;
@@ -285,6 +315,32 @@ function extractProductFromPage(html, url, vendor) {
 
   // ── Standard meta tags ──
   product.description = product.description || extractMeta(html, "description") || null;
+
+  // ── SKU from common patterns ──
+  if (!product.sku) {
+    const skuPatterns = [
+      /(?:sku|item\s*#?|model|style\s*#?)[\s:]*([A-Z0-9][\w-]{2,20})/i,
+      /itemprop=["']sku["'][^>]*content=["']([^"']+)["']/i,
+      /data-sku=["']([^"']+)["']/i,
+    ];
+    for (const pat of skuPatterns) {
+      const m = html.match(pat);
+      if (m) { product.sku = m[1]; break; }
+    }
+  }
+
+  // ── Dimensions from common patterns ──
+  if (!product.dimensions) {
+    const dimPatterns = [
+      /(?:dimensions?|size|measurements?)[\s:]*(["\d][^<\n]{5,80})/i,
+      /(\d+(?:\.\d+)?["″]\s*[WHDLwhd]\s*[x×X]\s*\d+(?:\.\d+)?["″]\s*[WHDLwhd](?:\s*[x×X]\s*\d+(?:\.\d+)?["″]\s*[WHDLwhd])?)/i,
+      /(\d{2,3}(?:\.\d+)?\s*(?:"|in|inch)\s*[x×X]\s*\d{2,3}(?:\.\d+)?\s*(?:"|in|inch))/i,
+    ];
+    for (const pat of dimPatterns) {
+      const m = html.match(pat);
+      if (m) { product.dimensions = decodeHtmlEntities(m[1].trim()).slice(0, 120); break; }
+    }
+  }
 
   // ── Title tag ──
   if (!product.product_name) {
@@ -310,10 +366,21 @@ function extractProductFromPage(html, url, vendor) {
     }
   }
 
-  // ── Product image fallback ──
+  // ── Collect ALL product images ──
   if (!product.image_url) {
     product.image_url = extractProductImage(html, vendor) || null;
   }
+  // Gather additional images from the page
+  const allPageImages = extractAllProductImages(html, vendor);
+  for (const img of allPageImages) {
+    if (!product.images.includes(img)) product.images.push(img);
+  }
+  // Ensure primary image is first
+  if (product.image_url && !product.images.includes(product.image_url)) {
+    product.images.unshift(product.image_url);
+  }
+  // Deduplicate
+  product.images = [...new Set(product.images)];
 
   // ── Price fallback (common patterns) ──
   if (!product.retail_price) {
@@ -332,6 +399,34 @@ function extractProductFromPage(html, url, vendor) {
   product.id = `${vendor.id}_${slugify(product.product_name)}`;
 
   return product;
+}
+
+/**
+ * Extract ALL product images from a page (not just the first one).
+ */
+function extractAllProductImages(html, vendor) {
+  const imageHints = vendor.profile?.image_path_hints || ["/products/", "/images/", "/media/"];
+  const images = [];
+  const seen = new Set();
+
+  // Collect from img src and data-src
+  const imgPattern = /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi;
+  let match;
+  while ((match = imgPattern.exec(html)) !== null) {
+    const src = match[1];
+    if (imageHints.some((hint) => src.includes(hint))) {
+      const resolved = resolveUrl(src, vendor.domain);
+      if (resolved && !seen.has(resolved)) {
+        // Skip swatches, tiny icons, logos
+        const lower = resolved.toLowerCase();
+        if (/swatch|logo|icon|pixel|spacer|\.gif|\.svg|50x50|75x75|100x100/i.test(lower)) continue;
+        seen.add(resolved);
+        images.push(resolved);
+      }
+    }
+  }
+
+  return images;
 }
 
 /**
@@ -669,7 +764,7 @@ async function crawlVendor(vendor, catalogDB, queryTerms = null) {
         }
       }
 
-      // Category paths
+      // Category paths (keyed by category name)
       if (vendor.discovery?.category_paths) {
         for (const [category, paths] of Object.entries(vendor.discovery.category_paths)) {
           for (const catPath of paths) {
@@ -697,6 +792,27 @@ async function crawlVendor(vendor, catalogDB, queryTerms = null) {
           }
         }
       }
+
+      // Direct category URLs (flat array of paths)
+      if (vendor.discovery?.category_urls) {
+        for (const catPath of vendor.discovery.category_urls) {
+          const catUrl = `https://${vendor.domain}${catPath}`;
+
+          try {
+            const html = await rateLimitedFetch(catUrl, vendor.domain);
+            if (html) {
+              const links = extractProductLinks(html, vendor);
+              productLinks.push(...links);
+              log(`Found ${links.length} product links from category URL: ${vendor.domain}${catPath}`);
+            }
+          } catch (err) {
+            if (err.rateLimited) {
+              handleRateLimit(vendor);
+              return discoveredProducts;
+            }
+          }
+        }
+      }
     }
 
     // ── Method B: DuckDuckGo fallback ──
@@ -716,7 +832,7 @@ async function crawlVendor(vendor, catalogDB, queryTerms = null) {
     // Deduplicate and filter already-known URLs
     productLinks = Array.from(new Set(productLinks))
       .filter((url) => !existingUrls.has(url))
-      .slice(0, 20); // Cap at 20 product pages per crawl
+      .slice(0, 500); // Cap at 500 product pages per crawl
 
     log(`${vendor.name}: ${productLinks.length} new product URLs to fetch`);
 
