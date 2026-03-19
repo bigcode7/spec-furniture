@@ -363,6 +363,22 @@ export const priorityVendors = [
       detail_base: "/furniture/detail",
     },
   },
+  {
+    id: "surya",
+    name: "Surya",
+    domain: "surya.com",
+    profile: {
+      asset_hosts: ["surya.com", "suryacomsafd-cffmgqambnd5awaz.z02.azurefd.net"],
+      title_suffixes: ["| Surya"],
+      product_path_tokens: ["Product"],
+      reject_path_tokens: ["search", "login", "cart"],
+      image_path_hints: ["/Resources/", "/prod/"],
+    },
+    discovery: {
+      // API-based: uses /api/v2/products?categoryId=X&expand=content,images,varianttraits
+      api_scraper: "surya-scraper.mjs",
+    },
+  },
   // ── TIER 2 ──
   {
     id: "arteriors",
