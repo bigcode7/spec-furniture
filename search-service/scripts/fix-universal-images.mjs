@@ -5,11 +5,13 @@
  * For every Universal product:
  * 1. Remove junk URLs (tracking pixels, site nav, login/signup images)
  * 2. Remove room scene / lifestyle images (_RS suffix, Roomscene*, Curated_*, _teaser)
- * 3. Remove different-product images (product code mismatch)
+ * 3. Remove different-product images (SKU mismatch via filename)
  * 4. Remove duplicate resolutions (keep orig > full > thumb)
  * 5. Pick best white-background hero: front > angle > side > back > VM > any studio
- * 6. Keep remaining studio shots as secondaries
+ * 6. Keep remaining studio shots as secondaries (max 4 total)
  * 7. If zero studio shots, keep best room scene as hero with lifestyle_image flag
+ *
+ * Uses the product SKU to match images — much more reliable than hero URL parsing.
  *
  * Usage:
  *   node fix-universal-images.mjs           # dry run
@@ -21,21 +23,47 @@ import { loadCatalog, safeSave } from "./lib/safe-catalog-write.mjs";
 const apply = process.argv.includes("--apply");
 const DB_PATH = "./search-service/data/catalog.db.json";
 
-// ── Product code extraction ──────────────────────────────────
+// ── SKU-based image matching ────────────────────────────────
 
-function getProductCode(url) {
-  if (!url) return null;
-  const filename = url.split("/").pop().replace(/\.\w+(\?.*)?$/, "");
-  // Strip "rrd " or "rrd_" prefix
-  const clean = filename.replace(/^rrd[_ ]/i, "");
-  // Extract product code: alphanumeric like U330040, 833656, 656B04M, 889535617
-  const m = clean.match(/^([A-Z]?\d{3,9}[A-Z]?)/i);
-  return m ? m[1] : null;
+/**
+ * Generate match patterns from a product SKU.
+ * Universal SKUs look like: U352C175, U035510LCR, U477510CC-1783-1, 833656B
+ * Filenames might use shortened or slightly different forms.
+ */
+function getSkuPatterns(sku) {
+  if (!sku) return [];
+  const patterns = new Set();
+  const norm = sku.replace(/[-\s]/g, "").toUpperCase();
+  const firstSeg = sku.toUpperCase().split("-")[0];
+
+  patterns.add(norm);
+  patterns.add(firstSeg);
+
+  // Strip trailing letters: U035510LCR → U035510
+  const baseMatch = firstSeg.match(/^(.*\d)/);
+  if (baseMatch) patterns.add(baseMatch[1]);
+
+  // Without trailing single letter: U352C175B → U352C175
+  if (/[A-Z]$/.test(firstSeg)) patterns.add(firstSeg.slice(0, -1));
+
+  // Strip trailing letters from full normalized SKU
+  const baseNoLetter = norm.match(/^(.*\d)/);
+  if (baseNoLetter) patterns.add(baseNoLetter[1]);
+
+  return [...patterns].filter(p => p.length >= 5);
+}
+
+/**
+ * Check if a filename matches a product's SKU.
+ */
+function fileMatchesSku(filename, sku) {
+  const fn = filename.toUpperCase().replace(/[-\s]/g, "");
+  return getSkuPatterns(sku).some(p => fn.includes(p));
 }
 
 // ── Image classification ─────────────────────────────────────
 
-function classifyImage(url, heroCode) {
+function classifyImage(url) {
   if (!url) return "junk";
 
   // Non-product URLs — site navigation, tracking, etc.
@@ -55,22 +83,16 @@ function classifyImage(url, heroCode) {
   if (/_RS_/i.test(filename)) return "room_scene";
   if (/_RS\d/i.test(filename)) return "room_scene";
   if (/Roomscene/i.test(filename)) return "room_scene";
-  if (/roomscene/i.test(filename)) return "room_scene";
   if (/Curated_\d/i.test(filename)) return "room_scene";
   if (/_teaser\b/i.test(filename)) return "room_scene";
-  if (/_RM\b/i.test(filename)) return "room_scene"; // "Room" suffix
-  if (/MODERN_\d{3}$/i.test(filename)) return "room_scene"; // MODERN_017 etc
-  if (/UNIVERSAL_\d{3}_\d{4}/i.test(filename)) return "room_scene"; // UNIVERSAL_006_0267
-
-  // Check product code match — different product = remove
-  const imgCode = getProductCode(url);
-  if (heroCode && imgCode && imgCode !== heroCode) {
-    return "different_product";
-  }
+  if (/_RM\b/i.test(filename)) return "room_scene";
+  if (/MODERN_\d{3}$/i.test(filename)) return "room_scene";
+  if (/UNIVERSAL_\d{3}_\d{4}/i.test(filename)) return "room_scene";
 
   // Studio / white background shots
   if (/_VM\b/i.test(filename) || /VVM\b/i.test(filename)) return "studio_vm";
   if (/_vm\b/.test(filename)) return "studio_vm";
+  if (/VM\d+$/i.test(filename)) return "studio_vm";
   if (/_front/i.test(filename)) return "studio_front";
   if (/_angle/i.test(filename)) return "studio_angle";
   if (/_back/i.test(filename)) return "studio_back";
@@ -90,19 +112,11 @@ function classifyImage(url, heroCode) {
     return "studio_variant";
   }
 
-  // Head-on shots (table/chair top view)
   if (/head_S_M/i.test(filename)) return "studio_head";
-
-  // Bare product code or rrd prefix only — usually studio
   if (/^rrd[_ ]/i.test(filename)) return "studio_rrd";
-
-  // Plain product code with VM number suffix (U330040_VM2, U330040_VM3)
-  if (/VM\d+$/i.test(filename)) return "studio_vm";
-
-  // Product code with _V2, _V3 etc — could be studio variant
   if (/_V\d$/i.test(filename)) return "studio_variant";
 
-  // Bare product code (just numbers) — assume studio
+  // Bare product code (just numbers/alphanumeric) — assume studio
   const bare = filename.replace(/^rrd[_ ]/i, "");
   if (/^[A-Z]?\d{3,9}[A-Z]?\d*$/i.test(bare)) return "studio_bare";
 
@@ -113,10 +127,10 @@ function classifyImage(url, heroCode) {
 // ── Resolution preference ────────────────────────────────────
 
 function getResolution(url) {
-  if (url.includes("/orig/")) return 3; // highest
+  if (url.includes("/orig/")) return 3;
   if (url.includes("/full/")) return 2;
-  if (url.includes("/thumb/")) return 1; // lowest
-  return 2; // default
+  if (url.includes("/thumb/")) return 1;
+  return 2;
 }
 
 // ── Hero priority (higher = better for hero) ─────────────────
@@ -150,14 +164,13 @@ function isStudio(cls) {
   return cls.startsWith("studio_");
 }
 
-function isRemovable(cls) {
-  return ["junk", "junk_site", "junk_external", "tracking", "different_product"].includes(cls);
+function isJunk(cls) {
+  return ["junk", "junk_site", "junk_external", "tracking"].includes(cls);
 }
 
 // ── Dedup by normalized filename ─────────────────────────────
 
 function normalizeForDedup(url) {
-  // Same image at different resolutions: /orig/X.jpg vs /thumb/X.jpg vs /full/X.jpg
   return url.replace(/\/(orig|full|thumb)\//, "/NORM/");
 }
 
@@ -171,7 +184,7 @@ const vendorCounts = catalog.vendorCounts;
 const universal = products.filter(p => p.vendor_id === "universal");
 
 console.log("═══════════════════════════════════════════════════════");
-console.log("  Universal Furniture — Image Cleanup");
+console.log("  Universal Furniture — Image Cleanup (SKU-based)");
 console.log("═══════════════════════════════════════════════════════\n");
 console.log(`  Total Universal products: ${universal.length}`);
 
@@ -186,25 +199,31 @@ const removalReasons = {};
 const heroSwapSamples = [];
 const lifestyleSamples = [];
 
+const MAX_IMAGES = 4; // hero + 3 secondaries
+
 for (const product of universal) {
   if (!product.images || product.images.length === 0) continue;
 
-  const heroUrl = product.image_url || "";
-  const heroCode = getProductCode(heroUrl);
+  const sku = product.sku || "";
   const originalCount = product.images.length;
   totalImagesBefore += originalCount;
 
-  // Step 1: Classify every image
+  // Step 1: Classify and check SKU match for every image
   const classified = [];
   for (const img of product.images) {
     const url = typeof img === "string" ? img : img.url;
     if (!url) continue;
-    const cls = classifyImage(url, heroCode);
+    const cls = classifyImage(url);
     const res = getResolution(url);
-    classified.push({ url, cls, res, original: img });
+    const filename = url.split("/").pop().replace(/\.\w+(\?.*)?$/, "").replace(/^rrd[_ ]/i, "");
+    const matchesSku = sku ? fileMatchesSku(filename, sku) : true; // if no SKU, don't filter by code
+    classified.push({ url, cls, res, matchesSku, original: img });
   }
 
-  // Step 2: Separate into keep/remove
+  // Step 2: Determine if we have any SKU-matching images
+  const hasSkuMatches = classified.some(item => item.matchesSku && !isJunk(item.cls) && item.cls !== "room_scene");
+
+  // Step 3: Filter images
   const studioImages = [];
   const roomScenes = [];
   const removed = [];
@@ -212,17 +231,23 @@ for (const product of universal) {
   // Dedup: for same normalized URL, keep highest resolution
   const dedupMap = new Map();
   for (const item of classified) {
-    if (isRemovable(item.cls)) {
+    // Always remove junk/tracking
+    if (isJunk(item.cls)) {
       removed.push(item);
-      const reason = item.cls;
-      removalReasons[reason] = (removalReasons[reason] || 0) + 1;
+      removalReasons[item.cls] = (removalReasons[item.cls] || 0) + 1;
+      continue;
+    }
+
+    // If we have SKU-matching images, remove non-matching ones
+    if (hasSkuMatches && !item.matchesSku) {
+      removed.push(item);
+      removalReasons["different_product"] = (removalReasons["different_product"] || 0) + 1;
       continue;
     }
 
     const normKey = normalizeForDedup(item.url);
     const existing = dedupMap.get(normKey);
     if (existing) {
-      // Keep higher resolution
       if (item.res > existing.res) {
         removed.push(existing);
         removalReasons["duplicate_resolution"] = (removalReasons["duplicate_resolution"] || 0) + 1;
@@ -236,19 +261,16 @@ for (const product of universal) {
     }
   }
 
-  // Separate deduped images
+  // Separate deduped images into studio and room scenes
   for (const item of dedupMap.values()) {
     if (item.cls === "room_scene") {
       roomScenes.push(item);
-    } else if (isStudio(item.cls)) {
-      studioImages.push(item);
     } else {
-      // Should not happen but keep as studio
       studioImages.push(item);
     }
   }
 
-  // Remove room scenes
+  // Remove room scenes (they go to fallback pool)
   for (const rs of roomScenes) {
     removed.push(rs);
     removalReasons["room_scene"] = (removalReasons["room_scene"] || 0) + 1;
@@ -256,7 +278,7 @@ for (const product of universal) {
 
   totalRemoved += removed.length;
 
-  // Step 3: Pick hero from studio images
+  // Step 4: Pick hero and build final images (max 4)
   let newHero = null;
   let newImages = [];
 
@@ -269,44 +291,43 @@ for (const product of universal) {
     });
 
     newHero = studioImages[0];
-    newImages = studioImages;
+    newImages = studioImages.slice(0, MAX_IMAGES);
   } else if (roomScenes.length > 0) {
     // No studio images — use best room scene
     roomScenes.sort((a, b) => b.res - a.res);
     newHero = roomScenes[0];
-    newImages = [roomScenes[0]]; // Keep only the best room scene
+    newImages = [roomScenes[0]];
     lifestyleOnly++;
     if (lifestyleSamples.length < 10) {
       lifestyleSamples.push({ name: product.product_name, url: newHero.url });
     }
   }
 
-  // Step 4: Build new images array
+  // Step 5: Build final images array
   const finalImages = newImages.map((item, i) => ({
     url: item.url,
     type: i === 0 ? "hero" : (item.cls === "studio_detail" ? "detail" : item.cls === "studio_dim" ? "dimensions" : "alternate_angle"),
     priority: i === 0 ? 1 : 2,
   }));
 
-  // Check if hero changed
+  // Track hero changes
   const oldHeroUrl = product.image_url;
   const newHeroUrl = newHero ? newHero.url : null;
   const heroChanged = oldHeroUrl !== newHeroUrl && newHeroUrl;
 
-  // Check if old hero was a room scene
-  const oldHeroCls = oldHeroUrl ? classifyImage(oldHeroUrl, heroCode) : "none";
-  const oldHeroWasRoomScene = oldHeroCls === "room_scene";
-
-  if (heroChanged && oldHeroWasRoomScene && newHero && isStudio(newHero.cls)) {
-    heroSwapped++;
-    if (heroSwapSamples.length < 15) {
-      heroSwapSamples.push({
-        name: product.product_name,
-        oldHero: oldHeroUrl.split("/").pop(),
-        newHero: newHeroUrl.split("/").pop(),
-        oldCls: oldHeroCls,
-        newCls: newHero.cls,
-      });
+  if (heroChanged) {
+    const oldHeroCls = oldHeroUrl ? classifyImage(oldHeroUrl) : "none";
+    if (oldHeroCls === "room_scene" && newHero && isStudio(newHero.cls)) {
+      heroSwapped++;
+      if (heroSwapSamples.length < 15) {
+        heroSwapSamples.push({
+          name: product.product_name,
+          oldHero: oldHeroUrl.split("/").pop(),
+          newHero: newHeroUrl.split("/").pop(),
+          oldCls: oldHeroCls,
+          newCls: newHero.cls,
+        });
+      }
     }
   }
 
@@ -319,7 +340,7 @@ for (const product of universal) {
   if (apply && changed) {
     product.images = finalImages;
     product.image_url = newHeroUrl;
-    if (lifestyleOnly > 0 && roomScenes.length > 0 && studioImages.length === 0) {
+    if (studioImages.length === 0 && roomScenes.length > 0) {
       product.lifestyle_image = true;
     } else {
       delete product.lifestyle_image;
@@ -339,7 +360,7 @@ console.log(`  Heroes swapped:         ${heroSwapped} (room scene → white back
 console.log(`  Lifestyle-only:         ${lifestyleOnly} (no white bg available)`);
 
 console.log(`\n─── REMOVAL BREAKDOWN ──────────────────────────────\n`);
-for (const [reason, count] of Object.entries(removalReasons).sort((a, b) => b - a)) {
+for (const [reason, count] of Object.entries(removalReasons).sort((a, b) => b[1] - a[1])) {
   console.log(`  ${reason.padEnd(25)} ${count}`);
 }
 
@@ -359,12 +380,9 @@ if (lifestyleSamples.length > 0) {
   }
 }
 
-// Per-product image count distribution
-const distrib = {};
-for (const p of universal) {
-  if (!p.images) continue;
-  const count = apply ? p.images.length : "n/a";
-}
+// Image count distribution (proposed)
+console.log(`\n─── IMAGE COUNT DISTRIBUTION (proposed) ────────────\n`);
+console.log(`  Avg images/product: ${(totalImagesAfter / universal.length).toFixed(1)}`);
 
 if (apply) {
   console.log(`\n─── SAVING ─────────────────────────────────────────\n`);
