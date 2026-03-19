@@ -405,6 +405,13 @@ console.log(`    Name: ${fieldsAdded.name}`);
 
 if (!dryRun && enriched > 0) {
   console.log("\nSaving catalog...");
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 0));
+  const { loadCatalog, safeSave } = await import("./lib/safe-catalog-write.mjs");
+  const snapshot = {};
+  const allProducts = Array.isArray(db.products) ? db.products : Object.values(db.products || {});
+  for (const p of allProducts) {
+    const v = p.vendor_id || "unknown";
+    snapshot[v] = (snapshot[v] || 0) + 1;
+  }
+  safeSave(db, allProducts, snapshot, { dbPath: DB_PATH });
   console.log("Saved.");
 }

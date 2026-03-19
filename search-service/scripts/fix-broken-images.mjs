@@ -145,6 +145,13 @@ console.log(`  Skipped: ${skipped}`);
 
 if (!dryRun && fixed > 0) {
   console.log("Saving catalog...");
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 0));
+  const { safeSave } = await import("./lib/safe-catalog-write.mjs");
+  const allProducts = Array.isArray(db.products) ? db.products : Object.values(db.products || {});
+  const snapshot = {};
+  for (const p of allProducts) {
+    const v = p.vendor_id || "unknown";
+    snapshot[v] = (snapshot[v] || 0) + 1;
+  }
+  safeSave(db, allProducts, snapshot, { dbPath: DB_PATH });
   console.log("Saved.");
 }

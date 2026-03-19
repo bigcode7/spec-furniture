@@ -310,13 +310,13 @@ const server = http.createServer(async (req, res) => {
 
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
     if (req.method === "POST" && req.url === "/auth/register") {
-      const body = await readBody(req);
+      const body = await collectBody(req);
       const result = await registerUser(body);
       return json(res, result.ok ? 201 : 400, result);
     }
 
     if (req.method === "POST" && req.url === "/auth/login") {
-      const body = await readBody(req);
+      const body = await collectBody(req);
       const result = await loginUser(body);
       return json(res, result.ok ? 200 : 401, result);
     }
@@ -331,7 +331,7 @@ const server = http.createServer(async (req, res) => {
       const token = extractToken(req.headers.authorization);
       const auth = getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
-      const body = await readBody(req);
+      const body = await collectBody(req);
       const result = updateUser(auth.user.id, body);
       return json(res, result.ok ? 200 : 400, result);
     }

@@ -1,8 +1,13 @@
 import fs from 'fs';
+import { loadCatalog, safeSave } from "./lib/safe-catalog-write.mjs";
 
-const DB_PATH = 'data/catalog.db.json';
-const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-const products = Array.isArray(data.products) ? data.products : [];
+const DB_PATH = './search-service/data/catalog.db.json';
+const apply = process.argv.includes("--apply");
+
+const catalog = loadCatalog(DB_PATH);
+const data = catalog.data;
+const products = catalog.products;
+const vendorCounts = catalog.vendorCounts;
 
 console.log('Before:', products.length, 'products');
 
@@ -76,12 +81,9 @@ for (const [v, c] of Object.entries(vendors).sort((a, b) => b[1] - a[1])) {
   console.log('  ' + v.padEnd(25) + String(c).padStart(6));
 }
 
-const output = {
-  version: 1,
-  saved_at: new Date().toISOString(),
-  product_count: kept.length,
-  products: kept,
-  vendor_crawl_meta: data.vendor_crawl_meta || {},
-};
-fs.writeFileSync(DB_PATH, JSON.stringify(output));
-console.log('Saved.');
+if (!apply) {
+  console.log('\n  [DRY RUN] Use --apply to write changes');
+} else {
+  safeSave(data, kept, vendorCounts, { dbPath: DB_PATH });
+  console.log('Saved.');
+}

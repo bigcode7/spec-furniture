@@ -1,14 +1,9 @@
 import fs from 'fs';
+import { tradeVendors } from "../src/config/trade-vendors.mjs";
 
-// NOTE: This list must include ALL vendors in the catalog.
-// Missing a vendor here = that vendor gets silently deleted.
-const KEEP = new Set([
-  'bernhardt', 'hooker', 'century', 'universal', 'vanguard',
-  'cr-laine', 'lee-industries', 'sherrill', 'wesley-hall',
-  'hancock-moore', 'hickory-chair', 'highland-house',
-  'lexington', 'theodore-alexander', 'baker', 'caracole', 'stickley', 'rowe',
-  'norwalk', 'surya', 'gabby', 'fourhands', 'loloi', 'visual-comfort',
-]);
+// KEEP set is derived from trade-vendors.mjs — no hardcoded list.
+// Adding a vendor to trade-vendors.mjs automatically includes it here.
+const KEEP = new Set(tradeVendors.map(v => v.id));
 
 // Load enriched (small) file — has better data for products it covers
 const enriched = JSON.parse(fs.readFileSync('data/catalog.db.json.small', 'utf8'));
@@ -71,5 +66,16 @@ const output = {
   products: productsArray,
   vendor_crawl_meta: backup.vendor_crawl_meta || {},
 };
-fs.writeFileSync('data/catalog.db.json', JSON.stringify(output));
-console.log('\nSaved to catalog.db.json (' + productsArray.length + ' products as array)');
+const apply = process.argv.includes("--apply");
+if (!apply) {
+  console.log('\n  [DRY RUN] Use --apply to write changes');
+} else {
+  const { safeSave } = await import("./lib/safe-catalog-write.mjs");
+  const snapshot = {};
+  for (const p of productsArray) {
+    const v = p.vendor_id || "unknown";
+    snapshot[v] = (snapshot[v] || 0) + 1;
+  }
+  safeSave(output, productsArray, snapshot, { dbPath: './search-service/data/catalog.db.json' });
+  console.log('\nSaved to catalog.db.json (' + productsArray.length + ' products as array)');
+}

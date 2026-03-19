@@ -11,17 +11,13 @@
  */
 
 import { loadCatalog, safeSave, parseForceDeleteVendors } from "./lib/safe-catalog-write.mjs";
+import { tradeVendors } from "../src/config/trade-vendors.mjs";
 
 const apply = process.argv.includes("--apply");
 const forceDeleteVendors = parseForceDeleteVendors();
 
-const KEEP = new Set([
-  'bernhardt', 'hooker', 'century', 'universal', 'vanguard',
-  'cr-laine', 'lee-industries', 'sherrill', 'wesley-hall',
-  'hancock-moore', 'hickory-chair', 'highland-house',
-  'lexington', 'theodore-alexander', 'baker', 'caracole',
-  'stickley', 'rowe', 'norwalk', 'surya', 'gabby',
-]);
+// KEEP set derived from trade-vendors.mjs — single source of truth
+const KEEP = new Set(tradeVendors.map(v => v.id));
 
 const { data, products, vendorCounts } = loadCatalog();
 
