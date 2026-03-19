@@ -2,11 +2,15 @@
  * pages.config.js - Page routing configuration
  *
  * Three core pages: Landing (marketing), Search (app), Quotes (quote builder).
+ * Plus static pages: About, Privacy, Terms.
  * All old routes redirect to Search.
  */
 import Landing from './pages/Landing';
 import Search from './pages/Search';
 import Quotes from './pages/Quotes';
+import About from './pages/About';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import { Navigate } from 'react-router-dom';
 import __Layout from './Layout.jsx';
 
@@ -16,6 +20,9 @@ export const PAGES = {
     "Landing": Landing,
     "Search": Search,
     "Quotes": Quotes,
+    "About": About,
+    "Privacy": Privacy,
+    "Terms": Terms,
     /* Legacy redirects */
     "Dashboard": ToSearch,
     "Cart": ToSearch,

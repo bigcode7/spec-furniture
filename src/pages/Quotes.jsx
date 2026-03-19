@@ -268,7 +268,8 @@ export default function Quotes() {
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <HeartOff className="h-8 w-8 text-white/10 mb-3" />
-              <p className="text-sm text-white/25">Heart products from search to save them here</p>
+              <p className="text-sm text-white/30 mb-1">No saved products yet</p>
+              <p className="text-xs text-white/15">Save products by clicking the heart icon while browsing search results.</p>
             </motion.div>
           ) : (
             <motion.div
@@ -500,9 +501,9 @@ export default function Quotes() {
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <Package className="h-12 w-12 text-white/10 mb-4" />
-              <p className="text-sm text-white/40 mb-1">No items in quote</p>
+              <p className="text-sm text-white/40 mb-1">No quotes yet</p>
               <p className="text-xs text-white/20">
-                Add products from your saved items above, or from search results.
+                Search for products, save your favorites, and add them here to start your first quote.
               </p>
             </motion.div>
           ) : (

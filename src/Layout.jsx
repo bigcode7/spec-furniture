@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, FileText, LogOut, UserPlus } from "lucide-react";
+import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -34,6 +34,187 @@ function AppAtmosphere() {
   );
 }
 
+function AccountDropdown({ user, logout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const initial = (user.full_name || user.email || "U")[0].toUpperCase();
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 rounded-full px-1 py-1 transition-colors hover:bg-white/[0.04]"
+      >
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white/80"
+          style={{
+            background: "rgba(79,107,255,0.15)",
+            border: "1px solid rgba(79,107,255,0.25)",
+            boxShadow: "0 0 12px rgba(79,107,255,0.1)",
+          }}
+        >
+          {initial}
+        </div>
+        <ChevronDown className={`h-3 w-3 text-white/30 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-2 w-64 rounded-xl overflow-hidden shadow-2xl z-50"
+            style={{
+              background: "rgba(16,17,24,0.97)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              backdropFilter: "blur(20px)",
+            }}
+          >
+            {/* User info header */}
+            <div className="px-4 py-3.5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white/80 shrink-0"
+                  style={{
+                    background: "rgba(79,107,255,0.15)",
+                    border: "1px solid rgba(79,107,255,0.25)",
+                  }}
+                >
+                  {initial}
+                </div>
+                <div className="min-w-0">
+                  {user.full_name && (
+                    <p className="text-sm font-medium text-white/80 truncate">{user.full_name}</p>
+                  )}
+                  <p className="text-[11px] text-white/35 truncate">{user.email}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Menu items */}
+            <div className="py-1.5">
+              <DropdownItem icon={User} label="My Account" disabled />
+              <DropdownItem icon={Tag} label="My Trade Discounts" disabled />
+              <DropdownItem icon={Settings} label="Settings" disabled />
+              <a
+                href="mailto:support@spekd.ai"
+                className="flex items-center gap-3 px-4 py-2.5 text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                <HelpCircle className="h-4 w-4 text-white/25" />
+                Help / Feedback
+              </a>
+            </div>
+
+            {/* Sign out */}
+            <div className="border-t border-white/[0.06] py-1.5">
+              <button
+                onClick={() => { logout(); setOpen(false); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-xs text-white/40 hover:text-red-400/80 hover:bg-white/[0.04] transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DropdownItem({ icon: Icon, label, disabled }) {
+  return (
+    <button
+      disabled={disabled}
+      className={`flex w-full items-center gap-3 px-4 py-2.5 text-xs transition-colors ${
+        disabled
+          ? "text-white/25 cursor-default"
+          : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]"
+      }`}
+    >
+      <Icon className="h-4 w-4 text-white/25" />
+      {label}
+      {disabled && <span className="ml-auto text-[9px] text-white/15">Soon</span>}
+    </button>
+  );
+}
+
+function AppFooter() {
+  return (
+    <footer className="relative mt-20 border-t border-white/[0.06]">
+      <div className="page-wrap py-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Left */}
+          <div className="text-[11px] text-white/25">
+            &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
+          </div>
+
+          {/* Center — links */}
+          <nav className="flex items-center gap-4 text-[11px]">
+            <Link to={createPageUrl("About")} className="text-white/30 hover:text-white/60 transition-colors">
+              About
+            </Link>
+            <span className="text-white/10">·</span>
+            <a href="mailto:support@spekd.ai" className="text-white/30 hover:text-white/60 transition-colors">
+              Contact
+            </a>
+            <span className="text-white/10">·</span>
+            <Link to={createPageUrl("Privacy")} className="text-white/30 hover:text-white/60 transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-white/10">·</span>
+            <Link to={createPageUrl("Terms")} className="text-white/30 hover:text-white/60 transition-colors">
+              Terms of Service
+            </Link>
+          </nav>
+
+          {/* Right — social icons */}
+          <div className="flex items-center gap-3">
+            <a
+              href="https://linkedin.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+              title="LinkedIn"
+            >
+              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+            </a>
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+              title="Instagram"
+            >
+              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-white/10 text-center mt-6 max-w-xl mx-auto leading-relaxed">
+          All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
+        </p>
+      </div>
+    </footer>
+  );
+}
+
 export default function Layout({ children, currentPageName }) {
   const { user, navigateToLogin, logout } = useAuth();
   const [quoteCount, setQuoteCount] = useState(0);
@@ -57,7 +238,7 @@ export default function Layout({ children, currentPageName }) {
   if (currentPageName === "Landing") return <>{children}</>;
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white flex flex-col">
       <AppAtmosphere />
 
       <header className="glass-header sticky top-0 z-40">
@@ -108,28 +289,10 @@ export default function Layout({ children, currentPageName }) {
               })}
             </nav>
 
-            {/* Right side — account only */}
+            {/* Right side — account */}
             <div className="flex items-center gap-2.5">
               {user ? (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white/80"
-                    style={{
-                      background: "rgba(79,107,255,0.15)",
-                      border: "1px solid rgba(79,107,255,0.25)",
-                      boxShadow: "0 0 12px rgba(79,107,255,0.1)",
-                    }}
-                  >
-                    {(user.full_name || user.email || "U")[0].toUpperCase()}
-                  </div>
-                  <button
-                    onClick={() => logout()}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/40"
-                    title="Sign out"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <AccountDropdown user={user} logout={logout} />
               ) : (
                 <button
                   onClick={() => navigateToLogin("signup")}
@@ -152,7 +315,7 @@ export default function Layout({ children, currentPageName }) {
       <div className="nav-separator" />
       <ScrollProgress />
 
-      <main className="relative">
+      <main className="relative flex-1">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -166,11 +329,7 @@ export default function Layout({ children, currentPageName }) {
         </AnimatePresence>
       </main>
 
-      <footer className="relative mt-20 border-t border-white/[0.04] py-6">
-        <p className="text-[10px] text-white/10 text-center max-w-xl mx-auto leading-relaxed">
-          All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
-        </p>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

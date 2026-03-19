@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield } from "lucide-react";
+import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, FileText, Send } from "lucide-react";
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import ParticleField from "@/components/ParticleField";
@@ -525,6 +525,58 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ═══════════ HOW IT WORKS ═══════════ */}
+      <section className="relative py-24 md:py-32">
+        <div className="page-wrap">
+          <Reveal className="text-center mb-6">
+            <span className="label-caps text-gold/50 tracking-[0.25em]">How It Works</span>
+          </Reveal>
+          <Reveal delay={0.1} className="text-center mb-16">
+            <h2 className="font-display text-3xl md:text-5xl text-white">
+              Three steps to <span className="text-gold">smarter sourcing</span>
+            </h2>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                step: "01",
+                icon: Search,
+                title: "Search",
+                desc: "Describe what you need in plain language. Our AI searches across every vendor catalog simultaneously — materials, styles, budgets, and dimensions.",
+              },
+              {
+                step: "02",
+                icon: FileText,
+                title: "Quote",
+                desc: "Save your favorites, build quotes organized by room, apply your designer markup, and generate polished client-ready PDFs in seconds.",
+              },
+              {
+                step: "03",
+                icon: Send,
+                title: "Present",
+                desc: "Share professional proposals with your clients. Every product links back to the vendor for seamless ordering through your trade accounts.",
+              },
+            ].map((item, i) => (
+              <Reveal key={item.step} delay={i * 0.1}>
+                <div className="relative text-center p-8 rounded-2xl border border-white/[0.04] hover:border-white/[0.08] transition-colors" style={{ background: "rgba(255,255,255,0.015)" }}>
+                  <div className="text-[64px] font-display font-bold text-white/[0.03] absolute top-4 right-6 leading-none">{item.step}</div>
+                  <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gold/10 border border-gold/15 flex items-center justify-center">
+                    <item.icon className="w-6 h-6 text-gold/70" />
+                  </div>
+                  <h3 className="font-display text-xl text-white mb-3">{item.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--warm-gray)" }}>{item.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="page-wrap">
+        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+      </div>
+
       {/* ═══════════ FEATURE SECTIONS ═══════════ */}
       <FeatureSection
         kicker="Design Intelligence"
@@ -557,19 +609,6 @@ export default function Landing() {
         description="Go beyond keywords. Spekd's AI understands materials, styles, dimensions, and design intent. Ask follow-up questions, refine results, and get curated recommendations in real time."
         mockUI={<MockAIChatUI chatData={chatMockup} />}
         icon={Brain}
-      />
-
-      <div className="page-wrap">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-      </div>
-
-      <FeatureSection
-        kicker="Project Management"
-        title={<>From brief to<br /><span className="text-gold">purchase order</span></>}
-        description="Organize sourcing by project and room. Track budgets, compare options side-by-side, and present curated selections to clients — all in one workspace."
-        mockUI={<MockProjectUI />}
-        icon={FolderOpen}
-        reverse
       />
 
       {/* ═══════════ STATS — LIVE FROM CATALOG ═══════════ */}
@@ -608,6 +647,42 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ═══════════ TESTIMONIALS ═══════════ */}
+      <section className="relative py-24 md:py-32">
+        <div className="page-wrap">
+          <Reveal className="text-center mb-6">
+            <span className="label-caps text-gold/50 tracking-[0.25em]">From the Trade</span>
+          </Reveal>
+          <Reveal delay={0.1} className="text-center mb-16">
+            <h2 className="font-display text-3xl md:text-5xl text-white">
+              What designers <span className="text-gold">are saying</span>
+            </h2>
+          </Reveal>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {[
+              { quote: "SPEKD cut my sourcing time in half. I used to spend hours browsing vendor sites individually — now I find what I need in minutes.", name: "Coming soon", title: "Interior Designer" },
+              { quote: "The AI actually understands what I mean when I say 'warm transitional accent chair.' No other search tool gets that right.", name: "Coming soon", title: "Senior Designer" },
+              { quote: "The quote builder is exactly what we needed. Professional PDFs that look like they came from our firm, not a generic tool.", name: "Coming soon", title: "Design Firm Principal" },
+            ].map((t, i) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <div className="p-6 rounded-2xl border border-white/[0.04] h-full flex flex-col" style={{ background: "rgba(255,255,255,0.015)" }}>
+                  <p className="text-sm text-white/50 leading-relaxed flex-1 italic">"{t.quote}"</p>
+                  <div className="mt-5 pt-4 border-t border-white/[0.04]">
+                    <p className="text-xs text-white/30 font-medium">{t.name}</p>
+                    <p className="text-[10px] text-white/20">{t.title}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="page-wrap">
+        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+      </div>
 
       {/* ═══════════ BOTTOM CTA ═══════════ */}
       <section className="relative py-28 md:py-36">
@@ -678,33 +753,49 @@ export default function Landing() {
               <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">
                 AI-native furniture intelligence for the trade.
               </p>
+              <div className="flex items-center gap-3 mt-4">
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors" title="LinkedIn">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                </a>
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors" title="Instagram">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                </a>
+              </div>
             </div>
             <div>
               <h4 className="label-caps text-white/40 mb-4 text-[10px]">Product</h4>
               <div className="space-y-2.5">
-                <Link to={createPageUrl("Search")} className="block text-sm">AI Search</Link>
-                <Link to={createPageUrl("Quotes")} className="block text-sm">Quote Builder</Link>
+                <Link to={createPageUrl("Search")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">AI Search</Link>
+                <Link to={createPageUrl("Quotes")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Quote Builder</Link>
               </div>
             </div>
             <div>
               <h4 className="label-caps text-white/40 mb-4 text-[10px]">Company</h4>
               <div className="space-y-2.5">
-                <span className="block text-sm text-white/25">About</span>
-                <span className="block text-sm text-white/25">Contact</span>
+                <Link to={createPageUrl("About")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">About</Link>
+                <a href="mailto:support@spekd.ai" className="block text-sm text-white/40 hover:text-white/70 transition-colors">Contact</a>
               </div>
             </div>
             <div>
               <h4 className="label-caps text-white/40 mb-4 text-[10px]">Legal</h4>
               <div className="space-y-2.5">
-                <span className="block text-sm text-white/25">Privacy Policy</span>
-                <span className="block text-sm text-white/25">Terms of Service</span>
+                <Link to={createPageUrl("Privacy")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Privacy Policy</Link>
+                <Link to={createPageUrl("Terms")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Terms of Service</Link>
               </div>
             </div>
           </div>
           <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent mb-6" />
-          <div className="flex items-center justify-between text-[11px] text-white/20">
-            <span>&copy; {new Date().getFullYear()} Spekd. All rights reserved.</span>
-            <span className="hidden sm:inline">Built with AI for the furniture trade.</span>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-white/20">
+            <span>&copy; {new Date().getFullYear()} SPEKD. All rights reserved.</span>
+            <nav className="flex items-center gap-4">
+              <Link to={createPageUrl("About")} className="hover:text-white/40 transition-colors">About</Link>
+              <span className="text-white/10">·</span>
+              <a href="mailto:support@spekd.ai" className="hover:text-white/40 transition-colors">Contact</a>
+              <span className="text-white/10">·</span>
+              <Link to={createPageUrl("Privacy")} className="hover:text-white/40 transition-colors">Privacy Policy</Link>
+              <span className="text-white/10">·</span>
+              <Link to={createPageUrl("Terms")} className="hover:text-white/40 transition-colors">Terms of Service</Link>
+            </nav>
           </div>
           <p className="text-[10px] text-white/10 text-center mt-4 max-w-xl mx-auto leading-relaxed">
             All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.

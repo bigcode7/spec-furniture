@@ -729,7 +729,7 @@ export default function SearchPage() {
           <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="spec-diamond" />
+                <div className={`spec-diamond${loading ? " animate-pulse" : ""}`} />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70">Results</span>
               </div>
               <button onClick={handleNewSearch}
@@ -737,6 +737,18 @@ export default function SearchPage() {
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
+            {/* Search progress bar */}
+            {loading && (
+              <div className="h-[2px] w-full overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: "linear-gradient(90deg, transparent, var(--gold), transparent)" }}
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="max-w-7xl mx-auto px-4">
