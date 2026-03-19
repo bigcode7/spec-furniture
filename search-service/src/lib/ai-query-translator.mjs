@@ -338,7 +338,7 @@ const COLLECTION_VENDOR_MAP = {
  * Local (free) intent parsing fallback when API is unavailable.
  * Comprehensive pattern matching using the dictionary.
  */
-function localParse(query) {
+export function localParse(query) {
   if (!query) return null;
   const q = query.toLowerCase().trim();
 
