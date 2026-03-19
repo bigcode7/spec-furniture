@@ -53,6 +53,9 @@ export default function Layout({ children, currentPageName }) {
     };
   }, []);
 
+  // Landing page renders without nav chrome
+  if (currentPageName === "Landing") return <>{children}</>;
+
   return (
     <div className="min-h-screen text-white">
       <AppAtmosphere />
