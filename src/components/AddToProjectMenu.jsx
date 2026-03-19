@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGuestGate } from "@/lib/GuestGate";
 
 const SEARCH_URL = (
-  import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310"
+  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app"
 ).replace(/\/$/, "");
 
 /**

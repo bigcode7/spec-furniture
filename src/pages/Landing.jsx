@@ -5,7 +5,7 @@ import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import ParticleField from "@/components/ParticleField";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
 
 const EXAMPLE_SEARCHES = [

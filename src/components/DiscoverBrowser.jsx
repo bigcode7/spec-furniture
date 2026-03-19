@@ -11,7 +11,7 @@ import {
 import { toggleCompareItem, normalizeSearchResult, getCompareItems, toggleFavorite, getFavorites, trackStyleInteraction } from "@/lib/growth-store";
 import AddToProjectMenu from "@/components/AddToProjectMenu";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
 const COLOR_PALETTES = [
   { id: "warm-neutrals", name: "Warm Neutrals", colors: ["#D4C5A9","#E8DCC8","#C2A878","#D2B48C"], desc: "Beige, cream, tan, camel" },

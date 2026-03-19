@@ -15,7 +15,7 @@ import DeliveryBadge from "@/components/DeliveryBadge";
 import ProcurementPanel from "@/components/ProcurementPanel";
 
 const SEARCH_URL = (
-  import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310"
+  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app"
 ).replace(/\/$/, "");
 
 export default function ProductDetail() {

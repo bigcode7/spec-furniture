@@ -2,7 +2,7 @@
  * Auth API client — talks to search-service /auth/* endpoints.
  */
 
-const searchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310";
+const searchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app";
 const baseUrl = searchServiceUrl.replace(/\/$/, "");
 
 const AUTH_TOKEN_KEY = "spec_auth_token";

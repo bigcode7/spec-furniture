@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 
-const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL;
+const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app";
 
 export async function smartSearch(conversation) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");

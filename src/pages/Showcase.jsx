@@ -9,7 +9,7 @@ import {
 import AddToProjectMenu from "@/components/AddToProjectMenu";
 import { toggleFavorite, getFavorites } from "@/lib/growth-store";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount || 0);

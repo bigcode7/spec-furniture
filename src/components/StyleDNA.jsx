@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Sparkles, Palette, Layers, Building2, DollarSign, ArrowRight, Loader2 } from "lucide-react";
 import { getStyleInteractions } from "@/lib/growth-store";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "http://127.0.0.1:4310").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
 /**
  * StyleDNA Card — Shows the designer's visual taste profile

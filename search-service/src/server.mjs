@@ -262,7 +262,7 @@ function json(res, status, payload) {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type, authorization",
   });
   res.end(JSON.stringify(payload, null, 2));
 }
