@@ -27,4 +27,4 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
+.envsearch-service/data/images/
