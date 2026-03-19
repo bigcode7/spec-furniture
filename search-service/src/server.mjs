@@ -175,12 +175,15 @@ buildAutocompleteIndex(getAllProducts());
 initAnalytics();
 
 // Initialize vector store (loads cached vectors, model downloads on first run)
-await initVectorStore();
+// Gracefully degrades if @xenova/transformers is not installed — search still works via keyword + AI
+await initVectorStore().catch((err) => {
+  console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
+});
 
 // Index products into vector store in background (non-blocking)
 // Only generates embeddings for products not yet indexed
 vectorIndexAll(getAllProducts()).then((stats) => {
-  console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
+  if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
 }).catch((err) => {
   console.error(`[server] Vector indexing failed: ${err.message}`);
 });

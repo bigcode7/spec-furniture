@@ -42,6 +42,7 @@ const DIM = 384;
 /** Whether the store is ready */
 let ready = false;
 let initializing = false;
+let unavailable = false; // true if @xenova/transformers is missing
 
 // ── Embedding Pipeline ──
 
@@ -50,22 +51,28 @@ let initializing = false;
  */
 async function initPipeline() {
   if (embedPipeline) return;
+  if (unavailable) return;
 
   console.log("[vector-store] Loading embedding model (all-MiniLM-L6-v2)...");
   const startMs = Date.now();
 
-  // Dynamic import to avoid issues if package not installed
-  const { pipeline, env } = await import("@xenova/transformers");
+  try {
+    // Dynamic import — gracefully handles missing package
+    const { pipeline: createPipeline, env } = await import("@xenova/transformers");
 
-  // Use local cache dir
-  env.cacheDir = path.resolve(DATA_DIR, ".transformers-cache");
-  env.allowLocalModels = true;
+    // Use local cache dir
+    env.cacheDir = path.resolve(DATA_DIR, ".transformers-cache");
+    env.allowLocalModels = true;
 
-  embedPipeline = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    quantized: true, // Use quantized model for speed
-  });
+    embedPipeline = await createPipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+      quantized: true, // Use quantized model for speed
+    });
 
-  console.log(`[vector-store] Model loaded in ${((Date.now() - startMs) / 1000).toFixed(1)}s`);
+    console.log(`[vector-store] Model loaded in ${((Date.now() - startMs) / 1000).toFixed(1)}s`);
+  } catch (err) {
+    unavailable = true;
+    console.warn(`[vector-store] Embedding model unavailable — vector search disabled. (${err.message})`);
+  }
 }
 
 /**
@@ -76,6 +83,7 @@ async function initPipeline() {
  */
 export async function embed(text) {
   if (!embedPipeline) await initPipeline();
+  if (unavailable || !embedPipeline) return null;
 
   const output = await embedPipeline(text, {
     pooling: "mean",
@@ -94,6 +102,7 @@ export async function embed(text) {
  */
 async function batchEmbed(texts, batchSize = 1) {
   if (!embedPipeline) await initPipeline();
+  if (unavailable || !embedPipeline) return [];
 
   const results = [];
   for (let i = 0; i < texts.length; i++) {
@@ -180,6 +189,17 @@ export async function initVectorStore() {
   initializing = true;
 
   await initPipeline();
+
+  if (unavailable) {
+    // Model not available — vector store runs in degraded mode
+    vectors = new Float32Array(0);
+    vectorIds = [];
+    idToIndex = new Map();
+    ready = false;
+    initializing = false;
+    return;
+  }
+
   const loaded = loadVectors();
   if (!loaded) {
     vectors = new Float32Array(0);
@@ -230,6 +250,7 @@ export function buildProductText(product) {
  */
 export async function indexAllProducts(products, options = {}) {
   if (!ready) await initVectorStore();
+  if (unavailable) return { total: 0, new: 0, skipped: 0, timeMs: 0 };
 
   const { reindex = false } = options;
   const startMs = Date.now();
@@ -311,6 +332,7 @@ export async function indexAllProducts(products, options = {}) {
  */
 export async function indexProduct(product) {
   if (!ready) await initVectorStore();
+  if (unavailable) return;
 
   const text = buildProductText(product);
   const vec = await embed(text);
@@ -358,7 +380,7 @@ export function removeVector(productId) {
  * @returns {Promise<Array<{ id: string, score: number }>>}
  */
 export async function vectorSearch(queryText, options = {}) {
-  if (!ready || vectorIds.length === 0) return [];
+  if (unavailable || !ready || vectorIds.length === 0) return [];
 
   const { limit = 50, candidateIds = null, filter = null } = options;
 
@@ -442,6 +464,7 @@ function vectorFindSimilarByVec(sourceVec, limit, filter) {
 export function getVectorStoreStats() {
   return {
     ready,
+    unavailable,
     total_vectors: vectorIds.length,
     active_vectors: idToIndex.size,
     dimension: DIM,
