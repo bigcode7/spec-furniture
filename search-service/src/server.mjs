@@ -67,8 +67,8 @@ import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken } from "./lib/auth-store.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
-const host = process.env.SEARCH_SERVICE_HOST || "127.0.0.1";
-const port = Number(process.env.SEARCH_SERVICE_PORT || 4310);
+const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
+const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
 const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id);
 
 // ── Initialize catalog database ──
