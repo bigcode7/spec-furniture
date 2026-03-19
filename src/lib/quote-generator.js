@@ -570,10 +570,14 @@ async function preloadImages(items) {
     seen.add(item.id);
     return true;
   }).map(async (item) => {
-    const url = item.thumbnail || item.image_url;
+    const url = item.image_url || item.thumbnail;
     if (!url) return;
     try {
-      const result = await fetchImageWithDimensions(url);
+      // Try direct CORS first, then proxy fallback
+      let result = await fetchImageDirect(url);
+      if (!result && searchServiceUrl) {
+        result = await fetchImageViaProxy(url);
+      }
       if (result) cache.set(item.id, result);
     } catch {
       // Skip failed images
@@ -584,42 +588,81 @@ async function preloadImages(items) {
 }
 
 /**
- * Fetch image and return data URL + natural dimensions for aspect-ratio rendering.
+ * Try loading image directly with CORS (works for CDNs that allow it).
  */
-async function fetchImageWithDimensions(url) {
+function fetchImageDirect(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const canvas = document.createElement("canvas");
-        const maxDim = 800;
-        let w = img.naturalWidth;
-        let h = img.naturalHeight;
-        const origW = w;
-        const origH = h;
-        if (w > maxDim || h > maxDim) {
-          const scale = maxDim / Math.max(w, h);
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
-        }
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve({
-          dataUrl: canvas.toDataURL("image/jpeg", 0.85),
-          width: origW,
-          height: origH,
-        });
+        const result = imageToDataUrl(img);
+        resolve(result);
       } catch {
-        resolve(null);
+        resolve(null); // tainted canvas — CORS blocked
       }
     };
     img.onerror = () => resolve(null);
-    setTimeout(() => resolve(null), 5000);
+    setTimeout(() => resolve(null), 6000);
     img.src = url;
   });
+}
+
+/**
+ * Fetch image through our backend proxy (bypasses CORS).
+ */
+async function fetchImageViaProxy(url) {
+  try {
+    const proxyUrl = `${searchServiceUrl.replace(/\/$/, "")}/proxy-image?url=${encodeURIComponent(url)}`;
+    const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const result = imageToDataUrl(img);
+          resolve(result);
+        } catch {
+          resolve(null);
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
+      };
+      img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+      setTimeout(() => { URL.revokeObjectURL(blobUrl); resolve(null); }, 8000);
+      img.src = blobUrl;
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert an Image element to a data URL + dimensions.
+ * Draws onto canvas, returns { dataUrl, width, height }.
+ */
+function imageToDataUrl(img) {
+  const canvas = document.createElement("canvas");
+  const maxDim = 800;
+  let w = img.naturalWidth;
+  let h = img.naturalHeight;
+  if (w > maxDim || h > maxDim) {
+    const scale = maxDim / Math.max(w, h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+  }
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  // White background (prevents black bg on transparent PNGs)
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  // Return canvas dimensions (these are the actual pixel dims of the data URL)
+  return { dataUrl, width: w, height: h };
 }
 
 function sanitizeFilename(name) {

@@ -468,6 +468,31 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Image proxy for PDF generation (avoids CORS issues with vendor CDNs)
+    if (req.method === "GET" && req.url.startsWith("/proxy-image?")) {
+      const params = new URL(req.url, "http://localhost").searchParams;
+      const imageUrl = params.get("url");
+      if (!imageUrl) return json(res, 400, { error: "url param required" });
+      try {
+        const imgResp = await fetch(imageUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; SpekdBot/1.0)" },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!imgResp.ok) return json(res, 502, { error: "upstream failed" });
+        const contentType = imgResp.headers.get("content-type") || "image/jpeg";
+        const buffer = Buffer.from(await imgResp.arrayBuffer());
+        res.writeHead(200, {
+          "content-type": contentType,
+          "cache-control": "public, max-age=3600",
+          "access-control-allow-origin": "*",
+        });
+        res.end(buffer);
+      } catch {
+        return json(res, 502, { error: "proxy fetch failed" });
+      }
+      return;
+    }
+
     if (req.method === "GET" && req.url === "/catalog/stats") {
       const dbStats = getCatalogDBStats();
       const crawlStatus = getCrawlStatus();
