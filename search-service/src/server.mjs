@@ -1371,7 +1371,18 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           aiResult = await withTimeout(translateQuery(query), 3000, null);
         }
       } catch { /* AI unavailable — local filter is fine */ }
-      if (aiResult) aiFilter = aiResult;
+      if (aiResult) {
+        // Merge AI result with local parse's strict AI fields
+        // localParse detects ai_features, ai_arm_style, ai_back_style, ai_silhouette
+        // that the AI translator doesn't produce — preserve them
+        if (localFilter) {
+          if (localFilter.ai_features?.length > 0) aiResult.ai_features = localFilter.ai_features;
+          if (localFilter.ai_arm_style) aiResult.ai_arm_style = localFilter.ai_arm_style;
+          if (localFilter.ai_back_style) aiResult.ai_back_style = localFilter.ai_back_style;
+          if (localFilter.ai_silhouette) aiResult.ai_silhouette = localFilter.ai_silhouette;
+        }
+        aiFilter = aiResult;
+      }
 
       let aiFilterUsed = !!aiFilter;
       let filteredResults = [];
@@ -1511,6 +1522,10 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           console.error(`[search] Hybrid search failed, using keyword-only:`, err.message);
         }
 
+        // ── RE-APPLY STRICT AI FILTER after hybrid merge ──
+        // Hybrid search can inject products that bypass strict filtering
+        filteredResults = applyAIFilter(filteredResults, aiFilter);
+
         filteredResults = dedupeProducts(filteredResults);
         totalBeforeExclude = filteredResults.length;
 
@@ -1584,8 +1599,10 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           aiFilterUsed = false;
         } else {
           // Supplement: merge fallback results into AI results (avoiding dupes)
+          // BUT re-apply strict AI filter so untagged/non-matching products don't sneak in
+          const supplemented = applyAIFilter(allResults, aiFilter);
           const existingIds = new Set(filteredResults.map(p => p.id));
-          for (const r of allResults) {
+          for (const r of supplemented) {
             if (!existingIds.has(r.id)) {
               filteredResults.push(r);
               existingIds.add(r.id);
