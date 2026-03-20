@@ -316,6 +316,43 @@ function unindexProduct(id, product) {
 /**
  * Load the database from disk. Returns true if a file was loaded.
  */
+async function resolveLFSPointer() {
+  if (!fs.existsSync(DB_PATH)) return;
+  const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 100);
+  if (!head.startsWith("version https://git-lfs")) return;
+
+  // This is an LFS pointer — download the real file from GitHub
+  console.log("[catalog-db] LFS pointer detected, downloading catalog from GitHub...");
+  const oidMatch = head.match(/oid sha256:([a-f0-9]+)/);
+  if (!oidMatch) { console.error("[catalog-db] Could not parse LFS OID"); return; }
+  const oid = oidMatch[1];
+  const sizeMatch = head.match(/size (\d+)/);
+  const expectedSize = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+
+  try {
+    // Use GitHub LFS batch API (works for public repos without auth)
+    const batchResp = await fetch("https://github.com/bigcode7/spec-furniture.git/info/lfs/objects/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/vnd.git-lfs+json" },
+      body: JSON.stringify({ operation: "download", transfers: ["basic"], objects: [{ oid, size: expectedSize }] }),
+    });
+    if (!batchResp.ok) throw new Error(`LFS batch API returned ${batchResp.status}`);
+    const batch = await batchResp.json();
+    const obj = batch.objects?.[0];
+    const downloadUrl = obj?.actions?.download?.href;
+    if (!downloadUrl) throw new Error("No download URL in LFS response");
+
+    console.log(`[catalog-db] Downloading ${(expectedSize / 1024 / 1024).toFixed(0)}MB catalog...`);
+    const dlResp = await fetch(downloadUrl);
+    if (!dlResp.ok) throw new Error(`Download failed: ${dlResp.status}`);
+    const buffer = Buffer.from(await dlResp.arrayBuffer());
+    fs.writeFileSync(DB_PATH, buffer);
+    console.log(`[catalog-db] Catalog downloaded successfully (${(buffer.length / 1024 / 1024).toFixed(0)}MB)`);
+  } catch (err) {
+    console.error(`[catalog-db] LFS download failed: ${err.message}`);
+  }
+}
+
 function loadFromDisk() {
   if (!fs.existsSync(DB_PATH)) return false;
 
@@ -709,6 +746,7 @@ async function seedFromSampleCatalog() {
  * Loads existing data from disk, builds indices, and seeds from sample catalog.
  */
 export async function initCatalogDB() {
+  await resolveLFSPointer();
   const loaded = loadFromDisk();
   if (loaded) {
     console.log(`[catalog-db] Loaded ${products.size} products from disk`);
