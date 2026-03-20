@@ -13,6 +13,12 @@ import AddToProjectMenu from "@/components/AddToProjectMenu";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
+function proxyImg(url, productId) {
+  if (!url) return "";
+  if (productId) return `${SEARCH_URL}/images/${encodeURIComponent(productId)}`;
+  return `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 const COLOR_PALETTES = [
   { id: "warm-neutrals", name: "Warm Neutrals", colors: ["#D4C5A9","#E8DCC8","#C2A878","#D2B48C"], desc: "Beige, cream, tan, camel" },
   { id: "cool-neutrals", name: "Cool Neutrals", colors: ["#808080","#36454F","#708090","#C0C0C0"], desc: "Gray, charcoal, slate, silver" },
@@ -60,9 +66,9 @@ function ProductCard({ product, compareItems, favorites, onToggleCompare, onTogg
     >
       {product.image_url ? (
         <img
-          src={product.image_url}
+          src={proxyImg(product.image_url, product.id)}
           alt={product.product_name || product.name || "Product"}
-          referrerPolicy="no-referrer"          className="w-full object-cover"
+          className="w-full object-cover"
           style={{ minHeight: 160 }}
           loading="lazy"
           onError={(e) => { e.target.style.display = "none"; }}

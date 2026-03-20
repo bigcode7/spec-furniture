@@ -464,7 +464,26 @@ const server = http.createServer(async (req, res) => {
         } catch {}
       }
 
-      // Redirect to vendor URL
+      // Proxy fetch the image server-side to bypass hotlink protection
+      try {
+        const imgResp = await fetch(product.image_url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; SpekdBot/1.0)" },
+          redirect: "follow",
+          signal: AbortSignal.timeout(10000),
+        });
+        if (imgResp.ok) {
+          const contentType = imgResp.headers.get("content-type") || "image/jpeg";
+          const buffer = Buffer.from(await imgResp.arrayBuffer());
+          res.writeHead(200, {
+            "content-type": contentType,
+            "cache-control": "public, max-age=3600",
+            "access-control-allow-origin": "*",
+          });
+          res.end(buffer);
+          return;
+        }
+      } catch {}
+      // Fallback: redirect if proxy fails
       res.writeHead(302, { location: product.image_url, "access-control-allow-origin": "*" });
       res.end();
       return;

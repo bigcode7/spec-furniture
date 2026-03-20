@@ -11,6 +11,11 @@ import AddToProjectMenu from "@/components/AddToProjectMenu";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
+function proxyImg(url) {
+  if (!url) return "";
+  return `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 function CollectionCard({ collection, onClick }) {
   const sampleImages = collection.sample_images || [];
   const categories = (collection.categories || []).slice(0, 3);
@@ -30,9 +35,9 @@ function CollectionCard({ collection, onClick }) {
           {sampleImages.slice(0, 4).map((img, i) => (
             <div key={i} className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.04]">
               <img
-                src={img}
+                src={proxyImg(img)}
                 alt=""
-                referrerPolicy="no-referrer"                className="w-full h-full object-cover"
+                className="w-full h-full object-cover"
                 loading="lazy"
                 onError={(e) => { e.target.style.display = "none"; }}
               />
