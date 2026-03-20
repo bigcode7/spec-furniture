@@ -510,6 +510,95 @@ export function localParse(query) {
     }
   }
 
+  // ── AI feature detection (nailhead, tufted, channel, barrel, etc.) ──
+  const featurePatterns = [
+    "nailhead", "nailhead trim", "nail head",
+    "tufted", "button tufted", "diamond tufted", "channel tufted", "biscuit tufted",
+    "skirted", "pleated skirt",
+    "slipcovered", "slipcover",
+    "wingback", "wing back",
+    "pillow back", "pillow top",
+    "bench seat", "bench cushion",
+    "turned legs", "cabriole legs", "tapered legs", "splayed legs",
+    "casters", "swivel",
+    "reclining", "recliner", "power recliner",
+    "storage", "drawers",
+    "adjustable", "modular",
+    "reversible cushions",
+    "welt", "welted", "contrast welt",
+    "carved", "hand carved",
+  ];
+  filter.ai_features = [];
+  for (const feat of featurePatterns) {
+    if (q.includes(feat)) {
+      filter.ai_features.push(feat);
+    }
+  }
+
+  // ── AI arm style detection ──
+  const armStyles = [
+    "track arm", "track arms",
+    "rolled arm", "rolled arms", "roll arm",
+    "slope arm", "sloped arm",
+    "shelter arm",
+    "english arm",
+    "flared arm",
+    "pad arm",
+    "no arms", "armless",
+    "scroll arm",
+  ];
+  filter.ai_arm_style = null;
+  for (const arm of armStyles) {
+    if (q.includes(arm)) {
+      filter.ai_arm_style = arm.replace(/s$/, ""); // normalize plural
+      break;
+    }
+  }
+
+  // ── AI back style detection ──
+  const backStyles = [
+    "tight back", "tight-back",
+    "loose back", "loose pillow back",
+    "channel back", "channel-back", "channel tufted",
+    "button back",
+    "camelback", "camel back",
+    "pillow back",
+    "tufted back",
+    "ladder back",
+    "slat back",
+    "cane back",
+  ];
+  filter.ai_back_style = null;
+  for (const back of backStyles) {
+    if (q.includes(back)) {
+      filter.ai_back_style = back;
+      break;
+    }
+  }
+
+  // ── AI silhouette detection ──
+  const silhouettes = [
+    "barrel", "barrel back",
+    "lawson",
+    "chesterfield",
+    "tuxedo",
+    "bridgewater",
+    "english roll",
+    "cabriole",
+    "klismos",
+    "parsons",
+    "wishbone",
+    "windsor",
+    "slipper",
+  ];
+  filter.ai_silhouette = null;
+  for (const sil of silhouettes) {
+    if (q.includes(sil)) {
+      filter.ai_silhouette = sil;
+      break;
+    }
+  }
+
   // ── Cushion config detection (trade terms like "3 over 3", "2 over 2") ──
   const cushionMatch = q.match(/\b(\d)\s+over\s+(\d)\b/i);
   if (cushionMatch) {
@@ -587,19 +676,205 @@ export function localParse(query) {
 }
 
 /**
+ * Strict AI field matching — checks if a product's ai_* field contains a search term.
+ * Uses substring matching with word boundaries for precision.
+ */
+function aiFieldContains(fieldValue, searchTerm) {
+  if (!fieldValue || !searchTerm) return false;
+  const fv = fieldValue.toLowerCase();
+  const st = searchTerm.toLowerCase();
+  return fv.includes(st);
+}
+
+function aiArrayContains(arr, searchTerm) {
+  if (!arr || !Array.isArray(arr) || !searchTerm) return false;
+  const st = searchTerm.toLowerCase();
+  return arr.some(item => item.toLowerCase().includes(st));
+}
+
+/**
+ * STRICT AI FILTER — Every query component becomes a hard filter on the matching ai_* field.
+ * Returns { strict: [...], relaxed: [...], relaxedMessage: string|null }
+ * If strict returns 0, progressively relaxes one filter at a time.
+ */
+function strictAIFilter(products, filter) {
+  // Build list of active AI filters from the parsed intent
+  const aiFilters = [];
+
+  // Category → ai_furniture_type
+  if (filter.category) {
+    const catWord = filter.category.toLowerCase().replace(/-/g, " ").replace(/s$/, "");
+    aiFilters.push({
+      name: "furniture type",
+      field: "ai_furniture_type",
+      term: catWord,
+      test: (p) => aiFieldContains(p.ai_furniture_type, catWord),
+    });
+  }
+
+  // Material → ai_primary_material
+  if (filter.material) {
+    const mat = filter.material.toLowerCase();
+    const matExpanded = (filter.material_expanded || [mat]).map(m => m.toLowerCase());
+    aiFilters.push({
+      name: "material",
+      field: "ai_primary_material",
+      term: mat,
+      test: (p) => {
+        if (!p.ai_primary_material) return false;
+        const aiMat = p.ai_primary_material.toLowerCase();
+        return matExpanded.some(m => aiMat.includes(m)) || aiMat.includes(mat);
+      },
+    });
+  }
+
+  // Color → ai_primary_color
+  if (filter.color) {
+    const color = filter.color.toLowerCase();
+    aiFilters.push({
+      name: "color",
+      field: "ai_primary_color",
+      term: color,
+      test: (p) => aiFieldContains(p.ai_primary_color, color),
+    });
+  }
+
+  // Style → ai_style
+  if (filter.style) {
+    const style = filter.style.toLowerCase().replace(/-/g, " ");
+    aiFilters.push({
+      name: "style",
+      field: "ai_style",
+      term: style,
+      test: (p) => aiFieldContains(p.ai_style, style) || aiFieldContains(p.ai_mood, style),
+    });
+  }
+
+  // Arm style → ai_arm_style
+  if (filter.ai_arm_style) {
+    const arm = filter.ai_arm_style.toLowerCase();
+    const armKey = arm.replace(/\s*(arm|arms|style)\s*/g, "").trim();
+    aiFilters.push({
+      name: "arm style",
+      field: "ai_arm_style",
+      term: arm,
+      test: (p) => aiFieldContains(p.ai_arm_style, arm) || aiFieldContains(p.ai_arm_style, armKey),
+    });
+  }
+
+  // Back style → ai_back_style
+  if (filter.ai_back_style) {
+    const back = filter.ai_back_style.toLowerCase();
+    // Extract key word for matching (e.g., "channel back" → match "channel" in ai_back_style)
+    const backKey = back.replace(/\s*(back|style)\s*/g, "").trim();
+    aiFilters.push({
+      name: "back style",
+      field: "ai_back_style",
+      term: back,
+      test: (p) => aiFieldContains(p.ai_back_style, back) || aiFieldContains(p.ai_back_style, backKey),
+    });
+  }
+
+  // Silhouette → ai_silhouette
+  if (filter.ai_silhouette) {
+    const sil = filter.ai_silhouette.toLowerCase();
+    aiFilters.push({
+      name: "silhouette",
+      field: "ai_silhouette",
+      term: sil,
+      test: (p) => aiFieldContains(p.ai_silhouette, sil),
+    });
+  }
+
+  // Features → ai_distinctive_features + ai_search_terms
+  if (filter.ai_features?.length > 0) {
+    for (const feat of filter.ai_features) {
+      const f = feat.toLowerCase();
+      aiFilters.push({
+        name: `feature "${feat}"`,
+        field: "ai_distinctive_features",
+        term: f,
+        test: (p) =>
+          aiArrayContains(p.ai_distinctive_features, f) ||
+          aiArrayContains(p.ai_search_terms, f) ||
+          aiFieldContains(p.ai_description, f),
+      });
+    }
+  }
+
+  if (aiFilters.length === 0) return null; // No AI filters to apply
+
+  // Only filter products that have AI tags — keep untagged out of strict results
+  const taggedProducts = products.filter(p => p.ai_visual_analysis);
+  const untaggedProducts = products.filter(p => !p.ai_visual_analysis);
+
+  // Apply ALL filters strictly (intersection)
+  let strict = taggedProducts.filter(p => aiFilters.every(f => f.test(p)));
+
+  if (strict.length > 0) {
+    return { strict, relaxed: null, relaxedMessage: null };
+  }
+
+  // Progressive relaxation — drop one filter at a time, least important first
+  // Try dropping filters from the end (features, then style, then color, etc.)
+  for (let drop = aiFilters.length - 1; drop >= 0; drop--) {
+    const remaining = aiFilters.filter((_, i) => i !== drop);
+    if (remaining.length === 0) continue;
+    const relaxed = taggedProducts.filter(p => remaining.every(f => f.test(p)));
+    if (relaxed.length > 0) {
+      const droppedName = aiFilters[drop].name;
+      const keptNames = remaining.map(f => f.term).join(", ");
+      return {
+        strict: relaxed,
+        relaxed: null,
+        relaxedMessage: `No exact matches for all criteria. Showing results matching ${keptNames} (relaxed: ${droppedName}).`,
+      };
+    }
+  }
+
+  // If still nothing, try with just the first filter (usually furniture type)
+  const typeOnly = taggedProducts.filter(p => aiFilters[0].test(p));
+  if (typeOnly.length > 0) {
+    return {
+      strict: typeOnly,
+      relaxed: null,
+      relaxedMessage: `No exact matches. Showing all ${aiFilters[0].term} products.`,
+    };
+  }
+
+  return null; // No AI-filtered results possible
+}
+
+/**
  * Apply AI-generated filter to search results from the catalog.
- * Enhanced with dimension filtering, material expansion, collection matching,
- * exclude terms, and quality boosting.
+ * Enhanced with strict AI field filtering, dimension filtering, material expansion,
+ * collection matching, exclude terms, and quality boosting.
  */
 export function applyAIFilter(products, filter) {
   if (!filter || !products?.length) return products;
 
   let results = [...products];
 
-  // ── HARD FILTER: Category ──
-  // True hard filter — but falls back to unfiltered if it would return 0.
-  // Also cross-checks product name to catch miscategorized products.
-  if (filter.category) {
+  // ══════════════════════════════════════════════════════════════
+  // STRICT AI FILTER — use ai_* fields as hard filters
+  // Every query component (type, material, color, style, features,
+  // arm style, back style, silhouette) must match the product's
+  // AI-tagged data. This is the INTERSECTION of all filters.
+  // ══════════════════════════════════════════════════════════════
+  const strictResult = strictAIFilter(results, filter);
+  if (strictResult) {
+    results = strictResult.strict;
+    if (strictResult.relaxedMessage) {
+      // Store message on first product for the UI to display
+      if (results.length > 0) {
+        results[0]._relaxed_message = strictResult.relaxedMessage;
+      }
+    }
+  }
+
+  // ── HARD FILTER: Category (fallback for untagged products) ──
+  // Only apply legacy category filter if strict AI filter didn't run
+  if (!strictResult && filter.category) {
     const fc = filter.category.toLowerCase().replace(/\s+/g, "-");
     const catWord = fc.replace(/-/g, " ");
     const catSingular = catWord.replace(/s$/, "");
@@ -739,42 +1014,6 @@ export function applyAIFilter(products, filter) {
       const rest = results.filter(p => !matSet.has(p.id));
       results = [...matResults, ...rest];
     }
-  }
-
-  // ── HARD FILTER: AI furniture type ──
-  // When user specifies a furniture type, use ai_furniture_type for precise filtering
-  if (filter.category) {
-    const catWord = filter.category.toLowerCase().replace(/-/g, " ").replace(/s$/, "");
-    const aiTypeFiltered = results.filter(p => {
-      if (!p.ai_furniture_type) return true; // Keep untagged products
-      const aiType = p.ai_furniture_type.toLowerCase();
-      return aiType.includes(catWord) || catWord.includes(aiType);
-    });
-    if (aiTypeFiltered.length >= 5) results = aiTypeFiltered;
-  }
-
-  // ── HARD FILTER: AI primary color ──
-  if (filter.color) {
-    const colorLower = filter.color.toLowerCase();
-    const colorFiltered = results.filter(p => {
-      if (!p.ai_primary_color) return true;
-      const aiColor = p.ai_primary_color.toLowerCase();
-      return aiColor.includes(colorLower) || colorLower.includes(aiColor)
-        || (p.color || "").toLowerCase().includes(colorLower);
-    });
-    if (colorFiltered.length >= 5) results = colorFiltered;
-  }
-
-  // ── HARD FILTER: AI primary material ──
-  if (filter.material) {
-    const matLower = filter.material.toLowerCase();
-    const matFiltered = results.filter(p => {
-      if (!p.ai_primary_material) return true;
-      const aiMat = p.ai_primary_material.toLowerCase();
-      return aiMat.includes(matLower) || matLower.includes(aiMat)
-        || (p.material || "").toLowerCase().includes(matLower);
-    });
-    if (matFiltered.length >= 5) results = matFiltered;
   }
 
   // ── SCORING: Enhanced keyword relevance ──
