@@ -470,6 +470,25 @@ export function computeEnhancedScore(product, searchKeywords, vendorMatchScores)
     }
   }
 
+  // 1b. AI FIELD MATCHING — search_terms and distinctive_features
+  const aiTerms = product.ai_search_terms || [];
+  const aiFeatures = product.ai_distinctive_features || [];
+  if (aiTerms.length > 0 || aiFeatures.length > 0) {
+    const expandedKeywords = expandAllSynonyms(searchKeywords);
+    for (const kw of expandedKeywords) {
+      for (const term of aiTerms) {
+        const tLower = term.toLowerCase();
+        if (tLower === kw) { bonus += 20; break; }
+        else if (tLower.includes(kw) || kw.includes(tLower)) { bonus += 12; break; }
+      }
+      for (const feat of aiFeatures) {
+        const fLower = feat.toLowerCase();
+        if (fLower === kw) { bonus += 18; break; }
+        else if (fLower.includes(kw) || kw.includes(fLower)) { bonus += 10; break; }
+      }
+    }
+  }
+
   // 4. VENDOR STYLE PROFILE BOOST
   if (vendorMatchScores && vendorMatchScores.has(product.vendor_id)) {
     bonus += vendorMatchScores.get(product.vendor_id) * 10; // Up to +10

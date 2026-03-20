@@ -741,6 +741,42 @@ export function applyAIFilter(products, filter) {
     }
   }
 
+  // ── HARD FILTER: AI furniture type ──
+  // When user specifies a furniture type, use ai_furniture_type for precise filtering
+  if (filter.category) {
+    const catWord = filter.category.toLowerCase().replace(/-/g, " ").replace(/s$/, "");
+    const aiTypeFiltered = results.filter(p => {
+      if (!p.ai_furniture_type) return true; // Keep untagged products
+      const aiType = p.ai_furniture_type.toLowerCase();
+      return aiType.includes(catWord) || catWord.includes(aiType);
+    });
+    if (aiTypeFiltered.length >= 5) results = aiTypeFiltered;
+  }
+
+  // ── HARD FILTER: AI primary color ──
+  if (filter.color) {
+    const colorLower = filter.color.toLowerCase();
+    const colorFiltered = results.filter(p => {
+      if (!p.ai_primary_color) return true;
+      const aiColor = p.ai_primary_color.toLowerCase();
+      return aiColor.includes(colorLower) || colorLower.includes(aiColor)
+        || (p.color || "").toLowerCase().includes(colorLower);
+    });
+    if (colorFiltered.length >= 5) results = colorFiltered;
+  }
+
+  // ── HARD FILTER: AI primary material ──
+  if (filter.material) {
+    const matLower = filter.material.toLowerCase();
+    const matFiltered = results.filter(p => {
+      if (!p.ai_primary_material) return true;
+      const aiMat = p.ai_primary_material.toLowerCase();
+      return aiMat.includes(matLower) || matLower.includes(aiMat)
+        || (p.material || "").toLowerCase().includes(matLower);
+    });
+    if (matFiltered.length >= 5) results = matFiltered;
+  }
+
   // ── SCORING: Enhanced keyword relevance ──
   let keywords = (filter.keywords || []).map(k => k.toLowerCase());
 
@@ -764,6 +800,22 @@ export function applyAIFilter(products, filter) {
     const productCat = (p.category || "").toLowerCase();
     const searchable = `${name} ${desc} ${collection} ${material} ${visualTags}`;
 
+    // AI fields for scoring
+    const aiSearchTerms = (p.ai_search_terms || []).map(t => t.toLowerCase());
+    const aiFeatures = (p.ai_distinctive_features || []).map(t => t.toLowerCase());
+    const aiType = (p.ai_furniture_type || "").toLowerCase();
+    const aiSilhouette = (p.ai_silhouette || "").toLowerCase();
+    const aiArmStyle = (p.ai_arm_style || "").toLowerCase();
+    const aiBackStyle = (p.ai_back_style || "").toLowerCase();
+    const aiLegStyle = (p.ai_leg_style || "").toLowerCase();
+    const aiMood = (p.ai_mood || "").toLowerCase();
+    const aiStyle = (p.ai_style || "").toLowerCase();
+    const aiFormality = (p.ai_formality || "").toLowerCase();
+    const aiScale = (p.ai_scale || "").toLowerCase();
+    const aiMaterial = (p.ai_primary_material || "").toLowerCase();
+    const aiColor = (p.ai_primary_color || "").toLowerCase();
+    const aiDesc = (p.ai_description || "").toLowerCase();
+
     let score = 0;
 
     // ── EXACT CATEGORY MATCH: +30 ──
@@ -773,13 +825,72 @@ export function applyAIFilter(products, filter) {
       }
     }
 
-    // ── PRODUCT NAME CONTAINS SEARCH TERMS: +25 per hit ──
+    // ── AI SEARCH TERMS: +25 per hit (the goldmine) ──
     for (const kw of keywords) {
-      if (name.includes(kw)) score += 25;
-      else if (visualTags.includes(kw)) score += 20;
-      else if (collection.includes(kw)) score += 12;
-      else if (desc.includes(kw)) score += 8;
-      else if (searchable.includes(kw)) score += 3;
+      let aiHit = false;
+      // Check ai_search_terms first — strongest AI signal
+      for (const term of aiSearchTerms) {
+        if (term.includes(kw) || kw.includes(term)) { score += 25; aiHit = true; break; }
+      }
+      // Check ai_distinctive_features — nailhead, tufted, skirted, etc.
+      if (!aiHit) {
+        for (const feat of aiFeatures) {
+          if (feat.includes(kw) || kw.includes(feat)) { score += 22; aiHit = true; break; }
+        }
+      }
+      // Check ai silhouette/arm/back/leg styles
+      if (!aiHit) {
+        if (aiSilhouette.includes(kw) || aiArmStyle.includes(kw) || aiBackStyle.includes(kw) || aiLegStyle.includes(kw)) {
+          score += 20; aiHit = true;
+        }
+      }
+      // Check ai mood/style/formality
+      if (!aiHit) {
+        if (aiMood.includes(kw) || aiStyle.includes(kw) || aiFormality.includes(kw)) {
+          score += 18; aiHit = true;
+        }
+      }
+      // Check ai description
+      if (!aiHit) {
+        if (aiDesc.includes(kw)) { score += 12; aiHit = true; }
+      }
+      // Traditional field scoring (lower weight)
+      if (!aiHit) {
+        if (name.includes(kw)) score += 15;
+        else if (visualTags.includes(kw)) score += 12;
+        else if (collection.includes(kw)) score += 8;
+        else if (desc.includes(kw)) score += 5;
+        else if (searchable.includes(kw)) score += 2;
+      }
+    }
+
+    // ── AI FURNITURE TYPE MATCH: +20 ──
+    if (allFilterCats.length > 0) {
+      for (const fc of allFilterCats) {
+        const catWord = fc.replace(/-/g, " ").replace(/s$/, "");
+        if (aiType.includes(catWord)) { score += 20; break; }
+      }
+    }
+
+    // ── AI MATERIAL MATCH: +15 ──
+    if (filter.material) {
+      const matLower = filter.material.toLowerCase();
+      if (aiMaterial.includes(matLower)) score += 15;
+      else if (material.includes(matLower) || name.includes(matLower)) score += 8;
+    }
+
+    // ── AI COLOR MATCH: +12 ──
+    if (filter.color) {
+      const colorLower = filter.color.toLowerCase();
+      if (aiColor.includes(colorLower)) score += 12;
+      else if ((p.color || "").toLowerCase().includes(colorLower) || name.includes(colorLower)) score += 6;
+    }
+
+    // ── AI STYLE MATCH: +15 ──
+    if (filter.style) {
+      const styleLower = filter.style.toLowerCase();
+      if (aiStyle.includes(styleLower) || aiMood.includes(styleLower)) score += 15;
+      else if (name.includes(styleLower) || (p.style || "").toLowerCase().includes(styleLower)) score += 8;
     }
 
     // ── VENDOR MATCH: +40 when vendor is in query ──
@@ -791,48 +902,23 @@ export function applyAIFilter(products, filter) {
       }
     }
 
-    // ── STYLE MATCH: +15 ──
-    if (filter.style) {
-      const styleLower = filter.style.toLowerCase();
-      if (name.includes(styleLower) || desc.includes(styleLower) || (p.style || "").toLowerCase().includes(styleLower) || visualTags.includes(styleLower)) {
-        score += 15;
-      }
-    }
-
-    // ── MATERIAL MATCH: +15 ──
-    if (filter.material) {
-      const matLower = filter.material.toLowerCase();
-      if (material.includes(matLower) || name.includes(matLower) || desc.includes(matLower) || visualTags.includes(matLower)) {
-        score += 15;
-      }
-    }
-
-    // Color match bonus
-    if (filter.color) {
-      const colorLower = filter.color.toLowerCase();
-      if (name.includes(colorLower) || desc.includes(colorLower) || (p.color || "").toLowerCase().includes(colorLower) || visualTags.includes(colorLower)) {
-        score += 12;
-      }
-    }
-
     // Collection match bonus (#8)
     if (filter.collection) {
       const collLower = filter.collection.toLowerCase();
       if (collection.includes(collLower)) {
-        score += 50; // Strong boost — user specifically asked for this collection
+        score += 50;
       } else if (name.includes(collLower)) {
         score += 35;
       }
-      // When browsing a collection, prefer core furniture over accessories/lighting
       const coreCats = ["sofas", "sectionals", "accent-chairs", "dining-tables", "dining-chairs", "beds", "credenzas", "coffee-tables", "desks", "dressers", "nightstands", "bookcases", "console-tables"];
       if (coreCats.includes(productCat)) {
-        score += 15; // Core furniture gets a boost in collection browsing
+        score += 15;
       }
     }
 
     // Material hierarchy match bonus (#6)
     if (filter.material_expanded?.length > 0) {
-      const matText = `${material} ${desc} ${name} ${visualTags}`;
+      const matText = `${material} ${aiMaterial} ${desc} ${name} ${visualTags}`;
       let matHits = 0;
       for (const m of filter.material_expanded) {
         if (matText.includes(m.toLowerCase())) matHits++;
@@ -850,6 +936,9 @@ export function applyAIFilter(products, filter) {
         if (d.width_min && w >= d.width_min) score += 15;
       }
     }
+
+    // ── AI-tagged product bonus: products with AI analysis get a small boost ──
+    if (p.ai_visual_analysis) score += 5;
 
     // Quality score factor
     const qs = p.quality_score || 0;

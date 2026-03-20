@@ -157,6 +157,21 @@ function buildSearchText(product) {
     product.sku,
     ...(product.tags || []),
     product.ai_visual_tags,
+    // AI visual analysis fields — the goldmine for semantic search
+    product.ai_furniture_type,
+    product.ai_silhouette,
+    product.ai_arm_style,
+    product.ai_back_style,
+    product.ai_leg_style,
+    product.ai_primary_material,
+    product.ai_primary_color,
+    product.ai_style,
+    product.ai_formality,
+    product.ai_scale,
+    product.ai_mood,
+    product.ai_description,
+    ...(product.ai_distinctive_features || []),
+    ...(product.ai_search_terms || []),
   ]
     .filter(Boolean)
     .join(" ")
@@ -532,29 +547,50 @@ function scoreProduct(product, queryTokens, originalQuery) {
   let totalScore = 0;
 
   // ── Exact phrase match bonus ──
-  // If the full query appears as a phrase in product_name, that's the strongest signal
-  if (originalQuery && product.product_name) {
-    const nameLower = product.product_name.toLowerCase();
+  if (originalQuery) {
     const queryLower = originalQuery.toLowerCase();
-    if (nameLower.includes(queryLower)) {
+    if (product.product_name && product.product_name.toLowerCase().includes(queryLower)) {
       totalScore += 8.0; // Big bonus for exact phrase in name
+    }
+    // AI description/search_terms phrase match
+    if (product.ai_description && product.ai_description.toLowerCase().includes(queryLower)) {
+      totalScore += 6.0;
+    }
+    if (product.ai_search_terms?.some(t => t.toLowerCase().includes(queryLower))) {
+      totalScore += 7.0;
     }
   }
 
   // Pre-tokenize fields for exact matching
-  // Product name is king — if the search term is in the name, it's the right product
+  // AI fields contribute ~70% of relevance, old metadata ~30%
   const fields = [
-    { tokens: tokenize(product.product_name), boost: 5.0 },
-    { tokens: tokenize(product.ai_visual_tags), boost: 5.0 }, // Visual tags = equal to product name
-    { tokens: tokenize(product.category), boost: 4.0 },
-    { tokens: tokenize(product.collection), boost: 2.5 },
-    { tokens: tokenize(product.vendor_name), boost: 2.0 },
-    { tokens: tokenize(product.material), boost: 2.0 },
-    { tokens: tokenize(product.style), boost: 1.5 },
-    { tokens: tokenize(product.color), boost: 1.5 },
-    { tokens: tokenize(product.dimensions), boost: 0.5 },
-    { tokens: product.tags || [], boost: 1.0 },
-    { tokens: tokenize(product.description), boost: 0.6 },
+    // ── AI fields (high boosts — these are the goldmine) ──
+    { tokens: [...(product.ai_search_terms || []).map(t => t.toLowerCase())], boost: 7.0 },
+    { tokens: tokenize(product.ai_furniture_type), boost: 6.0 },
+    { tokens: [...(product.ai_distinctive_features || []).map(t => t.toLowerCase())], boost: 6.0 },
+    { tokens: tokenize(product.ai_silhouette), boost: 5.0 },
+    { tokens: tokenize(product.ai_arm_style), boost: 5.0 },
+    { tokens: tokenize(product.ai_back_style), boost: 5.0 },
+    { tokens: tokenize(product.ai_leg_style), boost: 4.5 },
+    { tokens: tokenize(product.ai_mood), boost: 4.0 },
+    { tokens: tokenize(product.ai_style), boost: 4.0 },
+    { tokens: tokenize(product.ai_primary_material), boost: 4.0 },
+    { tokens: tokenize(product.ai_primary_color), boost: 3.5 },
+    { tokens: tokenize(product.ai_formality), boost: 3.0 },
+    { tokens: tokenize(product.ai_scale), boost: 2.5 },
+    { tokens: tokenize(product.ai_description), boost: 2.0 },
+    { tokens: tokenize(product.ai_visual_tags), boost: 5.0 },
+    // ── Traditional fields (lower boosts) ──
+    { tokens: tokenize(product.product_name), boost: 3.5 },
+    { tokens: tokenize(product.category), boost: 2.5 },
+    { tokens: tokenize(product.collection), boost: 1.5 },
+    { tokens: tokenize(product.vendor_name), boost: 1.2 },
+    { tokens: tokenize(product.material), boost: 1.5 },
+    { tokens: tokenize(product.style), boost: 1.0 },
+    { tokens: tokenize(product.color), boost: 1.0 },
+    { tokens: tokenize(product.dimensions), boost: 0.3 },
+    { tokens: product.tags || [], boost: 0.6 },
+    { tokens: tokenize(product.description), boost: 0.4 },
   ];
 
   for (const qt of queryTokens) {
