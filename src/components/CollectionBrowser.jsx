@@ -32,7 +32,7 @@ function CollectionCard({ collection, onClick }) {
               <img
                 src={img}
                 alt=""
-                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"                className="w-full h-full object-cover"
                 loading="lazy"
                 onError={(e) => { e.target.style.display = "none"; }}
               />

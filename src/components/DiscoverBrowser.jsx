@@ -62,7 +62,7 @@ function ProductCard({ product, compareItems, favorites, onToggleCompare, onTogg
         <img
           src={product.image_url}
           alt={product.product_name || product.name || "Product"}
-          className="w-full object-cover"
+          referrerPolicy="no-referrer"          className="w-full object-cover"
           style={{ minHeight: 160 }}
           loading="lazy"
           onError={(e) => { e.target.style.display = "none"; }}

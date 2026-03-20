@@ -701,7 +701,7 @@ export default function SearchPage() {
                       className="shrink-0 w-[100px] group">
                       <div className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                         {p.image_url ? (
-                          <img src={p.image_url} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
+                          <img src={p.image_url} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                             {(p.manufacturer_name || "?")[0]}
@@ -1248,7 +1248,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
               </div>
             )}
             <img src={item.image_url} alt={item.product_name}
-              className={`h-full w-full transition-all duration-700 ${imgLoaded ? "opacity-100" : "opacity-0"} ${hovered ? "scale-[1.03]" : "scale-100"}`}
+              referrerPolicy="no-referrer"              className={`h-full w-full transition-all duration-700 ${imgLoaded ? "opacity-100" : "opacity-0"} ${hovered ? "scale-[1.03]" : "scale-100"}`}
               style={{ objectFit: "contain", padding: "12px", transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
@@ -1389,7 +1389,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}><div className="loading-emblem" style={{ width: 16, height: 16 }} /></div>
                     )}
                     <img src={productImages[activeImageIdx]} alt={product.product_name}
-                      className={`h-full w-full transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+                      referrerPolicy="no-referrer"                      className={`h-full w-full transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
                       style={{ objectFit: "contain", padding: "16px" }}
                       onLoad={() => setImgLoaded(true)} />
                     {productImages.length > 1 && (
@@ -1429,7 +1429,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       }`}
                       style={{ backgroundColor: "#ffffff" }}
                     >
-                      <img src={src} alt="" style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
+                      <img src={src} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
                     </button>
                   ))}
                 </div>
@@ -1554,7 +1554,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
                     <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                       {sp.image_url ? (
-                        <img src={sp.image_url} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
+                        <img src={sp.image_url} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                           {(sp.manufacturer_name || "?")[0]}
