@@ -1,13 +1,14 @@
 /**
- * AI Vector Search — Pure AI-to-vector search pipeline.
+ * AI Vector Search — Haiku field matching + MiniLM ranking.
  *
  * Architecture:
- *   1. User query → Haiku (with catalog context + conversation history)
- *   2. Haiku returns vector_query + designer response
- *   3. vector_query → MiniLM embedding → cosine similarity
- *   4. Top 80 results returned
+ *   1. User query → Haiku (with full catalog field index + conversation history)
+ *   2. Haiku returns search_fields + exclude_fields + semantic_query
+ *   3. Direct field matching against database (exact contains matching)
+ *   4. MiniLM ranks candidates by semantic_query similarity
+ *   5. Top 80 ranked candidates returned
  *
- * No parser. No filters. No keyword search. No synonym maps. Pure AI.
+ * MiniLM never decides what's in or out — only the ORDER of confirmed matches.
  */
 
 import { embed, vectorSearch, getVectorStoreStats, vectorFindSimilar } from "./vector-store.mjs";
@@ -16,152 +17,354 @@ import { getAllProducts, getProduct, getProductCount } from "../db/catalog-db.mj
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-haiku-4-5-20251001";
 
-// ── Catalog Index (built at startup, injected into Haiku system prompt) ──
-let catalogIndexText = "";
+// ── Catalog Field Index ──
+let catalogFieldIndex = {};
+let catalogIndexPromptText = "";
+
+// Field accessors — maps search_fields keys to how to read them from a product
+const FIELD_ACCESSORS = {
+  ai_furniture_type: p => p.ai_furniture_type,
+  ai_primary_material: p => p.ai_primary_material,
+  ai_distinctive_features: p => p.ai_distinctive_features, // array
+  ai_style: p => p.ai_style,
+  ai_primary_color: p => p.ai_primary_color,
+  ai_silhouette: p => p.ai_silhouette,
+  ai_arm_style: p => p.ai_arm_style,
+  ai_back_style: p => p.ai_back_style,
+  ai_leg_style: p => p.ai_leg_style,
+  ai_formality: p => p.ai_formality,
+  ai_scale: p => p.ai_scale,
+  ai_mood: p => p.ai_mood,
+  ai_cushions: p => p.ai_visual_analysis?.cushions,
+  ai_finish: p => p.ai_visual_analysis?.finish,
+  ai_era_influence: p => p.ai_visual_analysis?.era_influence,
+  ai_texture_description: p => p.ai_visual_analysis?.texture_description,
+  ai_construction_details: p => {
+    const v = p.ai_visual_analysis?.construction_details;
+    return typeof v === "string" ? v : null;
+  },
+  ai_durability_assessment: p => p.ai_visual_analysis?.durability_assessment,
+  ai_visual_weight: p => p.ai_visual_analysis?.visual_weight,
+  ai_ideal_client: p => p.ai_visual_analysis?.ideal_client,
+  vendor_name: p => p.vendor_name,
+};
+
+// How many top values to include in Haiku prompt per field
+const FIELD_LIMITS = {
+  ai_furniture_type: 120,
+  ai_primary_material: 100,
+  ai_distinctive_features: 200,
+  ai_style: 80,
+  ai_primary_color: 80,
+  ai_silhouette: 80,
+  ai_arm_style: 60,
+  ai_back_style: 60,
+  ai_leg_style: 60,
+  ai_formality: 30,
+  ai_scale: 30,
+  ai_mood: 80,
+  ai_cushions: 60,
+  ai_finish: 40,
+  ai_era_influence: 60,
+  ai_texture_description: 40,
+  ai_construction_details: 40,
+  ai_durability_assessment: 30,
+  ai_visual_weight: 20,
+  ai_ideal_client: 40,
+  vendor_name: 50,
+};
+
+// Values to filter out of catalog index
+const SKIP_VALUES = new Set([
+  "not applicable", "unable to determine", "n/a", "none", "none visible",
+  "unable to determine from line drawing", "unable to determine from image",
+]);
 
 /**
- * Build a live catalog index from product data.
- * Aggregates counts by furniture type, material, style, color, vendor, and features.
+ * Build catalog field index from all products.
+ * Collects unique values with counts for every searchable AI field.
  */
 export function buildCatalogIndex(products) {
-  const types = {};
-  const materials = {};
-  const styles = {};
-  const colors = {};
-  const vendors = {};
-  const features = {};
-  const formalities = {};
-  const moods = {};
+  // Convert to array if iterator
+  const productArray = Array.isArray(products) ? products : [...products];
+
+  catalogFieldIndex = {};
   let totalTagged = 0;
   let totalUntagged = 0;
+  const priceByType = {};
 
-  for (const p of products) {
-    const va = p.ai_visual_analysis;
-    const vname = p.vendor_name || p.vendor_id || "Unknown";
-    vendors[vname] = (vendors[vname] || 0) + 1;
+  // Collect all field values in a single pass through products
+  const fieldTermMaps = {};
+  for (const fieldName of Object.keys(FIELD_ACCESSORS)) {
+    if (fieldName === "ai_distinctive_features") continue;
+    fieldTermMaps[fieldName] = {};
+  }
+  const featureTerms = {};
 
-    if (va) {
-      totalTagged++;
-      if (va.furniture_type) types[va.furniture_type] = (types[va.furniture_type] || 0) + 1;
-      if (va.upholstery_material) materials[va.upholstery_material.split(",")[0].trim()] = (materials[va.upholstery_material.split(",")[0].trim()] || 0) + 1;
-      if (va.style) styles[va.style] = (styles[va.style] || 0) + 1;
-      if (va.color_primary) colors[va.color_primary] = (colors[va.color_primary] || 0) + 1;
-      if (va.formality) formalities[va.formality] = (formalities[va.formality] || 0) + 1;
-      if (va.mood) {
-        const firstMood = va.mood.split(",")[0].trim();
-        moods[firstMood] = (moods[firstMood] || 0) + 1;
-      }
-      if (va.distinctive_features) {
-        for (const f of va.distinctive_features) {
-          const fl = f.toLowerCase().split(" ").slice(0, 3).join(" "); // Normalize to first 3 words
-          features[fl] = (features[fl] || 0) + 1;
+  for (const p of productArray) {
+    if (p.ai_visual_analysis) totalTagged++;
+    else totalUntagged++;
+
+    // Collect string field values
+    for (const [fieldName, accessor] of Object.entries(FIELD_ACCESSORS)) {
+      if (fieldName === "ai_distinctive_features") continue;
+      const val = accessor(p);
+      if (!val || typeof val !== "string") continue;
+
+      const terms = fieldTermMaps[fieldName];
+      if (fieldName === "vendor_name") {
+        terms[val] = (terms[val] || 0) + 1;
+      } else {
+        // Split compound values (e.g., "velvet or linen-blend performance fabric")
+        // into individual indexable terms, plus keep the full value
+        const normalized = val.toLowerCase().trim();
+        if (SKIP_VALUES.has(normalized)) continue;
+
+        // Index the full value
+        terms[normalized] = (terms[normalized] || 0) + 1;
+
+        // Also index individual comma-separated parts
+        if (normalized.includes(",")) {
+          for (const part of normalized.split(",")) {
+            const trimmed = part.trim();
+            if (trimmed && !SKIP_VALUES.has(trimmed) && trimmed !== normalized) {
+              terms[trimmed] = (terms[trimmed] || 0) + 1;
+            }
+          }
+        }
+
+        // Also index key material/style terms (split by "or", "and", "with")
+        if (fieldName === "ai_primary_material" || fieldName === "ai_style") {
+          for (const part of normalized.split(/\s+(?:or|and|with)\s+/)) {
+            const trimmed = part.trim();
+            if (trimmed && trimmed.length > 2 && !SKIP_VALUES.has(trimmed) && trimmed !== normalized) {
+              terms[trimmed] = (terms[trimmed] || 0) + 1;
+            }
+          }
         }
       }
-    } else {
-      totalUntagged++;
-      // Use traditional fields for untagged
-      if (p.category) types[p.category.replace(/-/g, " ")] = (types[p.category.replace(/-/g, " ")] || 0) + 1;
-      if (p.material) materials[p.material.split(",")[0].trim()] = (materials[p.material.split(",")[0].trim()] || 0) + 1;
+    }
+
+    // Collect feature array values
+    const features = p.ai_distinctive_features;
+    if (Array.isArray(features)) {
+      for (const f of features) {
+        const fl = f.toLowerCase().trim();
+        if (fl && !SKIP_VALUES.has(fl)) {
+          featureTerms[fl] = (featureTerms[fl] || 0) + 1;
+        }
+      }
+    }
+
+    // Price stats by furniture type
+    if (p.retail_price && p.retail_price > 0 && p.ai_furniture_type) {
+      const type = p.ai_furniture_type.toLowerCase().trim();
+      if (!priceByType[type]) priceByType[type] = { min: Infinity, max: 0, sum: 0, count: 0 };
+      priceByType[type].min = Math.min(priceByType[type].min, p.retail_price);
+      priceByType[type].max = Math.max(priceByType[type].max, p.retail_price);
+      priceByType[type].sum += p.retail_price;
+      priceByType[type].count++;
     }
   }
 
-  const sortDesc = (obj, limit = 30) =>
-    Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([k, v]) => `${k} (${v})`).join(", ");
+  // Build sorted indexes per field
+  for (const [fieldName, terms] of Object.entries(fieldTermMaps)) {
+    const limit = FIELD_LIMITS[fieldName] || 50;
+    catalogFieldIndex[fieldName] = Object.entries(terms)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+  }
+  catalogFieldIndex.ai_distinctive_features = Object.entries(featureTerms)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, FIELD_LIMITS.ai_distinctive_features);
 
-  catalogIndexText = `Catalog: ${totalTagged + totalUntagged} products (${totalTagged} AI-tagged, ${totalUntagged} untagged).
+  // Build the prompt text
+  const formatField = (fieldName) => {
+    const entries = catalogFieldIndex[fieldName] || [];
+    return entries.map(([val, count]) => `${val} (${count})`).join(", ");
+  };
 
-Furniture types: ${sortDesc(types, 40)}
-Materials: ${sortDesc(materials, 25)}
-Styles: ${sortDesc(styles, 20)}
-Colors: ${sortDesc(colors, 25)}
-Features: ${sortDesc(features, 30)}
-Formality levels: ${sortDesc(formalities, 10)}
-Vendors: ${sortDesc(vendors, 30)}`;
+  // Price ranges by type (top 20 types)
+  const priceRanges = Object.entries(priceByType)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 20)
+    .map(([type, stats]) => `${type}: $${stats.min}-$${stats.max} (avg $${Math.round(stats.sum / stats.count)})`)
+    .join("\n");
+
+  catalogIndexPromptText = `Catalog: ${totalTagged + totalUntagged} products (${totalTagged} AI-tagged, ${totalUntagged} untagged).
+
+ai_furniture_type values: ${formatField("ai_furniture_type")}
+
+ai_primary_material values: ${formatField("ai_primary_material")}
+
+ai_distinctive_features values: ${formatField("ai_distinctive_features")}
+
+ai_style values: ${formatField("ai_style")}
+
+ai_primary_color values: ${formatField("ai_primary_color")}
+
+ai_silhouette values: ${formatField("ai_silhouette")}
+
+ai_arm_style values: ${formatField("ai_arm_style")}
+
+ai_back_style values: ${formatField("ai_back_style")}
+
+ai_leg_style values: ${formatField("ai_leg_style")}
+
+ai_formality values: ${formatField("ai_formality")}
+
+ai_scale values: ${formatField("ai_scale")}
+
+ai_mood values: ${formatField("ai_mood")}
+
+ai_cushions values: ${formatField("ai_cushions")}
+
+ai_finish values: ${formatField("ai_finish")}
+
+ai_era_influence values: ${formatField("ai_era_influence")}
+
+ai_texture_description values: ${formatField("ai_texture_description")}
+
+ai_construction_details values: ${formatField("ai_construction_details")}
+
+ai_durability_assessment values: ${formatField("ai_durability_assessment")}
+
+ai_visual_weight values: ${formatField("ai_visual_weight")}
+
+ai_ideal_client values: ${formatField("ai_ideal_client")}
+
+vendor_name values: ${formatField("vendor_name")}
+
+Price ranges by furniture type:
+${priceRanges}`;
 
   console.log(`[ai-vector-search] Catalog index built: ${totalTagged} tagged, ${totalUntagged} untagged products`);
-  return catalogIndexText;
+  console.log(`[ai-vector-search] Index prompt size: ${catalogIndexPromptText.length} chars`);
+  return catalogIndexPromptText;
 }
 
-/**
- * Build the Haiku system prompt with live catalog data.
- */
+// ── Haiku System Prompt ──
+
 function getSystemPrompt() {
-  return `You are the search brain for SPEKD, an AI-powered trade furniture sourcing platform. You receive a designer's search query and convert it into the ideal vector search text to match products in our vector database.
+  return `You are the search brain for SPEKD, an AI-powered trade furniture sourcing platform. You receive a designer's search query and return the exact field values from our catalog that match what they want.
 
-Our product vectors are built from expert AI analysis of every product photo. Each vector was generated from this structured text format:
+Our product database has these searchable fields with these values:
 
-type:[furniture type] | silhouette:[shape] | arms:[arm style] | back:[back style] | legs:[leg style] | cushions:[cushion type] | material:[primary material] | secondary:[secondary materials] | color:[primary color] | finish:[finish] | style:[design style] | era:[era influence] | formality:[level] | scale:[size] | weight:[visual weight] | texture:[texture] | construction:[details] | features:[distinctive features] | mood:[feeling] | client:[ideal project] | pairs:[complementary pieces] | durability:[assessment] | terms:[search terms] | vendor:[vendor name] | description:[expert description]
+${catalogIndexPromptText}
 
-Our catalog contains:
-${catalogIndexText}
+Your job: Read the designer's query and pick values from the lists above that match what they want. Use CONTAINS matching — your values will be checked with case-insensitive substring matching against product fields. So "leather" will match "distressed leather, top grain leather". Only populate fields the designer actually mentioned or implied. Leave everything else null — null means don't filter on that field.
 
-Your job: Take the designer's natural language query and construct a vector search string using the EXACT same format as our product vectors. Use the field labels (type:, material:, features:, etc.) and use values that EXIST in our catalog data above.
+For conversational follow-ups, full history is provided. Combine context from all previous messages naturally. If they said 'leather sofa' first then 'just from Baker' next, your response should include furniture_type, material, AND vendor.
 
-IMPORTANT RULES:
-- If the designer mentions a specific vendor, include vendor:[exact vendor name] in the vector query
-- If the designer mentions a price constraint, note it in your response but vectors don't encode price — the system handles price filtering separately
-- If the designer uses vibe language ("quiet luxury", "cozy", "statement piece"), translate it into concrete vector fields: style, mood, formality, texture, material
-- If the designer says "not X" or "no X", DO NOT include X in the vector query. Instead, emphasize the opposite qualities.
-- For conversational follow-ups, the full conversation history is provided. Combine context from previous messages with the new request naturally.
-- Be specific and detailed in the vector_query — more fields = better matches
-- Always include type: if you can infer the furniture type
-- Use the same vocabulary that appears in our catalog data above
+You understand furniture deeply. You know:
+- 'couch' means sofa
+- 'coffee table' means cocktail table
+- 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
+- 'comfortable' means look for casual/relaxed formality, loose pillow or pillow back, down cushions
+- 'kid friendly' means performance fabric, high durability
+- 'quiet luxury' is a mood — use ai_mood
+- 'mid century' is a style — use ai_style
+- 'barrel' is a silhouette — use ai_silhouette
+- 'tight back' is a back style — use ai_back_style
+- 'track arm' is an arm style — use ai_arm_style
+- 'eight way hand tied' is construction — use ai_construction_details
+- 'spring down' or 'down cushions' — use ai_cushions
+- Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
+- Price requests like 'under $3000' or 'budget friendly' should set price_max
+- Negations like 'not rustic' or 'hates brown' mean EXCLUDE those values via exclude_fields
+- When a designer asks for a vibe like 'mountain house' or 'quiet luxury', use ai_mood, ai_style, ai_formality, ai_primary_material — pick values that match the vibe
+- For 'doesn't look like a recliner', use ai_furniture_type for recliner but also set ai_silhouette to non-traditional shapes, and ai_style to contemporary/transitional
 
-CRITICAL: Your vector_query should emphasize the furniture TYPE strongly. Repeat the type term 2-3 times in the query text so the embedding model weights it properly. For example:
-- "sofa with nailhead" → "sofa sofa type:sofa | features:brass nailhead trim | material:leather | mood:traditional sophisticated"
-- "leather recliner" → "recliner recliner type:recliner | material:leather | style:transitional"
+CRITICAL RULES:
+- Use values that EXIST in the lists above. Use substring terms that would match via contains.
+- For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
+- You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields).
+- FEWER FIELDS = MORE RESULTS. Every non-null field NARROWS the results. Only set fields the designer EXPLICITLY asked about. Let semantic_query handle the nuance.
+  - "sofa with nailhead" → set ai_furniture_type and ai_distinctive_features ONLY. 2 fields.
+  - "leather recliner" → set ai_furniture_type and ai_primary_material ONLY. 2 fields.
+  - "mid century but make it cozy" → set ai_style ONLY (maybe ai_mood). Let semantic_query rank by coziness. 1-2 fields max.
+  - "quiet luxury accent chair" → set ai_furniture_type ONLY. Let semantic_query rank by luxury mood. 1 field.
+  - "mountain house that doesn't feel rustic" → set ai_style with warm/organic values, put "rustic" in exclude_fields. 1-2 fields.
+  - Vibe/mood searches → 1-2 fields max. Use semantic_query for mood ranking.
+  - Precise searches ("Theodore Alexander velvet sofa") → 3 fields (vendor, type, material).
+  - "something like the RH cloud sofa but not RH" → set ai_furniture_type: ["sofa"] ONLY, exclude vendor_name: ["Restoration Hardware"]. Let semantic_query describe the cloud sofa characteristics (deep, plush, oversized, loose pillow back). 1 field + exclude.
+  - "like X but not Y" queries → set MINIMAL fields (usually just furniture type), use exclude_fields for the brand/style to avoid, and put ALL the descriptive characteristics in semantic_query for ranking.
+- For vibe searches without a specific furniture type, you can set ai_furniture_type to multiple types like ["sofa", "accent chair", "sectional", "ottoman"] to broaden results.
+- For ai_mood, use simple terms from the catalog that capture the vibe — they match via contains.
+- DO NOT set color, arm_style, back_style, formality, cushions, finish, texture, construction, durability, visual_weight, ideal_client unless the designer EXPLICITLY asked about those attributes. These fields are for semantic_query ranking, not filtering.
+- For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases like "small to medium". Each value is checked via contains matching.
+- IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly — many valid matches will be excluded if these are set. Prefer using semantic_query to rank by size/price instead.
 
 Return ONLY this JSON (no markdown, no backticks):
 {
-  "vector_query": "the constructed search text matching our vector format — REPEAT the furniture type for emphasis",
-  "furniture_type": "the primary furniture type the user is looking for (sofa, chair, recliner, table, bed, sectional, etc.) or null if vibe/general search",
-  "material_filter": "specific material the designer asked for (leather, velvet, boucle, linen, etc.) or null if no specific material required",
-  "feature_filter": "specific feature/detail the designer asked for (nailhead, channel back, tufted, skirted, etc.) or null if no specific feature required",
-  "response": "2-3 sentence expert designer response about what you're showing them and any relevant sourcing advice",
-  "price_min": null,
-  "price_max": null,
-  "vendor_filter": null,
-  "exclude_vendors": null
+  "search_fields": {
+    "ai_furniture_type": ["value1", "value2"] or null,
+    "ai_primary_material": ["value1"] or null,
+    "ai_distinctive_features": ["value1", "value2"] or null,
+    "ai_style": ["value1"] or null,
+    "ai_primary_color": ["value1", "value2"] or null,
+    "ai_silhouette": ["value1"] or null,
+    "ai_arm_style": ["value1"] or null,
+    "ai_back_style": ["value1"] or null,
+    "ai_leg_style": ["value1"] or null,
+    "ai_formality": ["value1"] or null,
+    "ai_scale": ["value1"] or null,
+    "ai_mood": ["value1"] or null,
+    "ai_cushions": ["value1"] or null,
+    "ai_finish": ["value1"] or null,
+    "ai_era_influence": ["value1"] or null,
+    "ai_texture_description": ["value1"] or null,
+    "ai_construction_details": ["value1"] or null,
+    "ai_durability_assessment": ["value1"] or null,
+    "ai_visual_weight": ["value1"] or null,
+    "ai_ideal_client": ["value1"] or null,
+    "vendor_name": ["Exact Vendor Name"] or null,
+    "price_min": number or null,
+    "price_max": number or null,
+    "width_min": number or null,
+    "width_max": number or null,
+    "height_min": number or null,
+    "height_max": number or null,
+    "depth_min": number or null,
+    "depth_max": number or null
+  },
+  "exclude_fields": {
+    "ai_style": ["rustic"] or null,
+    "ai_primary_color": ["brown", "espresso"] or null,
+    "ai_primary_material": ["velvet"] or null,
+    "vendor_name": ["Restoration Hardware"] or null
+  },
+  "semantic_query": "natural language description of the ideal product for ranking",
+  "response": "2-3 sentence expert designer response about what you are showing them"
+}`;
 }
 
-For furniture_type, return the SINGULAR primary type being searched for (null for vibe searches like "quiet luxury" or "mountain house").
-For material_filter, return the specific material ONLY when the designer explicitly names a material (e.g., "leather recliner" → "leather", "velvet sofa" → "velvet"). Return null for general/vibe searches.
-For feature_filter, return the specific feature ONLY when the designer explicitly names a feature (e.g., "sofa with nailhead" → "nailhead", "tufted chair" → "tufted", "channel back dining chair" → "channel"). Return null for general searches.
-For price_min/price_max, extract any price constraints from the query (numbers only, null if none).
-For vendor_filter, extract the exact vendor name if the designer wants a specific vendor (null if none).
-For exclude_vendors, extract vendor names to exclude (array or null). Example: "not from RH" → ["RH"].`;
-}
-
-/**
- * Build system prompt for list/paste search.
- */
 function getListSystemPrompt() {
   return `You are the search brain for SPEKD, an AI-powered trade furniture sourcing platform. A designer has pasted a list of items they need to source.
 
-Our product vectors use this format:
-type:[furniture type] | silhouette:[shape] | arms:[arm style] | back:[back style] | legs:[leg style] | material:[primary material] | color:[primary color] | style:[design style] | features:[distinctive features] | mood:[feeling] | terms:[search terms] | vendor:[vendor name] | description:[expert description]
+Our catalog fields: ai_furniture_type, ai_primary_material, ai_distinctive_features, ai_style, ai_primary_color, ai_silhouette, ai_arm_style, ai_back_style, ai_formality, ai_mood, vendor_name.
 
-Our catalog contains:
-${catalogIndexText}
+${catalogIndexPromptText}
 
-For each item in the designer's list, construct a vector search string using our product vector format. Be specific and use vocabulary from our catalog.
+For each item, return search_fields using values from our catalog. Use contains-matching terms.
 
 Return ONLY this JSON (no markdown, no backticks):
 {
   "items": [
     {
-      "vector_query": "type:... | material:... | ...",
-      "label": "short description of what this item is",
-      "original_text": "the original text from the designer's list"
+      "search_fields": { "ai_furniture_type": ["sectional"], "ai_primary_material": ["performance fabric"] },
+      "exclude_fields": {},
+      "semantic_query": "large performance fabric sectional neutral tones",
+      "label": "Sectional - performance fabric neutral"
     }
   ],
-  "response": "2-3 sentence overview of what you found and any sourcing advice"
+  "response": "2-3 sentence overview of what you found and sourcing advice"
 }`;
 }
 
 // ── Result Cache ──
 const queryCache = new Map();
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 60 * 60 * 1000;
 
 function getCached(key) {
   const entry = queryCache.get(key);
@@ -175,7 +378,6 @@ function getCached(key) {
 
 function setQueryCache(key, value) {
   queryCache.set(key, { value, expires: Date.now() + CACHE_TTL_MS });
-  // Evict expired entries
   if (queryCache.size > 300) {
     const now = Date.now();
     for (const [k, v] of queryCache) {
@@ -184,27 +386,27 @@ function setQueryCache(key, value) {
   }
 }
 
+// ── Haiku API Call ──
+
 /**
- * Call Haiku to translate a query into a vector search string.
- *
- * @param {string} query - The designer's search query
- * @param {Array} conversationHistory - Previous messages for context
- * @returns {Promise<{vector_query: string, furniture_type: string|null, response: string, price_min: number|null, price_max: number|null, vendor_filter: string|null, exclude_vendors: string[]|null}>}
+ * Call Haiku to translate query into search_fields + semantic_query.
  */
 export async function translateQueryWithHaiku(query, conversationHistory = []) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    // Fallback: return raw query as vector search text
-    console.warn("[ai-vector-search] No API key — using raw query as vector text");
-    return { vector_query: query, furniture_type: null, material_filter: null, feature_filter: null, response: "Searching catalog...", price_min: null, price_max: null, vendor_filter: null, exclude_vendors: null };
+    console.warn("[ai-vector-search] No API key — using raw query fallback");
+    return {
+      search_fields: {},
+      exclude_fields: {},
+      semantic_query: query,
+      response: "Searching catalog...",
+    };
   }
 
-  // Build messages array from conversation history
   const messages = [];
   for (const msg of conversationHistory) {
     messages.push({ role: msg.role, content: msg.content });
   }
-  // Add current query
   messages.push({ role: "user", content: query });
 
   try {
@@ -221,7 +423,7 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 600,
+        max_tokens: 1200,
         system: getSystemPrompt(),
         messages,
       }),
@@ -233,7 +435,7 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error(`[ai-vector-search] Haiku API error ${resp.status}: ${errText.slice(0, 200)}`);
-      return { vector_query: query, furniture_type: null, material_filter: null, feature_filter: null, response: "Searching catalog...", price_min: null, price_max: null, vendor_filter: null, exclude_vendors: null };
+      return { search_fields: {}, exclude_fields: {}, semantic_query: query, response: "Searching catalog..." };
     }
 
     const data = await resp.json();
@@ -241,37 +443,37 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error("[ai-vector-search] Haiku returned non-JSON:", text.slice(0, 200));
-      return { vector_query: query, furniture_type: null, material_filter: null, feature_filter: null, response: "Searching catalog...", price_min: null, price_max: null, vendor_filter: null, exclude_vendors: null };
+      return { search_fields: {}, exclude_fields: {}, semantic_query: query, response: "Searching catalog..." };
     }
 
     console.log(`[ai-vector-search] Haiku responded in ${Date.now() - callStart}ms`);
     const parsed = JSON.parse(jsonMatch[0]);
     return {
-      vector_query: parsed.vector_query || query,
-      furniture_type: parsed.furniture_type || null,
-      material_filter: parsed.material_filter || null,
-      feature_filter: parsed.feature_filter || null,
+      search_fields: parsed.search_fields || {},
+      exclude_fields: parsed.exclude_fields || {},
+      semantic_query: parsed.semantic_query || query,
       response: parsed.response || "Here are your results.",
-      price_min: parsed.price_min || null,
-      price_max: parsed.price_max || null,
-      vendor_filter: parsed.vendor_filter || null,
-      exclude_vendors: parsed.exclude_vendors || null,
     };
   } catch (err) {
     console.error(`[ai-vector-search] Haiku call failed: ${err.message}`);
-    // Safety net: embed raw query directly
-    return { vector_query: query, furniture_type: null, material_filter: null, feature_filter: null, response: "Searching catalog...", price_min: null, price_max: null, vendor_filter: null, exclude_vendors: null };
+    // Safety net: fall back to raw vector search
+    return { search_fields: {}, exclude_fields: {}, semantic_query: query, response: "Showing best matches for your search." };
   }
 }
 
 /**
- * Translate a paste list into multiple vector queries via Haiku.
+ * Call Haiku for paste list search.
  */
 export async function translateListWithHaiku(items) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return {
-      items: items.map(item => ({ vector_query: item, label: item, original_text: item })),
+      items: items.map(item => ({
+        search_fields: {},
+        exclude_fields: {},
+        semantic_query: item,
+        label: item,
+      })),
       response: "Searching catalog for each item...",
     };
   }
@@ -280,7 +482,7 @@ export async function translateListWithHaiku(items) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     const resp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
@@ -291,7 +493,7 @@ export async function translateListWithHaiku(items) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2000,
+        max_tokens: 3000,
         system: getListSystemPrompt(),
         messages: [{ role: "user", content: listText }],
       }),
@@ -302,7 +504,7 @@ export async function translateListWithHaiku(items) {
 
     if (!resp.ok) {
       return {
-        items: items.map(item => ({ vector_query: item, label: item, original_text: item })),
+        items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
         response: "Searching catalog for each item...",
       };
     }
@@ -312,7 +514,7 @@ export async function translateListWithHaiku(items) {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return {
-        items: items.map(item => ({ vector_query: item, label: item, original_text: item })),
+        items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
         response: "Searching catalog for each item...",
       };
     }
@@ -321,84 +523,211 @@ export async function translateListWithHaiku(items) {
   } catch (err) {
     console.error(`[ai-vector-search] List parse failed: ${err.message}`);
     return {
-      items: items.map(item => ({ vector_query: item, label: item, original_text: item })),
+      items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
       response: "Searching catalog for each item...",
     };
   }
 }
 
+// ── Field Matching Engine ──
+
 /**
- * The complete search pipeline. Query → Haiku → Vector → Results.
- *
- * @param {string} query
- * @param {object} options
- * @param {Array} options.conversation - Conversation history
- * @param {Set} options.excludeIds - Product IDs to exclude
- * @param {number} options.page - Page number
- * @param {object} options.filters - UI facet filters
- * @returns {Promise<object>} Search response
+ * Check if a product field value contains any of the search terms.
+ * For string fields: case-insensitive substring match.
+ * For array fields (ai_distinctive_features): any element contains any term.
+ */
+function fieldContains(productValue, searchTerms) {
+  if (!searchTerms || searchTerms.length === 0) return true;
+
+  // Product MUST have the field to match — missing field = no match
+  if (!productValue) return false;
+
+  if (Array.isArray(productValue)) {
+    if (productValue.length === 0) return false;
+    const joined = productValue.join(" ").toLowerCase();
+    return searchTerms.some(term => joined.includes(term.toLowerCase()));
+  }
+
+  if (typeof productValue === "string") {
+    if (productValue.trim() === "") return false;
+    const valLower = productValue.toLowerCase();
+    return searchTerms.some(term => valLower.includes(term.toLowerCase()));
+  }
+
+  return false;
+}
+
+/**
+ * Check if a product field value does NOT contain any of the excluded terms.
+ */
+function fieldExcludes(productValue, excludeTerms) {
+  if (!productValue || !excludeTerms || excludeTerms.length === 0) return true;
+
+  if (Array.isArray(productValue)) {
+    const joined = productValue.join(" ").toLowerCase();
+    return excludeTerms.every(term => !joined.includes(term.toLowerCase()));
+  }
+
+  if (typeof productValue === "string") {
+    const valLower = productValue.toLowerCase();
+    return excludeTerms.every(term => !valLower.includes(term.toLowerCase()));
+  }
+
+  return true;
+}
+
+/**
+ * Direct field matching — find all products matching the search_fields.
+ * Product must match ALL non-null fields (AND between fields).
+ * Within each field, any value matching counts (OR within field).
+ */
+function fieldMatch(searchFields, excludeFields, excludeIds) {
+  const candidates = [];
+  const allProducts = getAllProducts();
+
+  // Extract dimension/price filters
+  const priceMin = searchFields.price_min || null;
+  const priceMax = searchFields.price_max || null;
+  const widthMin = searchFields.width_min || null;
+  const widthMax = searchFields.width_max || null;
+  const heightMin = searchFields.height_min || null;
+  const heightMax = searchFields.height_max || null;
+  const depthMin = searchFields.depth_min || null;
+  const depthMax = searchFields.depth_max || null;
+
+  // Build list of field filters (only non-null fields)
+  const fieldFilters = [];
+  for (const [fieldName, accessor] of Object.entries(FIELD_ACCESSORS)) {
+    const searchVals = searchFields[fieldName];
+    if (searchVals && Array.isArray(searchVals) && searchVals.length > 0) {
+      fieldFilters.push({ fieldName, accessor, searchVals });
+    }
+  }
+
+  // Build list of exclude filters
+  const excludeFilters = [];
+  if (excludeFields) {
+    for (const [fieldName, accessor] of Object.entries(FIELD_ACCESSORS)) {
+      const excludeVals = excludeFields[fieldName];
+      if (excludeVals && Array.isArray(excludeVals) && excludeVals.length > 0) {
+        excludeFilters.push({ fieldName, accessor, excludeVals });
+      }
+    }
+  }
+
+  let scanned = 0;
+  for (const product of allProducts) {
+    scanned++;
+
+    // Exclude by ID
+    if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
+
+    // Price filters
+    if (priceMin && product.retail_price && product.retail_price < priceMin) continue;
+    if (priceMax && product.retail_price && product.retail_price > priceMax) continue;
+
+    // Dimension filters
+    if (widthMin && product.width && product.width < widthMin) continue;
+    if (widthMax && product.width && product.width > widthMax) continue;
+    if (heightMin && product.height && product.height < heightMin) continue;
+    if (heightMax && product.height && product.height > heightMax) continue;
+    if (depthMin && product.depth && product.depth < depthMin) continue;
+    if (depthMax && product.depth && product.depth > depthMax) continue;
+
+    // All search fields must match (AND logic)
+    let matchesAll = true;
+    for (const { accessor, searchVals } of fieldFilters) {
+      const val = accessor(product);
+      if (!fieldContains(val, searchVals)) {
+        matchesAll = false;
+        break;
+      }
+    }
+    if (!matchesAll) continue;
+
+    // No excluded fields should match
+    let excluded = false;
+    for (const { accessor, excludeVals } of excludeFilters) {
+      const val = accessor(product);
+      if (!fieldExcludes(val, excludeVals)) {
+        excluded = true;
+        break;
+      }
+    }
+    if (excluded) continue;
+
+    candidates.push(product);
+  }
+
+  console.log(`[ai-vector-search] Field match: ${candidates.length} candidates from ${scanned} products (${fieldFilters.length} field filters, ${excludeFilters.length} exclude filters)`);
+  return candidates;
+}
+
+// ── Search Pipeline ──
+
+/**
+ * Complete search pipeline: Query → Haiku → Field Match → MiniLM Rank → Results.
  */
 export async function searchPipeline(query, options = {}) {
   const { conversation = [], excludeIds = new Set(), page = 1, filters = {} } = options;
 
   // ── Check cache ──
-  const cacheKey = `vsearch:${query.toLowerCase()}:${JSON.stringify(filters)}:p${page}`;
-  if (excludeIds.size === 0) {
+  const cacheKey = `fsearch:${query.toLowerCase()}:${JSON.stringify(filters)}:p${page}`;
+  if (excludeIds.size === 0 && conversation.length === 0) {
     const cached = getCached(cacheKey);
     if (cached) return { ...cached, cache_hit: true };
   }
 
-  // ── Step 1: Haiku translates query → vector_query ──
+  // ── Step 1: Haiku translates query → search_fields + semantic_query ──
   const haiku = await translateQueryWithHaiku(query, conversation);
-  console.log(`[ai-vector-search] Query: "${query}" → Vector: "${haiku.vector_query.slice(0, 120)}..."`);
+  const hasFieldFilters = Object.values(haiku.search_fields).some(v =>
+    v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && typeof v !== "number"
+  );
 
-  // ── Step 2: Vector similarity search ──
-  const vectorStats = getVectorStoreStats();
+  console.log(`[ai-vector-search] Query: "${query}" → Fields: ${JSON.stringify(haiku.search_fields).slice(0, 200)}`);
+  console.log(`[ai-vector-search] Semantic: "${haiku.semantic_query?.slice(0, 120)}"`);
+
   let results = [];
+  const vectorStats = getVectorStoreStats();
 
-  if (vectorStats.ready && vectorStats.total_vectors > 0) {
-    // Build filter function for vendor/price/exclusion constraints
-    const filterFn = buildFilterFn(haiku, filters, excludeIds);
-    // Fetch extra candidates to ensure enough type-matching results after re-ranking
-    const fetchLimit = haiku.furniture_type ? 500 : 200;
-    const rawResults = await vectorSearch(haiku.vector_query, { limit: fetchLimit, filter: filterFn });
+  if (hasFieldFilters) {
+    // ── Step 2: Direct field matching ──
+    const candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
 
-    // Hydrate with full product data
-    let hydrateFailures = 0;
-    for (const { id, score } of rawResults) {
-      const product = getProduct(id);
-      if (product) {
-        product.relevance_score = score;
-        product._vector_score = score;
-        results.push(product);
-      } else {
-        hydrateFailures++;
+    // ── Step 3: MiniLM ranking within candidates ──
+    if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
+      const candidateIds = new Set(candidates.map(p => p.id));
+      const ranked = await vectorSearch(haiku.semantic_query, {
+        limit: candidates.length,
+        candidateIds,
+      });
+
+      // Build ranked results, preserving vector score
+      const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+      for (const product of candidates) {
+        product.relevance_score = rankedMap.get(product.id) || 0;
+        product._vector_score = product.relevance_score;
       }
+      candidates.sort((a, b) => b.relevance_score - a.relevance_score);
     }
-    console.log(`[ai-vector-search] Vector returned ${rawResults.length} candidates, hydrated ${results.length} (${hydrateFailures} missing from catalog)`);
+
+    results = candidates;
   } else {
-    console.warn("[ai-vector-search] Vector store not ready — returning empty results");
-  }
-
-  // ── Step 3: Type-aware re-ranking ──
-  // MiniLM doesn't differentiate furniture types well in structured text.
-  // Haiku tells us what type the user wants; we boost matching products.
-  if (haiku.furniture_type && results.length > 0) {
-    results = typeAwareRerank(results, haiku.furniture_type);
-  }
-
-  // ── Step 3b: Material filtering ──
-  // When user explicitly asks for a material (e.g., "leather recliner"),
-  // filter to products that actually have that material.
-  if (haiku.material_filter && results.length > 0) {
-    results = materialFilter(results, haiku.material_filter);
-  }
-
-  // ── Step 3c: Feature filtering ──
-  // When user explicitly asks for a feature (e.g., "nailhead trim"),
-  // filter to products that actually have that feature.
-  if (haiku.feature_filter && results.length > 0) {
-    results = featureFilter(results, haiku.feature_filter);
+    // ── Safety net: no field filters (Haiku failed or vibe search) ──
+    // Fall back to pure vector search
+    if (vectorStats.ready && vectorStats.total_vectors > 0) {
+      const searchText = haiku.semantic_query || query;
+      const rawResults = await vectorSearch(searchText, { limit: 200 });
+      for (const { id, score } of rawResults) {
+        const product = getProduct(id);
+        if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
+          product.relevance_score = score;
+          product._vector_score = score;
+          results.push(product);
+        }
+      }
+      console.log(`[ai-vector-search] Fallback vector search: ${results.length} results`);
+    }
   }
 
   // ── Step 4: Apply UI facet filters ──
@@ -407,7 +736,6 @@ export async function searchPipeline(query, options = {}) {
   // ── Step 5: Build response ──
   const totalAvailable = results.length;
   const pageResults = results.slice(0, 80);
-  const vendorCount = new Set(pageResults.map(p => p.vendor_name)).size;
 
   const response = {
     query,
@@ -419,7 +747,7 @@ export async function searchPipeline(query, options = {}) {
     total_available: totalAvailable,
     has_more: totalAvailable > 80,
     page,
-    result_mode: "ai-vector",
+    result_mode: "ai-field-match",
     tier_used: 1,
     ai_called: true,
     cache_hit: false,
@@ -429,17 +757,17 @@ export async function searchPipeline(query, options = {}) {
       total_catalog_size: getProductCount(),
       vector_indexed: vectorStats.total_vectors,
       tier_used: 1,
-      vector_query: haiku.vector_query,
-      furniture_type: haiku.furniture_type,
-      material_filter: haiku.material_filter,
-      feature_filter: haiku.feature_filter,
+      search_fields: haiku.search_fields,
+      exclude_fields: haiku.exclude_fields,
+      semantic_query: haiku.semantic_query,
+      field_match_count: totalAvailable,
       haiku_response: haiku.response,
     },
     products: pageResults,
   };
 
-  // Cache
-  if (excludeIds.size === 0) {
+  // Cache (skip conversational searches)
+  if (excludeIds.size === 0 && conversation.length === 0) {
     setQueryCache(cacheKey, response);
   }
 
@@ -455,7 +783,6 @@ export function findSimilar(productId, limit = 20) {
 
   const sourceVendorId = sourceProduct.vendor_id;
 
-  // Exclude same vendor for cross-vendor diversity
   const filter = (id) => {
     const p = getProduct(id);
     return p && p.vendor_id !== sourceVendorId;
@@ -473,28 +800,37 @@ export function findSimilar(productId, limit = 20) {
 }
 
 /**
- * List search pipeline — paste list → Haiku → multiple vector searches.
+ * List search pipeline — paste list → Haiku → field match + rank per item.
  */
 export async function listSearchPipeline(items) {
   const haiku = await translateListWithHaiku(items);
 
   const results = [];
   for (const item of haiku.items) {
-    const rawResults = await vectorSearch(item.vector_query, { limit: 20 });
-    const products = rawResults.map(({ id, score }) => {
-      const product = getProduct(id);
-      if (!product) return null;
-      product.relevance_score = score;
-      return product;
-    }).filter(Boolean);
+    const candidates = fieldMatch(item.search_fields || {}, item.exclude_fields || {});
 
+    // Rank within candidates
+    if (candidates.length > 0 && item.semantic_query) {
+      const candidateIds = new Set(candidates.map(p => p.id));
+      const ranked = await vectorSearch(item.semantic_query, {
+        limit: Math.min(candidates.length, 20),
+        candidateIds,
+      });
+      const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+      for (const p of candidates) {
+        p.relevance_score = rankedMap.get(p.id) || 0;
+      }
+      candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+    }
+
+    const topProducts = candidates.slice(0, 20);
     results.push({
       item_number: results.length + 1,
       original_text: item.original_text || item.label,
       summary: item.label,
-      products,
-      total: products.length,
-      feasibility: products.length >= 5 ? "strong" : products.length >= 1 ? "possible" : "unlikely",
+      products: topProducts,
+      total: topProducts.length,
+      feasibility: topProducts.length >= 5 ? "strong" : topProducts.length >= 1 ? "possible" : "unlikely",
     });
   }
 
@@ -508,185 +844,8 @@ export async function listSearchPipeline(items) {
 
 // ── Internal helpers ──
 
-/**
- * Type-aware re-ranking. Boosts products matching the Haiku-identified furniture type.
- * Not a hard filter — non-matching types can still appear if highly vector-relevant,
- * but type-matching products get significant score boost.
- *
- * Uses both category and AI visual analysis furniture_type for matching.
- */
-function typeAwareRerank(results, furnitureType) {
-  const typeLower = furnitureType.toLowerCase().replace(/-/g, " ");
-
-  // Find matching aliases — check the type itself and all words in it
-  let typeAliases = TYPE_ALIASES[typeLower];
-  if (!typeAliases) {
-    // Try each word in the type (e.g., "power recliner" → check "recliner")
-    const words = typeLower.split(/\s+/);
-    for (const word of words) {
-      if (TYPE_ALIASES[word]) {
-        typeAliases = TYPE_ALIASES[word];
-        break;
-      }
-    }
-    if (!typeAliases) typeAliases = [typeLower];
-  }
-
-  const matching = [];
-  const nonMatching = [];
-
-  for (const product of results) {
-    const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
-    const aiType = (product.ai_furniture_type || "").toLowerCase();
-    const name = (product.product_name || "").toLowerCase();
-    const vaType = product.ai_visual_analysis?.furniture_type?.toLowerCase() || "";
-
-    const matchesType = typeAliases.some(alias =>
-      cat.includes(alias) || aiType.includes(alias) || vaType.includes(alias) || name.includes(alias)
-    );
-
-    if (matchesType) {
-      matching.push(product);
-    } else {
-      nonMatching.push(product);
-    }
-  }
-
-  // Type-matching products first, then minimal backfill only if needed
-  // If we have 20+ type matches, limit backfill to preserve accuracy
-  const minResults = 80;
-  const backfillNeeded = Math.max(0, minResults - matching.length);
-  const backfill = nonMatching.slice(0, backfillNeeded);
-
-  console.log(`[ai-vector-search] Type rerank: ${matching.length} type-match, ${backfill.length} backfill (type="${typeLower}", aliases=${typeAliases.join(",")})`);
-
-  return [...matching, ...backfill];
-}
-
-/**
- * Type aliases — maps a furniture type to all category/type terms that should match.
- * e.g., "sofa" should also match "sofas", "loveseat", etc.
- */
-const TYPE_ALIASES = {
-  "sofa": ["sofa", "sofas"],
-  "sectional": ["sectional", "sectionals"],
-  "recliner": ["recliner", "recliners"],
-  "chair": ["chair", "chairs", "accent chair", "accent chairs", "swivel chair", "swivel chairs"],
-  "accent chair": ["accent chair", "accent chairs", "chair", "chairs", "swivel chair"],
-  "dining chair": ["dining chair", "dining chairs"],
-  "table": ["table", "tables"],
-  "dining table": ["dining table", "dining tables"],
-  "coffee table": ["coffee table", "coffee tables"],
-  "side table": ["side table", "side tables"],
-  "console table": ["console table", "console tables"],
-  "bed": ["bed", "beds"],
-  "dresser": ["dresser", "dressers"],
-  "nightstand": ["nightstand", "nightstands"],
-  "ottoman": ["ottoman", "ottomans"],
-  "bench": ["bench", "benches"],
-  "bar stool": ["bar stool", "bar stools"],
-  "desk": ["desk", "desks"],
-  "bookcase": ["bookcase", "bookcases"],
-  "cabinet": ["cabinet", "cabinets"],
-  "credenza": ["credenza", "credenzas"],
-  "chaise": ["chaise", "chaises"],
-  "settee": ["settee", "settees"],
-};
-
-/**
- * Filter results to only products matching a specific material.
- * Checks material, ai_primary_material, ai_visual_analysis.upholstery_material, description.
- */
-function materialFilter(results, material) {
-  const matLower = material.toLowerCase();
-  const matching = results.filter(p => {
-    const fields = [
-      p.material,
-      p.ai_primary_material,
-      p.ai_visual_analysis?.upholstery_material,
-      p.ai_visual_analysis?.secondary_materials,
-      p.description,
-    ].filter(Boolean).join(" ").toLowerCase();
-    return fields.includes(matLower);
-  });
-
-  console.log(`[ai-vector-search] Material filter "${material}": ${matching.length}/${results.length} match`);
-
-  // Only apply if we get meaningful results — don't return empty
-  return matching.length >= 5 ? matching : results;
-}
-
-/**
- * Filter results to only products matching a specific feature.
- * Checks distinctive_features, visual_tags, construction_details, description.
- */
-function featureFilter(results, feature) {
-  const featLower = feature.toLowerCase();
-  const matching = results.filter(p => {
-    const va = p.ai_visual_analysis || {};
-    const fields = [
-      JSON.stringify(p.ai_distinctive_features || []),
-      p.ai_visual_tags,
-      JSON.stringify(va.distinctive_features || []),
-      typeof va.construction_details === "string" ? va.construction_details : JSON.stringify(va.construction_details || ""),
-      va.description,
-      p.description,
-    ].filter(Boolean).join(" ").toLowerCase();
-    return fields.includes(featLower);
-  });
-
-  console.log(`[ai-vector-search] Feature filter "${feature}": ${matching.length}/${results.length} match`);
-  return matching.length >= 5 ? matching : results;
-}
-
-function buildFilterFn(haiku, uiFilters, excludeIds) {
-  return (id) => {
-    if (excludeIds.size > 0 && excludeIds.has(id)) return false;
-
-    const p = getProduct(id);
-    if (!p) return false;
-
-    // Vendor filter from Haiku
-    if (haiku.vendor_filter) {
-      const vendorLower = haiku.vendor_filter.toLowerCase();
-      const pVendor = (p.vendor_name || "").toLowerCase();
-      const pVendorId = (p.vendor_id || "").toLowerCase();
-      if (!pVendor.includes(vendorLower) && !pVendorId.includes(vendorLower.replace(/\s+/g, "-"))) {
-        return false;
-      }
-    }
-
-    // Exclude vendors from Haiku
-    if (haiku.exclude_vendors?.length > 0) {
-      const pVendor = (p.vendor_name || "").toLowerCase();
-      const pVendorId = (p.vendor_id || "").toLowerCase();
-      for (const ev of haiku.exclude_vendors) {
-        const evl = ev.toLowerCase();
-        if (pVendor.includes(evl) || pVendorId.includes(evl.replace(/\s+/g, "-"))) {
-          return false;
-        }
-      }
-    }
-
-    // Price filters from Haiku
-    if (haiku.price_max && p.retail_price && p.retail_price > haiku.price_max) return false;
-    if (haiku.price_min && p.retail_price && p.retail_price < haiku.price_min) return false;
-
-    // UI facet vendor filter
-    if (uiFilters.vendors?.length > 0) {
-      if (!uiFilters.vendors.some(v =>
-        (p.vendor_name || "").toLowerCase() === v.toLowerCase() ||
-        (p.vendor_id || "").toLowerCase() === v.toLowerCase()
-      )) return false;
-    }
-
-    return true;
-  };
-}
-
 function applyFacetFilters(results, filters) {
   if (!filters || Object.keys(filters).length === 0) return results;
-
   let filtered = results;
 
   if (filters.materials?.length > 0) {
@@ -695,27 +854,31 @@ function applyFacetFilters(results, filters) {
       return filters.materials.some(m => mat.includes(m.toLowerCase()));
     });
   }
-
   if (filters.categories?.length > 0) {
     filtered = filtered.filter(p => {
       const cat = (p.category || "").toLowerCase();
       return filters.categories.some(c => cat.includes(c.toLowerCase().replace(/ /g, "-")));
     });
   }
-
   if (filters.styles?.length > 0) {
     filtered = filtered.filter(p => {
       const style = (p.style || "").toLowerCase();
       return filters.styles.some(s => style === s.toLowerCase());
     });
   }
-
   if (filters.price_min != null) {
     filtered = filtered.filter(p => !p.retail_price || p.retail_price >= filters.price_min);
   }
-
   if (filters.price_max != null) {
     filtered = filtered.filter(p => !p.retail_price || p.retail_price <= filters.price_max);
+  }
+  if (filters.vendors?.length > 0) {
+    filtered = filtered.filter(p =>
+      filters.vendors.some(v =>
+        (p.vendor_name || "").toLowerCase() === v.toLowerCase() ||
+        (p.vendor_id || "").toLowerCase() === v.toLowerCase()
+      )
+    );
   }
 
   return filtered;
@@ -731,27 +894,20 @@ function computeSimpleFacets(results) {
   for (const p of results) {
     const v = p.vendor_name || "Unknown";
     vendorCounts[v] = (vendorCounts[v] || 0) + 1;
-
     const cat = p.category || "other";
     const catDisplay = cat.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     categoryCounts[catDisplay] = (categoryCounts[catDisplay] || 0) + 1;
-
     if (p.material) {
       const mat = p.material.split(",")[0].trim();
       if (mat) materialCounts[mat] = (materialCounts[mat] || 0) + 1;
     }
-
     if (p.style) styleCounts[p.style] = (styleCounts[p.style] || 0) + 1;
-
     const color = p.ai_primary_color || p.color;
     if (color) colorCounts[color] = (colorCounts[color] || 0) + 1;
   }
 
   const toFacet = (obj, limit = 15) =>
-    Object.entries(obj)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([value, count]) => ({ value, count }));
+    Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([value, count]) => ({ value, count }));
 
   return {
     vendor: toFacet(vendorCounts),

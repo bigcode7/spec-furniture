@@ -218,64 +218,28 @@ export async function initVectorStore() {
 }
 
 /**
- * Build the product text string for embedding.
- * Combines all relevant fields into a natural sentence.
- */
-/**
- * Build structured product text for embedding using AI visual analysis fields.
- * Format matches the vector_query format Haiku generates for searches.
- * Tagged products get rich structured text; untagged get basic fields.
+ * Build natural language product text for MiniLM embedding.
+ * Used ONLY for ranking within confirmed field matches, not for finding matches.
+ *
+ * Tagged products: ai_description + ai_search_terms (natural prose MiniLM understands well).
+ * Untagged products: product_name + vendor + description + material + category.
  */
 export function buildProductText(product) {
-  const va = product.ai_visual_analysis;
+  const desc = product.ai_description || "";
+  const searchTerms = Array.isArray(product.ai_search_terms) ? product.ai_search_terms.join(" ") : "";
 
-  if (va) {
-    // ── AI-tagged product: full structured format ──
-    const parts = [
-      va.furniture_type ? `type:${va.furniture_type}` : null,
-      va.silhouette ? `silhouette:${va.silhouette}` : null,
-      va.arms ? `arms:${va.arms}` : null,
-      va.back ? `back:${va.back}` : null,
-      va.legs_base ? `legs:${va.legs_base}` : null,
-      va.cushions ? `cushions:${va.cushions}` : null,
-      va.upholstery_material ? `material:${va.upholstery_material}` : null,
-      va.secondary_materials ? `secondary:${va.secondary_materials}` : null,
-      va.color_primary ? `color:${va.color_primary}` : null,
-      va.finish ? `finish:${va.finish}` : null,
-      va.style ? `style:${va.style}` : null,
-      va.era_influence ? `era:${va.era_influence}` : null,
-      va.formality ? `formality:${va.formality}` : null,
-      va.scale ? `scale:${va.scale}` : null,
-      va.visual_weight ? `weight:${va.visual_weight}` : null,
-      va.texture_description ? `texture:${va.texture_description}` : null,
-      va.construction_details ? `construction:${va.construction_details}` : null,
-      va.distinctive_features?.length ? `features:${va.distinctive_features.join(", ")}` : null,
-      va.mood ? `mood:${va.mood}` : null,
-      va.ideal_client ? `client:${va.ideal_client}` : null,
-      va.pairs_well_with ? `pairs:${va.pairs_well_with}` : null,
-      va.durability_assessment ? `durability:${va.durability_assessment}` : null,
-      va.search_terms?.length ? `terms:${va.search_terms.join(", ")}` : null,
-      product.vendor_name ? `vendor:${product.vendor_name}` : null,
-      product.retail_price ? `price:${product.retail_price}` : null,
-      (product.width || product.depth || product.height) ? `dimensions: W:${product.width || ""} D:${product.depth || ""} H:${product.height || ""}` : null,
-      va.description ? `description:${va.description}` : null,
-    ].filter(v => v && !v.endsWith(":") && !v.endsWith(":null") && !v.endsWith(":undefined"));
-
-    return parts.join(" | ");
+  if (desc || searchTerms) {
+    return [desc, searchTerms].filter(Boolean).join(" ");
   }
 
-  // ── Untagged product: basic fields ──
-  const parts = [
+  // Untagged product: basic fields as natural language
+  return [
     product.product_name,
-    product.vendor_name ? `vendor:${product.vendor_name}` : null,
+    product.vendor_name,
     product.description ? product.description.slice(0, 200) : null,
-    product.material ? `material:${product.material}` : null,
-    product.category ? `type:${product.category.replace(/-/g, " ")}` : null,
-    product.style ? `style:${product.style}` : null,
-    product.color ? `color:${product.color}` : null,
-  ].filter(Boolean);
-
-  return parts.join(" | ");
+    product.material,
+    product.category ? product.category.replace(/-/g, " ") : null,
+  ].filter(Boolean).join(" ");
 }
 
 /**
