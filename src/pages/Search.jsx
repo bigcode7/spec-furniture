@@ -15,10 +15,13 @@ import {
   ArrowUpDown,
   Eye,
   ChevronDown,
+  ChevronUp,
   FileText,
   ClipboardCheck,
   AlertTriangle,
   ClipboardList,
+  Plus,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick } from "@/api/searchClient";
@@ -32,6 +35,8 @@ import {
   getRecentlyViewed,
   pushRecentlyViewed,
   addToQuote,
+  getQuote,
+  addQuoteRoom,
 } from "@/lib/growth-store";
 import { useGuestGate } from "@/lib/GuestGate";
 import { useTradePricing } from "@/lib/TradePricingContext";
@@ -102,6 +107,23 @@ const SORT_OPTIONS = [
 const INITIAL_PAGE_SIZE = 24;
 const LOAD_MORE_SIZE = 12;
 const MAX_RESULTS = 200;
+
+// 100 designer-friendly accent colors for bucket headers
+const BUCKET_COLORS = [
+  "#E57373","#F06292","#BA68C8","#9575CD","#7986CB","#64B5F6","#4FC3F7","#4DD0E1",
+  "#4DB6AC","#81C784","#AED581","#DCE775","#FFD54F","#FFB74D","#FF8A65","#A1887F",
+  "#E53935","#D81B60","#8E24AA","#5E35B1","#3949AB","#1E88E5","#039BE5","#00ACC1",
+  "#00897B","#43A047","#7CB342","#C0CA33","#FDD835","#FFB300","#FB8C00","#F4511E",
+  "#6D4C41","#546E7A","#EC407A","#AB47BC","#7E57C2","#5C6BC0","#42A5F5","#26C6DA",
+  "#26A69A","#66BB6A","#9CCC65","#D4E157","#FFEE58","#FFA726","#FF7043","#8D6E63",
+  "#78909C","#EF5350","#CE93D8","#B39DDB","#9FA8DA","#90CAF9","#80DEEA","#80CBC4",
+  "#A5D6A7","#C5E1A5","#E6EE9C","#FFF59D","#FFE082","#FFCC80","#FFAB91","#BCAAA4",
+  "#B0BEC5","#C62828","#AD1457","#6A1B9A","#4527A0","#283593","#1565C0","#0277BD",
+  "#00838F","#00695C","#2E7D32","#558B2F","#9E9D24","#F9A825","#FF8F00","#EF6C00",
+  "#D84315","#4E342E","#37474F","#F44336","#E91E63","#9C27B0","#673AB7","#3F51B5",
+  "#2196F3","#00BCD4","#009688","#4CAF50","#8BC34A","#CDDC39","#FFEB3B","#FFC107",
+  "#FF9800","#FF5722","#795548","#607D8B",
+];
 
 function getInitialQuery() {
   const params = new URLSearchParams(window.location.search);
@@ -253,6 +275,17 @@ export default function SearchPage() {
   const [quoteToast, setQuoteToast] = useState(null);
   const [favoriteToast, setFavoriteToast] = useState(null);
 
+  // Change 3 — Quote dropdown state
+  const [quoteDropdownProduct, setQuoteDropdownProduct] = useState(null);
+  const [quoteDropdownPos, setQuoteDropdownPos] = useState({ top: 0, left: 0 });
+
+  // Change 8 — Bucket colors and expand state
+  const [bucketColors, setBucketColors] = useState([]);
+  const [expandedBuckets, setExpandedBuckets] = useState(new Set());
+
+  // Changes 9-11 — Cross-bucket selections
+  const [bucketSelections, setBucketSelections] = useState(new Map());
+
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -351,6 +384,11 @@ export default function SearchPage() {
     try {
       const data = await listSearch(items);
       setListResults(data);
+      // Assign random bucket colors
+      const shuffled = [...BUCKET_COLORS].sort(() => Math.random() - 0.5);
+      setBucketColors(shuffled.slice(0, (data.items || []).length));
+      setExpandedBuckets(new Set());
+      setBucketSelections(new Map());
       const assistantMsg = {
         role: "assistant",
         content: data.overview_message || `Processed ${items.length} items.`,
@@ -373,6 +411,41 @@ export default function SearchPage() {
     const listItems = detectList(trimmed);
     if (listItems && listItems.length >= 2) {
       return runListSearch(listItems);
+    }
+
+    // Detect multi-item patterns in single search mode
+    // e.g. "living room with sofa two chairs and coffee table"
+    // or "sofa, chairs, and coffee table"
+    const furnitureTypes = ["sofa","couch","sectional","chair","armchair","table","desk","bed","dresser","credenza","bookcase","shelf","shelving","ottoman","bench","stool","cabinet","console","nightstand","lamp","rug","mirror","sideboard","buffet","bar cart","loveseat","chaise","daybed","headboard","vanity","wardrobe","accent table","end table","coffee table","dining table","side table"];
+    const multiItemPattern = trimmed.toLowerCase();
+    const detectedItems = [];
+    // Pattern: "X and Y and Z" or "X, Y, and Z"
+    const andSplit = multiItemPattern.split(/\s*(?:,\s*(?:and\s+)?|(?:\s+and\s+))\s*/);
+    if (andSplit.length >= 2) {
+      for (const segment of andSplit) {
+        const seg = segment.trim();
+        if (seg && furnitureTypes.some(ft => seg.includes(ft))) {
+          detectedItems.push(seg);
+        }
+      }
+    }
+    // Also detect "with" splits: "living room with sofa and table"
+    if (detectedItems.length < 2) {
+      const withSplit = multiItemPattern.split(/\s+with\s+/);
+      if (withSplit.length === 2) {
+        const afterWith = withSplit[1];
+        const subItems = afterWith.split(/\s*(?:,\s*(?:and\s+)?|(?:\s+and\s+))\s*/);
+        const context = withSplit[0]; // e.g. "living room"
+        for (const sub of subItems) {
+          const seg = sub.trim();
+          if (seg && furnitureTypes.some(ft => seg.includes(ft))) {
+            detectedItems.push(context + " " + seg);
+          }
+        }
+      }
+    }
+    if (detectedItems.length >= 2) {
+      return runListSearch(detectedItems);
     }
 
     // Clear list mode when doing single search
@@ -620,16 +693,69 @@ export default function SearchPage() {
     });
   };
 
-  const handleAddToQuote = (product) => {
+  const handleAddToQuote = (product, e) => {
     requireAccount("quote", product, () => {
-      const { added, alreadyExists } = addToQuote(product);
-      if (added) {
-        setQuoteIds(prev => new Set([...prev, product.id]));
-        setQuoteToast(product.product_name);
-        setTimeout(() => setQuoteToast(null), 2200);
-        window.dispatchEvent(new CustomEvent("spec-quote-change"));
+      // Show dropdown with room choices
+      const rect = e?.currentTarget?.getBoundingClientRect?.();
+      if (rect) {
+        setQuoteDropdownPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 220) });
+      } else {
+        setQuoteDropdownPos({ top: window.innerHeight / 2, left: window.innerWidth / 2 - 100 });
       }
+      setQuoteDropdownProduct(product);
     });
+  };
+
+  const handleQuoteRoomSelect = (product, roomId, roomName) => {
+    const { added } = addToQuote(product, roomId);
+    if (added) {
+      setQuoteIds(prev => new Set([...prev, product.id]));
+      setQuoteToast(`Added to ${roomName}`);
+      setTimeout(() => setQuoteToast(null), 2200);
+      window.dispatchEvent(new CustomEvent("spec-quote-change"));
+    }
+    setQuoteDropdownProduct(null);
+  };
+
+  const handleQuoteNewRoom = (product) => {
+    const { room } = addQuoteRoom("New Room");
+    handleQuoteRoomSelect(product, room.id, room.name);
+  };
+
+  // Changes 9-11 — Cross-bucket selection with auto-match
+  const handleBucketSelect = async (bucketIdx, product) => {
+    setBucketSelections(prev => {
+      const next = new Map(prev);
+      if (next.get(bucketIdx)?.id === product.id) {
+        next.delete(bucketIdx); // deselect
+      } else {
+        next.set(bucketIdx, product);
+      }
+      return next;
+    });
+
+    // Cross-bucket auto-match: find similar products to re-rank other buckets
+    if (listResults?.items && product.id) {
+      try {
+        const data = await findSimilarProducts(product.id, 20);
+        const similarIds = new Map((data.products || []).map((p, i) => [p.id, 1 - i * 0.03])); // descending scores
+        // Annotate products in other buckets with complement scores
+        setListResults(prev => {
+          if (!prev?.items) return prev;
+          const updated = { ...prev, items: prev.items.map((item, idx) => {
+            if (idx === bucketIdx) return item;
+            const products = item.products.map(p => ({
+              ...p,
+              _complementScore: similarIds.get(p.id) || 0,
+            }));
+            // Sort: complement-scored items first, then by original order
+            products.sort((a, b) => (b._complementScore || 0) - (a._complementScore || 0));
+            return { ...item, products };
+          })};
+          return updated;
+        });
+      } catch { /* silent — complementing is best-effort */ }
+    }
   };
 
   const isFavorited = (id) => favorites.some(f => f.id === id);
@@ -760,13 +886,33 @@ export default function SearchPage() {
         <div className="pb-24">
           {/* Top bar */}
           <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
-            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 <div className={`spec-diamond${loading ? " animate-pulse" : ""}`} />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70">Results</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70 hidden sm:inline">Results</span>
               </div>
+              {/* Inline compact search input */}
+              <form onSubmit={handleSubmit} className="flex-1 max-w-md">
+                <div className="relative rounded-lg border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20">
+                  <div className="flex items-center">
+                    <Search className="ml-2.5 h-3 w-3 text-white/20 shrink-0" />
+                    <input
+                      value={inputValue}
+                      onChange={(e) => handleInputChange(e.target.value)}
+                      placeholder="Search..."
+                      className="h-8 w-full bg-transparent pl-2 pr-8 text-[12px] text-white/70 placeholder:text-white/20 outline-none"
+                      disabled={loading}
+                    />
+                    {inputValue.trim() && (
+                      <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-white/30 hover:text-gold/60 transition-colors">
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </form>
               <button onClick={handleNewSearch}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors">
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0">
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
@@ -889,72 +1035,202 @@ export default function SearchPage() {
               </motion.div>
             )}
 
-            {/* ── List search results (grouped by item) ── */}
+            {/* ── List search results (grouped by item) — collapsible color buckets ── */}
             {!loading && listMode && listResults?.items?.length > 0 && (
               <motion.div key="list-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-                {listResults.items.map((item, itemIdx) => (
-                  <div key={itemIdx} className="mb-8">
-                    {/* Section header */}
-                    <div className="flex items-center gap-3 mb-3 mt-2">
-                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gold/10 text-gold/70 text-xs font-bold shrink-0">
-                        {item.item_number}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white/80 truncate">{item.original_text}</div>
-                        {item.summary && item.summary !== item.original_text && (
-                          <div className="text-[11px] text-white/30 mt-0.5">{item.summary}</div>
+                {listResults.items.map((item, itemIdx) => {
+                  const bucketColor = bucketColors[itemIdx] || "#C9A96E";
+                  const isExpanded = expandedBuckets.has(itemIdx);
+                  const selectedProduct = bucketSelections.get(itemIdx);
+                  const maxCollapsed = 6;
+                  const visibleItems = isExpanded ? item.products : item.products.slice(0, maxCollapsed);
+                  const hasMore = item.products.length > maxCollapsed;
+
+                  return (
+                    <div key={itemIdx} className="mb-6 rounded-xl overflow-hidden" style={{ borderLeft: `3px solid ${bucketColor}` }}>
+                      {/* Bucket header — click to toggle */}
+                      <button
+                        onClick={() => setExpandedBuckets(prev => {
+                          const next = new Set(prev);
+                          if (next.has(itemIdx)) next.delete(itemIdx);
+                          else next.add(itemIdx);
+                          return next;
+                        })}
+                        className="w-full flex items-center gap-3 px-4 py-3 transition-colors hover:brightness-110"
+                        style={{ background: `${bucketColor}10` }}
+                      >
+                        <div className="flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold shrink-0"
+                          style={{ background: `${bucketColor}25`, color: bucketColor }}>
+                          {item.item_number || itemIdx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="text-sm font-medium text-white/80 truncate">{item.original_text}</div>
+                          {item.summary && item.summary !== item.original_text && (
+                            <div className="text-[11px] text-white/30 mt-0.5">{item.summary}</div>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {item.dimension_notes && (
+                            <span className="text-[10px] text-white/20 border border-white/[0.06] rounded px-1.5 py-0.5">{item.dimension_notes}</span>
+                          )}
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${bucketColor}15`, color: bucketColor }}>
+                            {item.original_text?.split(/\s+/)?.[0] || "Item"} ({item.total || item.products.length} results)
+                          </span>
+                          {selectedProduct && (
+                            <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-400/70">
+                              <Check className="h-2.5 w-2.5" /> Selected
+                            </span>
+                          )}
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
+                        </div>
+                      </button>
+
+                      {/* Feasibility note */}
+                      {item.feasibility === "unlikely" && item.feasibility_note && (
+                        <div className="mx-4 mt-2 mb-1 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-400/60 mt-0.5 shrink-0" />
+                          <span className="text-[11px] text-amber-300/60">{item.feasibility_note}</span>
+                        </div>
+                      )}
+
+                      {/* Product cards for this bucket */}
+                      <div className="px-4 py-3">
+                        {visibleItems.length > 0 ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                            {visibleItems.map((product, pIdx) => (
+                              <div key={product.id || pIdx} className="relative">
+                                {/* Selection highlight */}
+                                {selectedProduct?.id === product.id && (
+                                  <div className="absolute inset-0 z-10 rounded-xl pointer-events-none" style={{ border: `2px solid ${bucketColor}`, boxShadow: `0 0 12px ${bucketColor}30` }} />
+                                )}
+                                {/* Complements badge */}
+                                {product._complementScore > 0.7 && (
+                                  <div className="absolute top-1 right-1 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[8px] text-emerald-300/80">
+                                    Complements your selection
+                                  </div>
+                                )}
+                                <ProductCard
+                                  item={product}
+                                  index={pIdx}
+                                  isFavorited={isFavorited(product.id)}
+                                  isInQuote={quoteIds.has(product.id)}
+                                  onToggleFavorite={() => handleToggleFavorite(product)}
+                                  onAddToQuote={(e) => handleAddToQuote(product, e)}
+                                  onPreview={() => openPreview(product)}
+                                />
+                                {/* Select button */}
+                                <button
+                                  onClick={() => handleBucketSelect(itemIdx, product)}
+                                  className={`w-full mt-1 flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-all ${
+                                    selectedProduct?.id === product.id
+                                      ? "text-white"
+                                      : "border border-white/[0.08] text-white/40 hover:border-white/20 hover:text-white/60"
+                                  }`}
+                                  style={selectedProduct?.id === product.id ? { background: bucketColor, borderColor: bucketColor } : {}}
+                                >
+                                  {selectedProduct?.id === product.id ? <><Check className="h-2.5 w-2.5" /> Selected</> : "Select"}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-white/[0.04] bg-white/[0.01] p-4 text-center">
+                            <span className="text-[11px] text-white/20">No matching products in our catalog yet</span>
+                          </div>
                         )}
-                      </div>
-                      <div className="shrink-0 flex items-center gap-2">
-                        {item.dimension_notes && (
-                          <span className="text-[10px] text-white/20 border border-white/[0.06] rounded px-1.5 py-0.5">{item.dimension_notes}</span>
+
+                        {/* Expand/collapse toggle */}
+                        {hasMore && !isExpanded && (
+                          <button
+                            onClick={() => setExpandedBuckets(prev => new Set([...prev, itemIdx]))}
+                            className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[11px] text-white/30 hover:text-white/50 hover:border-white/10 transition-colors"
+                          >
+                            Show all {item.products.length} results <ChevronDown className="h-3 w-3" />
+                          </button>
                         )}
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          item.total >= 3 ? "bg-green-500/10 text-green-400/70" :
-                          item.total > 0 ? "bg-yellow-500/10 text-yellow-400/70" :
-                          "bg-white/[0.03] text-white/20"
-                        }`}>
-                          {item.total > 0 ? `${item.total} found` : "no matches"}
-                        </span>
                       </div>
                     </div>
+                  );
+                })}
 
-                    {/* Feasibility note */}
-                    {item.feasibility === "unlikely" && item.feasibility_note && (
-                      <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-400/60 mt-0.5 shrink-0" />
-                        <span className="text-[11px] text-amber-300/60">{item.feasibility_note}</span>
-                      </div>
-                    )}
+                {/* Bucket selection summary + Add Room buttons (Changes 9-11) */}
+                {bucketSelections.size > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-4 rounded-xl border border-gold/15 bg-gold/[0.03] p-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-gold/50 mb-3">Room Selections</div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {listResults.items.map((item, idx) => {
+                        const sel = bucketSelections.get(idx);
+                        const color = bucketColors[idx] || "#C9A96E";
+                        return (
+                          <div key={idx} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"
+                            style={{ background: sel ? `${color}15` : "rgba(255,255,255,0.02)", border: `1px solid ${sel ? color + "40" : "rgba(255,255,255,0.06)"}` }}>
+                            <span style={{ color: sel ? color : "rgba(255,255,255,0.3)" }}>
+                              {item.original_text?.split(/\s/).slice(0, 2).join(" ") || `Item ${idx + 1}`}:
+                            </span>
+                            {sel ? (
+                              <span className="text-white/60 truncate max-w-[120px]">
+                                {sel.product_name} {sel.retail_price ? `$${Number(sel.retail_price).toLocaleString()}` : ""}
+                                <Check className="inline h-2.5 w-2.5 ml-1 text-green-400/70" />
+                              </span>
+                            ) : (
+                              <span className="text-white/20 italic">not yet selected</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                    {/* Product cards for this item */}
-                    {item.products.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
-                        {item.products.slice(0, 8).map((product, pIdx) => (
-                          <ProductCard
-                            key={product.id || pIdx}
-                            item={product}
-                            index={pIdx}
-                            isFavorited={isFavorited(product.id)}
-                            isInQuote={quoteIds.has(product.id)}
-                            onToggleFavorite={() => handleToggleFavorite(product)}
-                            onAddToQuote={() => handleAddToQuote(product)}
-                            onPreview={() => openPreview(product)}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-white/[0.04] bg-white/[0.01] p-4 text-center">
-                        <span className="text-[11px] text-white/20">No matching products in our catalog yet</span>
-                      </div>
-                    )}
+                    {/* Running total */}
+                    {(() => {
+                      const total = [...bucketSelections.values()].reduce((sum, p) => sum + (Number(p.retail_price) || 0), 0);
+                      return total > 0 ? (
+                        <div className="text-sm text-gold/70 font-semibold mb-3">
+                          Running total: ${total.toLocaleString()}
+                        </div>
+                      ) : null;
+                    })()}
 
-                    {/* Separator */}
-                    {itemIdx < listResults.items.length - 1 && (
-                      <div className="mt-6 border-t border-white/[0.04]" />
-                    )}
-                  </div>
-                ))}
+                    <div className="flex gap-2">
+                      {/* Partial — at least one selection */}
+                      <button
+                        onClick={() => {
+                          const { room } = addQuoteRoom("Room from Search");
+                          for (const [, product] of bucketSelections) {
+                            addToQuote(product, room.id);
+                            setQuoteIds(prev => new Set([...prev, product.id]));
+                          }
+                          setQuoteToast(`Added ${bucketSelections.size} item(s) to ${room.name}`);
+                          setTimeout(() => setQuoteToast(null), 2200);
+                          window.dispatchEvent(new CustomEvent("spec-quote-change"));
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-gold/25 bg-gold/10 px-4 py-2 text-[11px] font-semibold text-gold/80 hover:bg-gold/15 transition-all"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Add Room to Quote ({bucketSelections.size}/{listResults.items.length})
+                      </button>
+
+                      {/* Complete — all buckets have selections */}
+                      {bucketSelections.size === listResults.items.length && (
+                        <button
+                          onClick={() => {
+                            const { room } = addQuoteRoom("Complete Room");
+                            for (const [, product] of bucketSelections) {
+                              addToQuote(product, room.id);
+                              setQuoteIds(prev => new Set([...prev, product.id]));
+                            }
+                            setQuoteToast(`Added complete room (${bucketSelections.size} items) to quote`);
+                            setTimeout(() => setQuoteToast(null), 2200);
+                            window.dispatchEvent(new CustomEvent("spec-quote-change"));
+                          }}
+                          className="flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-[11px] font-semibold text-black hover:bg-gold/90 transition-all"
+                        >
+                          <ClipboardCheck className="h-3 w-3" />
+                          Add Complete Room to Quote
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* List summary */}
                 <div className="mt-4 mb-8 rounded-xl border border-gold/10 bg-gold/[0.02] p-4">
@@ -980,7 +1256,7 @@ export default function SearchPage() {
                       isFavorited={isFavorited(item.id)}
                       isInQuote={quoteIds.has(item.id)}
                       onToggleFavorite={() => handleToggleFavorite(item)}
-                      onAddToQuote={() => handleAddToQuote(item)}
+                      onAddToQuote={(e) => handleAddToQuote(item, e)}
                       onPreview={() => openPreview(item)}
                     />
                   ))}
@@ -1075,6 +1351,42 @@ export default function SearchPage() {
         )}
       </AnimatePresence>
 
+      {/* Quote Room Dropdown */}
+      <AnimatePresence>
+        {quoteDropdownProduct && (
+          <>
+            <div className="fixed inset-0 z-[70]" onClick={() => setQuoteDropdownProduct(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed z-[71] w-52 rounded-xl border border-white/[0.1] bg-[#111118] shadow-2xl overflow-hidden"
+              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left }}
+            >
+              <div className="px-3 py-2 border-b border-white/[0.06]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Add to room</span>
+              </div>
+              {getQuote().rooms.map((room) => (
+                <button
+                  key={room.id}
+                  onClick={() => handleQuoteRoomSelect(quoteDropdownProduct, room.id, room.name)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-white/60 hover:bg-white/[0.05] hover:text-white/80 transition-colors"
+                >
+                  <span className="truncate">{room.name}</span>
+                  <span className="text-[10px] text-white/20 tabular-nums ml-2 shrink-0">{room.items.length} items</span>
+                </button>
+              ))}
+              <button
+                onClick={() => handleQuoteNewRoom(quoteDropdownProduct)}
+                className="flex w-full items-center gap-1.5 px-3 py-2 text-[12px] text-gold/70 hover:bg-gold/5 border-t border-white/[0.06] transition-colors"
+              >
+                <Plus className="h-3 w-3" /> New Room
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Quote Toast */}
       <AnimatePresence>
         {quoteToast && (
@@ -1090,8 +1402,7 @@ export default function SearchPage() {
             }}
           >
             <ClipboardCheck className="h-4 w-4 text-gold" />
-            <span className="text-sm text-white/80">Added to quote</span>
-            <span className="text-xs text-white/30 max-w-[200px] truncate">{quoteToast}</span>
+            <span className="text-sm text-white/80 max-w-[300px] truncate">{quoteToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1300,10 +1611,10 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
             }`}>
             <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
-          <button data-action onClick={(e) => {
-              e.stopPropagation();
+          <button data-action onClick={(ev) => {
+              ev.stopPropagation();
               if (!isInQuote && !justAdded) {
-                onAddToQuote();
+                onAddToQuote(ev);
                 setJustAdded(true);
                 setTimeout(() => setJustAdded(false), 2000);
               }
@@ -1399,21 +1710,23 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — right-sliding */}
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, x: "100%" }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 400 }}
-        className="fixed inset-x-0 bottom-0 z-[61] max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-white/[0.08] bg-[#0e0e14]/95 backdrop-blur-xl shadow-2xl"
+        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14]/95 backdrop-blur-xl shadow-2xl"
       >
-        {/* Close handle */}
-        <div className="sticky top-0 z-10 flex justify-center pt-3 pb-2 bg-[#0e0e14]/95 backdrop-blur-xl">
-          <button onClick={onClose} className="h-1 w-10 rounded-full bg-white/15 hover:bg-white/25 transition-colors" />
+        {/* Close X button */}
+        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#0e0e14]/95 backdrop-blur-xl">
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 pb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="px-4 pb-8">
+          <div className="flex flex-col gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
               <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/[0.04]" style={{ backgroundColor: "#ffffff" }}>
@@ -1551,7 +1864,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
-                <button onClick={() => onAddToQuote(product)}
+                <button onClick={(ev) => onAddToQuote(product, ev)}
                   className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10">
                   <FileText className="h-3 w-3" />
                   Add to Quote
@@ -1583,7 +1896,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 </span>
                 <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/[0.04]" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {similarProducts.map((sp) => (
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
                     <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>

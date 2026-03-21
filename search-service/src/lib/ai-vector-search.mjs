@@ -21,6 +21,25 @@ const MODEL = "claude-haiku-4-5-20251001";
 let catalogFieldIndex = {};
 let catalogIndexPromptText = "";
 
+// Fallback accessors for untagged products (no ai_visual_analysis).
+// When the primary AI field is null/undefined, try basic metadata instead.
+const FIELD_FALLBACKS = {
+  ai_furniture_type: p => {
+    const parts = [];
+    if (p.category) parts.push(p.category.replace(/-/g, " "));
+    if (p.product_name) parts.push(p.product_name.toLowerCase());
+    return parts.length > 0 ? parts.join(" ") : null;
+  },
+  ai_primary_material: p => {
+    const parts = [];
+    if (p.material) parts.push(p.material);
+    if (p.description) parts.push(p.description.slice(0, 500));
+    return parts.length > 0 ? parts.join(" ").toLowerCase() : null;
+  },
+  ai_style: p => p.style || null,
+  ai_primary_color: p => p.color || null,
+};
+
 // Field accessors — maps search_fields keys to how to read them from a product
 const FIELD_ACCESSORS = {
   ai_furniture_type: p => p.ai_furniture_type,
@@ -636,11 +655,28 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
 
     // All search fields must match (AND logic)
     let matchesAll = true;
-    for (const { accessor, searchVals } of fieldFilters) {
+    for (const { fieldName, accessor, searchVals } of fieldFilters) {
       const val = accessor(product);
-      if (!fieldContains(val, searchVals)) {
-        matchesAll = false;
-        break;
+      if (val != null) {
+        // Primary AI field has a value — use it directly
+        if (!fieldContains(val, searchVals)) {
+          matchesAll = false;
+          break;
+        }
+      } else {
+        // Primary AI field is null/undefined — try fallback for untagged products
+        const fallback = FIELD_FALLBACKS[fieldName];
+        if (fallback) {
+          const fbVal = fallback(product);
+          if (!fieldContains(fbVal, searchVals)) {
+            matchesAll = false;
+            break;
+          }
+        } else {
+          // No fallback available and primary is null — no match
+          matchesAll = false;
+          break;
+        }
       }
     }
     if (!matchesAll) continue;
