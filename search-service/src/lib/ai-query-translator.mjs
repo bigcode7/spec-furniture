@@ -398,6 +398,7 @@ export function localParse(query) {
     }
   } else if (catDetect.type === "room") {
     filter.categories = catDetect.categories;
+    filter._room_context = catDetect.detected;
   }
 
   // ── Natural language category (highest priority) ──
@@ -472,26 +473,36 @@ export function localParse(query) {
   }
 
   // ── Exclude terms ──
-  // Use exec to properly capture groups from multiple matches
+  // Catch all negation patterns including natural language
   const negPatterns = [
-    /\bno\s+(\w+)/gi,
-    /\bnot\s+(\w+)/gi,
-    /\bwithout\s+(\w+)/gi,
-    /\bexclude\s+(\w+)/gi,
+    /\bno\s+(\w+(?:\s+\w+)?)/gi,
+    /\bnot\s+(\w+(?:\s+\w+)?)/gi,
+    /\bwithout\s+(\w+(?:\s+\w+)?)/gi,
+    /\bexclude\s+(\w+(?:\s+\w+)?)/gi,
+    /\bavoid\s+(\w+(?:\s+\w+)?)/gi,
+    /\bskip\s+(\w+(?:\s+\w+)?)/gi,
+    /\bhates?\s+(\w+(?:\s+\w+)?)/gi,
+    /\bdon'?t\s+(?:want|like|need)\s+(\w+(?:\s+\w+)?)/gi,
+    /\bdoesn'?t\s+(?:feel|look|want)\s+(\w+(?:\s+\w+)?)/gi,
+    /\bnever\s+(\w+(?:\s+\w+)?)/gi,
+    /\bbut\s+not\s+(\w+(?:\s+\w+)?)/gi,
   ];
+  const negStopWords = new Set(["more", "the", "a", "an", "than", "less", "this", "that", "it", "just", "too", "so", "very", "really", "feel", "look", "want", "like", "need"]);
   for (const regex of negPatterns) {
     let m;
     while ((m = regex.exec(q)) !== null) {
-      const term = m[1].trim().toLowerCase();
-      // Skip stop words that might get caught ("no more", "not the", etc.)
-      if (["more", "the", "a", "an", "than", "less", "this", "that", "it", "just"].includes(term)) continue;
-      if (!filter.exclude_terms.includes(term)) {
-        filter.exclude_terms.push(term);
+      // Extract meaningful words from the captured group
+      const words = m[1].trim().toLowerCase().split(/\s+/).filter(w => !negStopWords.has(w));
+      for (const term of words) {
+        if (term.length < 3) continue;
+        if (!filter.exclude_terms.includes(term)) {
+          filter.exclude_terms.push(term);
+        }
       }
     }
   }
 
-  // ── Style detection ──
+  // ── Style detection (skip negated styles) ──
   const styles = [
     "mid-century", "mid century", "midcentury", "mcm",
     "art-deco", "art deco",
@@ -502,15 +513,27 @@ export function localParse(query) {
   ];
   for (const s of styles) {
     if (q.includes(s)) {
-      filter.style = s.replace(/\s+/g, "-");
+      // Skip if this style is in the exclude list (negated)
+      const styleNorm = s.replace(/\s+/g, "-");
+      const styleWords = s.split(/[\s-]+/);
+      if (filter.exclude_terms.some(ex => styleWords.includes(ex) || ex === styleNorm || ex === s)) continue;
+      // Skip if preceded by negation phrase
+      const negStyleRegex = new RegExp(`(?:not|no|without|doesn'?t\\s+feel|doesn'?t\\s+look|avoid|hate|hates|never|but\\s+not)\\s+(?:\\w+\\s+)*${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+      if (negStyleRegex.test(q)) continue;
+      filter.style = styleNorm;
       break;
     }
   }
 
-  // ── Color detection ──
+  // ── Color detection (skip negated colors) ──
   const colors = ["white", "black", "gray", "grey", "brown", "beige", "cream", "ivory", "navy", "blue", "green", "red", "gold", "silver", "tan", "taupe", "charcoal", "espresso", "natural", "cognac"];
   for (const c of colors) {
     if (q.includes(c)) {
+      // Skip if this color is in the exclude list (negated)
+      if (filter.exclude_terms.includes(c)) continue;
+      // Skip if preceded by negation
+      const negColorRegex = new RegExp(`(?:not|no|without|hates?|avoid|never|don'?t\\s+(?:want|like))\\s+(?:\\w+\\s+)*${c}`, "i");
+      if (negColorRegex.test(q)) continue;
       filter.color = c;
       break;
     }
@@ -991,6 +1014,68 @@ const CROSS_FIELD_CONCEPTS = {
     minMatch: 2,
     boost: 25,
   },
+  warmth: {
+    triggers: ["warmth", "warm", "wants warmth", "warm tones", "warm feeling"],
+    checks: [
+      (p) => /warm|inviting|cozy|welcoming/i.test(p.ai_mood || ""),
+      (p) => /cognac|amber|honey|gold|terracotta|rust|cream|camel|caramel|copper|blush|sand|oatmeal|warm/i.test(p.ai_primary_color || ""),
+      (p) => /wood|walnut|oak|leather|linen|wool|boucle/i.test(p.ai_primary_material || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  magazine_worthy: {
+    triggers: ["magazine", "photographs well", "editorial", "showroom", "instagram worthy"],
+    checks: [
+      (p) => /formal|semi.formal/i.test(p.ai_formality || ""),
+      (p) => /refined|sophisticated|elegant|dramatic|sculptural|striking/i.test(p.ai_mood || ""),
+      (p) => /large|oversized|grand|statement/i.test(p.ai_scale || ""),
+      (p) => PREMIUM_VENDORS.has(p.vendor_id || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  mountain_modern: {
+    triggers: ["mountain house", "mountain home", "ski lodge", "cabin modern", "lodge but modern"],
+    checks: [
+      (p) => /transitional|organic modern|contemporary|modern/i.test(p.ai_style || ""),
+      (p) => /wood|leather|stone|iron/i.test(p.ai_primary_material || ""),
+      (p) => /warm|cozy|inviting/i.test(p.ai_mood || ""),
+      (p) => !/rustic|farmhouse|country|cabin/i.test(p.ai_style || ""),
+    ],
+    minMatch: 3,
+    boost: 25,
+  },
+  transitional_crossover: {
+    triggers: ["both modern and traditional", "modern and traditional", "works in both"],
+    checks: [
+      (p) => /transitional|updated traditional|classic contemporary/i.test(p.ai_style || ""),
+      (p) => /semi.formal/i.test(p.ai_formality || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+  cloud_sofa: {
+    triggers: ["cloud sofa", "cloud couch", "like the rh cloud", "like rh cloud"],
+    checks: [
+      (p) => /deep|oversized|generous|large/i.test(p.ai_scale || ""),
+      (p) => /down|feather|plush|sink/i.test(p.ai_distinctive_features?.join(" ") || ""),
+      (p) => /cozy|comfortable|relaxed|inviting/i.test(p.ai_mood || ""),
+      (p) => /loose pillow|pillow back/i.test(p.ai_back_style || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+  doesnt_look_like: {
+    triggers: ["doesn't look like a recliner", "doesnt look like a recliner", "doesn't look like recliner"],
+    checks: [
+      (p) => /modern|contemporary|transitional/i.test(p.ai_style || ""),
+      (p) => /refined|sophisticated|sleek/i.test(p.ai_mood || ""),
+      (p) => !/bulky|oversized|traditional recliner/i.test(p.ai_mood || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
 };
 
 function detectCrossFieldConcepts(query) {
@@ -1293,20 +1378,48 @@ export function applyAIFilter(products, filter) {
     });
   }
 
-  // ── HARD FILTER: Exclude terms (no sectionals, without leather, etc.) ──
+  // ── HARD FILTER: Exclude terms (no sectionals, without leather, hates brown, etc.) ──
   if (filter.exclude_terms?.length > 0) {
     // Expand exclude terms to include singular/plural variants
     const expandedExclude = [];
     for (const term of filter.exclude_terms) {
       const t = term.toLowerCase();
       expandedExclude.push(t);
-      if (t.endsWith("s")) expandedExclude.push(t.slice(0, -1)); // sectionals → sectional
-      else expandedExclude.push(t + "s"); // sectional → sectionals
+      if (t.endsWith("s")) expandedExclude.push(t.slice(0, -1));
+      else expandedExclude.push(t + "s");
     }
     const uniqueExclude = [...new Set(expandedExclude)];
+
+    // Check which exclude terms are styles, colors, or materials for AI field filtering
+    const allStyles = ["modern", "traditional", "transitional", "coastal", "glam", "contemporary", "minimalist", "industrial", "rustic", "farmhouse", "bohemian", "scandinavian", "mid-century", "midcentury", "art-deco", "mission", "craftsman"];
+    const allColors = ["white", "black", "gray", "grey", "brown", "beige", "cream", "ivory", "navy", "blue", "green", "red", "gold", "silver", "tan", "taupe", "charcoal", "espresso", "cognac"];
+    const allMaterials = ["leather", "velvet", "boucle", "linen", "wood", "marble", "brass", "iron", "rattan", "glass", "stone", "veneer", "mdf", "laminate"];
+
+    const excludeStyles = uniqueExclude.filter(t => allStyles.includes(t));
+    const excludeColors = uniqueExclude.filter(t => allColors.includes(t));
+    const excludeMaterials = uniqueExclude.filter(t => allMaterials.includes(t));
+
     results = results.filter(p => {
+      // Check traditional text fields
       const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
-      return !uniqueExclude.some(term => text.includes(term));
+      if (uniqueExclude.some(term => text.includes(term))) return false;
+
+      // Check AI style field
+      if (excludeStyles.length > 0 && p.ai_style) {
+        const aiStyle = p.ai_style.toLowerCase();
+        if (excludeStyles.some(s => aiStyle.includes(s))) return false;
+      }
+      // Check AI color field
+      if (excludeColors.length > 0 && p.ai_primary_color) {
+        const aiColor = p.ai_primary_color.toLowerCase();
+        if (excludeColors.some(c => aiColor.includes(c))) return false;
+      }
+      // Check AI material field
+      if (excludeMaterials.length > 0 && p.ai_primary_material) {
+        const aiMat = p.ai_primary_material.toLowerCase();
+        if (excludeMaterials.some(m => aiMat.includes(m))) return false;
+      }
+      return true;
     });
   }
 
@@ -1576,6 +1689,23 @@ export function applyAIFilter(products, filter) {
       score += scoreCrossFieldConcepts(p, filter._cross_field_concepts);
     }
 
+    // ── ROOM CONTEXT: core furniture types rank above accessories ──
+    if (filter._room_context) {
+      const ROOM_CORE_FURNITURE = {
+        "dining room": ["dining-tables", "dining-chairs", "credenzas", "cabinets"],
+        "living room": ["sofas", "sectionals", "loveseats", "accent-chairs", "coffee-tables", "side-tables"],
+        "bedroom": ["beds", "headboards", "nightstands", "dressers"],
+        "office": ["desks", "accent-chairs", "swivel-chairs", "bookcases"],
+        "study": ["desks", "accent-chairs", "swivel-chairs", "bookcases"],
+        "entryway": ["console-tables", "mirrors", "benches"],
+        "foyer": ["console-tables", "mirrors", "chandeliers"],
+      };
+      const coreCats = ROOM_CORE_FURNITURE[filter._room_context];
+      if (coreCats && coreCats.some(cc => productCat === cc || productCat.includes(cc.replace(/-/g, "")) || cc.includes(productCat))) {
+        score += 25; // Core furniture for this room
+      }
+    }
+
     p._ai_score = score;
   }
 
@@ -1774,7 +1904,25 @@ export function localParseFollowUp(followUp, previousFilter) {
     if (!merged.categories?.length && previousFilter.categories?.length && !merged.category) {
       merged.categories = previousFilter.categories;
     }
-    // Do NOT carry forward old vendor — the user explicitly wants to switch
+    // Carry forward vendor UNLESS the new parse explicitly sets a different vendor
+    if (!merged.vendor && !merged.vendors?.length && (previousFilter.vendor || previousFilter.vendors?.length)) {
+      merged.vendor = previousFilter.vendor;
+      merged.vendors = previousFilter.vendors;
+      merged.vendor_ids = previousFilter.vendor_ids;
+    }
+    // Carry forward style if not overridden
+    if (!merged.style && previousFilter.style) {
+      merged.style = previousFilter.style;
+    }
+    // Carry forward material if not overridden
+    if (!merged.material && previousFilter.material) {
+      merged.material = previousFilter.material;
+      merged.material_expanded = previousFilter.material_expanded;
+    }
+    // Carry forward exclude terms
+    if (previousFilter.exclude_terms?.length) {
+      merged.exclude_terms = [...new Set([...(merged.exclude_terms || []), ...previousFilter.exclude_terms])];
+    }
     return merged;
   }
 

@@ -49,6 +49,7 @@ const CATEGORY_PATTERNS = [
   { match: ["media console", "media consoles", "tv stand", "tv console", "entertainment center", "entertainment console", "media cabinet"], categories: ["media-consoles"], related: ["credenzas"] },
   { match: ["dresser", "dressers", "chest of drawers", "double dresser", "tall dresser", "bureau"], categories: ["dressers"], related: ["chests"] },
   { match: ["bookcase", "bookcases", "bookshelf", "bookshelves", "etagere", "etageres", "shelving", "display shelf"], categories: ["bookcases"], related: [] },
+  { match: ["bar cart", "bar carts", "drinks trolley", "serving cart", "beverage cart"], categories: ["bar-carts"], related: [] },
   { match: ["cabinet", "cabinets", "bar cabinet", "china cabinet", "curio cabinet", "display cabinet", "hutch"], categories: ["cabinets"], related: [] },
   { match: ["chest", "chests", "blanket chest", "trunk", "trunks", "lingerie chest"], categories: ["chests"], related: ["dressers"] },
   { match: ["armoire", "wardrobe", "wardrobes"], categories: ["wardrobes"], related: [] },
@@ -76,6 +77,9 @@ const CATEGORY_PATTERNS = [
   { match: ["throw", "throws", "blanket", "blankets"], categories: ["throws"], related: [] },
   { match: ["vase", "vases"], categories: ["vases"], related: [] },
 
+  // Generic "dining" — covers dining tables + chairs when no specific type given
+  { match: ["dining"], categories: ["dining-tables", "dining-chairs"], related: ["credenzas", "benches"] },
+
   // Generic "table" — last resort, very broad
   { match: ["table", "tables"], categories: ["dining-tables", "coffee-tables", "side-tables", "console-tables"], related: [] },
 ];
@@ -85,7 +89,7 @@ const CATEGORY_PATTERNS = [
 const ROOM_CATEGORIES = {
   bedroom: ["beds", "headboards", "nightstands", "dressers", "chests", "benches", "mirrors", "table-lamps", "area-rugs", "throws", "pillows"],
   "living room": ["sofas", "sectionals", "loveseats", "accent-chairs", "swivel-chairs", "coffee-tables", "side-tables", "console-tables", "ottomans", "media-consoles", "area-rugs", "table-lamps", "floor-lamps", "mirrors", "pillows", "throws", "decorative-objects", "wall-art"],
-  "dining room": ["dining-tables", "dining-chairs", "credenzas", "bar-stools", "benches", "chandeliers", "pendants", "area-rugs", "mirrors", "wall-art", "cabinets"],
+  "dining room": ["dining-tables", "dining-chairs", "credenzas", "bar-stools", "benches", "chandeliers", "pendants", "cabinets", "mirrors", "wall-art", "area-rugs"],
   office: ["desks", "accent-chairs", "swivel-chairs", "bookcases", "table-lamps", "floor-lamps", "area-rugs"],
   study: ["desks", "accent-chairs", "swivel-chairs", "bookcases", "table-lamps", "floor-lamps", "area-rugs"],
   outdoor: ["sofas", "accent-chairs", "dining-tables", "dining-chairs", "side-tables", "coffee-tables", "benches", "ottomans"],
