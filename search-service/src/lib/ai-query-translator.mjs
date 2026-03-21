@@ -689,7 +689,17 @@ function aiFieldContains(fieldValue, searchTerm) {
 function aiArrayContains(arr, searchTerm) {
   if (!arr || !Array.isArray(arr) || !searchTerm) return false;
   const st = searchTerm.toLowerCase();
-  return arr.some(item => item.toLowerCase().includes(st));
+  return arr.some(item => {
+    const lower = item.toLowerCase();
+    if (!lower.includes(st)) return false;
+    // Reject negated matches like "no-nailhead", "without nailhead", "non-nailhead"
+    const idx = lower.indexOf(st);
+    if (idx > 0) {
+      const before = lower.substring(Math.max(0, idx - 8), idx);
+      if (/\bno[- ]?$/.test(before) || /\bnon[- ]?$/.test(before) || /\bwithout\s?$/.test(before) || /\bno\s$/.test(before)) return false;
+    }
+    return true;
+  });
 }
 
 /**
