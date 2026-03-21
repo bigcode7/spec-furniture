@@ -53,7 +53,7 @@ import { importHancockMoore, getHancockMooreStatus, stopHancockMoore } from "./i
 import { importCRLaine, getCRLaineStatus, stopCRLaine } from "./importers/crlaine-importer.mjs";
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
-import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors } from "./lib/vector-store.mjs";
+import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores } from "./lib/vector-store.mjs";
 import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache } from "./lib/ai-vector-search.mjs";
 import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
 import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
@@ -936,6 +936,25 @@ const server = http.createServer(async (req, res) => {
         searches_remaining: updatedAccess.searches_remaining,
         subscription_status: updatedAccess.status,
       });
+    }
+
+    // ── Cross-Match: compute cosine similarity between selected products and candidates ──
+    if (req.method === "POST" && req.url === "/cross-match") {
+      const body = await collectBody(req);
+      const selectedIds = body.selected_ids || [];
+      const candidateIds = body.candidate_ids || [];
+
+      if (!selectedIds.length || !candidateIds.length) {
+        return json(res, 400, { error: "selected_ids and candidate_ids required" });
+      }
+
+      const scores = crossMatchScores(selectedIds, candidateIds);
+      const result = {};
+      for (const [id, score] of scores) {
+        result[id] = Math.round(score * 10000) / 10000;
+      }
+
+      return json(res, 200, { scores: result });
     }
 
     // ── Get Single Product ──

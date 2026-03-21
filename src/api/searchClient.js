@@ -273,6 +273,26 @@ export async function getJobStatus() {
   return response.json();
 }
 
+/**
+ * Cross-match: get cosine similarity scores between selected products and candidates.
+ * Used for cross-bucket auto-matching in room package feature.
+ */
+export async function crossMatchProducts(selectedIds, candidateIds) {
+  if (!externalSearchServiceUrl) return {};
+  try {
+    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/cross-match`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ selected_ids: selectedIds, candidate_ids: candidateIds }),
+    });
+    if (!response.ok) return {};
+    const data = await response.json();
+    return data.scores || {};
+  } catch {
+    return {};
+  }
+}
+
 function isVendorAssetUrl(url, vendorDomain) {
   if (!url || !vendorDomain) return false;
   try {

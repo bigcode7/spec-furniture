@@ -24,7 +24,7 @@ import {
   Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
@@ -289,6 +289,7 @@ export default function SearchPage() {
 
   // Changes 9-11 — Cross-bucket selections
   const [bucketSelections, setBucketSelections] = useState(new Map());
+  const originalBucketProducts = useRef(null); // stores original product order per bucket
 
   // Paywall & subscription
   const [showPaywall, setShowPaywall] = useState(false);
@@ -415,6 +416,8 @@ export default function SearchPage() {
     try {
       const data = await listSearch(items);
       setListResults(data);
+      // Save original product order for revert on deselect
+      originalBucketProducts.current = (data.items || []).map(item => [...(item.products || [])]);
       // Assign random bucket colors
       const shuffled = [...BUCKET_COLORS].sort(() => Math.random() - 0.5);
       setBucketColors(shuffled.slice(0, (data.items || []).length));
@@ -775,37 +778,93 @@ export default function SearchPage() {
 
   // Changes 9-11 — Cross-bucket selection with auto-match
   const handleBucketSelect = async (bucketIdx, product) => {
-    setBucketSelections(prev => {
-      const next = new Map(prev);
-      if (next.get(bucketIdx)?.id === product.id) {
-        next.delete(bucketIdx); // deselect
-      } else {
-        next.set(bucketIdx, product);
-      }
-      return next;
-    });
+    // Determine the new selections map
+    const isDeselect = bucketSelections.get(bucketIdx)?.id === product.id;
+    const nextSelections = new Map(bucketSelections);
+    if (isDeselect) {
+      nextSelections.delete(bucketIdx);
+    } else {
+      nextSelections.set(bucketIdx, product);
+    }
+    setBucketSelections(nextSelections);
 
-    // Cross-bucket auto-match: find similar products to re-rank other buckets
-    if (listResults?.items && product.id) {
-      try {
-        const data = await findSimilarProducts(product.id, 20);
-        const similarIds = new Map((data.products || []).map((p, i) => [p.id, 1 - i * 0.03])); // descending scores
-        // Annotate products in other buckets with complement scores
-        setListResults(prev => {
-          if (!prev?.items) return prev;
-          const updated = { ...prev, items: prev.items.map((item, idx) => {
-            if (idx === bucketIdx) return item;
-            const products = item.products.map(p => ({
+    if (!listResults?.items || !originalBucketProducts.current) return;
+
+    // Get all selected product IDs
+    const selectedIds = [...nextSelections.values()].map(p => p.id).filter(Boolean);
+
+    if (selectedIds.length === 0) {
+      // No selections left — revert all buckets to original order
+      setListResults(prev => {
+        if (!prev?.items) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item, idx) => ({
+            ...item,
+            products: (originalBucketProducts.current[idx] || item.products).map(p => ({
               ...p,
-              _complementScore: similarIds.get(p.id) || 0,
+              _complementScore: undefined,
+              _matchedTo: undefined,
+            })),
+          })),
+        };
+      });
+      return;
+    }
+
+    // Cross-match: get cosine similarity scores from backend
+    try {
+      // Collect candidate IDs from all non-selected buckets
+      const candidateIds = [];
+      const bucketCandidateRanges = []; // track which candidates belong to which bucket
+      for (let i = 0; i < listResults.items.length; i++) {
+        if (nextSelections.has(i)) {
+          bucketCandidateRanges.push({ idx: i, ids: [] });
+          continue;
+        }
+        const origProducts = originalBucketProducts.current[i] || listResults.items[i].products;
+        const ids = origProducts.map(p => p.id).filter(Boolean);
+        bucketCandidateRanges.push({ idx: i, ids });
+        candidateIds.push(...ids);
+      }
+
+      const scores = await crossMatchProducts(selectedIds, candidateIds);
+      const selectedName = product.product_name || "your selection";
+
+      setListResults(prev => {
+        if (!prev?.items) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item, idx) => {
+            if (nextSelections.has(idx)) return item; // Don't re-rank selected buckets
+
+            // Start from original order, annotate with complement scores
+            const origProducts = originalBucketProducts.current[idx] || item.products;
+            const products = origProducts.map(p => ({
+              ...p,
+              _complementScore: scores[p.id] || 0,
+              _matchedTo: (scores[p.id] || 0) > 0.3 ? selectedName : undefined,
             }));
-            // Sort: complement-scored items first, then by original order
-            products.sort((a, b) => (b._complementScore || 0) - (a._complementScore || 0));
+
+            // Re-sort: 50% original relevance + 50% complement score
+            // Original order index gives the relevance rank (0 = most relevant)
+            const maxIdx = products.length || 1;
+            products.sort((a, b) => {
+              const aOrigIdx = origProducts.findIndex(o => o.id === a.id);
+              const bOrigIdx = origProducts.findIndex(o => o.id === b.id);
+              const aOrigScore = 1 - (aOrigIdx >= 0 ? aOrigIdx / maxIdx : 1);
+              const bOrigScore = 1 - (bOrigIdx >= 0 ? bOrigIdx / maxIdx : 1);
+              const aFinal = aOrigScore * 0.5 + (a._complementScore || 0) * 0.5;
+              const bFinal = bOrigScore * 0.5 + (b._complementScore || 0) * 0.5;
+              return bFinal - aFinal;
+            });
+
             return { ...item, products };
-          })};
-          return updated;
-        });
-      } catch { /* silent — complementing is best-effort */ }
+          }),
+        };
+      });
+    } catch (err) {
+      console.warn("[cross-match] Failed:", err.message);
     }
   };
 
@@ -1155,9 +1214,9 @@ export default function SearchPage() {
                                   <div className="absolute inset-0 z-10 rounded-xl pointer-events-none" style={{ border: `2px solid ${bucketColor}`, boxShadow: `0 0 12px ${bucketColor}30` }} />
                                 )}
                                 {/* Complements badge */}
-                                {product._complementScore > 0.7 && (
-                                  <div className="absolute top-1 right-1 z-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[8px] text-emerald-300/80">
-                                    Complements your selection
+                                {product._matchedTo && (
+                                  <div className="absolute top-1 left-1 right-1 z-10 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-2 py-1 text-[9px] text-emerald-300/90 leading-tight">
+                                    Matched to {product._matchedTo}
                                   </div>
                                 )}
                                 <ProductCard

@@ -509,3 +509,41 @@ export function persistVectors() {
     saveVectors();
   }
 }
+
+/**
+ * Cross-match: compute cosine similarity between selected product(s) and candidate products.
+ * Used for cross-bucket auto-matching in room package feature.
+ *
+ * @param {string[]} selectedIds - IDs of products the designer has selected
+ * @param {string[]} candidateIds - IDs of products to score against the selections
+ * @returns {Map<string, number>} - Map of candidateId → average cosine similarity to all selections
+ */
+export function crossMatchScores(selectedIds, candidateIds) {
+  if (!ready || vectorIds.length === 0) return new Map();
+
+  // Get vectors for selected products
+  const selectedVectors = [];
+  for (const id of selectedIds) {
+    const idx = idToIndex.get(id);
+    if (idx !== undefined) {
+      selectedVectors.push(vectors.subarray(idx * DIM, idx * DIM + DIM));
+    }
+  }
+
+  if (selectedVectors.length === 0) return new Map();
+
+  const scores = new Map();
+  for (const candidateId of candidateIds) {
+    const idx = idToIndex.get(candidateId);
+    if (idx === undefined) continue;
+
+    // Average cosine similarity to all selected products
+    let totalSim = 0;
+    for (const selVec of selectedVectors) {
+      totalSim += cosineSim(vectors, idx * DIM, selVec);
+    }
+    scores.set(candidateId, totalSim / selectedVectors.length);
+  }
+
+  return scores;
+}
