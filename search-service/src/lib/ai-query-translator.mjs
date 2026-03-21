@@ -1125,13 +1125,21 @@ function aiArrayContains(arr, searchTerm) {
 
     // Reject negated matches — check text BEFORE the term
     if (idx > 0) {
-      const before = lower.substring(Math.max(0, idx - 12), idx);
+      const before = lower.substring(Math.max(0, idx - 20), idx);
       if (/\bno[- ]?$/.test(before) || /\bnon[- ]?$/.test(before) || /\bwithout\s?$/.test(before) || /\bno\s+visible\s?$/.test(before) || /\bno\s$/.test(before)) return false;
     }
 
-    // Reject contextual false positives — term followed by "alternative", "free", "less"
-    const after = lower.substring(idx + st.length, idx + st.length + 15);
+    // Reject contextual false positives AFTER the term
+    const after = lower.substring(idx + st.length, idx + st.length + 30);
     if (/^\s*(alternative|free|less|optional)\b/.test(after)) return false;
+    if (/^\s*(not present|not visible|not included|suggested|implied)\b/.test(after)) return false;
+    if (/\bnot present/.test(after)) return false;
+
+    // Reject vague/speculative phrasing containing the term
+    if (/\bsuggested\b/.test(lower) && lower.includes(st)) {
+      // "nail head trim detail suggested by frame construction" — not a real feature
+      if (/suggested\s+by/.test(lower)) return false;
+    }
 
     return true;
   });
@@ -1346,7 +1354,7 @@ export function applyAIFilter(products, filter) {
       if (nameContainsConflictingType(name, fc)) return false;
       return true;
     });
-    if (catFiltered.length > 0) results = catFiltered;
+    results = catFiltered; // HARD FILTER — category is absolute
   } else if (filter.categories?.length > 0) {
     const catNorms = filter.categories.map(c => c.toLowerCase().replace(/\s+/g, "-"));
     const catFiltered = results.filter(p => {
@@ -1366,7 +1374,7 @@ export function applyAIFilter(products, filter) {
       }
       return false;
     });
-    if (catFiltered.length > 0) results = catFiltered;
+    results = catFiltered; // HARD FILTER — categories are absolute
   }
 
   // ── HARD FILTER: Exclude categories ──
@@ -1450,7 +1458,7 @@ export function applyAIFilter(products, filter) {
         pId.includes(vm.lower.replace(/\s+/g, "-"))
       );
     });
-    if (vendorResults.length > 0) results = vendorResults;
+    results = vendorResults; // HARD FILTER — vendor is absolute, even if 0 results
   }
 
   // ── HARD FILTER: Dimensions ──
@@ -1473,30 +1481,19 @@ export function applyAIFilter(products, filter) {
       if (d.height_min && h && h < d.height_min) return false;
       return true;
     });
-    // Only apply if keeps some results
-    if (dimFiltered.length > 0) results = dimFiltered;
+    results = dimFiltered; // HARD FILTER — dimensions are absolute
   }
 
-  // ── SOFT FILTER: Material (expanded hierarchy) ──
-  // Only apply as hard filter if it keeps enough results; otherwise use for scoring only
+  // ── HARD FILTER: Material (expanded hierarchy) ──
   if (filter.material) {
     const matTerms = filter.material_expanded?.length > 0
       ? filter.material_expanded.map(m => m.toLowerCase())
       : [filter.material.toLowerCase()];
 
-    const matResults = results.filter(p => {
-      const text = `${p.material || ""} ${p.description || ""} ${p.product_name || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
+    results = results.filter(p => {
+      const text = `${p.material || ""} ${p.description || ""} ${p.product_name || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""} ${p.ai_primary_material || ""}`.toLowerCase();
       return matTerms.some(m => text.includes(m));
-    });
-    // Only hard filter if it keeps at least 10 results — otherwise just boost in scoring
-    if (matResults.length >= 10) {
-      results = matResults;
-    } else if (matResults.length >= 1) {
-      // Put material matches first, then the rest
-      const matSet = new Set(matResults.map(p => p.id));
-      const rest = results.filter(p => !matSet.has(p.id));
-      results = [...matResults, ...rest];
-    }
+    }); // HARD FILTER — material is absolute, even if 0 results
   }
 
   // ── SCORING: Enhanced keyword relevance ──

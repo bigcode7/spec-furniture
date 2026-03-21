@@ -1032,27 +1032,7 @@ const server = http.createServer(async (req, res) => {
         results = diversified;
       }
 
-      // Safety net: if too few results after all filters, fall back to less restrictive search
-      if (results.length < 3 && brain.search_queries?.length > 0) {
-        const fallbackMap = new Map();
-        for (const sq of brain.search_queries) {
-          for (const r of searchCatalogDB(sq, {}, 100)) {
-            if (!fallbackMap.has(r.id)) fallbackMap.set(r.id, r);
-          }
-        }
-        // Add fallback results (skip vendor/category filters)
-        let fallbackResults = Array.from(fallbackMap.values());
-        if (brain.vendor_ids?.length > 0) {
-          const vidSet = new Set(brain.vendor_ids.map(v => v.toLowerCase()));
-          const vendorFiltered = fallbackResults.filter(p => vidSet.has((p.vendor_id || "").toLowerCase()));
-          if (vendorFiltered.length > 3) fallbackResults = vendorFiltered;
-        }
-        // Add to existing results (dedup)
-        const existingIds = new Set(results.map(p => p.id));
-        for (const r of fallbackResults) {
-          if (!existingIds.has(r.id)) results.push(r);
-        }
-      }
+      // No backfilling — hard filters are absolute. If 3 results match, show 3.
 
       const responseProducts = results.slice(0, 80).map(sanitizeSearchProduct);
 
@@ -1556,16 +1536,10 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         console.log(`[search] AI filter result: ${filteredResults.length} products after filtering (excluded ${excludeIds.size} seen)`);
       }
 
-      // ── FALLBACK: Old pipeline if AI filter unavailable or returned < 5 ──
-      // Also used for page 2+ to expand the search with more terms (#11)
-      const needsFallback = !aiFilter || filteredResults.length < 5 || (page > 1 && excludeIds.size > 0);
-      if (needsFallback) {
-        if (aiFilter && filteredResults.length < 5) {
-          console.log(`[search] AI filter returned only ${filteredResults.length}, supplementing with keyword fallback`);
-        }
-        if (page > 1) {
-          console.log(`[search] Page ${page}: expanding search with synonym/brain fallback`);
-        }
+      // ── FALLBACK: Only when AI filter is completely unavailable ──
+      // NO backfilling, NO padding. If AI filter returns 5 results, show 5 results.
+      if (!aiFilter) {
+        console.log(`[search] No AI filter available, using keyword fallback`);
 
         const brain = designBrainThink(query);
         const brainPlan = brain.plan;
@@ -1601,34 +1575,19 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           allResults = allResults.filter(p => !excludeIds.has(p.id));
         }
 
-        // Category hard filter (local fallback)
+        // Category hard filter
         const categoryDetection = detectQueryCategory(query, mergedFilters.vendor);
         if (categoryDetection.categories?.length > 0) {
           const catFiltered = allResults.filter(p => productMatchesCategory(p, categoryDetection.categories));
-          if (catFiltered.length > 0) allResults = catFiltered;
+          allResults = catFiltered; // HARD — no fallback
         }
 
         // Brain ranking
         allResults = brain.applyToResults(allResults);
 
-        if (!aiFilter) {
-          // Full fallback — use these results
-          filteredResults = allResults;
-          totalBeforeExclude = allResults.length;
-          aiFilterUsed = false;
-        } else {
-          // Supplement: merge fallback results into AI results (avoiding dupes)
-          // BUT re-apply strict AI filter so untagged/non-matching products don't sneak in
-          const supplemented = applyAIFilter(allResults, aiFilter);
-          const existingIds = new Set(filteredResults.map(p => p.id));
-          for (const r of supplemented) {
-            if (!existingIds.has(r.id)) {
-              filteredResults.push(r);
-              existingIds.add(r.id);
-            }
-          }
-          totalBeforeExclude = filteredResults.length;
-        }
+        filteredResults = allResults;
+        totalBeforeExclude = allResults.length;
+        aiFilterUsed = false;
       }
 
       // ── Apply explicit request filters (from UI facets) ──
