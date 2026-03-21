@@ -711,7 +711,8 @@ export async function searchPipeline(query, options = {}) {
       candidates.sort((a, b) => b.relevance_score - a.relevance_score);
     }
 
-    results = candidates;
+    // ── Vendor diversity: re-sort to avoid one vendor dominating results ──
+    results = applyVendorDiversity(candidates);
   } else {
     // ── Safety net: no field filters (Haiku failed or vibe search) ──
     // Fall back to pure vector search
@@ -728,6 +729,7 @@ export async function searchPipeline(query, options = {}) {
       }
       console.log(`[ai-vector-search] Fallback vector search: ${results.length} results`);
     }
+    results = applyVendorDiversity(results);
   }
 
   // ── Step 4: Apply UI facet filters ──
@@ -843,6 +845,50 @@ export async function listSearchPipeline(items) {
 }
 
 // ── Internal helpers ──
+
+/**
+ * Re-sort results for vendor diversity. Greedy selection: at each step, pick
+ * the highest-scoring remaining product after applying a penalty based on how
+ * many products from that vendor have already been selected.
+ *
+ * Penalty: each prior selection from the same vendor reduces the effective
+ * score by 3%. This interleaves vendors naturally while still respecting
+ * relevance — a highly relevant product still beats a mediocre one from
+ * a different vendor.
+ */
+function applyVendorDiversity(results) {
+  if (results.length <= 1) return results;
+
+  const uniqueVendors = new Set(results.map(p => p.vendor_name));
+  if (uniqueVendors.size <= 2) return results;
+
+  const selected = [];
+  const remaining = results.map((p, i) => ({ product: p, idx: i }));
+  const vendorCounts = {};
+
+  while (remaining.length > 0) {
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const p = remaining[i].product;
+      const vendor = p.vendor_name || "Unknown";
+      const seen = vendorCounts[vendor] || 0;
+      const score = (p.relevance_score || 0) - (seen * 0.03);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+
+    const picked = remaining.splice(bestIdx, 1)[0];
+    const vendor = picked.product.vendor_name || "Unknown";
+    vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
+    selected.push(picked.product);
+  }
+
+  return selected;
+}
 
 function applyFacetFilters(results, filters) {
   if (!filters || Object.keys(filters).length === 0) return results;
