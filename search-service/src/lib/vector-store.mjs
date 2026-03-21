@@ -116,6 +116,11 @@ async function batchEmbed(texts, batchSize = 1) {
     if ((i + 1) % 500 === 0 || i === texts.length - 1) {
       console.log(`[vector-store] Embedded ${i + 1}/${texts.length}`);
     }
+
+    // Yield to event loop every 50 embeddings so server can handle requests
+    if ((i + 1) % 50 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
   }
 
   return results;
@@ -216,27 +221,61 @@ export async function initVectorStore() {
  * Build the product text string for embedding.
  * Combines all relevant fields into a natural sentence.
  */
+/**
+ * Build structured product text for embedding using AI visual analysis fields.
+ * Format matches the vector_query format Haiku generates for searches.
+ * Tagged products get rich structured text; untagged get basic fields.
+ */
 export function buildProductText(product) {
-  const parts = [];
+  const va = product.ai_visual_analysis;
 
-  if (product.product_name) parts.push(product.product_name);
-  if (product.vendor_name) parts.push(`by ${product.vendor_name}`);
-  if (product.collection) parts.push(`${product.collection} collection`);
-  if (product.category) parts.push(product.category.replace(/-/g, " "));
-  if (product.style) parts.push(`${product.style} style`);
-  if (product.material) parts.push(product.material);
-  if (product.color) parts.push(product.color);
-  if (product.description) parts.push(product.description.slice(0, 200));
-  if (product.dimensions) parts.push(product.dimensions);
-  if (product.ai_visual_tags) parts.push(product.ai_visual_tags.slice(0, 150));
+  if (va) {
+    // ── AI-tagged product: full structured format ──
+    const parts = [
+      va.furniture_type ? `type:${va.furniture_type}` : null,
+      va.silhouette ? `silhouette:${va.silhouette}` : null,
+      va.arms ? `arms:${va.arms}` : null,
+      va.back ? `back:${va.back}` : null,
+      va.legs_base ? `legs:${va.legs_base}` : null,
+      va.cushions ? `cushions:${va.cushions}` : null,
+      va.upholstery_material ? `material:${va.upholstery_material}` : null,
+      va.secondary_materials ? `secondary:${va.secondary_materials}` : null,
+      va.color_primary ? `color:${va.color_primary}` : null,
+      va.finish ? `finish:${va.finish}` : null,
+      va.style ? `style:${va.style}` : null,
+      va.era_influence ? `era:${va.era_influence}` : null,
+      va.formality ? `formality:${va.formality}` : null,
+      va.scale ? `scale:${va.scale}` : null,
+      va.visual_weight ? `weight:${va.visual_weight}` : null,
+      va.texture_description ? `texture:${va.texture_description}` : null,
+      va.construction_details ? `construction:${va.construction_details}` : null,
+      va.distinctive_features?.length ? `features:${va.distinctive_features.join(", ")}` : null,
+      va.mood ? `mood:${va.mood}` : null,
+      va.ideal_client ? `client:${va.ideal_client}` : null,
+      va.pairs_well_with ? `pairs:${va.pairs_well_with}` : null,
+      va.durability_assessment ? `durability:${va.durability_assessment}` : null,
+      va.search_terms?.length ? `terms:${va.search_terms.join(", ")}` : null,
+      product.vendor_name ? `vendor:${product.vendor_name}` : null,
+      product.retail_price ? `price:${product.retail_price}` : null,
+      (product.width || product.depth || product.height) ? `dimensions: W:${product.width || ""} D:${product.depth || ""} H:${product.height || ""}` : null,
+      va.description ? `description:${va.description}` : null,
+    ].filter(v => v && !v.endsWith(":") && !v.endsWith(":null") && !v.endsWith(":undefined"));
 
-  // Add top tags (skip single-letter and very common ones)
-  const tags = (product.tags || [])
-    .filter(t => t.length > 2 && !["the", "and", "for", "with"].includes(t))
-    .slice(0, 15);
-  if (tags.length > 0) parts.push(tags.join(" "));
+    return parts.join(" | ");
+  }
 
-  return parts.join(". ").slice(0, 512); // Truncate to model's sweet spot
+  // ── Untagged product: basic fields ──
+  const parts = [
+    product.product_name,
+    product.vendor_name ? `vendor:${product.vendor_name}` : null,
+    product.description ? product.description.slice(0, 200) : null,
+    product.material ? `material:${product.material}` : null,
+    product.category ? `type:${product.category.replace(/-/g, " ")}` : null,
+    product.style ? `style:${product.style}` : null,
+    product.color ? `color:${product.color}` : null,
+  ].filter(Boolean);
+
+  return parts.join(" | ");
 }
 
 /**
@@ -276,55 +315,81 @@ export async function indexAllProducts(products, options = {}) {
 
   console.log(`[vector-store] Generating embeddings for ${toEmbed.length} products (${existingProducts.length} already indexed)...`);
 
-  // Generate embeddings
-  const newVectors = await batchEmbed(toEmbed);
+  // Start with existing vectors if not reindexing
+  let currentIds = [];
+  let currentIdToIndex = new Map();
+  let currentFlat;
+  let currentOffset = 0;
 
-  // Build new flat vector array
-  const totalCount = (reindex ? 0 : existingProducts.length) + newVectors.length;
-  const newFlat = new Float32Array(totalCount * DIM);
-  const newIds = [];
-  const newIdToIndex = new Map();
+  // Pre-allocate for full size
+  const totalCount = (reindex ? 0 : existingProducts.length) + toEmbed.length;
+  currentFlat = new Float32Array(totalCount * DIM);
 
-  // Copy existing vectors (if not reindexing)
-  let offset = 0;
   if (!reindex) {
     for (const id of existingProducts) {
       const oldIdx = idToIndex.get(id);
       if (oldIdx !== undefined) {
         const srcOffset = oldIdx * DIM;
         for (let d = 0; d < DIM; d++) {
-          newFlat[offset + d] = vectors[srcOffset + d];
+          currentFlat[currentOffset + d] = vectors[srcOffset + d];
         }
-        newIdToIndex.set(id, newIds.length);
-        newIds.push(id);
-        offset += DIM;
+        currentIdToIndex.set(id, currentIds.length);
+        currentIds.push(id);
+        currentOffset += DIM;
       }
     }
+    // Make partially-indexed vectors available immediately
+    vectors = currentFlat;
+    vectorIds = currentIds;
+    idToIndex = currentIdToIndex;
   }
 
-  // Add new vectors
-  for (let i = 0; i < newVectors.length; i++) {
-    const vec = newVectors[i];
+  // Embed one at a time, adding to the live index incrementally
+  if (!embedPipeline) await initPipeline();
+  if (unavailable || !embedPipeline) return { total: 0, new: 0, skipped: 0, timeMs: 0 };
+
+  let newCount = 0;
+  for (let i = 0; i < toEmbed.length; i++) {
+    const output = await embedPipeline(toEmbed[i], { pooling: "mean", normalize: true });
+    const vec = new Float32Array(output.data);
+
+    // Add to flat array
     for (let d = 0; d < DIM; d++) {
-      newFlat[offset + d] = vec[d];
+      currentFlat[currentOffset + d] = vec[d];
     }
-    newIdToIndex.set(toEmbedIds[i], newIds.length);
-    newIds.push(toEmbedIds[i]);
-    offset += DIM;
+    currentIdToIndex.set(toEmbedIds[i], currentIds.length);
+    currentIds.push(toEmbedIds[i]);
+    currentOffset += DIM;
+    newCount++;
+
+    // Update live references so searches can use partial data
+    vectors = currentFlat;
+    vectorIds = currentIds;
+    idToIndex = currentIdToIndex;
+
+    // Progress logging
+    if ((i + 1) % 500 === 0 || i === toEmbed.length - 1) {
+      console.log(`[vector-store] Embedded ${i + 1}/${toEmbed.length} (${currentIds.length} total searchable)`);
+    }
+
+    // Yield to event loop every 50 embeddings
+    if ((i + 1) % 50 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // Save checkpoint every 2000 embeddings
+    if ((i + 1) % 2000 === 0) {
+      saveVectors();
+    }
   }
 
-  // Swap in new data
-  vectors = newFlat;
-  vectorIds = newIds;
-  idToIndex = newIdToIndex;
-
-  // Persist
+  // Final save
   saveVectors();
 
   const timeMs = Date.now() - startMs;
-  console.log(`[vector-store] Indexed ${totalCount} products (${newVectors.length} new) in ${(timeMs / 1000).toFixed(1)}s`);
+  console.log(`[vector-store] Indexed ${currentIds.length} products (${newCount} new) in ${(timeMs / 1000).toFixed(1)}s`);
 
-  return { total: totalCount, new: newVectors.length, skipped: existingProducts.length, timeMs };
+  return { total: currentIds.length, new: newCount, skipped: existingProducts.length, timeMs };
 }
 
 /**

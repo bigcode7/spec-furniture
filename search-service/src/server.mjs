@@ -54,7 +54,7 @@ import { importCRLaine, getCRLaineStatus, stopCRLaine } from "./importers/crlain
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors } from "./lib/vector-store.mjs";
-import { hybridSearch, semanticSimilar } from "./lib/hybrid-search.mjs";
+import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache } from "./lib/ai-vector-search.mjs";
 import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
 import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
 import { parseDimensions, batchParseDimensions, checkProductFit, checkArrangement, calculateFitScore, checkDeliveryFeasibility, suggestProportions, recommendRoomSize, getSpatialRules } from "./lib/spatial-engine.mjs";
@@ -169,13 +169,16 @@ async function runHeavyInit() {
   // Initialize analytics
   initAnalytics();
 
+  // Build catalog index for Haiku system prompt
+  buildCatalogIndex(getAllProducts());
+
   // Initialize vector store (gracefully degrades if @xenova/transformers missing)
   await initVectorStore().catch((err) => {
     console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
   });
 
-  // Index products into vector store in background (non-blocking)
-  vectorIndexAll(getAllProducts()).then((stats) => {
+  // Rebuild ALL vectors with structured AI tag format (reindex=true for fresh start)
+  vectorIndexAll(getAllProducts(), { reindex: true }).then((stats) => {
     if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
   }).catch((err) => {
     console.error(`[server] Vector indexing failed: ${err.message}`);
@@ -437,6 +440,9 @@ const server = http.createServer(async (req, res) => {
     // ── Vector Rebuild ──
     if (req.method === "POST" && req.url === "/vectors/rebuild") {
       const vectorStats = getVectorStoreStats();
+      // Rebuild catalog index and all vectors
+      buildCatalogIndex(getAllProducts());
+      clearVectorSearchCache();
       vectorIndexAll(getAllProducts(), { reindex: true }).then(() => {
         console.log("[server] Vector rebuild complete.");
         persistVectors();
@@ -539,24 +545,10 @@ const server = http.createServer(async (req, res) => {
       const productId = String(body.product_id || "");
       if (!productId) return json(res, 400, { error: "product_id required" });
       const limit = Number(body.limit) || 20;
-      const sameVendor = body.same_vendor === true;
 
-      // Try vector similarity first (much better), fall back to tag-based
       const sourceProduct = getProduct(productId);
-      let similar;
-      const vectorStats = getVectorStoreStats();
-      const useVectors = vectorStats.ready && vectorStats.total_vectors > 0;
-      if (useVectors) {
-        const filter = sameVendor ? null : (id) => {
-          const p = getProduct(id);
-          return p && p.vendor_id !== sourceProduct?.vendor_id;
-        };
-        similar = semanticSimilar(productId, limit, filter, getProduct);
-      } else {
-        similar = findSimilarProducts(productId, limit, sameVendor);
-      }
+      const similar = vectorFindSimilar(productId, limit);
 
-      // Annotate similar products with match reasons relative to source
       const annotated = similar.map(p => {
         const sim = sanitizeSearchProduct(p);
         if (sourceProduct) {
@@ -573,8 +565,7 @@ const server = http.createServer(async (req, res) => {
           if (p.vendor_id !== sourceProduct.vendor_id) {
             signals.push({ type: "vendor", label: `from ${p.vendor_name || p.vendor_id}`, strength: "medium" });
           }
-          const score = useVectors ? (p._similarity ? Math.round(p._similarity * 100) : null) : null;
-          sim.match_explanation = { signals, score };
+          sim.match_explanation = { signals, score: p._similarity ? Math.round(p._similarity * 100) : null };
         }
         return sim;
       });
@@ -583,7 +574,7 @@ const server = http.createServer(async (req, res) => {
         source_product_id: productId,
         products: annotated,
         total: annotated.length,
-        method: useVectors ? "semantic" : "tags",
+        method: "semantic",
       });
     }
 
@@ -697,7 +688,8 @@ const server = http.createServer(async (req, res) => {
     // ══════════════════════════════════════════════════════════════════
     // SMART SEARCH — Conversation-aware AI search
     // One Haiku call per message with full conversation context.
-    // The AI sees everything and returns the perfect filter.
+    // ══════════════════════════════════════════════════════════════════
+    // SMART SEARCH — Conversational AI search via pure vector pipeline
     // ══════════════════════════════════════════════════════════════════
     if (req.method === "POST" && req.url === "/smart-search") {
       const body = await collectBody(req);
@@ -710,393 +702,24 @@ const server = http.createServer(async (req, res) => {
       const lastUserMsg = [...conversation].reverse().find(m => m.role === "user");
       const queryText = lastUserMsg?.content || "";
 
-      // ── Step 1: Ask the AI brain to interpret the full conversation ──
-      const brain = await withTimeout(askSearchBrain(conversation), 15000, null);
-
-      if (!brain) {
-        // Fallback: basic keyword search with vendor detection from query
-        const queryLower = queryText.toLowerCase();
-        const categoryWords = new Set(["chair", "table", "sofa", "lamp", "light", "mirror", "bench", "stool", "cabinet", "shelf", "desk", "chest", "ottoman", "fabric", "leather", "wood", "metal", "glass"]);
-        const fallbackVendors = [];
-        for (const v of tradeVendors) {
-          const nameWords = v.name.toLowerCase().split(/\s+/);
-          if (nameWords.some(w => w.length > 3 && !categoryWords.has(w) && queryLower.includes(w)) || queryLower.includes(v.id)) {
-            fallbackVendors.push(v.id);
-          }
-        }
-
-        let results;
-        if (fallbackVendors.length > 0) {
-          // Load vendor catalogs and interleave
-          const candidateMap = new Map();
-          for (const vid of fallbackVendors) {
-            for (const r of getProductsByVendor(vid)) {
-              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-            }
-          }
-          // Also run text search
-          for (const r of searchCatalogDB(queryText, {}, 200)) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-          const vidSet = new Set(fallbackVendors);
-          results = Array.from(candidateMap.values()).filter(p => vidSet.has(p.vendor_id));
-          // Round-robin interleave for multi-vendor
-          if (fallbackVendors.length > 1) {
-            const buckets = {};
-            for (const p of results) {
-              const vid = p.vendor_id;
-              if (!buckets[vid]) buckets[vid] = [];
-              buckets[vid].push(p);
-            }
-            const interleaved = [];
-            const maxLen = Math.max(...Object.values(buckets).map(b => b.length), 0);
-            for (let i = 0; i < maxLen && interleaved.length < 80; i++) {
-              for (const vid of fallbackVendors) {
-                if (buckets[vid]?.[i]) interleaved.push(buckets[vid][i]);
-              }
-            }
-            results = interleaved;
-          }
-          results = results.slice(0, 80);
-        } else {
-          results = searchCatalogDB(queryText, {}, 80);
-        }
-
-        const responseProducts = results.map(sanitizeSearchProduct);
-        return json(res, 200, {
-          products: responseProducts,
-          total: responseProducts.length,
-          assistant_message: `Found ${responseProducts.length} results for "${queryText}".`,
-          intent: { keywords: [queryText] },
-        });
-      }
-
-      // ── Step 1b: Augment vendor_ids from query text if brain missed them ──
-      if (!brain.vendor_ids || brain.vendor_ids.length === 0) {
-        const queryLower = queryText.toLowerCase();
-        const catWords = new Set(["chair", "table", "sofa", "lamp", "light", "mirror", "bench", "stool", "cabinet", "shelf", "desk", "chest", "ottoman", "fabric", "leather", "wood", "metal", "glass"]);
-        const detectedVendors = [];
-        for (const v of tradeVendors) {
-          const nameWords = v.name.toLowerCase().split(/\s+/);
-          if (nameWords.some(w => w.length > 3 && !catWords.has(w) && queryLower.includes(w)) || queryLower.includes(v.id)) {
-            detectedVendors.push(v.id);
-          }
-        }
-        if (detectedVendors.length > 0) {
-          brain.vendor_ids = detectedVendors;
-        }
-      }
-
-      // ── Step 2: Search the catalog using the AI's filters ──
-      const candidateMap = new Map();
-
-      // When specific vendors are requested, always load their full catalogs first
-      if (brain.vendor_ids?.length > 0) {
-        for (const vid of brain.vendor_ids) {
-          const vProducts = getProductsByVendor(vid);
-          for (const r of vProducts) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-        }
-      }
-
-      // Use AI's search_queries for smarter, multi-pronged search
-      const searchQueries = brain.search_queries?.length > 0
-        ? brain.search_queries
-        : (brain.keywords?.length > 0 ? brain.keywords : [queryText]);
-      for (const sq of [...new Set([...searchQueries, queryText])]) {
-        if (!sq || sq.length < 2) continue;
-        const sqResults = searchCatalogDB(sq, {}, 200);
-        for (const r of sqResults) {
-          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-        }
-      }
-
-      // Also search by category name — both text search AND filter-based to ensure full coverage
-      if (brain.category) {
-        const catQuery = brain.category.replace(/-/g, " ");
-        const catResults = searchCatalogDB(catQuery, {}, 200);
-        for (const r of catResults) {
-          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-        }
-        // Filter-based search ensures we get ALL products in this category
-        const catFilterResults = searchCatalogDB("", { category: brain.category }, 2000);
-        for (const r of catFilterResults) {
-          if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-        }
-      }
-
-      let results = Array.from(candidateMap.values());
-
-      // ── Step 3: Apply hard filters from the AI brain ──
-      // Vendor filter — always apply, never skip
-      if (brain.vendor_ids?.length > 0) {
-        const vidSet = new Set(brain.vendor_ids.map(v => v.toLowerCase()));
-        results = results.filter(p => vidSet.has((p.vendor_id || "").toLowerCase()));
-      }
-
-      // Category filter — match on category field only (not product name) to avoid false positives
-      if (brain.category) {
-        const cat = brain.category.toLowerCase().replace(/\s+/g, "-");
-        const catSingular = cat.replace(/s$/, "");
-        const catRegex = new RegExp(`(^|[^a-z])${catSingular.replace(/-/g, "[- ]")}(s|es)?([^a-z]|$)`, "i");
-        const catFiltered = results.filter(p => {
-          const pCat = (p.category || "").toLowerCase();
-          return pCat === cat || pCat === catSingular || catRegex.test(pCat);
-        });
-        if (catFiltered.length > 0) results = catFiltered;
-      }
-
-      // Material filter — soft filter, boosts matching products but keeps others if too few match
-      if (brain.material) {
-        const mat = brain.material.toLowerCase();
-        const matWords = mat.split(/\s+/).filter(w => w.length > 2);
-        const matFiltered = results.filter(p => {
-          const text = `${p.material || ""} ${p.product_name || ""} ${p.description || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
-          return text.includes(mat) || matWords.every(w => text.includes(w));
-        });
-        // Only apply hard filter if enough results survive (at least 10% or 5 products)
-        if (matFiltered.length >= Math.min(5, results.length * 0.1)) {
-          results = matFiltered;
-        } else if (matFiltered.length > 0) {
-          // Boost matching products to the top but keep others
-          const matSet = new Set(matFiltered.map(p => p.id));
-          results.sort((a, b) => (matSet.has(b.id) ? 1 : 0) - (matSet.has(a.id) ? 1 : 0));
-        }
-      }
-
-      // Style filter — soft filter like material
-      if (brain.style) {
-        const sty = brain.style.toLowerCase();
-        const styFiltered = results.filter(p => {
-          const text = `${p.style || ""} ${p.product_name || ""} ${p.description || ""} ${(p.tags || []).join(" ")} ${p.ai_visual_tags || ""}`.toLowerCase();
-          return text.includes(sty);
-        });
-        if (styFiltered.length >= Math.min(5, results.length * 0.1)) {
-          results = styFiltered;
-        } else if (styFiltered.length > 0) {
-          const stySet = new Set(styFiltered.map(p => p.id));
-          results.sort((a, b) => (stySet.has(b.id) ? 1 : 0) - (stySet.has(a.id) ? 1 : 0));
-        }
-      }
-
-      // Color filter — soft filter, boost matching but don't eliminate
-      if (brain.color) {
-        const col = brain.color.toLowerCase();
-        // Expand vague color terms
-        const colorExpansions = {
-          neutral: ["cream", "beige", "ivory", "oatmeal", "sand", "natural", "linen", "taupe", "tan", "white"],
-          warm: ["cognac", "camel", "rust", "terracotta", "amber", "gold", "warm"],
-          cool: ["gray", "silver", "slate", "charcoal", "cool"],
-          dark: ["black", "espresso", "ebony", "charcoal", "dark"],
-          light: ["white", "cream", "ivory", "light", "pale"],
-        };
-        const colorTerms = colorExpansions[col] || [col];
-        const colFiltered = results.filter(p => {
-          const text = `${p.color || ""} ${p.product_name || ""} ${p.material || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
-          return colorTerms.some(c => text.includes(c));
-        });
-        if (colFiltered.length >= Math.min(5, results.length * 0.1)) {
-          results = colFiltered;
-        } else if (colFiltered.length > 0) {
-          const colSet = new Set(colFiltered.map(p => p.id));
-          results.sort((a, b) => (colSet.has(b.id) ? 1 : 0) - (colSet.has(a.id) ? 1 : 0));
-        }
-      }
-
-      // Price filter — keep products without prices (unknown price ≠ wrong price)
-      if (brain.price_max) {
-        const pf = results.filter(p => !p.retail_price || p.retail_price <= brain.price_max);
-        if (pf.length > 0) results = pf;
-      }
-      if (brain.price_min) {
-        const pf = results.filter(p => !p.retail_price || p.retail_price >= brain.price_min);
-        if (pf.length > 0) results = pf;
-      }
-
-      // Exclude keywords
-      if (brain.exclude_keywords?.length > 0) {
-        const excludes = brain.exclude_keywords.map(k => k.toLowerCase());
-        results = results.filter(p => {
-          const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""}`.toLowerCase();
-          return !excludes.some(ex => text.includes(ex));
-        });
-      }
-
-      // ── Step 4: Score by keyword relevance ──
-      // Products matching MORE of the AI's keywords rank higher
-      const allTerms = [
-        ...(brain.keywords || []),
-        brain.category || "",
-        brain.material || "",
-        brain.style || "",
-        brain.color || "",
-      ].filter(Boolean).flatMap(k => k.toLowerCase().split(/\s+/)).filter(w => w.length > 2);
-      const uniqueTerms = [...new Set(allTerms)];
-
-      for (const p of results) {
-        const text = `${p.product_name || ""} ${p.category || ""} ${p.material || ""} ${p.style || ""} ${p.color || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
-        let matchCount = 0;
-        const matchedTerms = [];
-        for (const term of uniqueTerms) {
-          if (text.includes(term)) { matchCount++; matchedTerms.push(term); }
-        }
-        // Score: keyword match ratio (0-1) * 100 + quality_score for tiebreaking
-        p._relevance = (uniqueTerms.length > 0 ? (matchCount / uniqueTerms.length) : 0) * 100 + (p.quality_score || 0) * 0.01;
-
-        // Build match explanation for "Why this result?"
-        const signals = [];
-        if (brain.category && (p.category || "").toLowerCase().includes(brain.category.replace(/-/g, " ").split("-")[0])) {
-          signals.push({ type: "attribute", label: `${p.category} match`, strength: "strong" });
-        }
-        if (brain.material && (p.material || "").toLowerCase().includes(brain.material.toLowerCase())) {
-          signals.push({ type: "attribute", label: `${p.material} material`, strength: "strong" });
-        }
-        if (brain.style && (p.style || "").toLowerCase().includes(brain.style.toLowerCase())) {
-          signals.push({ type: "attribute", label: `${p.style} style`, strength: "strong" });
-        }
-        if (brain.color && text.includes(brain.color.toLowerCase())) {
-          signals.push({ type: "attribute", label: `${brain.color} color`, strength: "strong" });
-        }
-        if (brain.keywords?.length > 0) {
-          const kwMatches = brain.keywords.filter(k => text.includes(k.toLowerCase()));
-          if (kwMatches.length > 0) signals.push({ type: "keyword", label: kwMatches.join(", "), strength: kwMatches.length >= 2 ? "strong" : "medium" });
-        }
-        if (brain.vendor_ids?.length > 0 && brain.vendor_ids.includes(p.vendor_id)) {
-          signals.push({ type: "vendor", label: `${p.vendor_name || p.vendor_id} selected`, strength: "strong" });
-        }
-        if (p.ai_visual_tags && brain.keywords?.length > 0) {
-          const vizTags = p.ai_visual_tags.toLowerCase();
-          const vizMatches = brain.keywords.filter(k => vizTags.includes(k.toLowerCase()));
-          if (vizMatches.length > 0) signals.push({ type: "visual", label: vizMatches.join(", "), strength: "medium" });
-        }
-        // Project context signals
-        if (brain.project_context?.description) {
-          if (brain.project_context.commercial && (p.material || "").toLowerCase().match(/leather|vinyl|performance|crypton/)) {
-            signals.push({ type: "context", label: "commercial-grade for project", strength: "medium" });
-          }
-          if (brain.project_context.price_tier === "premium" && p.retail_price > 3000) {
-            signals.push({ type: "context", label: "premium tier for project", strength: "medium" });
-          }
-        }
-        p.match_explanation = { signals, score: Math.round(p._relevance) };
-      }
-      // Price-based sorting: if query asks for cheapest/lowest price, sort by price ascending
-      const priceSortTerms = ["cheapest", "lowest price", "least expensive", "most affordable", "budget"];
-      const wantsLowestPrice = priceSortTerms.some(t => queryText.toLowerCase().includes(t));
-      if (wantsLowestPrice) {
-        // Sort products with known prices first, by ascending price
-        results.sort((a, b) => {
-          const priceA = a.wholesale_price || a.retail_price || Infinity;
-          const priceB = b.wholesale_price || b.retail_price || Infinity;
-          return priceA - priceB;
-        });
-      } else {
-        results.sort((a, b) => (b._relevance || 0) - (a._relevance || 0));
-      }
-
-      // Multi-vendor balance: when comparing specific vendors, ensure all are represented
-      if (brain.vendor_ids?.length > 1) {
-        const vendorBuckets = {};
-        const other = [];
-        for (const p of results) {
-          const vid = (p.vendor_id || "").toLowerCase();
-          if (brain.vendor_ids.map(v => v.toLowerCase()).includes(vid)) {
-            if (!vendorBuckets[vid]) vendorBuckets[vid] = [];
-            vendorBuckets[vid].push(p);
-          } else {
-            other.push(p);
-          }
-        }
-        // Round-robin interleave from each vendor
-        const interleaved = [];
-        const maxLen = Math.max(...Object.values(vendorBuckets).map(b => b.length), 0);
-        for (let i = 0; i < maxLen && interleaved.length < 80; i++) {
-          for (const vid of brain.vendor_ids) {
-            const bucket = vendorBuckets[vid.toLowerCase()];
-            if (bucket && bucket[i]) interleaved.push(bucket[i]);
-          }
-        }
-        results = interleaved;
-      }
-
-      // Vendor diversity — if not locked to specific vendors, cap per vendor
-      // Skip diversification when sorting by price (preserves price ordering)
-      if ((!brain.vendor_ids || brain.vendor_ids.length === 0) && !wantsLowestPrice) {
-        const diversified = diversifyResults(results, {
-          maxPerVendor: 8,
-          topSlice: 40,
-          totalLimit: 80,
-          queryTerms: queryText.toLowerCase().split(/\s+/),
-        });
-        results = diversified;
-      }
-
-      // No backfilling — hard filters are absolute. If 3 results match, show 3.
-
-      const responseProducts = results.slice(0, 80).map(sanitizeSearchProduct);
-
-      // ── Step 5: Build vendor comparison intelligence ──
-      let vendor_comparison = null;
-      if (responseProducts.length > 0) {
-        const vendorGroups = {};
-        for (const p of responseProducts.slice(0, 40)) {
-          const vid = p.vendor_id || "unknown";
-          if (!vendorGroups[vid]) vendorGroups[vid] = { name: p.vendor_name || p.manufacturer_name || vid, products: [], prices: [] };
-          vendorGroups[vid].products.push(p);
-          if (p.retail_price) vendorGroups[vid].prices.push(p.retail_price);
-        }
-        const vendors = Object.values(vendorGroups).filter(v => v.products.length > 0);
-        if (vendors.length >= 2) {
-          vendor_comparison = vendors.slice(0, 6).map(v => ({
-            vendor: v.name,
-            count: v.products.length,
-            price_range: v.prices.length > 0
-              ? { min: Math.min(...v.prices), max: Math.max(...v.prices), avg: Math.round(v.prices.reduce((a, b) => a + b, 0) / v.prices.length) }
-              : null,
-            top_product: v.products[0]?.product_name || null,
-            materials: [...new Set(v.products.map(p => p.material).filter(Boolean))].slice(0, 3),
-          }));
-        }
-      }
-
-      // ── Step 6: Zero-result intelligence ──
-      let zero_result_guidance = null;
-      if (responseProducts.length < 3) {
-        const searchedFor = [
-          brain.category?.replace(/-/g, " "),
-          brain.material,
-          brain.style,
-          brain.color,
-          ...(brain.keywords || []),
-        ].filter(Boolean);
-
-        zero_result_guidance = {
-          searched_for: searchedFor,
-          candidates_found: candidateMap.size,
-          after_filters: responseProducts.length,
-          suggestion: responseProducts.length === 0
-            ? `No exact matches found for "${searchedFor.join(" + ")}". Try broadening your search — remove a filter or try a different material/style.`
-            : `Only ${responseProducts.length} close match${responseProducts.length > 1 ? "es" : ""} found. Consider loosening your criteria for more options.`,
-        };
-      }
+      // Pure AI vector pipeline — Haiku sees full conversation, returns vector_query
+      const result = await searchPipeline(queryText, { conversation });
+      const responseProducts = result.products.map(sanitizeSearchProduct);
 
       return json(res, 200, {
         products: responseProducts,
         total: responseProducts.length,
-        assistant_message: brain.response || brain.summary || `Found ${responseProducts.length} results.`,
-        intent: brain,
-        vendor_comparison,
-        zero_result_guidance,
-        diagnostics: {
-          brain_reasoning: brain.reasoning,
-          is_new_search: brain.is_new_search,
-          candidates_before_filter: candidateMap.size,
-        },
+        assistant_message: result.assistant_message || result.ai_summary,
+        intent: result.intent,
+        vendor_comparison: null,
+        zero_result_guidance: responseProducts.length === 0
+          ? { suggestion: "No matches found. Try broadening your search." }
+          : null,
+        diagnostics: result.diagnostics,
       });
     }
 
-    // ── LIST SEARCH — Process multi-item sourcing lists ──
+    // ── LIST SEARCH — Pure vector pipeline for multi-item sourcing lists ──
     if (req.method === "POST" && req.url === "/list-search") {
       const body = await collectBody(req);
       const items = Array.isArray(body.items) ? body.items : [];
@@ -1105,7 +728,19 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: "items array required" });
       }
 
-      // Step 1: Ask Haiku to parse ALL items in one call
+      // Pure vector pipeline for list search
+      const listResult = await listSearchPipeline(items);
+
+      // Sanitize products in each item
+      for (const item of listResult.items) {
+        item.products = item.products.map(sanitizeSearchProduct);
+      }
+
+      return json(res, 200, listResult);
+    }
+
+    // OLD LIST SEARCH CODE BELOW — REPLACED BY VECTOR PIPELINE
+    if (false) {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       let parsedItems = null;
 
@@ -1326,22 +961,113 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         total_items: results.length,
         total_products: totalFound,
       });
-    }
+    } // end old list-search dead code
 
+    // ══════════════════════════════════════════════════════════════════
+    // MAIN SEARCH — Pure AI-to-vector pipeline
+    // 1. Query → Haiku (with catalog context)
+    // 2. Haiku returns vector_query
+    // 3. vector_query → MiniLM embedding → cosine similarity
+    // 4. Top 80 results returned
+    // No parser. No filters. No keyword search. No synonym maps. Pure AI.
+    // ══════════════════════════════════════════════════════════════════
     if (req.method === "POST" && req.url === "/search") {
       const body = await collectBody(req);
       const query = String(body.query || "").trim();
       if (!query) return json(res, 400, { error: "query required" });
 
-      // ── Pagination & exclusion params ──
       const excludeIds = new Set(Array.isArray(body.exclude_ids) ? body.exclude_ids : []);
       const page = Math.max(1, Number(body.page) || 1);
       const requestFilters = body.filters || {};
-      const previousFilter = body.previous_filter || null;
+      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
 
-      // ── STEP 0: Check result cache ──
+      // Pure AI vector pipeline
+      const result = await searchPipeline(query, {
+        conversation,
+        excludeIds,
+        page,
+        filters: requestFilters,
+      });
+
+      // Sanitize products for frontend
+      const responseProducts = result.products.map(sanitizeSearchProduct);
+
+      // Filter out products without valid images (keep all if that would remove everything)
+      const imageFiltered = responseProducts.filter(p => hasValidProductImage(p.image_url));
+      const finalProducts = imageFiltered.length > 0 ? imageFiltered : responseProducts;
+
+      // Material badges
+      for (const product of finalProducts) {
+        product.material_badges = getProductMaterialBadges(product);
+      }
+
+      // Room dimensions fit scoring
+      if (body.room_dimensions) {
+        for (const product of finalProducts) {
+          let dims = parseDimensions(product.dimensions);
+          if (!dims && (product.dimensions_width || product.dimensions_length)) {
+            dims = {
+              width_in: Number(product.dimensions_width) || 0,
+              depth_in: Number(product.dimensions_length) || Number(product.dimensions_depth) || 0,
+              height_in: Number(product.dimensions_height) || 0,
+            };
+            if (dims.width_in === 0 && dims.depth_in === 0) dims = null;
+          }
+          if (dims) {
+            product.fit_score = calculateFitScore(dims, body.room_dimensions, product.category);
+          }
+        }
+      }
+
+      // Facets
+      const facets = result.facets;
+
+      const vendorCount = new Set(finalProducts.map(p => p.vendor_name)).size;
+      const vectorStats = getVectorStoreStats();
+
+      const response = {
+        query,
+        intent: result.intent,
+        ai_filter: null,
+        ai_summary: result.ai_summary,
+        assistant_message: result.assistant_message,
+        total: finalProducts.length,
+        total_available: result.total_available,
+        has_more: result.has_more,
+        page,
+        result_mode: "ai-vector",
+        tier_used: 1,
+        ai_called: true,
+        cache_hit: result.cache_hit || false,
+        facets,
+        diagnostics: {
+          ...result.diagnostics,
+          total_catalog_size: getProductCount(),
+          vector_indexed: vectorStats.total_vectors,
+        },
+        products: finalProducts,
+      };
+
+      // Track analytics
+      trackSearch({
+        query,
+        resultCount: finalProducts.length,
+        vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
+        tier: 1,
+        cacheHit: result.cache_hit || false,
+      });
+      recordSearch(query);
+
+      // Cache for 2 hours (handled by searchPipeline, but also cache here for the old cacheKey format)
       const cacheKey = `search:${query.toLowerCase()}:${JSON.stringify(requestFilters)}:p${page}`;
-      const cached = getFromCache(cacheKey);
+      setCache(cacheKey, response, 2 * 60 * 60 * 1000);
+
+      return json(res, 200, response);
+    }
+
+    // OLD SEARCH CODE BELOW — DEAD CODE, REPLACED BY VECTOR PIPELINE
+    if (false) {
+      const cached = getFromCache("dead");
       if (cached && excludeIds.size === 0) {
         return json(res, 200, { ...cached, cache_hit: true });
       }
@@ -1736,7 +1462,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       setCache(cacheKey, response, 2 * 60 * 60 * 1000);
 
       return json(res, 200, response);
-    }
+    } // end old search dead code
 
     if (req.method === "POST" && req.url === "/compare-analyze") {
       const body = await collectBody(req);
@@ -2137,206 +1863,35 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, { digest });
     }
 
+    // ── CONVERSATIONAL SEARCH — Same pure vector pipeline with conversation history ──
     if (req.method === "POST" && req.url === "/conversational-search") {
       const body = await collectBody(req);
       const conversation = Array.isArray(body.conversation) ? body.conversation : [];
-      const rawPrevious = Array.isArray(body.previous_results) ? body.previous_results : [];
-      // Normalize frontend product objects back to server format
-      const previousResultsInput = rawPrevious.map((p) => ({
-        ...p,
-        vendor_name: p.vendor_name || p.manufacturer_name || null,
-        category: p.category || p.product_type || null,
-        description: p.description || p.snippet || null,
-        product_url: p.product_url || p.portal_url || null,
-      }));
       const sessionId = String(body.session_id || `cs-${Date.now()}`);
 
       if (conversation.length === 0) {
         return json(res, 400, { error: "conversation array required" });
       }
 
-      // Step 1: AI conversational understanding
-      const convoResult = await withTimeout(
-        aiConversationalSearch(conversation, previousResultsInput),
-        30000,
-        null,
-      );
+      const lastUserMsg = [...conversation].reverse().find(m => m.role === "user");
+      const queryText = lastUserMsg?.content || "";
 
-      if (!convoResult) {
-        return json(res, 500, { error: "Conversational search failed" });
-      }
-
-      const { intent, searchQueries, assistantMessage, action, actionParams, discoveredProducts } = convoResult;
-
-      // Save conversation-discovered products to catalog DB
-      if (discoveredProducts && discoveredProducts.length > 0) {
-        dbInsertProducts(discoveredProducts);
-      }
-
-      // Step 2: Build intent-based filter from conversation context
-      // Both new searches AND refinements need proper filtering
-      const lastUserMsg = [...conversation].reverse().find((m) => m.role === "user");
-      const queryText = lastUserMsg?.content || intent.summary || "";
-
-      // Build filter from AI intent — merge vendor/vendors into filter
-      const intentFilter = {
-        category: intent.product_type ? intent.product_type.replace(/ /g, "-").toLowerCase() : null,
-        vendor: intent.vendor || null,
-        vendors: (intent.vendors && intent.vendors.length > 0) ? intent.vendors : (intent.vendor ? [intent.vendor] : []),
-        material: intent.material || null,
-        style: intent.style || null,
-        color: intent.color || null,
-        price_max: intent.max_price || null,
-      };
-
-      // Also try AI query translator for richer parsing (keywords, exclude_terms, etc.)
-      const convoAiFilter = await withTimeout(translateQuery(queryText), 8000, null);
-
-      // Merge AI translator output with conversation intent (conversation intent takes priority)
-      const mergedFilter = convoAiFilter ? { ...convoAiFilter } : { keywords: [queryText] };
-      // Conversation intent overrides translator output for precise filtering
-      if (intentFilter.category) {
-        mergedFilter.category = intentFilter.category;
-        // Clear broad categories array when we have a specific category from intent
-        mergedFilter.categories = null;
-      }
-      if (intentFilter.vendors.length > 0) {
-        mergedFilter.vendors = intentFilter.vendors;
-        mergedFilter.vendor = null; // Use array form
-      } else if (intentFilter.vendor) {
-        mergedFilter.vendor = intentFilter.vendor;
-      }
-      if (intentFilter.material) mergedFilter.material = intentFilter.material;
-      if (intentFilter.style) mergedFilter.style = intentFilter.style;
-      if (intentFilter.price_max) mergedFilter.price_max = intentFilter.price_max;
-
-      let mergedProducts;
-      const isRefine = action === "refine";
-
-      // For refinements: filter previous results + search catalog with constraints
-      // For new searches: full catalog search
-      let allConvoProducts = [];
-
-      if (isRefine && previousResultsInput.length > 0) {
-        // Apply hard filters to previous results first
-        const filteredPrevious = applyAIFilter(previousResultsInput, mergedFilter);
-        console.log(`[conversational-search] Refine: filtered ${previousResultsInput.length} → ${filteredPrevious.length} from previous results`);
-
-        // Also search catalog with constraints for more results
-        const candidateMap = new Map();
-        for (const p of filteredPrevious) {
-          if (p.id) candidateMap.set(p.id, p);
-        }
-        const keywords = mergedFilter.keywords || [queryText];
-        for (const kw of [...keywords, queryText]) {
-          const results = searchCatalogDB(kw, {}, 200);
-          for (const r of results) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-        }
-        if (mergedFilter.category) {
-          const catResults = searchCatalogDB(mergedFilter.category.replace(/-/g, " "), {}, 200);
-          for (const r of catResults) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-        }
-        allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), mergedFilter);
-        console.log(`[conversational-search] Refine: ${allConvoProducts.length} results after catalog search + filter`);
-      } else {
-        // Full discovery for new_search, related, or no previous results
-        const candidateMap = new Map();
-        const keywords = mergedFilter.keywords || [queryText];
-        for (const kw of [...keywords, queryText]) {
-          const results = searchCatalogDB(kw, {}, 200);
-          for (const r of results) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-        }
-        if (mergedFilter.category) {
-          const catResults = searchCatalogDB(mergedFilter.category.replace(/-/g, " "), {}, 200);
-          for (const r of catResults) {
-            if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-          }
-        }
-        if (mergedFilter.categories?.length) {
-          for (const cat of mergedFilter.categories) {
-            const catResults = searchCatalogDB(cat.replace(/-/g, " "), {}, 100);
-            for (const r of catResults) {
-              if (!candidateMap.has(r.id)) candidateMap.set(r.id, r);
-            }
-          }
-        }
-        allConvoProducts = applyAIFilter(Array.from(candidateMap.values()), mergedFilter);
-        console.log(`[conversational-search] ${action}: ${allConvoProducts.length} results after filter`);
-      }
-
-      // For "related" searches, carry over style/material context
-      if (action === "related" && intent.style) {
-        allConvoProducts.sort((a, b) => {
-          const aMatch = (a.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
-          const bMatch = (b.style || "").toLowerCase().includes(intent.style.toLowerCase()) ? 1 : 0;
-          return bMatch - aMatch;
-        });
-      }
-
-      allConvoProducts = [...allConvoProducts, ...discoveredProducts];
-
-      // Tier 2: Live vendor crawl if not enough results
-      if (allConvoProducts.length < 8) {
-        try {
-          const relevantVendorIds = pickRelevantVendors(intent, 5);
-          const crawlResults = await withTimeout(
-            crawlForQuery(queryText, relevantVendorIds, catalogDBInterface),
-            5000,
-            []
-          );
-          if (crawlResults && crawlResults.length > 0) {
-            dbInsertProducts(crawlResults);
-            const newCrawled = applyAIFilter(crawlResults, mergedFilter);
-            allConvoProducts = [...allConvoProducts, ...newCrawled];
-          }
-        } catch (err) {
-          console.error("[conversational-search] Tier 2 crawl failed:", err.message);
-        }
-      }
-
-      mergedProducts = dedupeProducts(allConvoProducts);
-
-      // Step 3: AI rank with the refined intent
-      const rankQuery = queryText;
-      const rankedProducts = await withTimeout(
-        aiRankResults(rankQuery, intent, mergedProducts),
-        30000,
-        mergedProducts,
-      );
-
-      // Apply vendor diversity — skip diversity when filtering to specific vendors
-      const hasVendorConstraint = (intent.vendors && intent.vendors.length > 0) || intent.vendor;
-      const convoQueryTerms = (rankQuery || "").toLowerCase().split(/\s+/).filter(Boolean);
-      const diversifiedConvo = diversifyResults(rankedProducts || mergedProducts, {
-        maxPerVendor: hasVendorConstraint ? 15 : 5,
-        topSlice: 20,
-        totalLimit: 50,
-        queryTerms: convoQueryTerms,
-        vendorFilter: hasVendorConstraint ? (intent.vendor || intent.vendors?.[0] || null) : null,
-      });
-      const responseProducts = diversifiedConvo.map(sanitizeSearchProduct);
+      // Pure AI vector pipeline — full conversation sent to Haiku
+      const result = await searchPipeline(queryText, { conversation });
+      const responseProducts = result.products.map(sanitizeSearchProduct);
 
       return json(res, 200, {
-        intent,
-        ai_summary: intent.summary || `Refined search based on conversation.`,
-        assistant_message: assistantMessage,
-        action,
-        action_params: actionParams,
+        intent: result.intent,
+        ai_summary: result.ai_summary,
+        assistant_message: result.assistant_message,
+        action: "search",
+        action_params: null,
         products: responseProducts,
         total: responseProducts.length,
         diagnostics: {
-          action,
-          previous_results_count: previousResultsInput.length,
-          discovered_count: discoveredProducts.length,
-          merged_count: mergedProducts.length,
-          search_queries: searchQueries,
-          ai_parsed: Boolean(intent.ai_parsed),
+          ...result.diagnostics,
+          action: "search",
+          previous_results_count: 0,
         },
         session_id: sessionId,
       });
