@@ -898,6 +898,18 @@ function applyVendorDiversity(results) {
   const uniqueVendors = new Set(results.map(p => p.vendor_name));
   if (uniqueVendors.size <= 2) return results;
 
+  // Check if all scores are effectively equal (all 0 or all same)
+  const scores = results.map(p => p.relevance_score || 0);
+  const allEqual = scores.every(s => Math.abs(s - scores[0]) < 0.0001);
+
+  // If scores are all equal, shuffle to prevent alphabetical vendor bias
+  if (allEqual) {
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+  }
+
   const selected = [];
   const remaining = results.map((p, i) => ({ product: p, idx: i }));
   const vendorCounts = {};
