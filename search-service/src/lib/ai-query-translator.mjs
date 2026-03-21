@@ -1119,27 +1119,35 @@ function aiArrayContains(arr, searchTerm) {
   if (!arr || !Array.isArray(arr) || !searchTerm) return false;
   const st = searchTerm.toLowerCase();
   return arr.some(item => {
-    const lower = item.toLowerCase();
+    const lower = item.toLowerCase().trim();
+
+    // Reject items that are just "NONE", "N/A", "none", etc.
+    if (/^(none|n\/a|not applicable|unknown)$/i.test(lower)) return false;
+
     if (!lower.includes(st)) return false;
     const idx = lower.indexOf(st);
 
     // Reject negated matches — check text BEFORE the term
     if (idx > 0) {
-      const before = lower.substring(Math.max(0, idx - 20), idx);
+      const before = lower.substring(Math.max(0, idx - 30), idx);
       if (/\bno[- ]?$/.test(before) || /\bnon[- ]?$/.test(before) || /\bwithout\s?$/.test(before) || /\bno\s+visible\s?$/.test(before) || /\bno\s$/.test(before)) return false;
+      if (/\bnot\s?$/.test(before)) return false;
     }
 
-    // Reject contextual false positives AFTER the term
-    const after = lower.substring(idx + st.length, idx + st.length + 30);
-    if (/^\s*(alternative|free|less|optional)\b/.test(after)) return false;
-    if (/^\s*(not present|not visible|not included|suggested|implied)\b/.test(after)) return false;
-    if (/\bnot present/.test(after)) return false;
+    // Reject contextual false positives AFTER the term (check full remainder, not just 30 chars)
+    const after = lower.substring(idx + st.length);
+    if (/\b(alternative|free|less|optional)\b/.test(after)) return false;
+    if (/\b(not present|not visible|not included|not featured)\b/.test(after)) return false;
+
+    // Reject negation anywhere in the full item text
+    if (/\bno visible\b/.test(lower) && lower.includes(st)) return false;
+    if (/\bnot present\b/.test(lower) && lower.includes(st)) return false;
+    if (/\bnot visible\b/.test(lower) && lower.includes(st)) return false;
+    if (/\bnot included\b/.test(lower) && lower.includes(st)) return false;
 
     // Reject vague/speculative phrasing containing the term
-    if (/\bsuggested\b/.test(lower) && lower.includes(st)) {
-      // "nail head trim detail suggested by frame construction" — not a real feature
-      if (/suggested\s+by/.test(lower)) return false;
-    }
+    if (/\bsuggested\s+by\b/.test(lower)) return false;
+    if (/\bimplied\b/.test(lower)) return false;
 
     return true;
   });
