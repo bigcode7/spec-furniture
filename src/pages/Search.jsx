@@ -38,13 +38,35 @@ import { useTradePricing } from "@/lib/TradePricingContext";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
-// Route images through our backend proxy to bypass vendor hotlink protection
-function proxyImg(url, productId) {
+// Build proxy URL for an image
+function proxyUrl(url, productId) {
   if (!url) return "";
-  // Use /images/:id endpoint which proxies server-side
   if (productId) return `${SEARCH_SERVICE}/images/${encodeURIComponent(productId)}`;
-  // Fallback: use generic proxy
   return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+// Image component: tries direct URL first, falls back to server-side proxy on error
+function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, ...rest }) {
+  const [useFallback, setUseFallback] = useState(false);
+  const triedProxy = useRef(false);
+
+  const handleError = (e) => {
+    if (!triedProxy.current && src) {
+      triedProxy.current = true;
+      setUseFallback(true);
+    } else if (externalOnError) {
+      externalOnError(e);
+    }
+  };
+
+  // Reset when src changes
+  useEffect(() => {
+    triedProxy.current = false;
+    setUseFallback(false);
+  }, [src]);
+
+  const finalSrc = useFallback ? proxyUrl(src, productId) : src;
+  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={handleError} onLoad={onLoad} {...rest} />;
 }
 
 const EXAMPLE_SEARCHES = [
@@ -712,7 +734,7 @@ export default function SearchPage() {
                       className="shrink-0 w-[100px] group">
                       <div className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                         {p.image_url ? (
-                          <img src={proxyImg(p.image_url, p.id)} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
+                          <ProxyImg src={p.image_url} productId={p.id} className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                             {(p.manufacturer_name || "?")[0]}
@@ -1258,7 +1280,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
                 <div className="loading-emblem" style={{ width: 12, height: 12 }} />
               </div>
             )}
-            <img src={proxyImg(item.image_url, item.id)} alt={item.product_name}
+            <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
               className={`h-full w-full transition-all duration-700 ${imgLoaded ? "opacity-100" : "opacity-0"} ${hovered ? "scale-[1.03]" : "scale-100"}`}
               style={{ objectFit: "contain", padding: "12px", transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
@@ -1354,8 +1376,8 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
     const raw = (product.images && product.images.length > 0) ? product.images : [];
     const urls = raw.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean);
     // Route all through proxy to bypass hotlink protection
-    if (urls.length > 0) return urls.map(u => proxyImg(u));
-    return product.image_url ? [proxyImg(product.image_url, product.id)] : [];
+    if (urls.length > 0) return urls;
+    return product.image_url ? [product.image_url] : [];
   })();
 
   const priceInfo = getPrice(product);
@@ -1400,7 +1422,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     {!imgLoaded && (
                       <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}><div className="loading-emblem" style={{ width: 16, height: 16 }} /></div>
                     )}
-                    <img src={productImages[activeImageIdx]} alt={product.product_name}
+                    <ProxyImg src={productImages[activeImageIdx]} productId={product.id} alt={product.product_name}
                       className={`h-full w-full transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
                       style={{ objectFit: "contain", padding: "16px" }}
                       onLoad={() => setImgLoaded(true)} />
@@ -1441,7 +1463,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       }`}
                       style={{ backgroundColor: "#ffffff" }}
                     >
-                      <img src={src} alt="" style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
+                      <ProxyImg src={src} productId={product.id} style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
                     </button>
                   ))}
                 </div>
@@ -1566,7 +1588,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
                     <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
                       {sp.image_url ? (
-                        <img src={proxyImg(sp.image_url, sp.id)} alt="" className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
+                        <ProxyImg src={sp.image_url} productId={sp.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
                           {(sp.manufacturer_name || "?")[0]}

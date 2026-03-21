@@ -13,10 +13,19 @@ import AddToProjectMenu from "@/components/AddToProjectMenu";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
-function proxyImg(url, productId) {
-  if (!url) return "";
-  if (productId) return `${SEARCH_URL}/images/${encodeURIComponent(productId)}`;
-  return `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+function ProxyImg({ src, productId, alt = "", className = "", style = {}, onError: externalOnError, ...rest }) {
+  const [useFallback, setUseFallback] = useState(false);
+  const triedProxy = useRef(false);
+  useEffect(() => { triedProxy.current = false; setUseFallback(false); }, [src]);
+  const handleError = (e) => {
+    if (!triedProxy.current && src) { triedProxy.current = true; setUseFallback(true); }
+    else if (externalOnError) externalOnError(e);
+  };
+  const fallbackUrl = productId
+    ? `${SEARCH_URL}/images/${encodeURIComponent(productId)}`
+    : `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(src)}`;
+  const finalSrc = useFallback ? fallbackUrl : src;
+  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={handleError} {...rest} />;
 }
 
 const COLOR_PALETTES = [
@@ -65,8 +74,9 @@ function ProductCard({ product, compareItems, favorites, onToggleCompare, onTogg
       onClick={() => navigate(createPageUrl("Search") + `?q=${encodeURIComponent(product.product_name || product.name || "")}`)}
     >
       {product.image_url ? (
-        <img
-          src={proxyImg(product.image_url, product.id)}
+        <ProxyImg
+          src={product.image_url}
+          productId={product.id}
           alt={product.product_name || product.name || "Product"}
           className="w-full object-cover"
           style={{ minHeight: 160 }}

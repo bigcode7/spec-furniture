@@ -318,7 +318,7 @@ function unindexProduct(id, product) {
  */
 async function resolveLFSPointer() {
   if (!fs.existsSync(DB_PATH)) return;
-  const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 100);
+  const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 200);
   if (!head.startsWith("version https://git-lfs")) return;
 
   // This is an LFS pointer — download the real file from GitHub

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,9 +11,16 @@ import AddToProjectMenu from "@/components/AddToProjectMenu";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
-function proxyImg(url) {
-  if (!url) return "";
-  return `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+function ProxyImg({ src, alt = "", className = "", style = {}, onError: externalOnError, ...rest }) {
+  const [useFallback, setUseFallback] = useState(false);
+  const triedProxy = useRef(false);
+  useEffect(() => { triedProxy.current = false; setUseFallback(false); }, [src]);
+  const handleError = (e) => {
+    if (!triedProxy.current && src) { triedProxy.current = true; setUseFallback(true); }
+    else if (externalOnError) externalOnError(e);
+  };
+  const finalSrc = useFallback ? `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(src)}` : src;
+  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={handleError} {...rest} />;
 }
 
 function CollectionCard({ collection, onClick }) {
@@ -34,8 +41,8 @@ function CollectionCard({ collection, onClick }) {
         <div className="flex items-center gap-1.5 mb-3">
           {sampleImages.slice(0, 4).map((img, i) => (
             <div key={i} className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/[0.04]">
-              <img
-                src={proxyImg(img)}
+              <ProxyImg
+                src={img}
                 alt=""
                 className="w-full h-full object-cover"
                 loading="lazy"

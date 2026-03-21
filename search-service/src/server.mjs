@@ -476,7 +476,7 @@ const server = http.createServer(async (req, res) => {
           const buffer = Buffer.from(await imgResp.arrayBuffer());
           res.writeHead(200, {
             "content-type": contentType,
-            "cache-control": "public, max-age=3600",
+            "cache-control": "public, max-age=86400",
             "access-control-allow-origin": "*",
           });
           res.end(buffer);
@@ -504,7 +504,7 @@ const server = http.createServer(async (req, res) => {
         const buffer = Buffer.from(await imgResp.arrayBuffer());
         res.writeHead(200, {
           "content-type": contentType,
-          "cache-control": "public, max-age=3600",
+          "cache-control": "public, max-age=86400",
           "access-control-allow-origin": "*",
         });
         res.end(buffer);
