@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
 import { useAuth } from "@/lib/AuthContext";
+import { checkSubscriptionStatus } from "@/lib/fingerprint";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -239,7 +240,16 @@ function AppFooter() {
 export default function Layout({ children, currentPageName }) {
   const { user, navigateToLogin, logout } = useAuth();
   const [quoteCount, setQuoteCount] = useState(0);
+  const [subWarning, setSubWarning] = useState(null);
   const location = useLocation();
+
+  useEffect(() => {
+    checkSubscriptionStatus().then(status => {
+      if (status.status === "past_due") {
+        setSubWarning("Your payment failed. Update your card to keep your access.");
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setQuoteCount(getQuoteItemCount());
@@ -334,6 +344,26 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </header>
+
+      {subWarning && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center">
+          <span className="text-xs text-amber-400">{subWarning}</span>
+          <button
+            onClick={async () => {
+              const token = localStorage.getItem("spec_auth_token");
+              const resp = await fetch(`${(import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "")}/subscribe/portal`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              });
+              const data = await resp.json();
+              if (data.portal_url) window.location.href = data.portal_url;
+            }}
+            className="ml-3 text-xs font-semibold text-amber-400 underline hover:text-amber-300"
+          >
+            Update payment
+          </button>
+        </div>
+      )}
 
       <div className="nav-separator" />
       <ScrollProgress />

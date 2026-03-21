@@ -40,6 +40,10 @@ import {
 } from "@/lib/growth-store";
 import { useGuestGate } from "@/lib/GuestGate";
 import { useTradePricing } from "@/lib/TradePricingContext";
+import PaywallModal from "@/components/PaywallModal";
+import OnboardingFlow from "@/components/OnboardingFlow";
+import UsageCounter from "@/components/UsageCounter";
+import { ensureGuestToken, incrementLocalUsage, checkSubscriptionStatus } from "@/lib/fingerprint";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
@@ -286,6 +290,12 @@ export default function SearchPage() {
   // Changes 9-11 — Cross-bucket selections
   const [bucketSelections, setBucketSelections] = useState(new Map());
 
+  // Paywall & subscription
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [searchesRemaining, setSearchesRemaining] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -322,6 +332,27 @@ export default function SearchPage() {
       setInputValue(initialQuery);
       runSearch(initialQuery);
     }
+  }, []);
+
+  // Initialize subscription status & guest token
+  useEffect(() => {
+    async function initSubscription() {
+      const status = await checkSubscriptionStatus();
+      setSubscriptionStatus(status.status);
+      if (status.searches_remaining != null) {
+        setSearchesRemaining(status.searches_remaining);
+      }
+      // Check URL for subscription success (returning from Stripe)
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("subscription") === "success") {
+        setShowOnboarding(true);
+        // Clean URL
+        window.history.replaceState({}, "", "/Search");
+      }
+    }
+    initSubscription();
+    // Also ensure guest token exists
+    ensureGuestToken();
   }, []);
 
   useEffect(() => {
@@ -395,7 +426,17 @@ export default function SearchPage() {
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, assistantMsg]);
-    } catch {
+      // Update remaining count for guests
+      if (subscriptionStatus === "guest" || !subscriptionStatus) {
+        incrementLocalUsage("searches");
+        setSearchesRemaining(prev => prev != null ? Math.max(0, prev - 1) : null);
+      }
+    } catch (err) {
+      if (err.status === 402 || err.message === "subscription_required") {
+        setShowPaywall(true);
+        setLoading(false);
+        return;
+      }
       setError("List search failed. Please try again.");
     } finally {
       setLoading(false);
@@ -527,7 +568,17 @@ export default function SearchPage() {
       setMessages((prev) => [...prev, assistantMsg]);
       setRecentSearches(pushRecentSearch(trimmed));
       trackSearch(); // Track for guest signup prompt
-    } catch {
+      // Update remaining count for guests
+      if (subscriptionStatus === "guest" || !subscriptionStatus) {
+        incrementLocalUsage("searches");
+        setSearchesRemaining(prev => prev != null ? Math.max(0, prev - 1) : null);
+      }
+    } catch (err) {
+      if (err.status === 402 || err.message === "subscription_required") {
+        setShowPaywall(true);
+        setLoading(false);
+        return;
+      }
       setError("Search failed. Please try again.");
     } finally {
       setLoading(false);
@@ -1426,6 +1477,26 @@ export default function SearchPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PaywallModal
+        show={showPaywall}
+        onAuthSuccess={(user) => {
+          setShowPaywall(false);
+          setSubscriptionStatus("active");
+          setSearchesRemaining(null);
+          // Refresh auth context
+          window.location.reload();
+        }}
+      />
+      <OnboardingFlow
+        show={showOnboarding}
+        onComplete={() => {
+          setShowOnboarding(false);
+          setSubscriptionStatus("active");
+          setSearchesRemaining(null);
+        }}
+      />
+      <UsageCounter remaining={searchesRemaining} />
     </div>
   );
 }

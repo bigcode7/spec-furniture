@@ -1,14 +1,29 @@
 import { base44 } from "@/api/base44Client";
+import { getAuthHeaders } from "@/lib/fingerprint";
 
 const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app";
+
+function handle402(response) {
+  if (response.status === 402) {
+    return response.json().then(data => {
+      const err = new Error("subscription_required");
+      err.status = 402;
+      err.data = data;
+      throw err;
+    });
+  }
+  return null;
+}
 
 export async function smartSearch(conversation) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ conversation }),
   });
+  const paywall = handle402(response);
+  if (paywall) return paywall;
   if (!response.ok) throw new Error(`smart search error: ${response.status}`);
   const data = await response.json();
   return {
@@ -21,7 +36,7 @@ export async function searchProducts(query, options = {}) {
   if (externalSearchServiceUrl) {
     const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
         query,
         search_mode: "balanced",
@@ -34,6 +49,9 @@ export async function searchProducts(query, options = {}) {
         filters: options.filters || {},
       }),
     });
+
+    const paywall = handle402(response);
+    if (paywall) return paywall;
 
     if (!response.ok) {
       throw new Error(`search service error: ${response.status}`);
@@ -123,9 +141,11 @@ export async function listSearch(items) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/list-search`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ items }),
   });
+  const paywall = handle402(response);
+  if (paywall) return paywall;
   if (!response.ok) throw new Error(`list search error: ${response.status}`);
   const data = await response.json();
   return {
@@ -166,13 +186,15 @@ export async function conversationalSearch(conversation, previousResults, sessio
   try {
     const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/conversational-search`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
         conversation,
         previous_results: previousResults.slice(0, 20),
         session_id: sessionId,
       }),
     });
+    const paywall = handle402(response);
+    if (paywall) return paywall;
     if (!response.ok) {
       throw new Error(`conversational search error: ${response.status}`);
     }
@@ -191,9 +213,11 @@ export async function findSimilarProducts(productId, limit = 20) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/similar`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ product_id: productId, limit }),
   });
+  const paywall = handle402(response);
+  if (paywall) return paywall;
   if (!response.ok) throw new Error(`similar products error: ${response.status}`);
   const data = await response.json();
   return {

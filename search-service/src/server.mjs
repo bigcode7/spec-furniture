@@ -65,6 +65,8 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData } from "./lib/auth-store.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT } from "./lib/subscription-store.mjs";
+import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
@@ -169,6 +171,10 @@ async function runHeavyInit() {
   // Initialize analytics
   initAnalytics();
 
+  // Initialize subscription store and Stripe
+  initSubscriptionStore();
+  initStripe().catch(err => console.warn("[stripe] Init failed:", err.message));
+
   // Build catalog index for Haiku system prompt
   buildCatalogIndex(getAllProducts());
 
@@ -265,7 +271,7 @@ function json(res, status, payload) {
     "content-type": "application/json",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "content-type, authorization",
+    "access-control-allow-headers": "content-type, authorization, x-fingerprint, x-ls-id, x-admin-key, stripe-signature",
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -274,19 +280,34 @@ function notFound(res) {
   json(res, 404, { error: "Not found" });
 }
 
-function collectBody(req) {
+function collectBody(req, { raw: returnRaw = false } = {}) {
   return new Promise((resolve, reject) => {
-    let raw = "";
+    const chunks = [];
     req.on("data", (chunk) => {
-      raw += chunk;
+      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     });
     req.on("end", () => {
-      if (!raw) {
+      const rawBuffer = Buffer.concat(chunks);
+      const rawStr = rawBuffer.toString("utf8");
+      if (returnRaw) {
+        // Return both raw buffer and parsed body for webhook support
+        if (!rawStr) {
+          resolve({ body: {}, rawBody: rawBuffer });
+          return;
+        }
+        try {
+          resolve({ body: JSON.parse(rawStr), rawBody: rawBuffer });
+        } catch {
+          resolve({ body: {}, rawBody: rawBuffer });
+        }
+        return;
+      }
+      if (!rawStr) {
         resolve({});
         return;
       }
       try {
-        resolve(JSON.parse(raw));
+        resolve(JSON.parse(rawStr));
       } catch (error) {
         reject(error);
       }
@@ -295,13 +316,51 @@ function collectBody(req) {
   });
 }
 
+function getRequestIdentity(req, body) {
+  // Check for authenticated user first
+  const authHeader = req.headers["authorization"];
+  const token = extractToken(authHeader);
+
+  let userId = null;
+  let userStatus = "guest";
+
+  if (token && !token.startsWith("g.")) {
+    const result = getUserFromToken(token);
+    if (result.ok) {
+      userId = result.user.id;
+      userStatus = getUserStatus(userId);
+    }
+  }
+
+  // Guest identification
+  const fingerprint = body?.fingerprint || req.headers["x-fingerprint"] || null;
+  const localStorageId = body?.ls_id || req.headers["x-ls-id"] || null;
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null;
+
+  // Check guest token
+  if (!userId && token && token.startsWith("g.")) {
+    const guestPayload = verifyGuestToken(token);
+    if (guestPayload) {
+      return {
+        userId: null,
+        fingerprint: guestPayload.fp || fingerprint,
+        ip: guestPayload.ip || ip,
+        localStorageId: guestPayload.ls || localStorageId,
+        status: "guest",
+      };
+    }
+  }
+
+  return { userId, fingerprint, ip, localStorageId, status: userStatus };
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "access-control-allow-headers": "content-type, authorization",
+        "access-control-allow-headers": "content-type, authorization, x-fingerprint, x-ls-id, x-admin-key, stripe-signature",
       });
       res.end();
       return;
@@ -362,6 +421,286 @@ const server = http.createServer(async (req, res) => {
       if (!auth.ok) return json(res, 401, auth);
       const result = exportUserData(auth.user.id);
       return json(res, result.ok ? 200 : 400, result);
+    }
+
+    // ── GUEST TOKEN ──
+    if (req.method === "POST" && req.url === "/auth/guest-token") {
+      const body = await collectBody(req);
+      const { fingerprint, ls_id } = body;
+      const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+
+      if (!fingerprint) {
+        return json(res, 400, { error: "fingerprint required" });
+      }
+
+      const result = generateGuestToken(fingerprint, ip, ls_id);
+      return json(res, 200, result);
+    }
+
+    // ── SUBSCRIPTION ENDPOINTS ──────────────────────────────────
+
+    if (req.method === "GET" && req.url === "/subscribe/status") {
+      const identity = getRequestIdentity(req, {});
+
+      if (identity.userId) {
+        const sub = getSubscription(identity.userId);
+        const status = getUserStatus(identity.userId);
+        return json(res, 200, {
+          status,
+          plan: sub?.plan || null,
+          current_period_end: sub?.current_period_end || null,
+          stripe_subscription_id: sub?.stripe_subscription_id || null,
+        });
+      }
+
+      // Guest
+      const usage = getGuestUsage(identity.fingerprint, identity.ip, identity.localStorageId);
+      return json(res, 200, usage);
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/create-checkout") {
+      const body = await collectBody(req);
+      const { plan, email, password, full_name, business_name, fingerprint } = body;
+
+      if (!email || !password) {
+        return json(res, 400, { error: "Email and password required" });
+      }
+
+      // Register user if not exists, or login
+      let userId, token;
+      const existingAuth = extractToken(req.headers["authorization"]);
+      if (existingAuth && !existingAuth.startsWith("g.")) {
+        const me = getUserFromToken(existingAuth);
+        if (me.ok) {
+          userId = me.user.id;
+          token = existingAuth;
+        }
+      }
+
+      if (!userId) {
+        // Try to register
+        let result = await registerUser({ email, password, full_name, business_name });
+        if (!result.ok && result.error?.includes("already exists")) {
+          // Try login instead
+          result = await loginUser({ email, password });
+        }
+        if (!result.ok) {
+          return json(res, 400, { error: result.error });
+        }
+        userId = result.user.id;
+        token = result.token;
+
+        // Link fingerprint to user for anti-abuse
+        if (fingerprint) linkFingerprintToUser(fingerprint, userId);
+      }
+
+      // Check multi-account abuse
+      if (fingerprint) {
+        const abuse = checkMultiAccountAbuse(fingerprint);
+        if (abuse.flagged) {
+          console.warn(`[anti-abuse] Fingerprint ${fingerprint} linked to multiple accounts:`, abuse.accounts);
+        }
+      }
+
+      const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
+
+      try {
+        const checkout = await createCheckoutSession(
+          plan || "monthly",
+          email,
+          userId,
+          `${origin}/Search?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+          `${origin}/Search?subscription=cancelled`
+        );
+        return json(res, 200, { ...checkout, token, user_id: userId });
+      } catch (err) {
+        return json(res, 500, { error: err.message });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/webhook") {
+      // Use raw body for Stripe webhook signature verification
+      const { body, rawBody } = await collectBody(req, { raw: true });
+      const signature = req.headers["stripe-signature"];
+
+      try {
+        const event = verifyWebhook(rawBody, signature);
+
+        switch (event.type) {
+          case "checkout.session.completed": {
+            const session = event.data.object;
+            const userId = session.metadata?.user_id;
+            const plan = session.metadata?.plan || "monthly";
+            if (userId) {
+              const stripeSubId = session.subscription;
+              setSubscription(userId, {
+                status: "active",
+                plan,
+                stripe_subscription_id: stripeSubId,
+                stripe_customer_id: session.customer,
+                current_period_end: null, // Will be set by invoice.paid
+                created_at: new Date().toISOString(),
+              });
+              logSubscriptionEvent("new_subscription", {
+                user_id: userId,
+                plan,
+                amount: plan === "annual" ? 790 : 79,
+              });
+            }
+            break;
+          }
+
+          case "invoice.paid": {
+            const invoice = event.data.object;
+            const subId = invoice.subscription;
+            // Find user by stripe subscription ID
+            const allSubs = getAllSubscriptions();
+            const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
+            if (sub) {
+              // Get subscription details for period end
+              try {
+                const stripeSub = await getStripeSubscription(subId);
+                setSubscription(sub.user_id, {
+                  status: "active",
+                  current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
+                });
+                // Log renewal (not first payment)
+                if (invoice.billing_reason === "subscription_cycle") {
+                  logSubscriptionEvent("renewal", {
+                    user_id: sub.user_id,
+                    plan: sub.plan,
+                    amount: invoice.amount_paid / 100,
+                  });
+                }
+              } catch {}
+            }
+            break;
+          }
+
+          case "invoice.payment_failed": {
+            const invoice = event.data.object;
+            const subId = invoice.subscription;
+            const allSubs = getAllSubscriptions();
+            const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
+            if (sub) {
+              setSubscription(sub.user_id, {
+                status: "past_due",
+                payment_failed_at: new Date().toISOString(),
+              });
+              logSubscriptionEvent("failed_payment", { user_id: sub.user_id });
+            }
+            break;
+          }
+
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object;
+            const subId = subscription.id;
+            const allSubs = getAllSubscriptions();
+            const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
+            if (sub) {
+              setSubscription(sub.user_id, { status: "cancelled" });
+            }
+            break;
+          }
+        }
+
+        return json(res, 200, { received: true });
+      } catch (err) {
+        console.error("[stripe webhook] Error:", err.message);
+        return json(res, 400, { error: err.message });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/cancel") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+
+      const sub = getSubscription(identity.userId);
+      if (!sub?.stripe_subscription_id) return json(res, 400, { error: "No active subscription" });
+
+      try {
+        await cancelSubscription(sub.stripe_subscription_id, false); // Cancel at period end
+        setSubscription(identity.userId, { status: "cancelled" });
+        logSubscriptionEvent("cancellation", {
+          user_id: identity.userId,
+          reason: body.reason || "not specified",
+        });
+        return json(res, 200, { ok: true, access_until: sub.current_period_end });
+      } catch (err) {
+        return json(res, 500, { error: err.message });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/reactivate") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+
+      const sub = getSubscription(identity.userId);
+      if (!sub?.stripe_subscription_id) {
+        // Need new checkout
+        return json(res, 400, { error: "need_checkout", message: "Create a new checkout session" });
+      }
+
+      try {
+        // Try to reactivate existing (if not yet ended)
+        await reactivateSubscription(sub.stripe_subscription_id);
+        setSubscription(identity.userId, { status: "active" });
+        logSubscriptionEvent("reactivation", {
+          user_id: identity.userId,
+          plan: sub.plan,
+          amount: sub.plan === "annual" ? 790 : 79,
+        });
+        return json(res, 200, { ok: true, status: "active" });
+      } catch (err) {
+        // Subscription already ended, need new checkout
+        return json(res, 400, { error: "need_checkout", message: err.message });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/portal") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+
+      const sub = getSubscription(identity.userId);
+      if (!sub?.stripe_customer_id) return json(res, 400, { error: "No subscription found" });
+
+      const origin = req.headers["origin"] || "https://spekd.ai";
+      try {
+        const portal = await createPortalSession(sub.stripe_customer_id, `${origin}/Account`);
+        return json(res, 200, portal);
+      } catch (err) {
+        return json(res, 500, { error: err.message });
+      }
+    }
+
+    if (req.method === "POST" && req.url === "/subscribe/onboarding") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+
+      const { project_types, trade_discounts } = body;
+
+      // Update user preferences
+      updateUser(identity.userId, {
+        preferences: {
+          project_types: project_types || [],
+          onboarding_completed: true,
+          onboarded_at: new Date().toISOString(),
+        }
+      });
+
+      return json(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && req.url === "/admin/revenue") {
+      if (req.headers["x-admin-key"] !== (process.env.ADMIN_SECRET || "spekd-admin-2024")) {
+        return json(res, 403, { error: "Admin access required" });
+      }
+
+      return json(res, 200, getRevenueDashboard());
     }
 
     if (req.method === "GET" && req.url === "/vendors") {
@@ -542,6 +881,19 @@ const server = http.createServer(async (req, res) => {
     // ── Find Similar Products (vector-powered) ──
     if (req.method === "POST" && req.url === "/similar") {
       const body = await collectBody(req);
+
+      // Subscription check
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "similar");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: access.reason,
+          searches_remaining: 0,
+        });
+      }
+
       const productId = String(body.product_id || "");
       if (!productId) return json(res, 400, { error: "product_id required" });
       const limit = Number(body.limit) || 20;
@@ -570,11 +922,19 @@ const server = http.createServer(async (req, res) => {
         return sim;
       });
 
+      // Increment guest search count
+      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+        incrementGuestSearch(identity.fingerprint);
+      }
+
+      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "similar");
       return json(res, 200, {
         source_product_id: productId,
         products: annotated,
         total: annotated.length,
         method: "semantic",
+        searches_remaining: updatedAccess.searches_remaining,
+        subscription_status: updatedAccess.status,
       });
     }
 
@@ -693,6 +1053,19 @@ const server = http.createServer(async (req, res) => {
     // ══════════════════════════════════════════════════════════════════
     if (req.method === "POST" && req.url === "/smart-search") {
       const body = await collectBody(req);
+
+      // Subscription check
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: access.reason,
+          searches_remaining: 0,
+        });
+      }
+
       const conversation = Array.isArray(body.conversation) ? body.conversation : [];
 
       if (conversation.length === 0) {
@@ -706,6 +1079,12 @@ const server = http.createServer(async (req, res) => {
       const result = await searchPipeline(queryText, { conversation });
       const responseProducts = result.products.map(sanitizeSearchProduct);
 
+      // Increment guest search count
+      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+        incrementGuestSearch(identity.fingerprint);
+      }
+
+      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
       return json(res, 200, {
         products: responseProducts,
         total: responseProducts.length,
@@ -716,12 +1095,27 @@ const server = http.createServer(async (req, res) => {
           ? { suggestion: "No matches found. Try broadening your search." }
           : null,
         diagnostics: result.diagnostics,
+        searches_remaining: updatedAccess.searches_remaining,
+        subscription_status: updatedAccess.status,
       });
     }
 
     // ── LIST SEARCH — Pure vector pipeline for multi-item sourcing lists ──
     if (req.method === "POST" && req.url === "/list-search") {
       const body = await collectBody(req);
+
+      // Subscription check — each item counts as a separate search
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: access.reason,
+          searches_remaining: 0,
+        });
+      }
+
       const items = Array.isArray(body.items) ? body.items : [];
 
       if (items.length === 0) {
@@ -735,6 +1129,17 @@ const server = http.createServer(async (req, res) => {
       for (const item of listResult.items) {
         item.products = item.products.map(sanitizeSearchProduct);
       }
+
+      // Increment guest search count — each list item counts as a search
+      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+        for (let i = 0; i < items.length; i++) {
+          incrementGuestSearch(identity.fingerprint);
+        }
+      }
+
+      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      listResult.searches_remaining = updatedAccess.searches_remaining;
+      listResult.subscription_status = updatedAccess.status;
 
       return json(res, 200, listResult);
     }
@@ -973,6 +1378,19 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ══════════════════════════════════════════════════════════════════
     if (req.method === "POST" && req.url === "/search") {
       const body = await collectBody(req);
+
+      // Subscription check
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: access.reason,
+          searches_remaining: 0,
+        });
+      }
+
       const query = String(body.query || "").trim();
       if (!query) return json(res, 400, { error: "query required" });
 
@@ -1057,6 +1475,16 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         cacheHit: result.cache_hit || false,
       });
       recordSearch(query);
+
+      // Increment guest search count
+      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+        incrementGuestSearch(identity.fingerprint);
+      }
+
+      // Add subscription info to response
+      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      response.searches_remaining = updatedAccess.searches_remaining;
+      response.subscription_status = updatedAccess.status;
 
       // Cache for 2 hours (handled by searchPipeline, but also cache here for the old cacheKey format)
       const cacheKey = `search:${query.toLowerCase()}:${JSON.stringify(requestFilters)}:p${page}`;
@@ -1866,6 +2294,19 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ── CONVERSATIONAL SEARCH — Same pure vector pipeline with conversation history ──
     if (req.method === "POST" && req.url === "/conversational-search") {
       const body = await collectBody(req);
+
+      // Subscription check
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: access.reason,
+          searches_remaining: 0,
+        });
+      }
+
       const conversation = Array.isArray(body.conversation) ? body.conversation : [];
       const sessionId = String(body.session_id || `cs-${Date.now()}`);
 
@@ -1880,6 +2321,12 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const result = await searchPipeline(queryText, { conversation });
       const responseProducts = result.products.map(sanitizeSearchProduct);
 
+      // Increment guest search count
+      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+        incrementGuestSearch(identity.fingerprint);
+      }
+
+      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
       return json(res, 200, {
         intent: result.intent,
         ai_summary: result.ai_summary,
@@ -1894,6 +2341,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           previous_results_count: 0,
         },
         session_id: sessionId,
+        searches_remaining: updatedAccess.searches_remaining,
+        subscription_status: updatedAccess.status,
       });
     }
 
