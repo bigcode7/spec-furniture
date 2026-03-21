@@ -415,9 +415,15 @@ export function localParse(query) {
     filter.exclude_categories = allCats.filter(c => c !== filter.category && !(filter.categories || []).includes(c)).slice(0, 5);
   }
 
-  // ── Dimensions ──
+  // ── Dimensions (explicit) ──
   const dims = parseDimensionConstraints(query);
   if (dims) filter.dimensions = dims;
+
+  // ── Dimensions (implicit — Layer 2) ──
+  parseImplicitDimensions(query, filter);
+
+  // ── Cross-field concepts (Layer 3) ──
+  filter._cross_field_concepts = detectCrossFieldConcepts(query);
 
   // ── Price ──
   const price = parsePriceSignals(query);
@@ -675,6 +681,344 @@ export function localParse(query) {
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// LAYER 1: SYNONYM INTELLIGENCE — comprehensive synonym maps
+// ══════════════════════════════════════════════════════════════════════
+
+const FURNITURE_TYPE_SYNONYMS = {
+  "coffee table": ["coffee table", "cocktail table", "center table"],
+  "cocktail table": ["coffee table", "cocktail table", "center table"],
+  "couch": ["sofa", "couch"],
+  "sofa": ["sofa", "couch"],
+  "credenza": ["credenza", "sideboard", "buffet", "server"],
+  "sideboard": ["credenza", "sideboard", "buffet", "server"],
+  "buffet": ["credenza", "sideboard", "buffet", "server"],
+  "etagere": ["etagere", "bookcase", "bookshelf", "shelving"],
+  "bookcase": ["bookcase", "bookshelf", "etagere", "shelving"],
+  "bookshelf": ["bookcase", "bookshelf", "etagere"],
+  "settee": ["settee", "loveseat"],
+  "loveseat": ["loveseat", "settee"],
+  "club chair": ["club chair", "accent chair", "lounge chair", "occasional chair"],
+  "accent chair": ["accent chair", "club chair", "lounge chair", "occasional chair"],
+  "lounge chair": ["lounge chair", "accent chair", "club chair", "occasional chair"],
+  "ottoman": ["ottoman", "footstool", "pouf"],
+  "footstool": ["ottoman", "footstool", "pouf"],
+  "dresser": ["dresser", "chest of drawers", "bureau"],
+  "bureau": ["dresser", "chest of drawers", "bureau"],
+  "nightstand": ["nightstand", "night stand", "bedside table", "night table", "bedside chest"],
+  "armoire": ["armoire", "wardrobe"],
+  "wardrobe": ["armoire", "wardrobe"],
+  "recliner": ["recliner", "lounger", "power recliner"],
+  "lounger": ["recliner", "lounger"],
+  "bar stool": ["bar stool", "barstool", "bar chair"],
+  "barstool": ["bar stool", "barstool", "bar chair"],
+  "counter stool": ["counter stool", "counter height stool"],
+  "chaise": ["chaise", "chaise lounge", "chaise longue", "fainting couch"],
+  "console table": ["console table", "sofa table", "entry table", "hall table"],
+  "sofa table": ["console table", "sofa table", "entry table", "hall table"],
+  "side table": ["side table", "end table", "lamp table", "accent table"],
+  "end table": ["end table", "side table", "lamp table", "accent table"],
+  "hutch": ["hutch", "china cabinet", "display cabinet"],
+  "china cabinet": ["hutch", "china cabinet", "display cabinet"],
+  "secretary": ["secretary", "secretary desk"],
+  "bench": ["bench", "bedroom bench", "dining bench"],
+};
+
+const MATERIAL_SYNONYMS = {
+  "boucle": ["boucle", "bouclé", "nubby texture", "nubby"],
+  "bouclé": ["boucle", "bouclé", "nubby texture", "nubby"],
+  "performance fabric": ["performance fabric", "crypton", "sunbrella", "revolution", "stain resistant", "indoor outdoor"],
+  "crypton": ["performance fabric", "crypton", "stain resistant"],
+  "sunbrella": ["performance fabric", "sunbrella", "solution dyed", "outdoor fabric"],
+  "leather": ["leather", "top grain leather", "full grain leather", "premium leather", "genuine leather"],
+  "top grain leather": ["leather", "top grain leather", "full grain leather", "premium leather"],
+  "full grain leather": ["leather", "top grain leather", "full grain leather", "premium leather"],
+  "marble": ["marble", "stone", "calcutta", "carrara", "calacatta"],
+  "stone": ["marble", "stone", "travertine", "limestone", "natural stone"],
+  "walnut": ["walnut", "american walnut"],
+  "oak": ["oak", "white oak", "red oak"],
+  "brass": ["brass", "gold metal", "antique gold", "brushed gold"],
+  "chrome": ["chrome", "polished metal", "nickel", "brushed nickel", "polished nickel"],
+  "iron": ["iron", "wrought iron", "blackened iron", "dark metal"],
+  "velvet": ["velvet", "crushed velvet"],
+  "linen": ["linen", "flax", "belgian linen"],
+  "rattan": ["rattan", "wicker", "woven"],
+  "wicker": ["rattan", "wicker", "woven"],
+  "travertine": ["travertine", "natural stone", "limestone"],
+  "lacquer": ["lacquer", "lacquered", "high gloss"],
+};
+
+const STYLE_SYNONYMS = {
+  "modern": ["modern", "contemporary"],
+  "contemporary": ["modern", "contemporary"],
+  "mid century": ["mid century", "mid-century", "midcentury", "mcm", "mid century modern"],
+  "mid-century": ["mid century", "mid-century", "midcentury", "mcm", "mid century modern"],
+  "midcentury": ["mid century", "mid-century", "midcentury", "mcm", "mid century modern"],
+  "mcm": ["mid century", "mid-century", "midcentury", "mcm", "mid century modern"],
+  "traditional": ["traditional", "classic", "timeless"],
+  "classic": ["traditional", "classic", "timeless"],
+  "transitional": ["transitional", "updated traditional", "classic contemporary"],
+  "coastal": ["coastal", "beach", "resort", "nautical", "seaside"],
+  "farmhouse": ["farmhouse", "rustic", "country", "cottage"],
+  "rustic": ["farmhouse", "rustic", "country", "lodge", "cabin"],
+  "country": ["farmhouse", "rustic", "country", "cottage"],
+  "glam": ["glam", "glamour", "glamorous", "hollywood regency", "luxe", "luxury modern", "hollywood"],
+  "hollywood regency": ["glam", "glamour", "hollywood regency", "luxe", "hollywood"],
+  "organic modern": ["organic modern", "japandi", "scandinavian", "nordic"],
+  "japandi": ["organic modern", "japandi", "scandinavian", "nordic"],
+  "scandinavian": ["organic modern", "japandi", "scandinavian", "nordic"],
+  "industrial": ["industrial", "loft", "urban"],
+  "bohemian": ["bohemian", "boho", "eclectic"],
+  "boho": ["bohemian", "boho", "eclectic"],
+  "art deco": ["art deco", "deco"],
+  "art-deco": ["art deco", "deco"],
+  "french country": ["french country", "provence", "french provincial"],
+  "campaign": ["campaign", "british colonial"],
+  "chinoiserie": ["chinoiserie", "asian inspired"],
+  "minimalist": ["minimalist", "modern", "contemporary"],
+};
+
+const FEATURE_SYNONYMS = {
+  "nailhead": ["nailhead", "nailhead trim", "nail head", "tack trim", "brass tacks", "brass nailhead"],
+  "tufted": ["tufted", "button tufted", "diamond tufted", "biscuit tufted"],
+  "channel": ["channel", "channel tufted", "channel back", "channeled", "vertical channel"],
+  "slipcovered": ["slipcovered", "slipcover", "removable cover", "washable cover"],
+  "power": ["power", "power reclining", "electric", "motorized", "power motion"],
+  "swivel": ["swivel", "rotating", "360", "swivel base"],
+  "skirted": ["skirted", "kick pleat", "waterfall skirt"],
+  "welt": ["welt", "welted", "piping", "cord trim"],
+  "carved": ["carved", "hand carved", "carved detail"],
+  "distressed": ["distressed", "weathered", "aged", "antiqued", "reclaimed"],
+};
+
+function expandSynonyms(term, synonymMap) {
+  const lower = term.toLowerCase();
+  return synonymMap[lower] || [lower];
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// LAYER 2: DIMENSIONAL SEARCH — implicit dimension parsing
+// ══════════════════════════════════════════════════════════════════════
+
+function parseImplicitDimensions(query, filter) {
+  const q = query.toLowerCase();
+  const dims = filter.dimensions || {};
+
+  // Seating capacity → width
+  const seatsMatch = q.match(/seats?\s+(\d+)/);
+  if (seatsMatch) {
+    const seats = parseInt(seatsMatch[1]);
+    const inchPerSeat = 24;
+    if (seats <= 4) { dims.width_min = seats * inchPerSeat - 12; dims.width_max = seats * inchPerSeat + 12; }
+    else if (seats <= 6) { dims.width_min = 60; dims.width_max = 84; }
+    else if (seats <= 8) { dims.width_min = 84; dims.width_max = 108; }
+    else if (seats <= 10) { dims.width_min = 108; dims.width_max = 132; }
+    else { dims.width_min = 132; }
+  }
+
+  // Implicit size keywords
+  if (/\b(apartment\s*size|small\s*space|compact|petite)\b/.test(q)) {
+    const cat = (filter.category || "").toLowerCase();
+    if (cat.includes("sofa") || cat.includes("couch")) dims.width_max = 78;
+    else if (cat.includes("sectional")) dims.width_max = 100;
+    else if (cat.includes("table")) dims.width_max = 48;
+  }
+  if (/\b(oversized|extra\s*large|grand)\b/.test(q)) {
+    const cat = (filter.category || "").toLowerCase();
+    if (cat.includes("sectional")) dims.width_min = 120;
+    else if (cat.includes("sofa")) dims.width_min = 96;
+    else if (cat.includes("table")) dims.width_min = 84;
+  }
+  if (/\bnarrow\b/.test(q)) { dims.depth_max = 16; }
+  if (/\b(low\s*profile)\b/.test(q)) { dims.height_max = 32; }
+  if (/\btall\b/.test(q) && /bookcase|shelf|etagere|cabinet/.test(q)) { dims.height_min = 72; }
+
+  // Stool heights
+  if (/\bcounter\s*(height|stool)\b/.test(q)) { dims.seat_height_min = 24; dims.seat_height_max = 26; }
+  if (/\bbar\s*(height|stool)\b/.test(q)) { dims.seat_height_min = 28; dims.seat_height_max = 32; }
+
+  // Bed sizes
+  if (/\bking\s*bed\b/.test(q) && !/\bcal(ifornia)?\b/.test(q)) { filter._bed_size = "king"; }
+  if (/\bqueen\s*bed\b/.test(q)) { filter._bed_size = "queen"; }
+  if (/\bcal(ifornia)?\s*king\b/.test(q)) { filter._bed_size = "california king"; }
+
+  // Explicit "fits through X inch door"
+  const doorMatch = q.match(/fit.*?(\d+)\s*(?:inch|in|")\s*door/);
+  if (doorMatch) { dims.depth_max = parseInt(doorMatch[1]) - 1; }
+
+  if (Object.keys(dims).length > 0) filter.dimensions = dims;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// LAYER 3: CROSS-FIELD INTELLIGENCE — abstract concept scoring
+// ══════════════════════════════════════════════════════════════════════
+
+const PREMIUM_VENDORS = new Set(["baker", "theodore-alexander", "hickory-chair", "century", "hancock-moore", "maitland-smith"]);
+const VALUE_VENDORS = new Set(["hooker", "universal", "rowe", "surya"]);
+
+const CROSS_FIELD_CONCEPTS = {
+  comfortable: {
+    triggers: ["comfortable", "comfy", "cozy", "cushy", "sink into"],
+    checks: [
+      (p) => /down|spring down|down wrapped/i.test(p.ai_distinctive_features?.join(" ") || ""),
+      (p) => /loose pillow|pillow back/i.test(p.ai_back_style || ""),
+      (p) => /casual|relaxed/i.test(p.ai_formality || ""),
+      (p) => /cozy|inviting|relaxed|comfortable/i.test(p.ai_mood || ""),
+      (p) => /large|oversized|deep|generous/i.test(p.ai_scale || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+  kid_friendly: {
+    triggers: ["kid friendly", "kid proof", "family friendly", "durable", "child friendly", "kids"],
+    checks: [
+      (p) => /performance|crypton|sunbrella|stain resistant|solution dyed/i.test(p.ai_primary_material || ""),
+      (p) => /high traffic|durable|heavy use/i.test(p.ai_description || ""),
+      (p) => /removable|slipcovered|washable/i.test(p.ai_distinctive_features?.join(" ") || ""),
+    ],
+    minMatch: 1,
+    boost: 20,
+  },
+  pet_friendly: {
+    triggers: ["pet friendly", "pet proof", "dog friendly", "cat friendly", "pets"],
+    checks: [
+      (p) => /performance|crypton|sunbrella|stain resistant|leather|solution dyed/i.test(p.ai_primary_material || ""),
+      (p) => /smooth|flat|tight weave/i.test(p.ai_description || ""),
+      (p) => /removable|slipcovered|washable/i.test(p.ai_distinctive_features?.join(" ") || ""),
+      (p) => /leather/i.test(p.ai_primary_material || ""),
+    ],
+    minMatch: 1,
+    boost: 20,
+  },
+  luxury: {
+    triggers: ["high end", "luxury", "premium", "top tier", "the good stuff", "finest"],
+    checks: [
+      (p) => PREMIUM_VENDORS.has(p.vendor_id || ""),
+      (p) => /eight.way|hand tied|hand.?crafted|bench.?made/i.test(p.ai_description || ""),
+      (p) => /luxury|opulent|refined|sophisticated|quiet luxury/i.test(p.ai_mood || ""),
+      (p) => /formal|semi.formal/i.test(p.ai_formality || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  budget: {
+    triggers: ["affordable", "budget friendly", "value", "inexpensive", "budget"],
+    checks: [
+      (p) => VALUE_VENDORS.has(p.vendor_id || ""),
+      (p) => !/luxury|opulent|premium/i.test(p.ai_mood || ""),
+    ],
+    minMatch: 1,
+    boost: 15,
+  },
+  statement: {
+    triggers: ["statement piece", "show stopper", "wow factor", "conversation starter", "statement"],
+    checks: [
+      (p) => /large|oversized|grand|dramatic/i.test(p.ai_scale || ""),
+      (p) => /dramatic|opulent|bold|striking|showstopper/i.test(p.ai_mood || ""),
+      (p) => /glam|hollywood|art deco|luxury/i.test(p.ai_style || ""),
+      (p) => /emerald|navy|burgundy|mustard|teal|ruby|sapphire/i.test(p.ai_primary_color || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  casual: {
+    triggers: ["laid back", "casual", "relaxed", "lived in", "not too formal", "easy going", "easygoing"],
+    checks: [
+      (p) => /casual|relaxed|informal/i.test(p.ai_formality || ""),
+      (p) => /cozy|relaxed|inviting|laid.back|easy|comfortable/i.test(p.ai_mood || ""),
+      (p) => /coastal|farmhouse|bohemian|organic modern|boho/i.test(p.ai_style || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  formal: {
+    triggers: ["dressy", "formal", "elegant", "sophisticated"],
+    checks: [
+      (p) => /formal|semi.formal/i.test(p.ai_formality || ""),
+      (p) => /sophisticated|refined|elegant|polished/i.test(p.ai_mood || ""),
+      (p) => /traditional|glam|luxury modern|hollywood/i.test(p.ai_style || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  trending: {
+    triggers: ["trendy", "on trend", "instagram", "pinterest", "trending"],
+    checks: [
+      (p) => /boucle|bouclé|travertine|rattan|performance/i.test(p.ai_primary_material || ""),
+      (p) => /organic modern|japandi|quiet luxury/i.test(p.ai_style || ""),
+      (p) => /barrel|curved/i.test(p.ai_silhouette || ""),
+      (p) => /sage|terracotta|cream|oatmeal|mushroom/i.test(p.ai_primary_color || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  // Designer slang
+  clean_lines: {
+    triggers: ["clean lines", "clean-lined", "sleek"],
+    checks: [
+      (p) => /modern|contemporary|minimalist/i.test(p.ai_style || ""),
+      (p) => /track|parsons|tuxedo|straight/i.test(p.ai_silhouette || "") || /track/i.test(p.ai_arm_style || ""),
+    ],
+    minMatch: 2,
+    boost: 20,
+  },
+  california_casual: {
+    triggers: ["california casual", "cali casual"],
+    checks: [
+      (p) => /coastal|organic modern|relaxed/i.test(p.ai_style || ""),
+      (p) => /casual|relaxed|informal/i.test(p.ai_formality || ""),
+      (p) => /linen|rattan|natural|light wood/i.test(p.ai_primary_material || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+  quiet_luxury: {
+    triggers: ["quiet luxury"],
+    checks: [
+      (p) => /quiet luxury|refined|understated/i.test(p.ai_mood || ""),
+      (p) => /semi.formal|formal/i.test(p.ai_formality || ""),
+      (p) => PREMIUM_VENDORS.has(p.vendor_id || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+  grandmillennial: {
+    triggers: ["grandmillennial", "grand millennial"],
+    checks: [
+      (p) => /traditional/i.test(p.ai_style || ""),
+      (p) => /tufted|skirted|fringe|tassel|chintz|floral/i.test(p.ai_distinctive_features?.join(" ") || ""),
+    ],
+    minMatch: 2,
+    boost: 25,
+  },
+};
+
+function detectCrossFieldConcepts(query) {
+  const q = query.toLowerCase();
+  const matched = [];
+  for (const [name, concept] of Object.entries(CROSS_FIELD_CONCEPTS)) {
+    if (concept.triggers.some(t => q.includes(t))) {
+      matched.push(name);
+    }
+  }
+  return matched;
+}
+
+function scoreCrossFieldConcepts(product, concepts) {
+  let totalBoost = 0;
+  for (const conceptName of concepts) {
+    const concept = CROSS_FIELD_CONCEPTS[conceptName];
+    if (!concept) continue;
+    const hits = concept.checks.filter(check => check(product)).length;
+    if (hits >= concept.minMatch) {
+      totalBoost += concept.boost;
+    }
+  }
+  return totalBoost;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+
 /**
  * Strict AI field matching — checks if a product's ai_* field contains a search term.
  * Uses substring matching with word boundaries for precision.
@@ -692,12 +1036,18 @@ function aiArrayContains(arr, searchTerm) {
   return arr.some(item => {
     const lower = item.toLowerCase();
     if (!lower.includes(st)) return false;
-    // Reject negated matches like "no-nailhead", "without nailhead", "non-nailhead"
     const idx = lower.indexOf(st);
+
+    // Reject negated matches — check text BEFORE the term
     if (idx > 0) {
-      const before = lower.substring(Math.max(0, idx - 8), idx);
-      if (/\bno[- ]?$/.test(before) || /\bnon[- ]?$/.test(before) || /\bwithout\s?$/.test(before) || /\bno\s$/.test(before)) return false;
+      const before = lower.substring(Math.max(0, idx - 12), idx);
+      if (/\bno[- ]?$/.test(before) || /\bnon[- ]?$/.test(before) || /\bwithout\s?$/.test(before) || /\bno\s+visible\s?$/.test(before) || /\bno\s$/.test(before)) return false;
     }
+
+    // Reject contextual false positives — term followed by "alternative", "free", "less"
+    const after = lower.substring(idx + st.length, idx + st.length + 15);
+    if (/^\s*(alternative|free|less|optional)\b/.test(after)) return false;
+
     return true;
   });
 }
@@ -714,21 +1064,8 @@ function strictAIFilter(products, filter) {
   // Category → ai_furniture_type (with synonym expansion)
   if (filter.category) {
     const catWord = filter.category.toLowerCase().replace(/-/g, " ").replace(/s$/, "");
-    // Expand category synonyms — AI tagger may use different vocabulary
-    const catSynonyms = {
-      "coffee table": ["coffee table", "cocktail table"],
-      "cocktail table": ["coffee table", "cocktail table"],
-      "couch": ["sofa", "couch"],
-      "credenza": ["credenza", "sideboard", "buffet", "media console"],
-      "etagere": ["etagere", "bookcase", "bookshelf"],
-      "bookcase": ["bookcase", "bookshelf", "etagere"],
-      "nightstand": ["nightstand", "night stand", "bedside table", "bedside chest"],
-      "end table": ["end table", "side table", "accent table"],
-      "side table": ["side table", "end table", "accent table"],
-      "counter stool": ["counter stool", "counter height stool"],
-      "bar stool": ["bar stool", "barstool", "bar chair"],
-    };
-    const expanded = catSynonyms[catWord] || [catWord];
+    // Expand category synonyms via Layer 1 comprehensive map
+    const expanded = expandSynonyms(catWord, FURNITURE_TYPE_SYNONYMS);
     aiFilters.push({
       name: "furniture type",
       field: "ai_furniture_type",
@@ -737,10 +1074,13 @@ function strictAIFilter(products, filter) {
     });
   }
 
-  // Material → ai_primary_material
+  // Material → ai_primary_material (with Layer 1 synonym expansion)
   if (filter.material) {
     const mat = filter.material.toLowerCase();
-    const matExpanded = (filter.material_expanded || [mat]).map(m => m.toLowerCase());
+    // Merge material_expanded from AI/local parse with Layer 1 synonym map
+    const matFromFilter = (filter.material_expanded || []).map(m => m.toLowerCase());
+    const matFromSynonyms = expandSynonyms(mat, MATERIAL_SYNONYMS).map(m => m.toLowerCase());
+    const matExpanded = [...new Set([mat, ...matFromFilter, ...matFromSynonyms])];
     aiFilters.push({
       name: "material",
       field: "ai_primary_material",
@@ -748,7 +1088,7 @@ function strictAIFilter(products, filter) {
       test: (p) => {
         if (!p.ai_primary_material) return false;
         const aiMat = p.ai_primary_material.toLowerCase();
-        return matExpanded.some(m => aiMat.includes(m)) || aiMat.includes(mat);
+        return matExpanded.some(m => aiMat.includes(m));
       },
     });
   }
@@ -767,18 +1107,8 @@ function strictAIFilter(products, filter) {
   // Style → ai_style (with synonym expansion)
   if (filter.style) {
     const style = filter.style.toLowerCase().replace(/-/g, " ");
-    // Expand style synonyms — AI tagger uses varied vocabulary
-    const styleSynonyms = {
-      "glam": ["glam", "glamour", "glamorous", "hollywood", "regency", "luxury modern"],
-      "modern": ["modern", "contemporary"],
-      "mid century": ["mid century", "mid-century", "midcentury", "mcm"],
-      "coastal": ["coastal", "beach", "nautical", "resort"],
-      "farmhouse": ["farmhouse", "country", "cottage"],
-      "industrial": ["industrial", "loft", "urban"],
-      "rustic": ["rustic", "lodge", "cabin"],
-      "bohemian": ["bohemian", "boho", "eclectic"],
-    };
-    const expanded = styleSynonyms[style] || [style];
+    // Expand style synonyms via Layer 1 comprehensive map
+    const expanded = expandSynonyms(style, STYLE_SYNONYMS);
     aiFilters.push({
       name: "style",
       field: "ai_style",
@@ -823,18 +1153,21 @@ function strictAIFilter(products, filter) {
     });
   }
 
-  // Features → ai_distinctive_features + ai_search_terms
+  // Features → VERIFIED ai_distinctive_features only (hard filter)
+  // ai_unverified_features are used for soft scoring only, NOT hard filtering.
+  // ai_search_terms alone is NOT enough — the tagger puts false positives there.
   if (filter.ai_features?.length > 0) {
     for (const feat of filter.ai_features) {
       const f = feat.toLowerCase();
+      const featExpanded = expandSynonyms(f, FEATURE_SYNONYMS);
       aiFilters.push({
         name: `feature "${feat}"`,
         field: "ai_distinctive_features",
         term: f,
-        test: (p) =>
-          aiArrayContains(p.ai_distinctive_features, f) ||
-          aiArrayContains(p.ai_search_terms, f) ||
-          aiFieldContains(p.ai_description, f),
+        test: (p) => {
+          // ONLY check verified ai_distinctive_features — hard gate
+          return featExpanded.some(fe => aiArrayContains(p.ai_distinctive_features, fe));
+        },
       });
     }
   }
@@ -1079,6 +1412,7 @@ export function applyAIFilter(products, filter) {
     // AI fields for scoring
     const aiSearchTerms = (p.ai_search_terms || []).map(t => t.toLowerCase());
     const aiFeatures = (p.ai_distinctive_features || []).map(t => t.toLowerCase());
+    const aiUnverifiedFeatures = (p.ai_unverified_features || []).map(t => t.toLowerCase());
     const aiType = (p.ai_furniture_type || "").toLowerCase();
     const aiSilhouette = (p.ai_silhouette || "").toLowerCase();
     const aiArmStyle = (p.ai_arm_style || "").toLowerCase();
@@ -1112,6 +1446,12 @@ export function applyAIFilter(products, filter) {
       if (!aiHit) {
         for (const feat of aiFeatures) {
           if (feat.includes(kw) || kw.includes(feat)) { score += 22; aiHit = true; break; }
+        }
+      }
+      // Check ai_unverified_features — lower weight soft boost (not hard filter)
+      if (!aiHit) {
+        for (const feat of aiUnverifiedFeatures) {
+          if (feat.includes(kw) || kw.includes(feat)) { score += 8; aiHit = true; break; }
         }
       }
       // Check ai silhouette/arm/back/leg styles
@@ -1230,6 +1570,11 @@ export function applyAIFilter(products, filter) {
     // Data richness boost
     if (p.dimensions) score += 3;
     if (p.material) score += 2;
+
+    // ── LAYER 3: Cross-field concept scoring ──
+    if (filter._cross_field_concepts?.length > 0) {
+      score += scoreCrossFieldConcepts(p, filter._cross_field_concepts);
+    }
 
     p._ai_score = score;
   }
