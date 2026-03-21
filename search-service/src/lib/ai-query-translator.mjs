@@ -711,14 +711,29 @@ function strictAIFilter(products, filter) {
   // Build list of active AI filters from the parsed intent
   const aiFilters = [];
 
-  // Category → ai_furniture_type
+  // Category → ai_furniture_type (with synonym expansion)
   if (filter.category) {
     const catWord = filter.category.toLowerCase().replace(/-/g, " ").replace(/s$/, "");
+    // Expand category synonyms — AI tagger may use different vocabulary
+    const catSynonyms = {
+      "coffee table": ["coffee table", "cocktail table"],
+      "cocktail table": ["coffee table", "cocktail table"],
+      "couch": ["sofa", "couch"],
+      "credenza": ["credenza", "sideboard", "buffet", "media console"],
+      "etagere": ["etagere", "bookcase", "bookshelf"],
+      "bookcase": ["bookcase", "bookshelf", "etagere"],
+      "nightstand": ["nightstand", "night stand", "bedside table", "bedside chest"],
+      "end table": ["end table", "side table", "accent table"],
+      "side table": ["side table", "end table", "accent table"],
+      "counter stool": ["counter stool", "counter height stool"],
+      "bar stool": ["bar stool", "barstool", "bar chair"],
+    };
+    const expanded = catSynonyms[catWord] || [catWord];
     aiFilters.push({
       name: "furniture type",
       field: "ai_furniture_type",
       term: catWord,
-      test: (p) => aiFieldContains(p.ai_furniture_type, catWord),
+      test: (p) => expanded.some(c => aiFieldContains(p.ai_furniture_type, c)),
     });
   }
 
@@ -749,14 +764,26 @@ function strictAIFilter(products, filter) {
     });
   }
 
-  // Style → ai_style
+  // Style → ai_style (with synonym expansion)
   if (filter.style) {
     const style = filter.style.toLowerCase().replace(/-/g, " ");
+    // Expand style synonyms — AI tagger uses varied vocabulary
+    const styleSynonyms = {
+      "glam": ["glam", "glamour", "glamorous", "hollywood", "regency", "luxury modern"],
+      "modern": ["modern", "contemporary"],
+      "mid century": ["mid century", "mid-century", "midcentury", "mcm"],
+      "coastal": ["coastal", "beach", "nautical", "resort"],
+      "farmhouse": ["farmhouse", "country", "cottage"],
+      "industrial": ["industrial", "loft", "urban"],
+      "rustic": ["rustic", "lodge", "cabin"],
+      "bohemian": ["bohemian", "boho", "eclectic"],
+    };
+    const expanded = styleSynonyms[style] || [style];
     aiFilters.push({
       name: "style",
       field: "ai_style",
       term: style,
-      test: (p) => aiFieldContains(p.ai_style, style),
+      test: (p) => expanded.some(s => aiFieldContains(p.ai_style, s)),
     });
   }
 
