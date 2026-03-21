@@ -14,6 +14,7 @@ const DATA_DIR = path.resolve(__dirname, "../../data");
 const GUESTS_FILE = path.join(DATA_DIR, "guests.json");
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const EVENTS_FILE = path.join(DATA_DIR, "subscription-events.json");
+const TEAMS_FILE = path.join(DATA_DIR, "teams.json");
 
 const FREE_SEARCH_LIMIT = 5;
 const FREE_QUOTE_LIMIT = 1;
@@ -25,6 +26,12 @@ const DATA_RETENTION_DAYS = 90;
 let guests = {};       // keyed by fingerprint
 let subscriptions = {}; // keyed by user_id
 let events = [];        // subscription events log
+let teams = {};         // keyed by teamId
+
+// In-memory only stores (not persisted)
+let sessions = {};          // keyed by userId → { sessionToken, fingerprint, ip, userAgent, created_at, last_active }
+let sharingActivity = {};   // keyed by userId → [{ fingerprint, ip, timestamp }]
+let sharingWarnings = {};   // keyed by userId → [timestamp]
 
 // Load/save helpers
 function loadJSON(file) {
@@ -41,13 +48,16 @@ let subSaveTimer = null;
 function saveGuestsDebounced() { clearTimeout(guestSaveTimer); guestSaveTimer = setTimeout(() => saveJSON(GUESTS_FILE, guests), 3000); }
 function saveSubsDebounced() { clearTimeout(subSaveTimer); subSaveTimer = setTimeout(() => saveJSON(SUBSCRIPTIONS_FILE, subscriptions), 1000); }
 function saveEventsImmediate() { saveJSON(EVENTS_FILE, events); }
+let teamSaveTimer = null;
+function saveTeamsDebounced() { clearTimeout(teamSaveTimer); teamSaveTimer = setTimeout(() => saveJSON(TEAMS_FILE, teams), 1000); }
 
 // Init
 function initSubscriptionStore() {
   guests = loadJSON(GUESTS_FILE) || {};
   subscriptions = loadJSON(SUBSCRIPTIONS_FILE) || {};
   events = loadJSON(EVENTS_FILE) || [];
-  console.log(`[sub-store] Loaded ${Object.keys(guests).length} guest records, ${Object.keys(subscriptions).length} subscriptions`);
+  teams = loadJSON(TEAMS_FILE) || {};
+  console.log(`[sub-store] Loaded ${Object.keys(guests).length} guest records, ${Object.keys(subscriptions).length} subscriptions, ${Object.keys(teams).length} teams`);
 }
 
 // ─── GUEST TRACKING ───
@@ -204,6 +214,24 @@ function checkAccess(userId, fingerprint, ip, localStorageId, action = "search")
 
   // Authenticated user with subscription
   if (userId) {
+    // Check sharing violation restriction
+    const sharingCheck = checkSharingViolation(userId);
+    if (sharingCheck.flagged && sharingCheck.restrict) {
+      return { allowed: false, reason: "account_sharing_restricted" };
+    }
+
+    // Check team membership
+    const team = getTeamByUser(userId);
+    if (team) {
+      const adminSub = subscriptions[team.admin_user_id];
+      if (adminSub && (adminSub.status === "active" || adminSub.status === "cancelled")) {
+        const adminStatus = getUserStatus(team.admin_user_id);
+        if (adminStatus === "active" || adminStatus === "cancelled") {
+          return { allowed: true, status: adminStatus };
+        }
+      }
+    }
+
     const status = getUserStatus(userId);
     if (status === "active" || status === "cancelled") {
       // cancelled still has access until period end
@@ -278,8 +306,19 @@ function getRevenueDashboard() {
   // MRR calculation
   let mrr = 0;
   for (const sub of activeSubs) {
-    if (sub.plan === "annual") mrr += 790 / 12;
-    else mrr += 79;
+    if (sub.plan === "team_annual") {
+      const teamEntry = Object.values(teams).find(t => t.admin_user_id === sub.user_id);
+      const extraSeats = teamEntry ? teamEntry.extra_seats || 0 : 0;
+      mrr += 2490 / 12 + (49 * extraSeats);
+    } else if (sub.plan === "team_monthly") {
+      const teamEntry = Object.values(teams).find(t => t.admin_user_id === sub.user_id);
+      const extraSeats = teamEntry ? teamEntry.extra_seats || 0 : 0;
+      mrr += 249 + (49 * extraSeats);
+    } else if (sub.plan === "annual") {
+      mrr += 990 / 12;
+    } else {
+      mrr += 99;
+    }
   }
 
   // This month's events
@@ -369,6 +408,236 @@ function checkMultiAccountAbuse(fingerprint) {
   return { flagged: unique.length > 1, accounts: unique };
 }
 
+// ─── SESSION TRACKING ───
+
+/**
+ * Create a new session for a user. For Pro plans, replaces any existing session
+ * (single active session enforcement).
+ */
+function createSession(userId, fingerprint, ip, userAgent) {
+  const sessionToken = crypto.randomUUID();
+  const session = {
+    sessionToken,
+    fingerprint,
+    ip,
+    userAgent,
+    created_at: new Date().toISOString(),
+    last_active: new Date().toISOString(),
+  };
+
+  // For Pro plans, enforce single active session by replacing existing
+  const sub = subscriptions[userId];
+  if (sub && (sub.plan === "monthly" || sub.plan === "annual")) {
+    sessions[userId] = session;
+  } else {
+    sessions[userId] = session;
+  }
+
+  return sessionToken;
+}
+
+/**
+ * Validate a session token for a user.
+ */
+function validateSession(userId, sessionToken) {
+  const session = sessions[userId];
+  if (!session) {
+    return { valid: false, reason: "signed_in_from_another_device" };
+  }
+  if (session.sessionToken !== sessionToken) {
+    return { valid: false, reason: "signed_in_from_another_device" };
+  }
+  session.last_active = new Date().toISOString();
+  return { valid: true };
+}
+
+/**
+ * Get the current active session for a user.
+ */
+function getActiveSession(userId) {
+  return sessions[userId] || null;
+}
+
+// ─── SHARING DETECTION ───
+
+/**
+ * Track user activity (IP and fingerprint) for sharing detection.
+ */
+function trackActivity(userId, fingerprint, ip) {
+  if (!sharingActivity[userId]) {
+    sharingActivity[userId] = [];
+  }
+  sharingActivity[userId].push({
+    fingerprint,
+    ip,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Check if a user's account shows signs of credential sharing.
+ */
+function checkSharingViolation(userId) {
+  const now = Date.now();
+  const activities = sharingActivity[userId] || [];
+  const warnings = sharingWarnings[userId] || [];
+
+  // Count warnings in past 30 days
+  const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+  const recentWarnings = warnings.filter(ts => new Date(ts).getTime() > thirtyDaysAgo);
+
+  // 3+ warnings in past 30 days → restrict
+  if (recentWarnings.length >= 3) {
+    return { flagged: true, reason: "account_sharing_detected", restrict: true, warning_count: recentWarnings.length };
+  }
+
+  // 5+ unique IPs in past 7 days → flag
+  const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+  const recentActivities7d = activities.filter(a => new Date(a.timestamp).getTime() > sevenDaysAgo);
+  const uniqueIPs = new Set(recentActivities7d.map(a => a.ip).filter(Boolean));
+
+  if (uniqueIPs.size >= 5) {
+    if (!sharingWarnings[userId]) sharingWarnings[userId] = [];
+    sharingWarnings[userId].push(new Date().toISOString());
+    const updatedWarnings = sharingWarnings[userId].filter(ts => new Date(ts).getTime() > thirtyDaysAgo);
+    if (updatedWarnings.length >= 3) {
+      return { flagged: true, reason: "account_sharing_detected", restrict: true, warning_count: updatedWarnings.length };
+    }
+    return { flagged: true, reason: "too_many_ips", warning_count: updatedWarnings.length };
+  }
+
+  // 3+ unique fingerprints in past 24 hours → warning
+  const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+  const recentActivities24h = activities.filter(a => new Date(a.timestamp).getTime() > twentyFourHoursAgo);
+  const uniqueFingerprints = new Set(recentActivities24h.map(a => a.fingerprint).filter(Boolean));
+
+  if (uniqueFingerprints.size >= 3) {
+    if (!sharingWarnings[userId]) sharingWarnings[userId] = [];
+    sharingWarnings[userId].push(new Date().toISOString());
+    const updatedWarnings = sharingWarnings[userId].filter(ts => new Date(ts).getTime() > thirtyDaysAgo);
+    if (updatedWarnings.length >= 3) {
+      return { flagged: true, reason: "account_sharing_detected", restrict: true, warning_count: updatedWarnings.length };
+    }
+    return { flagged: false, reason: "multiple_fingerprints_warning", warning_count: updatedWarnings.length };
+  }
+
+  return { flagged: false, warning_count: recentWarnings.length };
+}
+
+// ─── TEAM MANAGEMENT ───
+
+/**
+ * Create a new team with the given admin user.
+ */
+function createTeam(adminUserId, teamName) {
+  const teamId = crypto.randomUUID();
+  const team = {
+    id: teamId,
+    name: teamName,
+    admin_user_id: adminUserId,
+    members: [
+      {
+        user_id: adminUserId,
+        email: null,
+        role: "admin",
+        joined_at: new Date().toISOString(),
+      },
+    ],
+    seats: 5,
+    extra_seats: 0,
+    plan: "team_monthly",
+    created_at: new Date().toISOString(),
+  };
+  teams[teamId] = team;
+  saveTeamsDebounced();
+  return team;
+}
+
+/**
+ * Get a team by its ID.
+ */
+function getTeam(teamId) {
+  return teams[teamId] || null;
+}
+
+/**
+ * Find the team where the given user is admin or member.
+ */
+function getTeamByUser(userId) {
+  return Object.values(teams).find(t =>
+    t.admin_user_id === userId ||
+    t.members.some(m => m.user_id === userId)
+  ) || null;
+}
+
+/**
+ * Invite a member to a team (admin only). Adds member if seats are available.
+ */
+function inviteMember(teamId, adminUserId, memberEmail) {
+  const team = teams[teamId];
+  if (!team) return { error: "team_not_found" };
+  if (team.admin_user_id !== adminUserId) return { error: "not_admin" };
+
+  const totalSeats = team.seats + (team.extra_seats || 0);
+  if (team.members.length >= totalSeats) {
+    return { error: "no_seats_available" };
+  }
+
+  // Check if already a member
+  if (team.members.some(m => m.email === memberEmail)) {
+    return { error: "already_member" };
+  }
+
+  const member = {
+    user_id: null,
+    email: memberEmail,
+    role: "member",
+    joined_at: new Date().toISOString(),
+  };
+  team.members.push(member);
+  saveTeamsDebounced();
+  return { success: true, member };
+}
+
+/**
+ * Remove a member from a team (admin only).
+ */
+function removeMember(teamId, adminUserId, memberUserId) {
+  const team = teams[teamId];
+  if (!team) return { error: "team_not_found" };
+  if (team.admin_user_id !== adminUserId) return { error: "not_admin" };
+  if (memberUserId === adminUserId) return { error: "cannot_remove_admin" };
+
+  const idx = team.members.findIndex(m => m.user_id === memberUserId);
+  if (idx === -1) return { error: "member_not_found" };
+
+  team.members.splice(idx, 1);
+  saveTeamsDebounced();
+  return { success: true };
+}
+
+/**
+ * Add an extra seat to a team at $49/mo (admin only).
+ */
+function addSeat(teamId, adminUserId) {
+  const team = teams[teamId];
+  if (!team) return { error: "team_not_found" };
+  if (team.admin_user_id !== adminUserId) return { error: "not_admin" };
+
+  team.extra_seats = (team.extra_seats || 0) + 1;
+  saveTeamsDebounced();
+  return { success: true, extra_seats: team.extra_seats, cost_per_seat: 49 };
+}
+
+/**
+ * Get all members of a team with their roles.
+ */
+function getTeamMembers(teamId) {
+  const team = teams[teamId];
+  if (!team) return [];
+  return team.members;
+}
+
 export {
   initSubscriptionStore,
   getGuestUsage,
@@ -386,6 +655,18 @@ export {
   verifyGuestToken,
   linkFingerprintToUser,
   checkMultiAccountAbuse,
+  createSession,
+  validateSession,
+  getActiveSession,
+  trackActivity,
+  checkSharingViolation,
+  createTeam,
+  getTeam,
+  getTeamByUser,
+  inviteMember,
+  removeMember,
+  addSeat,
+  getTeamMembers,
   FREE_SEARCH_LIMIT,
   FREE_QUOTE_LIMIT,
   FREE_QUOTE_ITEM_LIMIT,

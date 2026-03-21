@@ -65,8 +65,8 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData } from "./lib/auth-store.mjs";
-import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT } from "./lib/subscription-store.mjs";
-import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession } from "./lib/stripe-integration.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
+import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
@@ -332,10 +332,25 @@ function getRequestIdentity(req, body) {
     }
   }
 
-  // Guest identification
+  // Track activity for sharing detection
   const fingerprint = body?.fingerprint || req.headers["x-fingerprint"] || null;
-  const localStorageId = body?.ls_id || req.headers["x-ls-id"] || null;
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || null;
+  if (userId) {
+    trackActivity(userId, fingerprint, ip);
+  }
+
+  // Session validation
+  let sessionInvalid = false;
+  if (userId) {
+    const sessionToken = req.headers["x-session-token"] || body?.sessionToken;
+    const sessionCheck = validateSession(userId, sessionToken);
+    if (!sessionCheck.valid) {
+      sessionInvalid = true;
+    }
+  }
+
+  // Guest identification
+  const localStorageId = body?.ls_id || req.headers["x-ls-id"] || null;
 
   // Check guest token
   if (!userId && token && token.startsWith("g.")) {
@@ -351,7 +366,7 @@ function getRequestIdentity(req, body) {
     }
   }
 
-  return { userId, fingerprint, ip, localStorageId, status: userStatus };
+  return { userId, fingerprint, ip, localStorageId, status: userStatus, sessionInvalid };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -380,6 +395,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/auth/login") {
       const body = await collectBody(req);
       const result = await loginUser(body);
+      if (result.ok) {
+        const fingerprint = body.fingerprint || req.headers["x-fingerprint"];
+        const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+        const sessionToken = createSession(result.user.id, fingerprint, ip, req.headers["user-agent"]);
+        result.sessionToken = sessionToken;
+      }
       return json(res, result.ok ? 200 : 401, result);
     }
 
@@ -544,7 +565,7 @@ const server = http.createServer(async (req, res) => {
               logSubscriptionEvent("new_subscription", {
                 user_id: userId,
                 plan,
-                amount: plan === "annual" ? 790 : 79,
+                amount: plan.includes("annual") ? (plan.includes("team") ? 2490 : 990) : (plan.includes("team") ? 249 : 99),
               });
             }
             break;
@@ -650,7 +671,7 @@ const server = http.createServer(async (req, res) => {
         logSubscriptionEvent("reactivation", {
           user_id: identity.userId,
           plan: sub.plan,
-          amount: sub.plan === "annual" ? 790 : 79,
+          amount: sub.plan.includes("annual") ? (sub.plan.includes("team") ? 2490 : 990) : (sub.plan.includes("team") ? 249 : 99),
         });
         return json(res, 200, { ok: true, status: "active" });
       } catch (err) {
@@ -701,6 +722,69 @@ const server = http.createServer(async (req, res) => {
       }
 
       return json(res, 200, getRevenueDashboard());
+    }
+
+    // ── TEAM ENDPOINTS ──────────────────────────────────────
+    if (req.method === "POST" && req.url === "/team/create") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const result = createTeam(identity.userId, body.team_name || "My Team");
+      return json(res, result.error ? 400 : 201, result);
+    }
+
+    if (req.method === "GET" && req.url === "/team/members") {
+      const identity = getRequestIdentity(req, {});
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const team = getTeamByUser(identity.userId);
+      if (!team) return json(res, 404, { error: "No team found" });
+      const members = getTeamMembers(team.id);
+      return json(res, 200, { team_id: team.id, team_name: team.name, seats: team.seats + (team.extra_seats || 0), members });
+    }
+
+    if (req.method === "POST" && req.url === "/team/invite") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const team = getTeamByUser(identity.userId);
+      if (!team) return json(res, 404, { error: "No team found" });
+      const result = inviteMember(team.id, identity.userId, body.email);
+      return json(res, result.error ? 400 : 200, result);
+    }
+
+    if (req.method === "POST" && req.url === "/team/remove") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const team = getTeamByUser(identity.userId);
+      if (!team) return json(res, 404, { error: "No team found" });
+      const result = removeMember(team.id, identity.userId, body.member_user_id);
+      return json(res, result.error ? 400 : 200, result);
+    }
+
+    if (req.method === "POST" && req.url === "/team/add-seat") {
+      const body = await collectBody(req);
+      const identity = getRequestIdentity(req, body);
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const team = getTeamByUser(identity.userId);
+      if (!team) return json(res, 404, { error: "No team found" });
+      const sub = getSubscription(identity.userId);
+      if (!sub?.stripe_customer_id) return json(res, 400, { error: "No active subscription" });
+      const origin = req.headers["origin"] || "https://spekd.ai";
+      try {
+        const checkout = await createTeamSeatCheckout(sub.stripe_customer_id, 1, `${origin}/Account?seat=added`, `${origin}/Account`);
+        const seatResult = addSeat(team.id, identity.userId);
+        return json(res, 200, { ...checkout, ...seatResult });
+      } catch (err) {
+        return json(res, 500, { error: err.message });
+      }
+    }
+
+    if (req.method === "GET" && req.url === "/team/sharing-status") {
+      const identity = getRequestIdentity(req, {});
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      const violation = checkSharingViolation(identity.userId);
+      return json(res, 200, violation);
     }
 
     if (req.method === "GET" && req.url === "/vendors") {

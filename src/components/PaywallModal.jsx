@@ -1,12 +1,45 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Lock, Zap, Search, FileText, Star, Layers, Users, ArrowRight, Loader2, Check } from "lucide-react";
+import { X, Lock, Zap, Search, FileText, Star, Layers, Users, ArrowRight, Loader2, Check, Shield, Headphones, Building2, Crown } from "lucide-react";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
+const GOLD = "#C9A96E";
+const GOLD_BG = "rgba(201,169,110,0.08)";
+const GOLD_BORDER = "rgba(201,169,110,0.3)";
+const GOLD_SHADOW = "rgba(201,169,110,0.3)";
+
+const PRO_FEATURES = [
+  { icon: Search, text: "Unlimited searches" },
+  { icon: FileText, text: "Unlimited quotes & PDF" },
+  { icon: Star, text: "Trade discount calculator" },
+  { icon: Layers, text: "Favorites & collections" },
+  { icon: ArrowRight, text: "Paste sourcing lists" },
+  { icon: Zap, text: "Room packages with auto-matching" },
+  { icon: Search, text: "Conversational search" },
+  { icon: Lock, text: "40,000+ trade products" },
+];
+
+const TEAM_EXTRAS = [
+  { icon: Users, text: "5 team seats included" },
+  { icon: Layers, text: "Shared quotes & favorites" },
+  { icon: Shield, text: "Team admin dashboard" },
+  { icon: Users, text: "Additional seats at $49/mo each" },
+];
+
+const ENTERPRISE_EXTRAS = [
+  { icon: Users, text: "Unlimited seats" },
+  { icon: Shield, text: "SSO & SAML" },
+  { icon: Headphones, text: "Dedicated account manager" },
+  { icon: Building2, text: "Custom integrations" },
+  { icon: Headphones, text: "Priority support" },
+  { icon: Check, text: "SLA guarantee" },
+];
+
 export default function PaywallModal({ show, onAuthSuccess }) {
   const [mode, setMode] = useState("paywall"); // paywall | signup | login
-  const [plan, setPlan] = useState("monthly");
+  const [billing, setBilling] = useState("monthly"); // monthly | annual
+  const [selectedTier, setSelectedTier] = useState("pro"); // pro | team
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -15,6 +48,15 @@ export default function PaywallModal({ show, onAuthSuccess }) {
   const [error, setError] = useState("");
 
   if (!show) return null;
+
+  const planValue = `${selectedTier}_${billing}`;
+
+  const priceLabel = () => {
+    if (selectedTier === "pro") {
+      return billing === "annual" ? "$990/yr" : "$99/mo";
+    }
+    return billing === "annual" ? "$2,490/yr" : "$249/mo";
+  };
 
   const handleCheckout = async (e) => {
     e.preventDefault();
@@ -27,7 +69,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          plan,
+          plan: planValue,
           email: email.trim(),
           password,
           full_name: fullName.trim(),
@@ -43,12 +85,10 @@ export default function PaywallModal({ show, onAuthSuccess }) {
         return;
       }
 
-      // Store auth token
       if (data.token) {
         localStorage.setItem("spec_auth_token", data.token);
       }
 
-      // Redirect to Stripe checkout
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
@@ -89,16 +129,134 @@ export default function PaywallModal({ show, onAuthSuccess }) {
     setLoading(false);
   };
 
-  const features = [
-    { icon: Search, text: "Unlimited AI-powered searches" },
-    { icon: FileText, text: "Unlimited quotes and PDF generation" },
-    { icon: Star, text: "Trade discount calculator" },
-    { icon: Layers, text: "Save and organize favorites" },
-    { icon: Users, text: "Paste sourcing lists" },
-    { icon: Zap, text: "Room packages with auto-matching" },
-    { icon: ArrowRight, text: "Conversational search refinement" },
-    { icon: Lock, text: "Access to 40,000+ trade-only products across 25 vendors" },
-  ];
+  const handleTierSelect = (tier) => {
+    if (tier === "enterprise") {
+      window.location.href = "mailto:sales@spekd.ai";
+      return;
+    }
+    setSelectedTier(tier);
+    setMode("signup");
+  };
+
+  /* ─── Shared styles ─── */
+  const inputClass =
+    "w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
+
+  const goldBtnStyle = {
+    background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
+    boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
+  };
+
+  /* ─── Pricing card renderer ─── */
+  const PricingCard = ({ tier, title, monthly, annual, annualSavings, annualPerMonth, features, extras, cta, popular }) => {
+    const isEnterprise = tier === "enterprise";
+    const cardBorder = popular ? GOLD_BORDER : "rgba(255,255,255,0.08)";
+    const cardBg = popular ? "rgba(201,169,110,0.04)" : "rgba(255,255,255,0.02)";
+
+    return (
+      <div
+        className="relative flex flex-col rounded-2xl p-6"
+        style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          flex: "1 1 0",
+          minWidth: 0,
+        }}
+      >
+        {popular && (
+          <div
+            className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-bold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+            style={{ background: GOLD, color: "#101018" }}
+          >
+            <Crown className="h-3 w-3" /> Most Popular
+          </div>
+        )}
+
+        <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
+
+        {!isEnterprise ? (
+          <>
+            <div className="mb-4">
+              {billing === "monthly" ? (
+                <div className="text-3xl font-bold text-white">
+                  ${monthly}<span className="text-sm font-normal text-white/40">/mo</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-white">
+                    ${annual.toLocaleString()}<span className="text-sm font-normal text-white/40">/yr</span>
+                  </div>
+                  <div className="text-xs text-white/40 mt-0.5">${annualPerMonth}/mo</div>
+                  <div
+                    className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-1"
+                    style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
+                  >
+                    Save ${annualSavings}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="mb-4">
+            <div className="text-2xl font-bold text-white">Custom pricing</div>
+          </div>
+        )}
+
+        {/* Feature list */}
+        <div className="space-y-2 mb-6 flex-1">
+          {features.map((f, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
+              <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+            </div>
+          ))}
+          {extras && extras.length > 0 && (
+            <>
+              <div className="border-t border-white/[0.06] my-2" />
+              {extras.map((f, i) => (
+                <div key={`e-${i}`} className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
+                  <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* CTA button */}
+        {isEnterprise ? (
+          <a
+            href="mailto:sales@spekd.ai"
+            className="block w-full py-3 rounded-xl text-sm font-semibold text-center transition-all hover:brightness-110"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "white",
+            }}
+          >
+            {cta}
+          </a>
+        ) : (
+          <button
+            onClick={() => handleTierSelect(tier)}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
+            style={popular ? goldBtnStyle : {
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            {cta}
+          </button>
+        )}
+
+        {/* Session note for Pro */}
+        {tier === "pro" && (
+          <p className="text-[10px] text-white/25 text-center mt-2">Single user, one active session</p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <motion.div
@@ -111,104 +269,122 @@ export default function PaywallModal({ show, onAuthSuccess }) {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8"
+        className={`relative mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8 ${
+          mode === "paywall" ? "w-full max-w-5xl" : "w-full max-w-lg"
+        }`}
         style={{
           background: "rgba(16,17,24,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
         }}
       >
+        {/* ─── PAYWALL / TIER SELECTION ─── */}
         {mode === "paywall" && (
           <div>
-            {/* Lock icon */}
-            <div className="flex justify-center mb-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}>
-                <Lock className="h-7 w-7" style={{ color: "#C9A96E" }} />
+            {/* Header */}
+            <div className="flex justify-center mb-5">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-full"
+                style={{ background: "rgba(201,169,110,0.1)", border: `1px solid rgba(201,169,110,0.2)` }}
+              >
+                <Lock className="h-6 w-6" style={{ color: GOLD }} />
               </div>
             </div>
 
-            <h2 className="text-xl font-semibold text-white text-center mb-3">
+            <h2 className="text-xl font-semibold text-white text-center mb-2">
               You've used all 5 free searches.
             </h2>
-            <p className="text-sm text-white/50 text-center mb-8 leading-relaxed">
+            <p className="text-sm text-white/50 text-center mb-6 leading-relaxed max-w-xl mx-auto">
               Designers using SPEKD source an entire room in under 5 minutes — that used to take 3-4 hours across 20 vendor websites.
             </p>
 
-            <h3 className="text-lg font-semibold text-white text-center mb-6">
-              Start your SPEKD Pro subscription
-            </h3>
-
-            {/* Pricing toggle */}
-            <div className="flex gap-3 mb-6">
+            {/* Billing toggle */}
+            <div className="flex items-center justify-center gap-3 mb-8">
               <button
-                onClick={() => setPlan("monthly")}
-                className={`flex-1 rounded-xl p-4 text-left transition-all ${plan === "monthly" ? "ring-2" : "opacity-60 hover:opacity-80"}`}
+                onClick={() => setBilling("monthly")}
+                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
                 style={{
-                  background: plan === "monthly" ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${plan === "monthly" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.06)"}`,
-                  ringColor: "rgba(201,169,110,0.4)",
+                  background: billing === "monthly" ? GOLD_BG : "transparent",
+                  border: `1px solid ${billing === "monthly" ? GOLD_BORDER : "rgba(255,255,255,0.08)"}`,
+                  color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
                 }}
               >
-                <div className="text-xs text-white/40 mb-1">Monthly</div>
-                <div className="text-2xl font-bold text-white">$79<span className="text-sm font-normal text-white/40">/mo</span></div>
+                Monthly
               </button>
               <button
-                onClick={() => setPlan("annual")}
-                className={`flex-1 rounded-xl p-4 text-left transition-all relative ${plan === "annual" ? "ring-2" : "opacity-60 hover:opacity-80"}`}
+                onClick={() => setBilling("annual")}
+                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
                 style={{
-                  background: plan === "annual" ? "rgba(201,169,110,0.08)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${plan === "annual" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.06)"}`,
-                  ringColor: "rgba(201,169,110,0.4)",
+                  background: billing === "annual" ? GOLD_BG : "transparent",
+                  border: `1px solid ${billing === "annual" ? GOLD_BORDER : "rgba(255,255,255,0.08)"}`,
+                  color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
                 }}
               >
-                <div className="absolute -top-2 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(201,169,110,0.2)", color: "#C9A96E" }}>
-                  Save $158
-                </div>
-                <div className="text-xs text-white/40 mb-1">Annual</div>
-                <div className="text-2xl font-bold text-white">$790<span className="text-sm font-normal text-white/40">/yr</span></div>
-                <div className="text-[11px] text-white/30 mt-0.5">$65.83/mo</div>
+                Annual
               </button>
             </div>
 
-            {/* Features list */}
-            <div className="space-y-2.5 mb-8">
-              {features.map(({ icon: Icon, text }, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Check className="h-4 w-4 shrink-0" style={{ color: "#C9A96E" }} />
-                  <span className="text-sm text-white/60">{text}</span>
-                </div>
-              ))}
+            {/* Pricing cards — 3 columns on desktop, stacked on mobile */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <PricingCard
+                tier="pro"
+                title="Pro"
+                monthly={99}
+                annual={990}
+                annualSavings={198}
+                annualPerMonth="82.50"
+                features={PRO_FEATURES}
+                cta="Start Pro"
+              />
+              <PricingCard
+                tier="team"
+                title="Team"
+                monthly={249}
+                annual={2490}
+                annualSavings={498}
+                annualPerMonth="207.50"
+                features={PRO_FEATURES}
+                extras={TEAM_EXTRAS}
+                cta="Start Team"
+                popular
+              />
+              <PricingCard
+                tier="enterprise"
+                title="Enterprise"
+                features={[...PRO_FEATURES.slice(0, 3), ...TEAM_EXTRAS.slice(0, 2)]}
+                extras={ENTERPRISE_EXTRAS}
+                cta="Contact Sales"
+              />
             </div>
 
-            {/* CTA */}
-            <button
-              onClick={() => setMode("signup")}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
-              style={{
-                background: "linear-gradient(135deg, #C9A96E, #B8944F)",
-                boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
-              }}
-            >
-              Start Pro — {plan === "annual" ? "$790/year" : "$79/month"}
-            </button>
-
-            <p className="text-center mt-4">
-              <button onClick={() => setMode("login")} className="text-xs text-white/30 hover:text-white/50 transition-colors">
+            <p className="text-center">
+              <button
+                onClick={() => setMode("login")}
+                className="text-xs text-white/30 hover:text-white/50 transition-colors"
+              >
                 Already have an account? <span className="underline">Sign in</span>
               </button>
             </p>
           </div>
         )}
 
+        {/* ─── SIGNUP FORM ─── */}
         {mode === "signup" && (
           <div>
-            <button onClick={() => setMode("paywall")} className="absolute top-4 right-4 text-white/30 hover:text-white/60">
+            <button
+              onClick={() => setMode("paywall")}
+              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
+            >
               <X className="h-5 w-5" />
             </button>
+
             <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
-            <p className="text-xs text-white/40 mb-6">Then you'll complete payment with Stripe</p>
+            <p className="text-xs text-white/40 mb-1">
+              {selectedTier === "pro" ? "Pro" : "Team"} plan — {billing === "annual"
+                ? (selectedTier === "pro" ? "$990/yr" : "$2,490/yr")
+                : (selectedTier === "pro" ? "$99/mo" : "$249/mo")}
+            </p>
+            <p className="text-xs text-white/30 mb-6">Then you'll complete payment with Stripe</p>
 
             <form onSubmit={handleCheckout} className="space-y-4">
               <div>
@@ -218,7 +394,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                   placeholder="you@studio.com"
                 />
               </div>
@@ -230,7 +406,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                   placeholder="Min. 8 characters"
                 />
               </div>
@@ -241,7 +417,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                   placeholder="Jane Smith"
                 />
               </div>
@@ -251,7 +427,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                   placeholder="Optional"
                 />
               </div>
@@ -266,31 +442,36 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                 type="submit"
                 disabled={loading}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{
-                  background: "linear-gradient(135deg, #C9A96E, #B8944F)",
-                  boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
-                }}
+                style={goldBtnStyle}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loading ? "Creating account..." : `Continue to Payment — ${plan === "annual" ? "$790/yr" : "$79/mo"}`}
+                {loading ? "Creating account..." : `Continue to Payment — ${priceLabel()}`}
               </button>
             </form>
 
             <p className="text-center mt-4">
-              <button onClick={() => setMode("login")} className="text-xs text-white/30 hover:text-white/50 transition-colors">
+              <button
+                onClick={() => setMode("login")}
+                className="text-xs text-white/30 hover:text-white/50 transition-colors"
+              >
                 Already have an account? <span className="underline">Sign in</span>
               </button>
             </p>
           </div>
         )}
 
+        {/* ─── LOGIN FORM ─── */}
         {mode === "login" && (
           <div>
-            <button onClick={() => setMode("paywall")} className="absolute top-4 right-4 text-white/30 hover:text-white/60">
+            <button
+              onClick={() => setMode("paywall")}
+              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
+            >
               <X className="h-5 w-5" />
             </button>
+
             <h2 className="text-lg font-semibold text-white mb-1">Welcome back</h2>
-            <p className="text-xs text-white/40 mb-6">Sign in to your SPEKD Pro account</p>
+            <p className="text-xs text-white/40 mb-6">Sign in to your SPEKD account</p>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
@@ -300,7 +481,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                 />
               </div>
               <div>
@@ -310,7 +491,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors"
+                  className={inputClass}
                 />
               </div>
 
@@ -324,10 +505,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                 type="submit"
                 disabled={loading}
                 className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{
-                  background: "linear-gradient(135deg, #C9A96E, #B8944F)",
-                  boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
-                }}
+                style={goldBtnStyle}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {loading ? "Signing in..." : "Sign In"}
@@ -335,8 +513,11 @@ export default function PaywallModal({ show, onAuthSuccess }) {
             </form>
 
             <p className="text-center mt-4">
-              <button onClick={() => setMode("signup")} className="text-xs text-white/30 hover:text-white/50 transition-colors">
-                Don't have an account? <span className="underline">Start Pro</span>
+              <button
+                onClick={() => setMode("paywall")}
+                className="text-xs text-white/30 hover:text-white/50 transition-colors"
+              >
+                Don't have an account? <span className="underline">View plans</span>
               </button>
             </p>
           </div>

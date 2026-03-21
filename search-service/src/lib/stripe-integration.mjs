@@ -4,8 +4,17 @@
  * Required env vars:
  *   STRIPE_SECRET_KEY — Stripe secret key (sk_test_... or sk_live_...)
  *   STRIPE_WEBHOOK_SECRET — Stripe webhook signing secret (whsec_...)
- *   STRIPE_MONTHLY_PRICE_ID — Stripe Price ID for $79/month plan
- *   STRIPE_ANNUAL_PRICE_ID — Stripe Price ID for $790/year plan
+ *
+ * Pricing tier env vars:
+ *   STRIPE_PRO_MONTHLY_PRICE_ID  — $99/month
+ *   STRIPE_PRO_ANNUAL_PRICE_ID   — $990/year
+ *   STRIPE_TEAM_MONTHLY_PRICE_ID — $249/month (5 seats included)
+ *   STRIPE_TEAM_ANNUAL_PRICE_ID  — $2,490/year (5 seats included)
+ *   STRIPE_TEAM_SEAT_PRICE_ID    — $49/month per additional seat
+ *
+ * Legacy / backward-compat (used as fallback for pro plans):
+ *   STRIPE_MONTHLY_PRICE_ID — falls back for pro_monthly if new var not set
+ *   STRIPE_ANNUAL_PRICE_ID  — falls back for pro_annual if new var not set
  */
 import crypto from "node:crypto";
 
@@ -36,8 +45,44 @@ async function ensureStripe() {
 }
 
 /**
+ * Resolve a Stripe Price ID for the given plan.
+ *
+ * Supported plans:
+ *   "pro_monthly"  | "monthly"  — Pro monthly ($99/mo)
+ *   "pro_annual"   | "annual"   — Pro annual  ($990/yr)
+ *   "team_monthly"              — Team monthly ($249/mo, 5 seats)
+ *   "team_annual"               — Team annual  ($2,490/yr, 5 seats)
+ *
+ * Legacy "monthly" / "annual" values are treated as pro plans for backward
+ * compatibility.
+ */
+function resolvePriceId(plan) {
+  switch (plan) {
+    case "pro_monthly":
+    case "monthly":
+      return (
+        process.env.STRIPE_PRO_MONTHLY_PRICE_ID ||
+        process.env.STRIPE_MONTHLY_PRICE_ID
+      );
+    case "pro_annual":
+    case "annual":
+      return (
+        process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
+        process.env.STRIPE_ANNUAL_PRICE_ID
+      );
+    case "team_monthly":
+      return process.env.STRIPE_TEAM_MONTHLY_PRICE_ID;
+    case "team_annual":
+      return process.env.STRIPE_TEAM_ANNUAL_PRICE_ID;
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Create a Stripe Checkout session for subscription.
- * @param {string} plan - "monthly" or "annual"
+ * @param {string} plan - "pro_monthly", "pro_annual", "team_monthly", "team_annual",
+ *                        or legacy "monthly" / "annual"
  * @param {string} email - customer email
  * @param {string} userId - internal user ID
  * @param {string} successUrl - redirect URL on success
@@ -48,9 +93,7 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
     throw new Error("Stripe not configured");
   }
 
-  const priceId = plan === "annual"
-    ? process.env.STRIPE_ANNUAL_PRICE_ID
-    : process.env.STRIPE_MONTHLY_PRICE_ID;
+  const priceId = resolvePriceId(plan);
 
   if (!priceId) {
     throw new Error(`Stripe price ID not configured for plan: ${plan}`);
@@ -66,6 +109,39 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
     metadata: { user_id: userId, plan },
     subscription_data: {
       metadata: { user_id: userId, plan },
+    },
+  });
+
+  return { checkout_url: session.url, session_id: session.id };
+}
+
+/**
+ * Create a Stripe Checkout session for purchasing additional team seats.
+ * @param {string} stripeCustomerId - existing Stripe customer ID
+ * @param {number} quantity - number of additional seats to purchase
+ * @param {string} successUrl - redirect URL on success
+ * @param {string} cancelUrl - redirect URL on cancel
+ */
+async function createTeamSeatCheckout(stripeCustomerId, quantity, successUrl, cancelUrl) {
+  if (!await ensureStripe()) {
+    throw new Error("Stripe not configured");
+  }
+
+  const seatPriceId = process.env.STRIPE_TEAM_SEAT_PRICE_ID;
+  if (!seatPriceId) {
+    throw new Error("STRIPE_TEAM_SEAT_PRICE_ID not configured");
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    payment_method_types: ["card"],
+    customer: stripeCustomerId,
+    line_items: [{ price: seatPriceId, quantity }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: { plan: "team_seat_addon", seat_quantity: String(quantity) },
+    subscription_data: {
+      metadata: { plan: "team_seat_addon", seat_quantity: String(quantity) },
     },
   });
 
@@ -142,6 +218,7 @@ export {
   initStripe,
   ensureStripe,
   createCheckoutSession,
+  createTeamSeatCheckout,
   verifyWebhook,
   cancelSubscription,
   reactivateSubscription,
