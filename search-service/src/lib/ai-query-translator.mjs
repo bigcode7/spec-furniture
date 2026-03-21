@@ -756,7 +756,7 @@ function strictAIFilter(products, filter) {
       name: "style",
       field: "ai_style",
       term: style,
-      test: (p) => aiFieldContains(p.ai_style, style) || aiFieldContains(p.ai_mood, style),
+      test: (p) => aiFieldContains(p.ai_style, style),
     });
   }
 
