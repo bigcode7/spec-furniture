@@ -177,8 +177,8 @@ async function runHeavyInit() {
     console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
   });
 
-  // Rebuild ALL vectors with structured AI tag format (reindex=true for fresh start)
-  vectorIndexAll(getAllProducts(), { reindex: true }).then((stats) => {
+  // Build vectors incrementally — reuse existing embeddings from disk, only embed new products
+  vectorIndexAll(getAllProducts(), { reindex: false }).then((stats) => {
     if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
   }).catch((err) => {
     console.error(`[server] Vector indexing failed: ${err.message}`);
