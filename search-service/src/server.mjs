@@ -1518,82 +1518,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     } // end old list-search dead code
 
     // ══════════════════════════════════════════════════════════════════
-    // FREE TIER: Vector-only search — zero API cost
-    // Query → MiniLM embedding → cosine similarity → top 20 results
-    // No Haiku call, no AI response, no conversational follow-ups
-    // ══════════════════════════════════════════════════════════════════
-    if (req.method === "POST" && req.url === "/vector-search") {
-      const body = await collectBody(req);
-      const query = String(body.query || "").trim();
-      if (!query) return json(res, 400, { error: "query required" });
-
-      const vectorStats = getVectorStoreStats();
-      if (!vectorStats.ready || vectorStats.total_vectors === 0) {
-        return json(res, 503, { error: "Search index not ready" });
-      }
-
-      // Pure vector search — no Haiku, no API cost
-      const rawResults = await vectorSearch(query, { limit: 200 });
-
-      // Hydrate with product data
-      const products = [];
-      for (const { id, score } of rawResults) {
-        const product = getProduct(id);
-        if (product) {
-          product.relevance_score = score;
-          products.push(product);
-        }
-      }
-
-      // Apply vendor diversity
-      const diverse = [];
-      const vendorCounts = {};
-      for (const p of products) {
-        const v = p.vendor_name || "unknown";
-        vendorCounts[v] = (vendorCounts[v] || 0) + 1;
-        if (vendorCounts[v] <= 3) diverse.push(p);
-      }
-
-      // Sanitize and limit to 20
-      const finalProducts = diverse.slice(0, 20).map(sanitizeSearchProduct);
-
-      // Material badges
-      for (const product of finalProducts) {
-        product.material_badges = getProductMaterialBadges(product);
-      }
-
-      // Track analytics
-      trackSearch({
-        query,
-        resultCount: finalProducts.length,
-        vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
-        tier: 0, // free tier
-        cacheHit: false,
-      });
-      recordSearch(query);
-
-      return json(res, 200, {
-        query,
-        intent: null,
-        ai_summary: null,
-        assistant_message: null,
-        total: finalProducts.length,
-        total_available: products.length,
-        has_more: products.length > 20,
-        page: 1,
-        result_mode: "vector-only",
-        tier_used: 0,
-        ai_called: false,
-        cache_hit: false,
-        facets: {},
-        products: finalProducts,
-        searches_remaining: null,
-        subscription_status: "free",
-      });
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // MAIN SEARCH — Pure AI-to-vector pipeline
+    // SEARCH — One endpoint, two modes:
+    //   Free: vector-only (MiniLM cosine similarity, 20 results, $0)
+    //   Pro:  full Haiku pipeline (AI + vector, 80 results)
     // 1. Query → Haiku (with catalog context)
     // 2. Haiku returns vector_query
     // 3. vector_query → MiniLM embedding → cosine similarity
@@ -1603,21 +1530,51 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     if (req.method === "POST" && req.url === "/search") {
       const body = await collectBody(req);
 
-      // Subscription check
-      const identity = getRequestIdentity(req, body);
-      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
-      if (!access.allowed) {
-        return json(res, 402, {
-          error: "subscription_required",
-          status: access.status,
-          reason: access.reason,
-          searches_remaining: 0,
-        });
-      }
-
       const query = String(body.query || "").trim();
       if (!query) return json(res, 400, { error: "query required" });
 
+      // Determine if user is Pro
+      const identity = getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
+      const isPro = access.allowed && (access.status === "active" || access.status === "cancelled" || access.status === "past_due" || access.status === "internal");
+
+      // ── FREE PATH: vector-only, no Haiku, no API cost ──
+      if (!isPro) {
+        const vectorStats = getVectorStoreStats();
+        if (!vectorStats.ready || vectorStats.total_vectors === 0) {
+          return json(res, 503, { error: "Search index not ready" });
+        }
+        const rawResults = await vectorSearch(query, { limit: 200 });
+        const products = [];
+        for (const { id, score } of rawResults) {
+          const product = getProduct(id);
+          if (product) { product.relevance_score = score; products.push(product); }
+        }
+        // Vendor diversity (max 3 per vendor)
+        const diverse = [];
+        const vendorCounts = {};
+        for (const p of products) {
+          const v = p.vendor_name || "unknown";
+          vendorCounts[v] = (vendorCounts[v] || 0) + 1;
+          if (vendorCounts[v] <= 3) diverse.push(p);
+        }
+        const finalProducts = diverse.slice(0, 20).map(sanitizeSearchProduct);
+        for (const product of finalProducts) {
+          product.material_badges = getProductMaterialBadges(product);
+        }
+        trackSearch({ query, resultCount: finalProducts.length, vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))], tier: 0, cacheHit: false });
+        recordSearch(query);
+        return json(res, 200, {
+          query, intent: null, ai_summary: null, assistant_message: null,
+          total: finalProducts.length, total_available: products.length,
+          has_more: products.length > 20, page: 1,
+          result_mode: "vector-only", tier_used: 0, ai_called: false, cache_hit: false,
+          facets: {}, products: finalProducts,
+          searches_remaining: null, subscription_status: access.status || "free",
+        });
+      }
+
+      // ── PRO PATH: full Haiku pipeline (existing code, untouched) ──
       const excludeIds = new Set(Array.isArray(body.exclude_ids) ? body.exclude_ids : []);
       const page = Math.max(1, Number(body.page) || 1);
       const requestFilters = body.filters || {};

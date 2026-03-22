@@ -25,7 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, vectorOnlySearch } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
@@ -561,8 +561,8 @@ export default function SearchPage() {
           data = await searchProducts(trimmed, { filters: searchOptions.filters || {} });
         }
       } else {
-        // Free tier: vector-only search (no AI, no subscription check)
-        data = await vectorOnlySearch(trimmed);
+        // Free tier: same endpoint, backend routes to vector-only
+        data = await searchProducts(trimmed, { filters: searchOptions.filters || {} });
       }
 
       const products = data.products || [];
