@@ -137,7 +137,12 @@ async function checkSubscriptionStatus() {
     const resp = await fetch(`${searchServiceUrl}/subscribe/status`, {
       headers: getAuthHeaders(),
     });
-    return await resp.json();
+    const data = await resp.json();
+    // Persist status so paywall gate hook can read it synchronously
+    try {
+      localStorage.setItem("spec_sub_status", data.status || "guest");
+    } catch {}
+    return data;
   } catch {
     return { status: "guest", searches_remaining: 5 };
   }

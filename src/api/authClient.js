@@ -128,6 +128,38 @@ export async function exportData() {
   return data;
 }
 
+export async function getSubscriptionStatus() {
+  const { status, data } = await authFetch("/subscribe/status");
+  return data;
+}
+
+export async function cancelSubscription(reason) {
+  const { status, data } = await authFetch("/subscribe/cancel", {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  return data;
+}
+
+export async function reactivateSubscription() {
+  const { status, data } = await authFetch("/subscribe/reactivate", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return data;
+}
+
+export async function openBillingPortal() {
+  const { status, data } = await authFetch("/subscribe/portal", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  if (data.portal_url) {
+    window.location.href = data.portal_url;
+  }
+  return data;
+}
+
 export function getToken() {
   return getStoredToken();
 }

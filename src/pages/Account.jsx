@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Tag, Settings, Shield, Database, Save, Check, AlertCircle,
   Eye, EyeOff, Lock, Trash2, Download, ChevronRight, Bell, Monitor,
-  X, Phone, MapPin, Award,
+  X, Phone, MapPin, Award, CreditCard, Calendar, ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { updateMe, changePassword, deleteAccount, exportData } from "@/api/authClient";
+import { updateMe, changePassword, deleteAccount, exportData, getSubscriptionStatus, cancelSubscription, reactivateSubscription, openBillingPortal } from "@/api/authClient";
 import { useTradePricing } from "@/lib/TradePricingContext";
 
 // ── Vendors for trade discounts (alphabetical, matching catalog) ──
@@ -69,6 +69,7 @@ function Toast({ message, type, onClose }) {
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "discounts", label: "Trade Discounts", icon: Tag },
+  { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "preferences", label: "Preferences", icon: Monitor },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
@@ -846,6 +847,190 @@ function DataPrivacySection({ toast }) {
   );
 }
 
+// ── Subscription Section ──
+
+function SubscriptionSection({ toast }) {
+  const [sub, setSub] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showCancel, setShowCancel] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [showAnnualOffer, setShowAnnualOffer] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  useEffect(() => {
+    getSubscriptionStatus().then(data => {
+      setSub(data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    const result = await cancelSubscription(cancelReason);
+    if (result.ok) {
+      toast("Subscription cancelled. Access continues until " + new Date(result.access_until).toLocaleDateString());
+      setSub(prev => ({ ...prev, status: "cancelled", current_period_end: result.access_until }));
+      setShowCancel(false);
+    } else {
+      toast(result.error || "Failed to cancel", "error");
+    }
+    setCancelling(false);
+  };
+
+  const handleReactivate = async () => {
+    const result = await reactivateSubscription();
+    if (result.ok) {
+      toast("Subscription reactivated!");
+      setSub(prev => ({ ...prev, status: "active" }));
+    } else if (result.error === "need_checkout") {
+      toast("Please start a new subscription", "error");
+    } else {
+      toast(result.error || "Failed to reactivate", "error");
+    }
+  };
+
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    await openBillingPortal();
+    setPortalLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <Section title="Subscription" description="Manage your plan and billing.">
+        <div className="flex items-center justify-center py-12">
+          <div className="h-5 w-5 border-2 border-white/20 border-t-[var(--gold)] rounded-full animate-spin" />
+        </div>
+      </Section>
+    );
+  }
+
+  const isActive = sub?.status === "active";
+  const isCancelled = sub?.status === "cancelled";
+  const isPastDue = sub?.status === "past_due";
+  const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
+
+  return (
+    <Section title="Subscription" description="Manage your plan and billing.">
+      {/* Current plan card */}
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold)]/70 mb-1">
+              {isActive ? "SPEKD Pro" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
+            </div>
+            <div className="text-xl font-semibold text-white">
+              {sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
+            </div>
+          </div>
+          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${
+            isActive ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+            isCancelled ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+            isPastDue ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+            "bg-white/5 text-white/40 border border-white/10"
+          }`}>
+            <div className={`h-1.5 w-1.5 rounded-full ${
+              isActive ? "bg-emerald-400" : isCancelled ? "bg-amber-400" : isPastDue ? "bg-red-400" : "bg-white/30"
+            }`} />
+            {isActive ? "Active" : isCancelled ? "Cancels soon" : isPastDue ? "Payment failed" : "Inactive"}
+          </div>
+        </div>
+
+        {periodEnd && (
+          <div className="flex items-center gap-2 text-xs text-white/35 mb-4">
+            <Calendar className="h-3.5 w-3.5" />
+            {isCancelled ? `Access until ${periodEnd}` : `Next billing: ${periodEnd}`}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex flex-wrap gap-3">
+          {(isActive || isCancelled || isPastDue) && (
+            <button onClick={handlePortal} disabled={portalLoading}
+              className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/50 hover:text-white/80 hover:border-white/15 transition-all disabled:opacity-40">
+              {portalLoading ? <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+              Update Payment Method
+            </button>
+          )}
+          {isCancelled && (
+            <button onClick={handleReactivate}
+              className="flex items-center gap-2 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20 px-4 py-2.5 text-xs font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/15 transition-all">
+              <ArrowRight className="h-3.5 w-3.5" />
+              Reactivate Subscription
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Cancel section */}
+      {isActive && !showCancel && (
+        <button onClick={() => setShowCancel(true)}
+          className="text-xs text-white/25 hover:text-red-400/60 transition-colors mt-2">
+          Cancel subscription
+        </button>
+      )}
+
+      {showCancel && !showAnnualOffer && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="rounded-xl border border-red-500/10 bg-red-500/[0.03] p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-white">Cancel your subscription?</h3>
+          <p className="text-xs text-white/40">Your access continues until the end of your current billing period{periodEnd ? ` (${periodEnd})` : ""}.</p>
+
+          {sub?.plan === "monthly" && (
+            <button onClick={() => setShowAnnualOffer(true)}
+              className="w-full rounded-lg border border-[var(--gold)]/20 bg-[var(--gold)]/5 p-4 text-left hover:bg-[var(--gold)]/10 transition-all">
+              <div className="text-xs font-semibold text-[var(--gold)] mb-1">Switch to annual and save $198/year</div>
+              <div className="text-[11px] text-white/30">$990/year ($82.50/mo) instead of $99/mo</div>
+            </button>
+          )}
+
+          <div>
+            <label className="text-xs text-white/40 mb-1.5 block">Why are you cancelling? (optional)</label>
+            <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-sm text-white/70 focus:outline-none focus:border-red-400/30">
+              <option value="">Select a reason...</option>
+              <option value="too_expensive">Too expensive</option>
+              <option value="not_enough_products">Not enough products</option>
+              <option value="switched_tool">Switched to another tool</option>
+              <option value="project_ended">Project ended</option>
+              <option value="missing_features">Missing features I need</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => setShowCancel(false)}
+              className="flex-1 rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all">
+              Keep Subscription
+            </button>
+            <button onClick={handleCancel} disabled={cancelling}
+              className="flex-1 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition-all disabled:opacity-40">
+              {cancelling ? "Cancelling..." : "Confirm Cancel"}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {showAnnualOffer && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/[0.03] p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-[var(--gold)]">Save $198/year with an annual plan</h3>
+          <p className="text-xs text-white/40">You're currently paying $99/month ($1,188/year). Switch to annual for just $990/year — that's $82.50/month.</p>
+          <div className="flex gap-3">
+            <button onClick={() => { setShowAnnualOffer(false); }}
+              className="flex-1 rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all">
+              No, cancel anyway
+            </button>
+            <button onClick={async () => { await openBillingPortal(); }}
+              className="flex-1 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20 px-4 py-2.5 text-xs font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/15 transition-all">
+              Switch to Annual
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </Section>
+  );
+}
+
 // ── Main Account Page ──
 
 export default function Account() {
@@ -950,6 +1135,9 @@ export default function Account() {
             )}
             {activeSection === "discounts" && (
               <TradeDiscountsSection toast={toast} />
+            )}
+            {activeSection === "subscription" && (
+              <SubscriptionSection toast={toast} />
             )}
             {activeSection === "preferences" && (
               <PreferencesSection user={user} onSave={handlePrefSave} saving={saving} />

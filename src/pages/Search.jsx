@@ -740,6 +740,12 @@ export default function SearchPage() {
 
   const handleToggleFavorite = (product) => {
     requireAccount("favorite", product, () => {
+      // Paywall gate: require active subscription for favorites
+      const subStatus = localStorage.getItem("spec_sub_status");
+      if (subStatus !== "active" && subStatus !== "cancelled") {
+        setShowPaywall(true);
+        return;
+      }
       const { next, added } = toggleFavorite(normalizeSearchResult(product));
       setFavorites(next);
       setFavoriteToast(added ? "Saved to favorites" : "Removed from favorites");

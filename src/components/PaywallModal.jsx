@@ -37,25 +37,22 @@ const ENTERPRISE_EXTRAS = [
 ];
 
 export default function PaywallModal({ show, onAuthSuccess }) {
-  const [mode, setMode] = useState("paywall"); // paywall | signup | login
+  const [mode, setMode] = useState("paywall"); // paywall | signup | login | forgot
   const [billing, setBilling] = useState("monthly"); // monthly | annual
-  const [selectedTier, setSelectedTier] = useState("pro"); // pro | team
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   if (!show) return null;
 
-  const planValue = `${selectedTier}_${billing}`;
+  const planValue = billing; // "monthly" or "annual" — legacy plan names for Stripe
 
   const priceLabel = () => {
-    if (selectedTier === "pro") {
-      return billing === "annual" ? "$990/yr" : "$99/mo";
-    }
-    return billing === "annual" ? "$2,490/yr" : "$249/mo";
+    return billing === "annual" ? "$990/yr" : "$99/mo";
   };
 
   const handleCheckout = async (e) => {
@@ -129,16 +126,35 @@ export default function PaywallModal({ show, onAuthSuccess }) {
     setLoading(false);
   };
 
-  const handleTierSelect = (tier) => {
-    if (tier === "enterprise") {
-      window.location.href = "mailto:sales@spekd.ai";
-      return;
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError("");
+    setForgotSuccess(false);
+    setLoading(true);
+
+    try {
+      await fetch(`${SEARCH_SERVICE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      // Always show success regardless of response to avoid leaking account existence
+      setForgotSuccess(true);
+    } catch {
+      setError("Network error. Please try again.");
     }
-    setSelectedTier(tier);
-    setMode("signup");
+    setLoading(false);
   };
 
-  /* ─── Shared styles ─── */
+  const handleTierSelect = (tier) => {
+    if (tier === "pro") {
+      setMode("signup");
+    }
+    // Team is "Coming Soon" (disabled), Enterprise is "Contact Us" (mailto link)
+    // Neither should reach here, but guard anyway
+  };
+
+  /* --- Shared styles --- */
   const inputClass =
     "w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
 
@@ -147,9 +163,10 @@ export default function PaywallModal({ show, onAuthSuccess }) {
     boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
   };
 
-  /* ─── Pricing card renderer ─── */
-  const PricingCard = ({ tier, title, monthly, annual, annualSavings, annualPerMonth, features, extras, cta, popular }) => {
+  /* --- Pricing card renderer --- */
+  const PricingCard = ({ tier, title, monthly, annual, annualSavings, annualPerMonth, features, extras, cta, popular, disabled }) => {
     const isEnterprise = tier === "enterprise";
+    const isTeam = tier === "team";
     const cardBorder = popular ? GOLD_BORDER : "rgba(255,255,255,0.08)";
     const cardBg = popular ? "rgba(201,169,110,0.04)" : "rgba(255,255,255,0.02)";
 
@@ -237,6 +254,17 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           >
             {cta}
           </a>
+        ) : disabled ? (
+          <button
+            disabled
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white/40 cursor-not-allowed"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            {cta}
+          </button>
         ) : (
           <button
             onClick={() => handleTierSelect(tier)}
@@ -278,7 +306,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
         }}
       >
-        {/* ─── PAYWALL / TIER SELECTION ─── */}
+        {/* --- PAYWALL / TIER SELECTION --- */}
         {mode === "paywall" && (
           <div>
             {/* Header */}
@@ -335,6 +363,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                 annualPerMonth="82.50"
                 features={PRO_FEATURES}
                 cta="Start Pro"
+                popular
               />
               <PricingCard
                 tier="team"
@@ -345,15 +374,15 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                 annualPerMonth="207.50"
                 features={PRO_FEATURES}
                 extras={TEAM_EXTRAS}
-                cta="Start Team"
-                popular
+                cta="Coming Soon"
+                disabled
               />
               <PricingCard
                 tier="enterprise"
                 title="Enterprise"
                 features={[...PRO_FEATURES.slice(0, 3), ...TEAM_EXTRAS.slice(0, 2)]}
                 extras={ENTERPRISE_EXTRAS}
-                cta="Contact Sales"
+                cta="Contact Us"
               />
             </div>
 
@@ -368,7 +397,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           </div>
         )}
 
-        {/* ─── SIGNUP FORM ─── */}
+        {/* --- SIGNUP FORM --- */}
         {mode === "signup" && (
           <div>
             <button
@@ -380,9 +409,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
 
             <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
             <p className="text-xs text-white/40 mb-1">
-              {selectedTier === "pro" ? "Pro" : "Team"} plan — {billing === "annual"
-                ? (selectedTier === "pro" ? "$990/yr" : "$2,490/yr")
-                : (selectedTier === "pro" ? "$99/mo" : "$249/mo")}
+              Pro plan — {priceLabel()}
             </p>
             <p className="text-xs text-white/30 mb-6">Then you'll complete payment with Stripe</p>
 
@@ -460,7 +487,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           </div>
         )}
 
-        {/* ─── LOGIN FORM ─── */}
+        {/* --- LOGIN FORM --- */}
         {mode === "login" && (
           <div>
             <button
@@ -512,14 +539,90 @@ export default function PaywallModal({ show, onAuthSuccess }) {
               </button>
             </form>
 
-            <p className="text-center mt-4">
+            <div className="text-center mt-4 space-y-2">
+              <button
+                onClick={() => { setError(""); setForgotSuccess(false); setMode("forgot"); }}
+                className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
+              >
+                Forgot password?
+              </button>
               <button
                 onClick={() => setMode("paywall")}
-                className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
               >
                 Don't have an account? <span className="underline">View plans</span>
               </button>
-            </p>
+            </div>
+          </div>
+        )}
+
+        {/* --- FORGOT PASSWORD --- */}
+        {mode === "forgot" && (
+          <div>
+            <button
+              onClick={() => setMode("login")}
+              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h2 className="text-lg font-semibold text-white mb-1">Reset your password</h2>
+            <p className="text-xs text-white/40 mb-6">Enter your email and we'll send a reset link</p>
+
+            {forgotSuccess ? (
+              <div>
+                <div className="text-sm text-white/70 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
+                  If an account exists with that email, a reset link has been sent.
+                </div>
+                <button
+                  onClick={() => { setForgotSuccess(false); setError(""); setMode("login"); }}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
+                >
+                  Back to login
+                </button>
+              </div>
+            ) : (
+              <>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={inputClass}
+                      placeholder="you@studio.com"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={goldBtnStyle}
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {loading ? "Sending..." : "Send Reset Link"}
+                  </button>
+                </form>
+
+                <p className="text-center mt-4">
+                  <button
+                    onClick={() => { setError(""); setMode("login"); }}
+                    className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                  >
+                    Back to login
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         )}
       </motion.div>

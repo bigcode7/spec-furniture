@@ -64,7 +64,7 @@ import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, e
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
-import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData } from "./lib/auth-store.mjs";
+import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts } from "./lib/auth-store.mjs";
 import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
@@ -389,19 +389,65 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/auth/register") {
       const body = await collectBody(req);
       const result = await registerUser(body);
+      if (result.ok) {
+        const verifyToken = generateVerificationToken(result.user.id, result.user.email);
+        result.verification_token = verifyToken;
+        console.log(`[auth] Verification link: /auth/verify-email?token=${verifyToken}`);
+      }
       return json(res, result.ok ? 201 : 400, result);
     }
 
     if (req.method === "POST" && req.url === "/auth/login") {
+      const loginIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+      const rateCheck = checkLoginRateLimit(loginIp);
+      if (!rateCheck.allowed) {
+        return json(res, 429, { error: `Too many login attempts. Try again in ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.` });
+      }
       const body = await collectBody(req);
       const result = await loginUser(body);
       if (result.ok) {
+        clearLoginAttempts(loginIp);
         const fingerprint = body.fingerprint || req.headers["x-fingerprint"];
         const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
         const sessionToken = createSession(result.user.id, fingerprint, ip, req.headers["user-agent"]);
         result.sessionToken = sessionToken;
+      } else {
+        recordFailedLogin(loginIp);
       }
       return json(res, result.ok ? 200 : 401, result);
+    }
+
+    if (req.method === "GET" && req.url.startsWith("/auth/verify-email?")) {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const token = url.searchParams.get("token");
+      if (!token) return json(res, 400, { error: "Token required" });
+      const result = verifyEmail(token);
+      if (result.ok) {
+        // Redirect to app with success message
+        const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
+        res.writeHead(302, { Location: `${origin}/Search?verified=true` });
+        res.end();
+        return;
+      }
+      return json(res, 400, result);
+    }
+
+    if (req.method === "POST" && req.url === "/auth/forgot-password") {
+      const body = await collectBody(req);
+      const result = generateResetToken(body.email);
+      // Always return success to not reveal email existence
+      // In production, would send email here
+      if (result.token) {
+        console.log(`[auth] Password reset token for ${result.email}: ${result.token}`);
+        // TODO: Send email with reset link
+      }
+      return json(res, 200, { ok: true, message: "If an account exists with that email, a reset link has been sent." });
+    }
+
+    if (req.method === "POST" && req.url === "/auth/reset-password") {
+      const body = await collectBody(req);
+      const result = resetPassword(body.token, body.new_password);
+      return json(res, result.ok ? 200 : 400, result);
     }
 
     if (req.method === "GET" && req.url === "/auth/me") {

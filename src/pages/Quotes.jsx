@@ -193,6 +193,12 @@ export default function Quotes() {
   };
 
   const handleGeneratePdf = async (pdfMode) => {
+    // Paywall gate: require active subscription for PDF generation
+    const subStatus = localStorage.getItem("spec_sub_status");
+    if (subStatus !== "active" && subStatus !== "cancelled") {
+      alert("Upgrade to Pro to generate PDFs");
+      return;
+    }
     setGenerating(true);
     try {
       const allItems = quote.rooms.flatMap((r) =>
