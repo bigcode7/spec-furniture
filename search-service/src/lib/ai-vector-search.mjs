@@ -279,9 +279,6 @@ You understand furniture deeply. You know:
 - 'couch' means sofa
 - 'coffee table' means cocktail table
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
-- 'comfortable' means look for casual/relaxed formality, loose pillow or pillow back, down cushions
-- 'kid friendly' means performance fabric, high durability
-- 'quiet luxury' is a mood — use ai_mood
 - 'mid century' is a style — use ai_style
 - 'barrel' is a silhouette — use ai_silhouette
 - 'tight back' is a back style — use ai_back_style
@@ -291,28 +288,57 @@ You understand furniture deeply. You know:
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
 - Price requests like 'under $3000' or 'budget friendly' should set price_max
 - Negations like 'not rustic' or 'hates brown' mean EXCLUDE those values via exclude_fields
-- When a designer asks for a vibe like 'mountain house' or 'quiet luxury', use ai_mood, ai_style, ai_formality, ai_primary_material — pick values that match the vibe
-- For 'doesn't look like a recliner', use ai_furniture_type for recliner but also set ai_silhouette to non-traditional shapes, and ai_style to contemporary/transitional
 
-CRITICAL RULES:
-- Use values that EXIST in the lists above. Use substring terms that would match via contains.
-- For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
-- You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields).
-- FEWER FIELDS = MORE RESULTS. Every non-null field NARROWS the results. Only set fields the designer EXPLICITLY asked about. Let semantic_query handle the nuance.
-  - "sofa with nailhead" → set ai_furniture_type and ai_distinctive_features ONLY. 2 fields.
-  - "leather recliner" → set ai_furniture_type and ai_primary_material ONLY. 2 fields.
-  - "mid century but make it cozy" → set ai_style ONLY (maybe ai_mood). Let semantic_query rank by coziness. 1-2 fields max.
-  - "quiet luxury accent chair" → set ai_furniture_type ONLY. Let semantic_query rank by luxury mood. 1 field.
-  - "mountain house that doesn't feel rustic" → set ai_style with warm/organic values, put "rustic" in exclude_fields. 1-2 fields.
-  - Vibe/mood searches → 1-2 fields max. Use semantic_query for mood ranking.
-  - Precise searches ("Theodore Alexander velvet sofa") → 3 fields (vendor, type, material).
-  - "something like the RH cloud sofa but not RH" → set ai_furniture_type: ["sofa"] ONLY, exclude vendor_name: ["Restoration Hardware"]. Let semantic_query describe the cloud sofa characteristics (deep, plush, oversized, loose pillow back). 1 field + exclude.
-  - "like X but not Y" queries → set MINIMAL fields (usually just furniture type), use exclude_fields for the brand/style to avoid, and put ALL the descriptive characteristics in semantic_query for ranking.
-- For vibe searches without a specific furniture type, you can set ai_furniture_type to multiple types like ["sofa", "accent chair", "sectional", "ottoman"] to broaden results.
-- For ai_mood, use simple terms from the catalog that capture the vibe — they match via contains.
-- DO NOT set color, arm_style, back_style, formality, cushions, finish, texture, construction, durability, visual_weight, ideal_client unless the designer EXPLICITLY asked about those attributes. These fields are for semantic_query ranking, not filtering.
-- For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases like "small to medium". Each value is checked via contains matching.
-- IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly — many valid matches will be excluded if these are set. Prefer using semantic_query to rank by size/price instead.
+CRITICAL RULES FOR FIELD SELECTION:
+
+1. ONLY populate fields the user EXPLICITLY mentioned or directly implied. If the user says 'leather sofa' you populate ai_furniture_type and ai_primary_material. You do NOT add ai_formality, ai_back_style, ai_cushions, or any other field the user didn't mention.
+
+2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering. The vector search naturally ranks comfortable-looking furniture higher when 'comfortable' is in the semantic_query.
+
+3. When in doubt, use FEWER fields not more. It's better to return 200 results that include what the user wants than 0 results because you over-filtered.
+
+4. Maximum of 3 search_fields per query unless the user explicitly specified more. If the user says 'traditional leather sofa with nailhead from Baker' that's 4 explicit fields (type, material, feature, vendor) — use all 4. But if the user says 'comfortable sofa' that's only 1 explicit field (type) — the rest goes in semantic_query.
+
+5. Negations and exclusions the user explicitly states go in exclude_fields. 'Not modern' means exclude modern. 'Buttonless' means exclude button tufted. Only exclude what the user specifically rejected.
+
+6. Use values that EXIST in the lists above. Use substring terms that would match via contains.
+7. For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
+8. You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields).
+9. DO NOT set color, arm_style, back_style, formality, cushions, finish, texture, construction, durability, visual_weight, ideal_client unless the designer EXPLICITLY used those words. These fields are for semantic_query ranking, not filtering.
+10. For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases.
+11. IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly.
+
+EXAMPLES:
+
+User: 'comfortable leather sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_primary_material: ['leather'] }
+exclude_fields: {}
+semantic_query: 'comfortable inviting leather sofa with generous proportions and soft cushions'
+(comfortable goes in semantic_query NOT in search_fields)
+
+User: 'quiet luxury accent chair'
+search_fields: { ai_furniture_type: ['accent chair'] }
+exclude_fields: {}
+semantic_query: 'quiet luxury refined sophisticated accent chair premium quality understated elegance'
+(quiet luxury is a vibe — goes in semantic_query)
+
+User: 'kid friendly sectional performance fabric not modern'
+search_fields: { ai_furniture_type: ['sectional'], ai_primary_material: ['performance fabric'] }
+exclude_fields: { ai_style: ['modern', 'contemporary'] }
+semantic_query: 'durable family friendly sectional in performance fabric high traffic suitable'
+(kid friendly goes in semantic_query, not modern goes in exclude)
+
+User: 'traditional walnut dining table seats 8'
+search_fields: { ai_furniture_type: ['dining table'], ai_style: ['traditional'], ai_finish: ['walnut'] }
+exclude_fields: {}
+semantic_query: 'traditional walnut dining table large seats eight formal dining room'
+(all 3 fields explicitly mentioned, dimensions go in semantic_query)
+
+User: 'something like the RH cloud sofa but not RH'
+search_fields: { ai_furniture_type: ['sofa'] }
+exclude_fields: { vendor_name: ['Restoration Hardware'] }
+semantic_query: 'deep plush oversized sofa with loose pillow back and down cushions cloud-like comfort'
+(1 field + exclude, ALL descriptive characteristics in semantic_query)
 
 Return ONLY this JSON (no markdown, no backticks):
 {
@@ -664,16 +690,24 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
           break;
         }
       } else {
-        // Primary AI field is null/undefined — try fallback for untagged products
-        const fallback = FIELD_FALLBACKS[fieldName];
-        if (fallback) {
-          const fbVal = fallback(product);
-          if (!fieldContains(fbVal, searchVals)) {
+        // Primary AI field is null/undefined — try fallback ONLY for category-level fields.
+        // Feature-specific fields (distinctive_features, arm_style, back_style, etc.)
+        // must NOT use fallbacks — we can't verify an untagged product has those features.
+        const FALLBACK_ALLOWED_FIELDS = new Set(["ai_furniture_type", "ai_primary_material", "ai_style", "ai_primary_color"]);
+        if (FALLBACK_ALLOWED_FIELDS.has(fieldName)) {
+          const fallback = FIELD_FALLBACKS[fieldName];
+          if (fallback) {
+            const fbVal = fallback(product);
+            if (!fieldContains(fbVal, searchVals)) {
+              matchesAll = false;
+              break;
+            }
+          } else {
             matchesAll = false;
             break;
           }
         } else {
-          // No fallback available and primary is null — no match
+          // No fallback for feature-specific fields — untagged product can't match
           matchesAll = false;
           break;
         }
@@ -720,8 +754,12 @@ export async function searchPipeline(query, options = {}) {
     v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && typeof v !== "number"
   );
 
-  console.log(`[ai-vector-search] Query: "${query}" → Fields: ${JSON.stringify(haiku.search_fields).slice(0, 200)}`);
-  console.log(`[ai-vector-search] Semantic: "${haiku.semantic_query?.slice(0, 120)}"`);
+  console.log("\n=== SEARCH DIAGNOSTIC ===");
+  console.log("Query:", query);
+  console.log("Haiku search_fields:", JSON.stringify(haiku.search_fields, null, 2));
+  console.log("Haiku exclude_fields:", JSON.stringify(haiku.exclude_fields, null, 2));
+  console.log("Haiku semantic_query:", haiku.semantic_query);
+  console.log("Has field filters:", hasFieldFilters);
 
   let results = [];
   const vectorStats = getVectorStoreStats();
@@ -729,6 +767,7 @@ export async function searchPipeline(query, options = {}) {
   if (hasFieldFilters) {
     // ── Step 2: Direct field matching ──
     const candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
+    console.log("Field match candidates:", candidates.length);
 
     // ── Step 3: MiniLM ranking within candidates ──
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
@@ -745,13 +784,19 @@ export async function searchPipeline(query, options = {}) {
         product._vector_score = product.relevance_score;
       }
       candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+      console.log("Vector ranked results:", ranked.length);
+      console.log("Top 5 results:", candidates.slice(0, 5).map(p => `${p.product_name} (${p.vendor_name}, score: ${p.relevance_score?.toFixed(3)})`));
+    } else {
+      console.log("Vector ranking skipped — candidates:", candidates.length, "vectors ready:", vectorStats.ready);
     }
 
     // ── Vendor diversity: re-sort to avoid one vendor dominating results ──
     results = applyVendorDiversity(candidates);
+    console.log("After vendor diversity:", results.length);
   } else {
     // ── Safety net: no field filters (Haiku failed or vibe search) ──
     // Fall back to pure vector search
+    console.log("NO FIELD FILTERS — falling back to pure vector search");
     if (vectorStats.ready && vectorStats.total_vectors > 0) {
       const searchText = haiku.semantic_query || query;
       const rawResults = await vectorSearch(searchText, { limit: 200 });
@@ -763,10 +808,13 @@ export async function searchPipeline(query, options = {}) {
           results.push(product);
         }
       }
-      console.log(`[ai-vector-search] Fallback vector search: ${results.length} results`);
+      console.log("Fallback vector search:", results.length, "results");
     }
     results = applyVendorDiversity(results);
   }
+  console.log("Final result count:", results.length);
+  console.log("Haiku response:", (haiku.response || "").slice(0, 200));
+  console.log("========================\n");
 
   // ── Step 4: Apply UI facet filters ──
   results = applyFacetFilters(results, filters);
