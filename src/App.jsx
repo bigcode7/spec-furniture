@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { pagesConfig } from './pages.config'
+import { pagesConfig, NO_LAYOUT_PAGES } from './pages.config'
+import { Suspense } from 'react'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -22,6 +23,18 @@ const AuthenticatedApp = () => {
     <GuestGateProvider>
       <TradePricingProvider>
       <Routes>
+        {/* No-layout pages (e.g. Admin) */}
+        {Object.entries(NO_LAYOUT_PAGES).map(([path, { component: Comp }]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <Suspense fallback={null}>
+                <Comp />
+              </Suspense>
+            }
+          />
+        ))}
         <Route path="/" element={
           <LayoutWrapper currentPageName={mainPageKey}>
             <MainPage />

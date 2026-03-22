@@ -466,6 +466,17 @@ export function extractToken(authHeader) {
   return authHeader; // Fallback: treat whole header as token
 }
 
+/**
+ * Get all users with sensitive fields stripped.
+ * @returns {object[]}
+ */
+export function getAllUsers() {
+  return Object.values(users).map(u => {
+    const { password_hash, ...safe } = u;
+    return safe;
+  });
+}
+
 // Strip sensitive fields
 function sanitizeUser(record) {
   const { password_hash, ...user } = record;

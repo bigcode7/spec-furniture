@@ -12,6 +12,7 @@ import Account from './pages/Account';
 import About from './pages/About';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 import __Layout from './Layout.jsx';
 
@@ -37,6 +38,10 @@ export const PAGES = {
     "Collections": ToSearch,
     "Assistant": ToSearch,
 }
+
+export const NO_LAYOUT_PAGES = {
+    Admin: { component: lazy(() => import("@/pages/Admin")), layout: false },
+};
 
 export const pagesConfig = {
     mainPage: "Landing",

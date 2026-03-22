@@ -64,7 +64,7 @@ import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, e
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
-import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts } from "./lib/auth-store.mjs";
+import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers } from "./lib/auth-store.mjs";
 import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
@@ -1516,6 +1516,209 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         total_products: totalFound,
       });
     } // end old list-search dead code
+
+    // ══════════════════════════════════════════════════════════════════
+    // ADMIN ENDPOINTS — Protected by admin email check, return 404 for non-admins
+    // ══════════════════════════════════════════════════════════════════
+
+    function isAdmin(req) {
+      const authHeader = req.headers["authorization"];
+      const token = extractToken(authHeader);
+      if (!token) return false;
+      const result = getUserFromToken(token);
+      if (!result.ok) return false;
+      return result.user.email === "tyler@spekd.ai";
+    }
+
+    // 1. GET /admin/dashboard — top-line metrics
+    if (req.method === "GET" && req.url === "/admin/dashboard") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const allUsers = getAllUsers();
+      const allSubs = getAllSubscriptions();
+      const activeSubs = Object.values(allSubs).filter(s => s.status === "active");
+      const revenue = getRevenueDashboard();
+      const analytics = getAnalyticsDashboard();
+
+      const totalUsers = allUsers.length;
+      const activeProCount = activeSubs.length;
+      const freeUsers = totalUsers - activeProCount;
+
+      // Annual vs monthly split
+      const annualCount = activeSubs.filter(s => s.plan === "annual" || s.plan === "pro_annual").length;
+      const monthlyCount = activeSubs.filter(s => s.plan === "monthly" || s.plan === "pro_monthly").length;
+
+      // Failed payments
+      const failedPayments = Object.values(allSubs).filter(s => s.status === "past_due").length;
+
+      // API cost estimate: pro searches * $0.008
+      const proSearchEstimate = analytics.overview.searches_today * 0.008;
+
+      return json(res, 200, {
+        users: {
+          total: totalUsers,
+          active_pro: activeProCount,
+          free: freeUsers,
+        },
+        revenue: {
+          mrr: revenue.mrr,
+          new_subscribers_this_month: revenue.new_subscribers_this_month,
+          cancellations_this_month: revenue.cancellations_this_month,
+          churn_rate: revenue.churn_rate,
+          revenue_this_month: revenue.revenue_this_month,
+          annual_count: annualCount,
+          monthly_count: monthlyCount,
+          failed_payments: failedPayments,
+        },
+        searches: {
+          today: analytics.overview.searches_today,
+          this_week: analytics.overview.searches_this_week,
+          total: analytics.overview.total_searches,
+          api_cost_estimate_today: Math.round(proSearchEstimate * 100) / 100,
+        },
+      });
+    }
+
+    // 2. GET /admin/users — all users with subscription info
+    if (req.method === "GET" && req.url === "/admin/users") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const allUsers = getAllUsers();
+      const usersWithSubs = allUsers.map(u => {
+        const sub = getSubscription(u.id);
+        return {
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name,
+          business_name: u.business_name,
+          created_at: u.created_at,
+          email_verified: u.email_verified,
+          subscription: sub ? { status: sub.status, plan: sub.plan, current_period_end: sub.current_period_end } : null,
+        };
+      });
+
+      return json(res, 200, { users: usersWithSubs });
+    }
+
+    // 3. GET /admin/users/:id — detailed user info
+    if (req.method === "GET" && req.url.match(/^\/admin\/users\/[^/]+$/) && !req.url.includes("/comp") && !req.url.includes("/upgrade") && !req.url.includes("/deactivate")) {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const userId = req.url.split("/admin/users/")[1];
+      const allUsers = getAllUsers();
+      const user = allUsers.find(u => u.id === userId);
+      if (!user) return json(res, 404, { error: "User not found" });
+
+      const sub = getSubscription(userId);
+      return json(res, 200, { user, subscription: sub });
+    }
+
+    // 4. POST /admin/users/:id/comp — comp free Pro access
+    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/comp$/)) {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const userId = req.url.split("/admin/users/")[1].replace("/comp", "");
+      const body = await collectBody(req);
+      const days = parseInt(body.days) || 30;
+
+      const periodEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      setSubscription(userId, {
+        status: "active",
+        plan: "pro_comp",
+        current_period_end: periodEnd,
+        comped: true,
+        comped_at: new Date().toISOString(),
+        comped_days: days,
+      });
+
+      return json(res, 200, { ok: true, message: `Comped ${days} days of Pro access`, period_end: periodEnd });
+    }
+
+    // 5. POST /admin/users/:id/upgrade — manually upgrade
+    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/upgrade$/)) {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const userId = req.url.split("/admin/users/")[1].replace("/upgrade", "");
+      const body = await collectBody(req);
+      const plan = body.plan || "pro_monthly";
+
+      const periodDays = plan === "pro_annual" ? 365 : 30;
+      const periodEnd = new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000).toISOString();
+      setSubscription(userId, {
+        status: "active",
+        plan,
+        current_period_end: periodEnd,
+        manual_upgrade: true,
+        upgraded_at: new Date().toISOString(),
+      });
+
+      return json(res, 200, { ok: true, message: `Upgraded to ${plan}`, period_end: periodEnd });
+    }
+
+    // 6. POST /admin/users/:id/deactivate — deactivate subscription
+    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/deactivate$/)) {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const userId = req.url.split("/admin/users/")[1].replace("/deactivate", "");
+      setSubscription(userId, {
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: "admin_deactivated",
+      });
+
+      return json(res, 200, { ok: true, message: "Subscription deactivated" });
+    }
+
+    // 7. GET /admin/analytics — search analytics
+    if (req.method === "GET" && req.url === "/admin/analytics") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      return json(res, 200, getAnalyticsDashboard());
+    }
+
+    // 8. GET /admin/catalog — catalog health
+    if (req.method === "GET" && req.url === "/admin/catalog") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const stats = getCatalogDBStats();
+      const allProducts = getAllProducts();
+      const totalProducts = allProducts.length;
+      const byVendor = getProductsByVendorGrouped();
+
+      const withoutAiTags = allProducts.filter(p => !p.ai_visual_tags && (!p.ai_search_terms || p.ai_search_terms.length === 0)).length;
+      const brokenImages = allProducts.filter(p => !p.image_url || p.image_broken === true).length;
+
+      return json(res, 200, {
+        total_products: totalProducts,
+        products_by_vendor: byVendor,
+        products_without_ai_tags: withoutAiTags,
+        products_with_broken_images: brokenImages,
+        db_stats: stats,
+      });
+    }
+
+    // 9. POST /admin/rebuild-vectors — trigger vector index rebuild
+    if (req.method === "POST" && req.url === "/admin/rebuild-vectors") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const vectorStats = getVectorStoreStats();
+      clearVectorSearchCache();
+      vectorIndexAll(getAllProducts(), { reindex: true }).then(() => {
+        console.log("[admin] Vector rebuild complete.");
+        persistVectors();
+      }).catch(err => console.error("[admin] Vector rebuild failed:", err.message));
+
+      return json(res, 202, { ok: true, message: "Vector rebuild started", current_vectors: vectorStats.total_vectors });
+    }
+
+    // 10. POST /admin/rebuild-catalog-index — trigger catalog index rebuild
+    if (req.method === "POST" && req.url === "/admin/rebuild-catalog-index") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      buildCatalogIndex(getAllProducts());
+      clearVectorSearchCache();
+
+      return json(res, 200, { ok: true, message: "Catalog index rebuilt" });
+    }
 
     // ══════════════════════════════════════════════════════════════════
     // SEARCH — One endpoint, two modes:
