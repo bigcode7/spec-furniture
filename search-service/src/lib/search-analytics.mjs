@@ -286,6 +286,55 @@ export function getAnalyticsDashboard() {
 }
 
 /**
+ * Get searches bucketed by day for the last N days.
+ * @param {number} [days=30]
+ * @returns {Array<{ date: string, count: number }>}
+ */
+export function getSearchesByDay(days = 30) {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+
+  // Count entries per day
+  const dayCounts = new Map();
+  for (const entry of searchLog) {
+    if (entry.timestamp < cutoff.getTime()) continue;
+    const dateKey = new Date(entry.timestamp).toISOString().slice(0, 10);
+    dayCounts.set(dateKey, (dayCounts.get(dateKey) || 0) + 1);
+  }
+
+  // Build array with all days filled in
+  const result = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateKey = d.toISOString().slice(0, 10);
+    result.push({ date: dateKey, count: dayCounts.get(dateKey) || 0 });
+  }
+
+  return result;
+}
+
+/**
+ * Get the most recent search log entries in reverse chronological order.
+ * @param {number} [limit=10]
+ * @returns {Array<object>}
+ */
+export function getRecentSearches(limit = 10) {
+  return searchLog
+    .slice(-limit)
+    .reverse()
+    .map((entry) => ({
+      query: entry.query,
+      result_count: entry.result_count,
+      tier: entry.tier,
+      timestamp: entry.timestamp,
+      ...(entry.user ? { user: entry.user } : {}),
+    }));
+}
+
+/**
  * Get raw click data for search enhancement.
  */
 export function getProductClickData() {

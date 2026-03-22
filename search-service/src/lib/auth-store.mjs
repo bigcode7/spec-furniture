@@ -345,6 +345,10 @@ export async function loginUser({ email, password }) {
     return { ok: false, error: "Invalid email or password" };
   }
 
+  if (userRecord.deactivated) {
+    return { ok: false, error: "Account has been deactivated. Contact support for assistance." };
+  }
+
   const valid = await verifyPassword(password, userRecord.password_hash);
   if (!valid) {
     return { ok: false, error: "Invalid email or password" };
@@ -373,6 +377,10 @@ export function getUserFromToken(token) {
     return { ok: false, error: "User not found" };
   }
 
+  if (userRecord.deactivated) {
+    return { ok: false, error: "Account has been deactivated" };
+  }
+
   return { ok: true, user: sanitizeUser(userRecord) };
 }
 
@@ -392,6 +400,7 @@ export function updateUser(userId, updates) {
     "full_name", "business_name", "role",
     "phone", "location", "membership_id",
     "preferences", "notifications",
+    "deactivated", "deactivated_at", "deactivated_reason",
   ];
   for (const key of allowed) {
     if (updates[key] !== undefined) {

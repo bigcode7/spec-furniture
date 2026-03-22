@@ -35,7 +35,7 @@ import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
 import { importFromCsv } from "./importers/csv-importer.mjs";
 import { buildAutocompleteIndex, autocompleteSearch, smartAutocomplete, recordSearch } from "./lib/autocomplete-index.mjs";
-import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData } from "./lib/search-analytics.mjs";
+import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData, getSearchesByDay, getRecentSearches } from "./lib/search-analytics.mjs";
 import { runImageVerification, getImageVerificationStatus, stopImageVerification } from "./jobs/image-verifier.mjs";
 import { runDeduplication, getDedupStatus } from "./jobs/dedup-job.mjs";
 import { runPhotoAnalysis, getPhotoAnalysisStatus, stopPhotoAnalysis } from "./jobs/photo-analyzer.mjs";
@@ -68,6 +68,7 @@ import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, ch
 import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
+import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
@@ -173,6 +174,7 @@ async function runHeavyInit() {
 
   // Initialize subscription store and Stripe
   initSubscriptionStore();
+  initAdminStore();
   initStripe().catch(err => console.warn("[stripe] Init failed:", err.message));
 
   // Build catalog index for Haiku system prompt
@@ -760,14 +762,6 @@ const server = http.createServer(async (req, res) => {
       });
 
       return json(res, 200, { ok: true });
-    }
-
-    if (req.method === "GET" && req.url === "/admin/revenue") {
-      if (req.headers["x-admin-key"] !== (process.env.ADMIN_SECRET || "spekd-admin-2024")) {
-        return json(res, 403, { error: "Admin access required" });
-      }
-
-      return json(res, 200, getRevenueDashboard());
     }
 
     // ── TEAM ENDPOINTS ──────────────────────────────────────
@@ -1518,7 +1512,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     } // end old list-search dead code
 
     // ══════════════════════════════════════════════════════════════════
-    // ADMIN ENDPOINTS — Protected by admin email check, return 404 for non-admins
+    // ADMIN ENDPOINTS — tyler@spekd.ai only, returns 404 for others
     // ══════════════════════════════════════════════════════════════════
 
     function isAdmin(req) {
@@ -1530,52 +1524,65 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return result.user.email === "tyler@spekd.ai";
     }
 
-    // 1. GET /admin/dashboard — top-line metrics
-    if (req.method === "GET" && req.url === "/admin/dashboard") {
+    // 1. GET /admin/overview — top-line metrics + recent activity
+    if (req.method === "GET" && req.url === "/admin/overview") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
       const allUsers = getAllUsers();
       const allSubs = getAllSubscriptions();
-      const activeSubs = Object.values(allSubs).filter(s => s.status === "active");
-      const revenue = getRevenueDashboard();
       const analytics = getAnalyticsDashboard();
+      const searchesByDay = getSearchesByDay(30);
+      const recentSearches = getRecentSearches(10);
+      const revenue = getRevenueDashboard();
 
+      // Count users by status
+      const now = Date.now();
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
       const totalUsers = allUsers.length;
-      const activeProCount = activeSubs.length;
-      const freeUsers = totalUsers - activeProCount;
+      const newThisWeek = allUsers.filter(u => new Date(u.created_at).getTime() > weekAgo).length;
 
-      // Annual vs monthly split
-      const annualCount = activeSubs.filter(s => s.plan === "annual" || s.plan === "pro_annual").length;
-      const monthlyCount = activeSubs.filter(s => s.plan === "monthly" || s.plan === "pro_monthly").length;
+      // Active Pro = subscriptions with status "active"
+      const activePro = Object.values(allSubs).filter(s => s.status === "active").length;
+      const activeProThisWeek = Object.values(allSubs).filter(s => s.status === "active" && new Date(s.created_at || s.subscribed_at || 0).getTime() > weekAgo).length;
+      const freeUsers = totalUsers - activePro;
+      const mrr = activePro * 99; // simplified
 
-      // Failed payments
-      const failedPayments = Object.values(allSubs).filter(s => s.status === "past_due").length;
+      // Searches
+      const searchesToday = analytics.overview?.searches_today || 0;
+      const searchesThisMonth = searchesByDay.reduce((sum, d) => sum + d.count, 0);
+      // API cost: only Pro searches cost money. Estimate from tier-1 searches.
+      const proSearchesThisMonth = Math.round(searchesThisMonth * (activePro / Math.max(1, totalUsers)));
+      const apiCostEstimate = proSearchesThisMonth * 0.008;
 
-      // API cost estimate: pro searches * $0.008
-      const proSearchEstimate = analytics.overview.searches_today * 0.008;
+      // Recent signups (10 most recent)
+      const recentSignups = [...allUsers]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10)
+        .map(u => ({
+          id: u.id, full_name: u.full_name, email: u.email,
+          business_name: u.business_name, created_at: u.created_at,
+          plan: allSubs[u.id]?.status === "active" ? (allSubs[u.id]?.plan || "pro") : "free",
+        }));
+
+      // Health alerts count
+      const alerts = getHealthAlerts();
 
       return json(res, 200, {
-        users: {
-          total: totalUsers,
-          active_pro: activeProCount,
-          free: freeUsers,
-        },
-        revenue: {
-          mrr: revenue.mrr,
-          new_subscribers_this_month: revenue.new_subscribers_this_month,
-          cancellations_this_month: revenue.cancellations_this_month,
-          churn_rate: revenue.churn_rate,
-          revenue_this_month: revenue.revenue_this_month,
-          annual_count: annualCount,
-          monthly_count: monthlyCount,
-          failed_payments: failedPayments,
-        },
-        searches: {
-          today: analytics.overview.searches_today,
-          this_week: analytics.overview.searches_this_week,
-          total: analytics.overview.total_searches,
-          api_cost_estimate_today: Math.round(proSearchEstimate * 100) / 100,
-        },
+        total_users: totalUsers,
+        new_users_this_week: newThisWeek,
+        active_pro: activePro,
+        new_pro_this_week: activeProThisWeek,
+        free_users: freeUsers,
+        mrr,
+        searches_today: searchesToday,
+        searches_this_month: searchesThisMonth,
+        pro_searches_this_month: proSearchesThisMonth,
+        api_cost_estimate: apiCostEstimate,
+        searches_by_day: searchesByDay,
+        recent_signups: recentSignups,
+        recent_searches: recentSearches,
+        health_alert_count: alerts.length,
+        revenue_summary: revenue.overview || {},
       });
     }
 
@@ -1584,24 +1591,20 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
       const allUsers = getAllUsers();
-      const usersWithSubs = allUsers.map(u => {
-        const sub = getSubscription(u.id);
-        return {
-          id: u.id,
-          email: u.email,
-          full_name: u.full_name,
-          business_name: u.business_name,
-          created_at: u.created_at,
-          email_verified: u.email_verified,
-          subscription: sub ? { status: sub.status, plan: sub.plan, current_period_end: sub.current_period_end } : null,
-        };
-      });
+      const allSubs = getAllSubscriptions();
+
+      const usersWithSubs = allUsers.map(u => ({
+        ...u,
+        subscription: allSubs[u.id] || null,
+        status: allSubs[u.id]?.status || "free",
+        plan: allSubs[u.id]?.plan || null,
+      }));
 
       return json(res, 200, { users: usersWithSubs });
     }
 
     // 3. GET /admin/users/:id — detailed user info
-    if (req.method === "GET" && req.url.match(/^\/admin\/users\/[^/]+$/) && !req.url.includes("/comp") && !req.url.includes("/upgrade") && !req.url.includes("/deactivate")) {
+    if (req.method === "GET" && req.url.match(/^\/admin\/users\/[^/]+$/) && !req.url.includes("/comp") && !req.url.includes("/upgrade") && !req.url.includes("/deactivate") && !req.url.includes("/reactivate")) {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
       const userId = req.url.split("/admin/users/")[1];
@@ -1613,110 +1616,200 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, { user, subscription: sub });
     }
 
-    // 4. POST /admin/users/:id/comp — comp free Pro access
-    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/comp$/)) {
+    // 4. POST /admin/comp — comp free Pro access
+    if (req.method === "POST" && req.url === "/admin/comp") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
-      const userId = req.url.split("/admin/users/")[1].replace("/comp", "");
       const body = await collectBody(req);
-      const days = parseInt(body.days) || 30;
+      const { email, days, note } = body;
+      if (!email) return json(res, 400, { error: "Email required" });
 
-      const periodEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-      setSubscription(userId, {
+      const allUsers = getAllUsers();
+      const user = allUsers.find(u => u.email === email.toLowerCase().trim());
+      if (!user) return json(res, 404, { error: "User not found with that email" });
+
+      const daysNum = parseInt(days) || 30;
+      const expiresAt = new Date(Date.now() + daysNum * 24 * 60 * 60 * 1000).toISOString();
+
+      setSubscription(user.id, {
         status: "active",
         plan: "pro_comp",
-        current_period_end: periodEnd,
+        current_period_end: expiresAt,
         comped: true,
         comped_at: new Date().toISOString(),
-        comped_days: days,
+        comped_days: daysNum,
+        comp_note: note || "",
       });
 
-      return json(res, 200, { ok: true, message: `Comped ${days} days of Pro access`, period_end: periodEnd });
+      logCompAction({ user_id: user.id, email: user.email, days: daysNum, note: note || "", expires_at: expiresAt });
+
+      return json(res, 200, { ok: true, message: `Comped ${user.email} for ${daysNum} days`, expires_at: expiresAt });
     }
 
-    // 5. POST /admin/users/:id/upgrade — manually upgrade
-    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/upgrade$/)) {
+    // 5. GET /admin/comps — list all comps
+    if (req.method === "GET" && req.url === "/admin/comps") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      return json(res, 200, { comps: getCompLog(), active_comps: getActiveComps() });
+    }
+
+    // 6. POST /admin/deactivate — deactivate user account
+    if (req.method === "POST" && req.url === "/admin/deactivate") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
-      const userId = req.url.split("/admin/users/")[1].replace("/upgrade", "");
       const body = await collectBody(req);
-      const plan = body.plan || "pro_monthly";
+      const { user_id, reason } = body;
+      if (!user_id) return json(res, 400, { error: "user_id required" });
 
-      const periodDays = plan === "pro_annual" ? 365 : 30;
-      const periodEnd = new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000).toISOString();
-      setSubscription(userId, {
-        status: "active",
-        plan,
-        current_period_end: periodEnd,
-        manual_upgrade: true,
-        upgraded_at: new Date().toISOString(),
+      // Set deactivated flag on user account
+      const result = updateUser(user_id, {
+        deactivated: true,
+        deactivated_at: new Date().toISOString(),
+        deactivated_reason: reason || "Admin deactivated",
       });
 
-      return json(res, 200, { ok: true, message: `Upgraded to ${plan}`, period_end: periodEnd });
-    }
+      if (!result.ok) return json(res, 404, { error: result.error });
 
-    // 6. POST /admin/users/:id/deactivate — deactivate subscription
-    if (req.method === "POST" && req.url.match(/^\/admin\/users\/[^/]+\/deactivate$/)) {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
-
-      const userId = req.url.split("/admin/users/")[1].replace("/deactivate", "");
-      setSubscription(userId, {
+      // Also cancel subscription
+      setSubscription(user_id, {
         status: "cancelled",
         cancelled_at: new Date().toISOString(),
         cancel_reason: "admin_deactivated",
       });
 
-      return json(res, 200, { ok: true, message: "Subscription deactivated" });
+      logAdminAction("deactivate_user", user_id, reason || "No reason provided");
+
+      return json(res, 200, { ok: true, message: "User deactivated" });
     }
 
-    // 7. GET /admin/analytics — search analytics
+    // 7. POST /admin/reactivate — reactivate user account
+    if (req.method === "POST" && req.url === "/admin/reactivate") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const body = await collectBody(req);
+      const { user_id } = body;
+      if (!user_id) return json(res, 400, { error: "user_id required" });
+
+      const result = updateUser(user_id, {
+        deactivated: false,
+        deactivated_at: null,
+        deactivated_reason: null,
+      });
+
+      if (!result.ok) return json(res, 404, { error: result.error });
+
+      logAdminAction("reactivate_user", user_id, "");
+
+      return json(res, 200, { ok: true, message: "User reactivated" });
+    }
+
+    // 8. GET /admin/analytics — search analytics
     if (req.method === "GET" && req.url === "/admin/analytics") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
       return json(res, 200, getAnalyticsDashboard());
     }
 
-    // 8. GET /admin/catalog — catalog health
-    if (req.method === "GET" && req.url === "/admin/catalog") {
+    // 9. GET /admin/catalog-health — catalog health dashboard
+    if (req.method === "GET" && req.url === "/admin/catalog-health") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
-      const stats = getCatalogDBStats();
-      const allProducts = getAllProducts();
-      const totalProducts = allProducts.length;
-      const byVendor = getProductsByVendorGrouped();
+      const summary = getVendorHealthSummary();
+      const alerts = getHealthAlerts();
 
-      const withoutAiTags = allProducts.filter(p => !p.ai_visual_tags && (!p.ai_search_terms || p.ai_search_terms.length === 0)).length;
-      const brokenImages = allProducts.filter(p => !p.image_url || p.image_broken === true).length;
-
-      return json(res, 200, {
-        total_products: totalProducts,
-        products_by_vendor: byVendor,
-        products_without_ai_tags: withoutAiTags,
-        products_with_broken_images: brokenImages,
-        db_stats: stats,
-      });
+      return json(res, 200, { ...summary, alerts });
     }
 
-    // 9. POST /admin/rebuild-vectors — trigger vector index rebuild
+    // 10. POST /admin/run-health-check — trigger immediate health check
+    if (req.method === "POST" && req.url === "/admin/run-health-check") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      runCatalogHealthCheck(getAllProducts);
+      logAdminAction("run_health_check", "catalog", "Manual health check triggered");
+
+      const summary = getVendorHealthSummary();
+      return json(res, 200, { ok: true, message: "Health check complete", ...summary });
+    }
+
+    // 11. POST /admin/dismiss-alert — dismiss a health alert
+    if (req.method === "POST" && req.url === "/admin/dismiss-alert") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const body = await collectBody(req);
+      if (!body.alert_id) return json(res, 400, { error: "alert_id required" });
+
+      dismissAlert(body.alert_id);
+      return json(res, 200, { ok: true });
+    }
+
+    // 12. GET /admin/activity-log — admin action history
+    if (req.method === "GET" && req.url === "/admin/activity-log") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      return json(res, 200, { log: getActivityLog(100) });
+    }
+
+    // 13. GET /admin/search?q=... — search users, products, vendors
+    if (req.method === "GET" && req.url.startsWith("/admin/search")) {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+
+      const urlObj = new URL(req.url, "http://localhost");
+      const q = (urlObj.searchParams.get("q") || "").toLowerCase().trim();
+      if (!q) return json(res, 200, { users: [], products: [], vendors: [] });
+
+      // Search users
+      const allUsers = getAllUsers();
+      const matchedUsers = allUsers.filter(u =>
+        (u.full_name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.business_name || "").toLowerCase().includes(q)
+      ).slice(0, 10);
+
+      // Search products
+      const allProductsArr = [...getAllProducts()];
+      const matchedProducts = allProductsArr.filter(p =>
+        (p.product_name || "").toLowerCase().includes(q) ||
+        (p.sku || "").toLowerCase().includes(q)
+      ).slice(0, 10).map(p => ({
+        id: p.id, product_name: p.product_name, vendor_name: p.vendor_name,
+        sku: p.sku, category: p.category, image_url: p.image_url,
+        retail_price: p.retail_price,
+      }));
+
+      // Search vendors
+      const vendorMap = {};
+      for (const p of allProductsArr) {
+        const v = p.vendor_id || p.vendor_name;
+        if (!v) continue;
+        if (!vendorMap[v]) vendorMap[v] = { vendor_id: v, vendor_name: p.vendor_name, count: 0 };
+        vendorMap[v].count++;
+      }
+      const matchedVendors = Object.values(vendorMap).filter(v =>
+        (v.vendor_id || "").toLowerCase().includes(q) ||
+        (v.vendor_name || "").toLowerCase().includes(q)
+      ).slice(0, 10);
+
+      return json(res, 200, { users: matchedUsers, products: matchedProducts, vendors: matchedVendors });
+    }
+
+    // 14. POST /admin/rebuild-vectors — trigger vector index rebuild
     if (req.method === "POST" && req.url === "/admin/rebuild-vectors") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
-      const vectorStats = getVectorStoreStats();
       clearVectorSearchCache();
       vectorIndexAll(getAllProducts(), { reindex: true }).then(() => {
-        console.log("[admin] Vector rebuild complete.");
         persistVectors();
+        console.log("[admin] Vector rebuild complete.");
       }).catch(err => console.error("[admin] Vector rebuild failed:", err.message));
 
-      return json(res, 202, { ok: true, message: "Vector rebuild started", current_vectors: vectorStats.total_vectors });
+      logAdminAction("rebuild_vectors", "catalog", "Manual vector rebuild triggered");
+      return json(res, 202, { ok: true, message: "Vector rebuild started" });
     }
 
-    // 10. POST /admin/rebuild-catalog-index — trigger catalog index rebuild
+    // 15. POST /admin/rebuild-catalog-index — trigger catalog index rebuild
     if (req.method === "POST" && req.url === "/admin/rebuild-catalog-index") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
 
       buildCatalogIndex(getAllProducts());
       clearVectorSearchCache();
-
+      logAdminAction("rebuild_catalog_index", "catalog", "Manual catalog index rebuild triggered");
       return json(res, 200, { ok: true, message: "Catalog index rebuilt" });
     }
 
@@ -4012,6 +4105,17 @@ server.listen(port, host, () => {
     setInterval(() => {
       runImageVerification(catalogDBInterface, { batchSize: 15, delayMs: 300 })
         .catch(err => console.error("[server] Image verification failed:", err.message));
+    }, 6 * 60 * 60 * 1000);
+
+    // Background health check every 6 hours
+    setTimeout(() => {
+      runCatalogHealthCheck(getAllProducts);
+      console.log("[admin] Initial health check complete.");
+    }, 30_000); // 30s after startup
+
+    setInterval(() => {
+      runCatalogHealthCheck(getAllProducts);
+      console.log("[admin] Scheduled health check complete.");
     }, 6 * 60 * 60 * 1000);
   }).catch((err) => {
     console.error(`[server] Heavy init failed: ${err.message}`);
