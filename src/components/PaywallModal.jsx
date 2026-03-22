@@ -10,14 +10,14 @@ const GOLD_BORDER = "rgba(201,169,110,0.3)";
 const GOLD_SHADOW = "rgba(201,169,110,0.3)";
 
 const PRO_FEATURES = [
-  { icon: Search, text: "Unlimited searches" },
-  { icon: FileText, text: "Unlimited quotes & PDF" },
+  { icon: Zap, text: "AI-powered search with expert advice" },
+  { icon: Search, text: "Up to 80 results per search (vs 20 free)" },
+  { icon: ArrowRight, text: "Conversational search refinement" },
+  { icon: Layers, text: "Paste sourcing lists with room buckets" },
+  { icon: FileText, text: "Unlimited quotes & PDF generation" },
   { icon: Star, text: "Trade discount calculator" },
-  { icon: Layers, text: "Favorites & collections" },
-  { icon: ArrowRight, text: "Paste sourcing lists" },
+  { icon: Lock, text: "Save favorites & collections" },
   { icon: Zap, text: "Room packages with auto-matching" },
-  { icon: Search, text: "Conversational search" },
-  { icon: Lock, text: "40,000+ trade products" },
 ];
 
 const TEAM_EXTRAS = [
@@ -320,10 +320,10 @@ export default function PaywallModal({ show, onAuthSuccess }) {
             </div>
 
             <h2 className="text-xl font-semibold text-white text-center mb-2">
-              You've used all 5 free searches.
+              Unlock the full SPEKD experience
             </h2>
             <p className="text-sm text-white/50 text-center mb-6 leading-relaxed max-w-xl mx-auto">
-              Designers using SPEKD source an entire room in under 5 minutes — that used to take 3-4 hours across 20 vendor websites.
+              Free search finds great products. Pro search adds AI-powered expert advice, conversational refinement, quotes, PDFs, and up to 80 results per search.
             </p>
 
             {/* Billing toggle */}

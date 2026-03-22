@@ -22,9 +22,10 @@ import {
   ClipboardList,
   Plus,
   Check,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, vectorOnlySearch } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
@@ -297,12 +298,21 @@ export default function SearchPage() {
   const [searchesRemaining, setSearchesRemaining] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
+  const [totalAvailable, setTotalAvailable] = useState(0);
+
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
   // Guest gate — track searches, gate features
   const { trackSearch, requireAccount, isGuest } = useGuestGate();
+
+  const isPro = (() => {
+    try {
+      const status = localStorage.getItem("spec_sub_status");
+      return status === "active" || status === "cancelled";
+    } catch { return false; }
+  })();
 
   const hasConversation = messages.length > 0;
 
@@ -370,7 +380,7 @@ export default function SearchPage() {
         if (entry.isIntersecting && !loading && !loadingMore && hasConversation) {
           if (hasMoreLocal) {
             setVisibleCount(v => Math.min(v + LOAD_MORE_SIZE, sorted.length));
-          } else if (hasMoreServer && allResults.length < MAX_RESULTS) {
+          } else if (isPro && hasMoreServer && allResults.length < MAX_RESULTS) {
             loadMoreFromServer();
           }
         }
@@ -451,9 +461,13 @@ export default function SearchPage() {
     if (!q.trim()) return;
     const trimmed = q.trim();
 
-    // Detect multi-item lists
+    // Detect multi-item lists — Pro only
     const listItems = detectList(trimmed);
     if (listItems && listItems.length >= 2) {
+      if (!isPro) {
+        setShowPaywall(true);
+        return;
+      }
       return runListSearch(listItems);
     }
 
@@ -489,6 +503,10 @@ export default function SearchPage() {
       }
     }
     if (detectedItems.length >= 2) {
+      if (!isPro) {
+        setShowPaywall(true);
+        return;
+      }
       return runListSearch(detectedItems);
     }
 
@@ -535,15 +553,23 @@ export default function SearchPage() {
       });
 
       let data;
-      try {
-        data = await smartSearch(apiConvo);
-      } catch {
-        // Fallback to old search if smart search fails
-        data = await searchProducts(trimmed, { filters: searchOptions.filters || {} });
+      if (isPro) {
+        try {
+          data = await smartSearch(apiConvo);
+        } catch {
+          // Fallback to old search if smart search fails
+          data = await searchProducts(trimmed, { filters: searchOptions.filters || {} });
+        }
+      } else {
+        // Free tier: vector-only search (no AI, no subscription check)
+        data = await vectorOnlySearch(trimmed);
       }
 
       const products = data.products || [];
-      const summaryText = data.assistant_message || data.ai_summary || `Found ${products.length} products for "${trimmed}".`;
+      setTotalAvailable(data.total_available || data.total || products.length);
+      const summaryText = isPro
+        ? (data.assistant_message || data.ai_summary || `Found ${products.length} products for "${trimmed}".`)
+        : `Found ${products.length} products for "${trimmed}".`;
 
       // Build detailed result summary for future AI context
       // Include product details so the AI knows exactly what the designer is looking at
@@ -571,8 +597,8 @@ export default function SearchPage() {
       setMessages((prev) => [...prev, assistantMsg]);
       setRecentSearches(pushRecentSearch(trimmed));
       trackSearch(); // Track for guest signup prompt
-      // Update remaining count for guests
-      if (subscriptionStatus === "guest" || !subscriptionStatus) {
+      // Update remaining count for pro guests only
+      if (isPro && (subscriptionStatus === "guest" || !subscriptionStatus)) {
         incrementLocalUsage("searches");
         setSearchesRemaining(prev => prev != null ? Math.max(0, prev - 1) : null);
       }
@@ -640,6 +666,11 @@ export default function SearchPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setShowAutocomplete(false);
+    // Block list paste for free users
+    if (!isPro && inputValue.includes("\n")) {
+      setShowPaywall(true);
+      return;
+    }
     runSearch(inputValue);
   };
 
@@ -754,6 +785,10 @@ export default function SearchPage() {
   };
 
   const handleAddToQuote = (product, e) => {
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
     requireAccount("quote", product, () => {
       // Show dropdown with room choices
       const rect = e?.currentTarget?.getBoundingClientRect?.();
@@ -1071,8 +1106,8 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Latest AI response */}
-            {!loading && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+            {/* Latest AI response — Pro only */}
+            {isPro && !loading && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="py-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5" style={{ background: "rgba(79,107,255,0.1)", border: "1px solid rgba(79,107,255,0.15)" }}>
@@ -1085,6 +1120,22 @@ export default function SearchPage() {
                   </div>
                 </div>
               </motion.div>
+            )}
+            {/* AI teaser — Free users */}
+            {!isPro && !loading && visibleProducts.length > 0 && (
+              <div className="relative mb-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 overflow-hidden">
+                <div className="absolute inset-0 backdrop-blur-[6px] bg-[#0e0e14]/60 z-10 flex items-center justify-center">
+                  <div className="text-center">
+                    <Zap className="h-5 w-5 text-gold/60 mx-auto mb-2" />
+                    <p className="text-sm text-white/70 font-medium">AI-powered designer insights</p>
+                    <p className="text-xs text-white/35 mt-1 mb-3">Get expert advice tailored to your search</p>
+                    <button onClick={() => setShowPaywall(true)} className="text-xs font-semibold text-gold hover:text-gold/80 transition-colors">
+                      Upgrade to Pro &rarr;
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-white/20 leading-relaxed">For leather sofas, Hancock & Moore offers the best full-grain hides in the trade...</p>
+              </div>
             )}
 
             {/* Loading */}
@@ -1393,6 +1444,18 @@ export default function SearchPage() {
                   </div>
                 )}
 
+                {/* Free tier result limit */}
+                {!isPro && totalAvailable > 20 && (
+                  <div className="mt-4 rounded-xl border border-gold/10 bg-gold/[0.02] p-5 text-center">
+                    <p className="text-sm text-white/60">
+                      Showing 20 of {totalAvailable} matches
+                    </p>
+                    <button onClick={() => setShowPaywall(true)} className="mt-2 text-xs font-semibold text-gold hover:text-gold/80 transition-colors">
+                      Upgrade to Pro to see all results &rarr;
+                    </button>
+                  </div>
+                )}
+
                 {/* End of results */}
                 {!hasMoreLocal && !hasMoreServer && sorted.length > INITIAL_PAGE_SIZE && (
                   <div className="text-center py-8">
@@ -1418,7 +1481,8 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl"
+            onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="max-w-7xl mx-auto px-4 py-3">
               <form onSubmit={handleSubmit} className="relative">
                 <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(79,107,255,0.08)]">
@@ -1427,9 +1491,9 @@ export default function SearchPage() {
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder="Refine your search or ask me anything..."
+                      placeholder={!isPro && hasConversation ? "Upgrade to Pro for conversational search refinement" : "Refine your search or ask me anything..."}
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-sm text-white/80 placeholder:text-white/20 outline-none"
-                      disabled={loading} />
+                      disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-white/20 hover:bg-white/5 hover:text-gold/50 transition-colors">
@@ -1561,7 +1625,7 @@ export default function SearchPage() {
           setSearchesRemaining(null);
         }}
       />
-      <UsageCounter remaining={searchesRemaining} />
+      {isPro && <UsageCounter remaining={searchesRemaining} />}
     </div>
   );
 }

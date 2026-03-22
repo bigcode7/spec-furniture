@@ -53,7 +53,7 @@ import { importHancockMoore, getHancockMooreStatus, stopHancockMoore } from "./i
 import { importCRLaine, getCRLaineStatus, stopCRLaine } from "./importers/crlaine-importer.mjs";
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
-import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores } from "./lib/vector-store.mjs";
+import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores, vectorSearch } from "./lib/vector-store.mjs";
 import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache } from "./lib/ai-vector-search.mjs";
 import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
 import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
@@ -1516,6 +1516,81 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         total_products: totalFound,
       });
     } // end old list-search dead code
+
+    // ══════════════════════════════════════════════════════════════════
+    // FREE TIER: Vector-only search — zero API cost
+    // Query → MiniLM embedding → cosine similarity → top 20 results
+    // No Haiku call, no AI response, no conversational follow-ups
+    // ══════════════════════════════════════════════════════════════════
+    if (req.method === "POST" && req.url === "/vector-search") {
+      const body = await collectBody(req);
+      const query = String(body.query || "").trim();
+      if (!query) return json(res, 400, { error: "query required" });
+
+      const vectorStats = getVectorStoreStats();
+      if (!vectorStats.ready || vectorStats.total_vectors === 0) {
+        return json(res, 503, { error: "Search index not ready" });
+      }
+
+      // Pure vector search — no Haiku, no API cost
+      const rawResults = await vectorSearch(query, { limit: 200 });
+
+      // Hydrate with product data
+      const products = [];
+      for (const { id, score } of rawResults) {
+        const product = getProduct(id);
+        if (product) {
+          product.relevance_score = score;
+          products.push(product);
+        }
+      }
+
+      // Apply vendor diversity
+      const diverse = [];
+      const vendorCounts = {};
+      for (const p of products) {
+        const v = p.vendor_name || "unknown";
+        vendorCounts[v] = (vendorCounts[v] || 0) + 1;
+        if (vendorCounts[v] <= 3) diverse.push(p);
+      }
+
+      // Sanitize and limit to 20
+      const finalProducts = diverse.slice(0, 20).map(sanitizeSearchProduct);
+
+      // Material badges
+      for (const product of finalProducts) {
+        product.material_badges = getProductMaterialBadges(product);
+      }
+
+      // Track analytics
+      trackSearch({
+        query,
+        resultCount: finalProducts.length,
+        vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
+        tier: 0, // free tier
+        cacheHit: false,
+      });
+      recordSearch(query);
+
+      return json(res, 200, {
+        query,
+        intent: null,
+        ai_summary: null,
+        assistant_message: null,
+        total: finalProducts.length,
+        total_available: products.length,
+        has_more: products.length > 20,
+        page: 1,
+        result_mode: "vector-only",
+        tier_used: 0,
+        ai_called: false,
+        cache_hit: false,
+        facets: {},
+        products: finalProducts,
+        searches_remaining: null,
+        subscription_status: "free",
+      });
+    }
 
     // ══════════════════════════════════════════════════════════════════
     // MAIN SEARCH — Pure AI-to-vector pipeline

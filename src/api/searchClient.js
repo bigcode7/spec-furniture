@@ -32,6 +32,21 @@ export async function smartSearch(conversation) {
   };
 }
 
+export async function vectorOnlySearch(query) {
+  if (!externalSearchServiceUrl) throw new Error("Search service not configured");
+  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/vector-search`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!response.ok) throw new Error(`vector search error: ${response.status}`);
+  const data = await response.json();
+  return {
+    ...data,
+    products: Array.isArray(data.products) ? data.products.map(normalizeStandaloneResult) : [],
+  };
+}
+
 export async function searchProducts(query, options = {}) {
   if (externalSearchServiceUrl) {
     const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
