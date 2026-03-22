@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag } from "lucide-react";
+import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Menu, X } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
@@ -283,8 +283,8 @@ export default function Layout({ children, currentPageName }) {
               </span>
             </Link>
 
-            {/* Center nav */}
-            <nav className="flex items-center gap-0.5">
+            {/* Center nav — hidden on mobile, shown on md+ */}
+            <nav className="hidden md:flex items-center gap-0.5">
               {NAV_ITEMS.map((item) => {
                 // Hide Quotes nav for guests
                 if (item.path === "Quotes" && !user) return null;
@@ -368,7 +368,7 @@ export default function Layout({ children, currentPageName }) {
       <div className="nav-separator" />
       <ScrollProgress />
 
-      <main className="relative flex-1">
+      <main className="relative flex-1 pb-16 md:pb-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -381,6 +381,39 @@ export default function Layout({ children, currentPageName }) {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#08090E]/95 backdrop-blur-xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="flex items-center justify-around h-14">
+          <Link
+            to={createPageUrl("Search")}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Search" ? "text-gold" : "text-white/35"}`}
+          >
+            <Search className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Search</span>
+          </Link>
+          {user && (
+            <Link
+              to={createPageUrl("Quotes")}
+              className={`relative flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Quotes" ? "text-gold" : "text-white/35"}`}
+            >
+              <FileText className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Quotes</span>
+              {quoteCount > 0 && (
+                <span className="absolute -top-0.5 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-bold px-1" style={{ background: "rgba(201,169,110,0.25)", color: "#C9A96E" }}>{quoteCount}</span>
+              )}
+            </Link>
+          )}
+          <Link
+            to={user ? "/Account" : "#"}
+            onClick={(e) => { if (!user) { e.preventDefault(); navigateToLogin("signup"); } }}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Account" ? "text-gold" : "text-white/35"}`}
+          >
+            <User className="h-5 w-5" />
+            <span className="text-[10px] font-medium">{user ? "Account" : "Sign Up"}</span>
+          </Link>
+        </div>
+      </nav>
 
       <AppFooter />
     </div>

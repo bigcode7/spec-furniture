@@ -943,7 +943,7 @@ export default function SearchPage() {
             </form>
 
             {/* Suggested searches */}
-            <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
+            <div className="mt-6 flex gap-x-4 gap-y-2 overflow-x-auto sm:flex-wrap sm:justify-center px-2 scrollbar-hide">
               {EXAMPLE_SEARCHES.map((example, i) => (
                 <span key={example} className="flex items-center gap-2">
                   {i > 0 && <span className="text-gold/30 text-xs">·</span>}
@@ -1206,7 +1206,7 @@ export default function SearchPage() {
                       {/* Product cards for this bucket */}
                       <div className="px-4 py-3">
                         {visibleItems.length > 0 ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
                             {visibleItems.map((product, pIdx) => (
                               <div key={product.id || pIdx} className="relative">
                                 {/* Selection highlight */}
@@ -1357,7 +1357,7 @@ export default function SearchPage() {
             {/* ── Product grid (single search mode) ── */}
             {!loading && !listMode && visibleProducts.length > 0 && (
               <motion.div key={messages.length} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {visibleProducts.map((item, idx) => (
                     <ProductCard
                       key={item.id || idx}
@@ -1398,7 +1398,7 @@ export default function SearchPage() {
 
             {/* Refinement chips */}
             {hasConversation && !loading && allResults.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-wrap gap-2 pt-6 pb-4">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex gap-2 pt-6 pb-4 overflow-x-auto sm:flex-wrap scrollbar-hide">
                 {REFINEMENT_CHIPS.map((chip) => (
                   <button key={chip} onClick={() => handleChipClick(chip)}
                     className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-1.5 text-[11px] text-white/30 transition-all hover:border-gold/20 hover:text-gold/60 hover:bg-gold/5">
@@ -1412,7 +1412,7 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-3">
               <form onSubmit={handleSubmit} className="relative">
                 <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(79,107,255,0.08)]">
@@ -1737,7 +1737,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
         <div className="absolute top-2 left-2 flex gap-1.5">
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isFavorited ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 opacity-0 group-hover:opacity-100 hover:bg-black/60"
+              isFavorited ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}>
             <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
@@ -1750,7 +1750,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
               }
             }}
             className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 opacity-0 group-hover:opacity-100 hover:bg-black/60"
+              isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}
             title={isInQuote ? "In quote" : "Add to quote"}>
             {isInQuote || justAdded ? <ClipboardCheck className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
@@ -1988,19 +1988,19 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               )}
 
               {/* Action buttons */}
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
-                  className="flex items-center gap-1.5 rounded-lg border border-gold/20 bg-gold/5 px-4 py-2 text-[11px] font-semibold text-gold/80 hover:bg-gold/10 transition-all disabled:opacity-40">
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/20 bg-gold/5 px-4 py-2.5 text-[11px] font-semibold text-gold/80 hover:bg-gold/10 transition-all disabled:opacity-40 w-full sm:w-auto">
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
                 <button onClick={(ev) => onAddToQuote(product, ev)}
-                  className="flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10">
+                  className="flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10 w-full sm:w-auto">
                   <FileText className="h-3 w-3" />
                   Add to Quote
                 </button>
                 <button onClick={() => onToggleFavorite(product)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-4 py-2 text-[11px] font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all w-full sm:w-auto ${
                     isFavorited ? "border-gold/30 bg-gold/10 text-gold" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
                   }`}>
                   <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />

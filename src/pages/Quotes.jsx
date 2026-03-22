@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, HeartOff, Plus, Minus, Trash2, FileText, ChevronDown, ChevronRight,
   Edit3, Download, FolderPlus, Package, DollarSign, MessageSquare, Settings,
-  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X,
+  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X, Link2, Check,
 } from "lucide-react";
 import {
   getFavorites, toggleFavorite,
@@ -265,14 +265,38 @@ export default function Quotes() {
   };
 
   const handleSwap = (item) => {
-    const cat = item.category || item.product_type || item.style || "";
-    navigate(`/Search?q=${encodeURIComponent(cat)}`);
+    const query = item.category || item.product_type || item.style || item.product_name || "";
+    navigate(`/Search?q=${encodeURIComponent(query)}&swap=${encodeURIComponent(item.id)}`);
+  };
+
+  const [shareCopied, setShareCopied] = useState(false);
+  const handleShareLink = async () => {
+    try {
+      // Create sanitized copy without wholesale prices
+      const sanitized = {
+        name: quote.name || "Shared Quote",
+        rooms: quote.rooms.map((r) => ({
+          name: r.name,
+          items: r.items.map(({ wholesale_price, ...rest }) => ({
+            ...rest,
+            quantity: rest.quantity || 1,
+          })),
+        })),
+      };
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(sanitized))));
+      const url = `${window.location.origin}/Search?shared_quote=${encoded}`;
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy share link:", err);
+    }
   };
 
   /* ─── render ────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-[#08090E] text-white">
-      <div className="max-w-7xl mx-auto px-4 py-10">
+      <div className="max-w-7xl mx-auto px-4 py-10 pb-48 sm:pb-10">
         {/* Page Title */}
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
@@ -557,6 +581,13 @@ export default function Quotes() {
           </motion.div>
 
           {/* Rooms + Items */}
+          {/* Mobile hint for actions */}
+          {totalItems > 0 && (
+            <p className="sm:hidden text-[10px] text-white/15 mb-2 text-center">
+              Tap an item to see swap, notes, and delete options
+            </p>
+          )}
+
           {totalItems === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
@@ -710,8 +741,8 @@ export default function Quotes() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl border border-white/[0.06] px-6 py-5 mt-4 space-y-4"
-                style={{ background: "rgba(255,255,255,0.015)" }}
+                className="rounded-2xl border border-white/[0.06] px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-2xl"
+                style={{ background: "rgba(15,16,22,0.98)", backdropFilter: "blur(12px)" }}
               >
                 {/* Markup toggle */}
                 <div className="flex items-center justify-between">
@@ -794,11 +825,11 @@ export default function Quotes() {
                 )}
 
                 {/* Action buttons */}
-                <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1 sm:flex-row flex-col">
                   <button
                     onClick={() => handleGeneratePdf("client")}
                     disabled={generating}
-                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 sm:w-auto w-full"
                     style={{
                       background: "linear-gradient(135deg, rgba(201,169,110,0.25), rgba(201,169,110,0.15))",
                       border: "1px solid rgba(201,169,110,0.3)",
@@ -828,8 +859,30 @@ export default function Quotes() {
                   )}
 
                   <button
+                    onClick={handleShareLink}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all border border-white/[0.08] hover:border-white/[0.15] sm:w-auto w-full"
+                    style={{
+                      background: shareCopied ? "rgba(110,180,140,0.15)" : "rgba(255,255,255,0.04)",
+                      color: shareCopied ? "rgba(110,180,140,0.8)" : "rgba(255,255,255,0.45)",
+                    }}
+                    title="Copy a shareable link (no trade pricing)"
+                  >
+                    {shareCopied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Link Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-3.5 w-3.5" />
+                        Copy Share Link
+                      </>
+                    )}
+                  </button>
+
+                  <button
                     onClick={handleClear}
-                    className="px-5 py-2.5 rounded-xl text-xs text-white/25 hover:text-red-400/60 hover:bg-red-400/[0.06] border border-white/[0.06] transition-all"
+                    className="px-5 py-2.5 rounded-xl text-xs text-white/25 hover:text-red-400/60 hover:bg-red-400/[0.06] border border-white/[0.06] transition-all sm:w-auto w-full"
                   >
                     Clear Quote
                   </button>
@@ -868,9 +921,9 @@ function QuoteItemRow({
 
   return (
     <div className="px-5 py-3.5 hover:bg-white/[0.015] transition-colors group border-b border-white/[0.03] last:border-b-0">
-      <div className="flex gap-4">
+      <div className="flex gap-4 sm:flex-row flex-col">
         {/* Thumbnail */}
-        <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-white/[0.06] bg-white">
+        <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto">
           {item.image_url ? (
             <img
               src={item.image_url}
@@ -929,7 +982,7 @@ function QuoteItemRow({
         </div>
 
         {/* Actions column */}
-        <div className="flex flex-col items-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex sm:flex-col flex-row items-center sm:items-end gap-1 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity sm:justify-start justify-center">
           {/* Swap */}
           <button
             onClick={onSwap}
