@@ -25,12 +25,29 @@ export const AuthProvider = ({ children }) => {
           setUser(result.user);
           setIsAuthenticated(true);
         } else {
+          // Only log out if token was definitively rejected (401)
+          // getMe() now handles this internally — if it returns ok:false
+          // without clearing auth, keep cached state
+          const cached = getCachedUser();
+          if (cached && isLoggedIn()) {
+            // Token still in localStorage — server may be unreachable, keep cached login
+            setUser(cached);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
+      } catch {
+        // Network error — keep cached auth state
+        const cached = getCachedUser();
+        if (cached) {
+          setUser(cached);
+          setIsAuthenticated(true);
+        } else {
           setUser(null);
           setIsAuthenticated(false);
         }
-      } catch {
-        setUser(null);
-        setIsAuthenticated(false);
       }
     } else {
       setUser(null);

@@ -44,8 +44,12 @@ function loadUsers() {
   try {
     if (fs.existsSync(USERS_FILE)) {
       users = JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+      console.log(`[auth] Loaded ${Object.keys(users).length} users from disk`);
+    } else {
+      console.log("[auth] No users file found, starting fresh");
     }
-  } catch {
+  } catch (err) {
+    console.error("[auth] Failed to load users:", err.message);
     users = {};
   }
 }
@@ -59,16 +63,15 @@ function saveUsers() {
   }
 }
 
-let saveUsersTimer = null;
+// All user operations save immediately — no debouncing for user data
 function saveUsersDebounced() {
-  if (saveUsersTimer) clearTimeout(saveUsersTimer);
-  saveUsersTimer = setTimeout(() => {
-    saveUsers();
-    saveUsersTimer = null;
-  }, 500);
+  saveUsers();
 }
 
 loadUsers();
+
+// Log token secret source for debugging persistence issues
+console.log(`[auth] Token secret source: ${process.env.AUTH_SECRET ? "AUTH_SECRET env var (stable)" : ".auth-secret file (ephemeral on redeploy)"}`);
 
 // ── Password hashing with scrypt ──
 

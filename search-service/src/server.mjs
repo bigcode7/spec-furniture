@@ -397,6 +397,11 @@ const server = http.createServer(async (req, res) => {
         const verifyToken = generateVerificationToken(result.user.id, result.user.email);
         result.verification_token = verifyToken;
         console.log(`[auth] Verification link: /auth/verify-email?token=${verifyToken}`);
+        // Auto-activate admin accounts on registration
+        if (isAdminEmail(result.user.email)) {
+          setSubscription(result.user.id, { status: "active", plan: "admin", comped: true, comped_at: new Date().toISOString() });
+          console.log(`[admin] Admin account auto-activated: ${result.user.email}`);
+        }
       }
       return json(res, result.ok ? 201 : 400, result);
     }
@@ -415,6 +420,13 @@ const server = http.createServer(async (req, res) => {
         const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
         const sessionToken = createSession(result.user.id, fingerprint, ip, req.headers["user-agent"]);
         result.sessionToken = sessionToken;
+        // Auto-activate admin accounts on login
+        if (isAdminEmail(result.user.email)) {
+          const existingSub = getSubscription(result.user.id);
+          if (!existingSub || existingSub.status !== "active") {
+            setSubscription(result.user.id, { status: "active", plan: "admin", comped: true, comped_at: new Date().toISOString() });
+          }
+        }
       } else {
         recordFailedLogin(loginIp);
       }

@@ -53,28 +53,10 @@ function proxyUrl(url, productId) {
   return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
-// Image component: tries direct URL first, falls back to server-side proxy on error
+// Image component: always uses server-side proxy to bypass vendor hotlink protection
 function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, ...rest }) {
-  const [useFallback, setUseFallback] = useState(false);
-  const triedProxy = useRef(false);
-
-  const handleError = (e) => {
-    if (!triedProxy.current && src) {
-      triedProxy.current = true;
-      setUseFallback(true);
-    } else if (externalOnError) {
-      externalOnError(e);
-    }
-  };
-
-  // Reset when src changes
-  useEffect(() => {
-    triedProxy.current = false;
-    setUseFallback(false);
-  }, [src]);
-
-  const finalSrc = useFallback ? proxyUrl(src, productId) : src;
-  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={handleError} onLoad={onLoad} {...rest} />;
+  const finalSrc = src ? proxyUrl(src, productId) : "";
+  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={externalOnError} onLoad={onLoad} {...rest} />;
 }
 
 const EXAMPLE_SEARCHES = [

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Eye, EyeOff, ArrowRight, AlertCircle, Check, Mail, Lock, User, Building2 } from "lucide-react";
-import { register, login } from "@/api/authClient";
+import { register, login, getSubscriptionStatus } from "@/api/authClient";
 import { useAuth } from "@/lib/AuthContext";
 
 export default function AuthModal() {
@@ -54,6 +54,11 @@ export default function AuthModal() {
           business_name: businessName,
         });
         if (result.ok) {
+          // Fetch and cache subscription status
+          try {
+            const sub = await getSubscriptionStatus();
+            localStorage.setItem("spec_sub_status", sub.status || "guest");
+          } catch {}
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user);
@@ -64,6 +69,11 @@ export default function AuthModal() {
       } else {
         const result = await login({ email, password });
         if (result.ok) {
+          // Fetch and cache subscription status
+          try {
+            const sub = await getSubscriptionStatus();
+            localStorage.setItem("spec_sub_status", sub.status || "guest");
+          } catch {}
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user);

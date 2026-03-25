@@ -75,13 +75,22 @@ export async function getMe() {
   const token = getStoredToken();
   if (!token) return { ok: false, error: "Not logged in" };
 
-  const { status, data } = await authFetch("/auth/me");
-  if (data.ok) {
-    storeAuth(token, data.user);
-  } else {
-    clearAuth();
+  try {
+    const { status, data } = await authFetch("/auth/me");
+    if (data.ok) {
+      storeAuth(token, data.user);
+    } else if (status === 401) {
+      // Token is definitively invalid — clear it
+      clearAuth();
+    }
+    // For other errors (500, network), keep the cached auth so user isn't logged out
+    return data;
+  } catch {
+    // Network error — keep cached auth, return cached user
+    const cached = getStoredUser();
+    if (cached) return { ok: true, user: cached };
+    return { ok: false, error: "Network error" };
   }
-  return data;
 }
 
 export async function updateMe(updates) {
