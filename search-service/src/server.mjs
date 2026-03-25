@@ -85,81 +85,86 @@ console.log(`[startup] After initCatalogDB: ${getProductCount()} products in mem
 async function runHeavyInit() {
   console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
 
-  // Fix miscategorized products
-  for (const product of getAllProducts()) {
-    if (product.category === "beds") {
-      const name = (product.product_name || "").toLowerCase();
-      if (name.includes("pillow") || /catalog$/i.test(name.trim())) {
-        updateProductDirect(product.id, { category: "accessories" });
-      }
-    }
-  }
-
-  // Remove non-furniture items from catalog
-  {
-    const junkCategories = new Set(["fabric", "leather", "finishes", "book"]);
-    const junkPatterns = [
-      /\bfabric$/i,
-      /\bleather$/i,
-      /\bfinish$/i,
-      /\bcatalog$/i,
-      /\bmembership\b/i,
-      /\bsubscription\b/i,
-      /testing page/i,
-    ];
-    const scrapedPagePattern = /\|/;
-    const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
-    const stickleyFinishNumPattern = /^8\d{2}\s+\w/;
-
-    let removedCount = 0;
+  // Skip catalog mutations on Railway — protect the volume file
+  if (!process.env.CATALOG_URL) {
+    // Fix miscategorized products
     for (const product of getAllProducts()) {
-      const name = (product.product_name || "").trim();
-      const cat = (product.category || "").toLowerCase();
-      let shouldRemove = false;
-
-      if (junkCategories.has(cat)) shouldRemove = true;
-
-      if (!shouldRemove) {
-        for (const pat of junkPatterns) {
-          if (pat.test(name)) { shouldRemove = true; break; }
+      if (product.category === "beds") {
+        const name = (product.product_name || "").toLowerCase();
+        if (name.includes("pillow") || /catalog$/i.test(name.trim())) {
+          updateProductDirect(product.id, { category: "accessories" });
         }
       }
-
-      if (!shouldRemove && scrapedPagePattern.test(name)) shouldRemove = true;
-
-      if (!shouldRemove && product.vendor_id === "stickley") {
-        if (finishCodePattern.test(name) || stickleyFinishNumPattern.test(name)) shouldRemove = true;
-      }
-
-      if (!shouldRemove && product.vendor_id === "hooker") {
-        if (/^page\s+\w+\s*-\s*\w+/i.test(name) && (product.sku || "").startsWith("HD40046")) shouldRemove = true;
-      }
-
-      if (shouldRemove) {
-        deleteProduct(product.id);
-        removedCount++;
-      }
-    }
-    if (removedCount > 0) {
-      console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
     }
 
-    let setteeFixCount = 0;
-    for (const product of getAllProducts()) {
-      const name = (product.product_name || "").toLowerCase();
-      const cat = (product.category || "").toLowerCase();
-      if (cat === "sofas" && name.includes("settee")) {
-        updateProductDirect(product.id, { category: "settees" });
-        setteeFixCount++;
+    // Remove non-furniture items from catalog
+    {
+      const junkCategories = new Set(["fabric", "leather", "finishes", "book"]);
+      const junkPatterns = [
+        /\bfabric$/i,
+        /\bleather$/i,
+        /\bfinish$/i,
+        /\bcatalog$/i,
+        /\bmembership\b/i,
+        /\bsubscription\b/i,
+        /testing page/i,
+      ];
+      const scrapedPagePattern = /\|/;
+      const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
+      const stickleyFinishNumPattern = /^8\d{2}\s+\w/;
+
+      let removedCount = 0;
+      for (const product of getAllProducts()) {
+        const name = (product.product_name || "").trim();
+        const cat = (product.category || "").toLowerCase();
+        let shouldRemove = false;
+
+        if (junkCategories.has(cat)) shouldRemove = true;
+
+        if (!shouldRemove) {
+          for (const pat of junkPatterns) {
+            if (pat.test(name)) { shouldRemove = true; break; }
+          }
+        }
+
+        if (!shouldRemove && scrapedPagePattern.test(name)) shouldRemove = true;
+
+        if (!shouldRemove && product.vendor_id === "stickley") {
+          if (finishCodePattern.test(name) || stickleyFinishNumPattern.test(name)) shouldRemove = true;
+        }
+
+        if (!shouldRemove && product.vendor_id === "hooker") {
+          if (/^page\s+\w+\s*-\s*\w+/i.test(name) && (product.sku || "").startsWith("HD40046")) shouldRemove = true;
+        }
+
+        if (shouldRemove) {
+          deleteProduct(product.id);
+          removedCount++;
+        }
       }
-      if (cat === "sofas" && (name.includes("swivel") || name.includes("recliner")) && !name.includes("sofa")) {
-        updateProductDirect(product.id, { category: "accent-chairs" });
-        setteeFixCount++;
+      if (removedCount > 0) {
+        console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
+      }
+
+      let setteeFixCount = 0;
+      for (const product of getAllProducts()) {
+        const name = (product.product_name || "").toLowerCase();
+        const cat = (product.category || "").toLowerCase();
+        if (cat === "sofas" && name.includes("settee")) {
+          updateProductDirect(product.id, { category: "settees" });
+          setteeFixCount++;
+        }
+        if (cat === "sofas" && (name.includes("swivel") || name.includes("recliner")) && !name.includes("sofa")) {
+          updateProductDirect(product.id, { category: "accent-chairs" });
+          setteeFixCount++;
+        }
+      }
+      if (setteeFixCount > 0) {
+        console.log(`[startup] Re-categorized ${setteeFixCount} settees/chairs out of sofas`);
       }
     }
-    if (setteeFixCount > 0) {
-      console.log(`[startup] Re-categorized ${setteeFixCount} settees/chairs out of sofas`);
-    }
+  } else {
+    console.log(`[startup] Skipping catalog cleanup (CATALOG_URL set — protecting volume data)`);
   }
 
   // Initialize project store

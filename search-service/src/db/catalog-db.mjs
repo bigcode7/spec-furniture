@@ -488,6 +488,11 @@ function validateBeforeWrite() {
  * Serialize and write the database to disk.
  */
 function writeToDisk() {
+  // Never overwrite the catalog when running from CATALOG_URL (Railway volume)
+  if (catalogDownloadedFromURL) {
+    console.log(`[catalog-db] Write skipped — protecting volume catalog`);
+    return;
+  }
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   // Safety check before writing
