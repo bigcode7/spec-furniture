@@ -364,7 +364,11 @@ async function downloadCatalogIfMissing() {
   // Skip download if catalog exists and is large enough (>1MB = real catalog, not sample)
   if (fs.existsSync(DB_PATH)) {
     const size = fs.statSync(DB_PATH).size;
-    if (size > 1_000_000) return; // already have full catalog
+    if (size > 1_000_000) {
+      // Full catalog on volume — disable disk writes (ephemeral env, protect the file)
+      if (process.env.CATALOG_URL) catalogDownloadedFromURL = true;
+      return;
+    }
     console.log(`[catalog-db] Existing catalog is only ${(size / 1024).toFixed(0)}KB — re-downloading full catalog`);
     fs.unlinkSync(DB_PATH);
   }

@@ -389,7 +389,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/health") {
-      return json(res, 200, { ok: true, ready: serviceReady });
+      return json(res, 200, { ok: true, ready: serviceReady, catalog_size: getProductCount(), uptime: Math.floor(process.uptime()) });
     }
 
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
