@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { tradeVendors } from "../config/trade-vendors.mjs";
 import { getSynonyms, expandQuery, expandMaterial, parseDimensionConstraints, parsePriceSignals, detectCollectionInQuery } from "../lib/furniture-dictionary.mjs";
@@ -366,7 +367,12 @@ async function downloadCatalogIfMissing() {
   try {
     const resp = await fetch(url, { redirect: "follow" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const buffer = Buffer.from(await resp.arrayBuffer());
+    let buffer = Buffer.from(await resp.arrayBuffer());
+    // Auto-detect gzip (magic bytes 1f 8b)
+    if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
+      console.log(`[catalog-db] Decompressing gzipped catalog...`);
+      buffer = gunzipSync(buffer);
+    }
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(DB_PATH, buffer);
     console.log(`[catalog-db] Downloaded catalog (${(buffer.length / 1024 / 1024).toFixed(0)}MB)`);
