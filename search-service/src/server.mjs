@@ -4223,7 +4223,12 @@ server.listen(port, host, () => {
 
   // Run heavy init AFTER listening so Railway sees the port immediately
   runHeavyInit().then(() => {
-    startCrawlScheduler(catalogDBInterface);
+    // Only start crawl scheduler if explicitly enabled (disable on production to save resources)
+    if (process.env.ENABLE_CRAWL_SCHEDULER === "true") {
+      startCrawlScheduler(catalogDBInterface);
+    } else {
+      console.log("[server] Crawl scheduler disabled (set ENABLE_CRAWL_SCHEDULER=true to enable)");
+    }
 
     // Schedule image verification every 6 hours
     setInterval(() => {
