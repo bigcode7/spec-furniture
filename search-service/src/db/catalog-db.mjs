@@ -361,7 +361,13 @@ async function resolveLFSPointer() {
 let catalogDownloadedFromURL = false;
 
 async function downloadCatalogIfMissing() {
-  if (fs.existsSync(DB_PATH)) return; // already have it
+  // Skip download if catalog exists and is large enough (>1MB = real catalog, not sample)
+  if (fs.existsSync(DB_PATH)) {
+    const size = fs.statSync(DB_PATH).size;
+    if (size > 1_000_000) return; // already have full catalog
+    console.log(`[catalog-db] Existing catalog is only ${(size / 1024).toFixed(0)}KB — re-downloading full catalog`);
+    fs.unlinkSync(DB_PATH);
+  }
 
   // Support single URL or comma-separated URLs for split catalogs
   const urlEnv = process.env.CATALOG_URL;
