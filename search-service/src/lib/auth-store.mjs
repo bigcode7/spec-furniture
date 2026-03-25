@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isAdminEmail } from "./subscription-store.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -314,8 +315,8 @@ export async function registerUser({ email, password, full_name, business_name }
     full_name: (full_name || "").trim(),
     business_name: (business_name || "").trim(),
     password_hash: passwordHash,
-    role: "designer",
-    email_verified: false,
+    role: isAdminEmail(normalizedEmail) ? "admin" : "designer",
+    email_verified: isAdminEmail(normalizedEmail) ? true : false,
     created_at: new Date().toISOString(),
   };
 

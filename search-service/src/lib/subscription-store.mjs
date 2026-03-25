@@ -19,6 +19,15 @@ const TEAMS_FILE = path.join(DATA_DIR, "teams.json");
 const FREE_SEARCH_LIMIT = 3;
 const FREE_QUOTE_LIMIT = 1;
 const FREE_QUOTE_ITEM_LIMIT = 5;
+
+// Admin/founder emails — permanent full Pro, no paywall, no Stripe required
+const ADMIN_EMAILS = new Set([
+  "tyler@spekd.ai",
+]);
+
+function isAdminEmail(email) {
+  return !!email && ADMIN_EMAILS.has(email.toLowerCase().trim());
+}
 const GRACE_PERIOD_DAYS = 7;
 const DATA_RETENTION_DAYS = 90;
 
@@ -735,4 +744,6 @@ export {
   FREE_SEARCH_LIMIT,
   FREE_QUOTE_LIMIT,
   FREE_QUOTE_ITEM_LIMIT,
+  isAdminEmail,
+  ADMIN_EMAILS,
 };

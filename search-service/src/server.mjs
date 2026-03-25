@@ -65,7 +65,7 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers } from "./lib/auth-store.mjs";
-import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
@@ -324,13 +324,15 @@ function getRequestIdentity(req, body) {
   const token = extractToken(authHeader);
 
   let userId = null;
+  let userEmail = null;
   let userStatus = "guest";
 
   if (token && !token.startsWith("g.")) {
     const result = getUserFromToken(token);
     if (result.ok) {
       userId = result.user.id;
-      userStatus = getUserStatus(userId);
+      userEmail = result.user.email;
+      userStatus = isAdminEmail(userEmail) ? "active" : getUserStatus(userId);
     }
   }
 
@@ -368,7 +370,7 @@ function getRequestIdentity(req, body) {
     }
   }
 
-  return { userId, fingerprint, ip, localStorageId, status: userStatus, sessionInvalid };
+  return { userId, userEmail, fingerprint, ip, localStorageId, status: userStatus, sessionInvalid };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -512,6 +514,19 @@ const server = http.createServer(async (req, res) => {
       const identity = getRequestIdentity(req, {});
 
       if (identity.userId) {
+        // Admin bypass — always active, no Stripe needed
+        if (identity.userEmail && isAdminEmail(identity.userEmail)) {
+          return json(res, 200, {
+            status: "active",
+            plan: "admin",
+            current_period_end: null,
+            trial_end: null,
+            trial_days_remaining: null,
+            stripe_subscription_id: null,
+            is_admin: true,
+          });
+        }
+
         const sub = getSubscription(identity.userId);
         const status = getUserStatus(identity.userId);
         let trialDaysRemaining = null;
@@ -1878,7 +1893,11 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       let trialDaysRemaining = null;
       let subStatus = "guest";
 
-      if (identity.userId) {
+      // Admin bypass — always full Pro, no counters
+      if (identity.userEmail && isAdminEmail(identity.userEmail)) {
+        searchTier = "pro";
+        subStatus = "active";
+      } else if (identity.userId) {
         const status = getUserStatus(identity.userId);
         subStatus = status;
         if (status === "active" || status === "trialing" || status === "cancelled" || status === "past_due" || status === "internal") {
