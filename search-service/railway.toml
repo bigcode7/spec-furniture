@@ -1,0 +1,5 @@
+[build]
+builder = "Railpack"
+
+[deploy]
+startCommand = "node src/server.mjs"
