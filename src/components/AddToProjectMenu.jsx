@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { FolderKanban, Plus, Check, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGuestGate } from "@/lib/GuestGate";
+import { useAuth } from "@/lib/AuthContext";
 
 const SEARCH_URL = (
   import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app"
@@ -24,7 +24,7 @@ export default function AddToProjectMenu({ product, size = "sm" }) {
   const [added, setAdded] = useState(null); // { projectId, roomId, itemName }
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { requireAccount } = useGuestGate();
+  const { isAuthenticated } = useAuth();
 
   // Close on outside click
   useEffect(() => {
@@ -45,20 +45,18 @@ export default function AddToProjectMenu({ product, size = "sm" }) {
       setSelectedProject(null);
       return;
     }
-    requireAccount("project", product, async () => {
-      setOpen(true);
-      setLoading(true);
-      try {
-        const res = await fetch(`${SEARCH_URL}/projects`);
-        if (res.ok) {
-          const data = await res.json();
-          setProjects(data.projects || []);
-        }
-      } catch {
-        setProjects([]);
+    setOpen(true);
+    setLoading(true);
+    try {
+      const res = await fetch(`${SEARCH_URL}/projects`);
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects || []);
       }
-      setLoading(false);
-    });
+    } catch {
+      setProjects([]);
+    }
+    setLoading(false);
   };
 
   // Add product to a specific room item

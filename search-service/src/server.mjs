@@ -65,7 +65,7 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers } from "./lib/auth-store.mjs";
-import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
@@ -514,10 +514,16 @@ const server = http.createServer(async (req, res) => {
       if (identity.userId) {
         const sub = getSubscription(identity.userId);
         const status = getUserStatus(identity.userId);
+        let trialDaysRemaining = null;
+        if (status === "trialing" && sub?.trial_end) {
+          trialDaysRemaining = Math.max(0, Math.ceil((new Date(sub.trial_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        }
         return json(res, 200, {
           status,
           plan: sub?.plan || null,
           current_period_end: sub?.current_period_end || null,
+          trial_end: sub?.trial_end || null,
+          trial_days_remaining: trialDaysRemaining,
           stripe_subscription_id: sub?.stripe_subscription_id || null,
         });
       }
@@ -602,19 +608,63 @@ const server = http.createServer(async (req, res) => {
             const plan = session.metadata?.plan || "monthly";
             if (userId) {
               const stripeSubId = session.subscription;
+              // Check if subscription has a trial period
+              let subStatus = "active";
+              let trialEnd = null;
+              try {
+                const stripeSub = await getStripeSubscription(stripeSubId);
+                if (stripeSub.status === "trialing" && stripeSub.trial_end) {
+                  subStatus = "trialing";
+                  trialEnd = new Date(stripeSub.trial_end * 1000).toISOString();
+                }
+              } catch {}
               setSubscription(userId, {
-                status: "active",
+                status: subStatus,
                 plan,
                 stripe_subscription_id: stripeSubId,
                 stripe_customer_id: session.customer,
                 current_period_end: null, // Will be set by invoice.paid
+                trial_end: trialEnd,
                 created_at: new Date().toISOString(),
               });
               logSubscriptionEvent("new_subscription", {
                 user_id: userId,
                 plan,
-                amount: plan.includes("annual") ? (plan.includes("team") ? 2490 : 990) : (plan.includes("team") ? 249 : 99),
+                trial: subStatus === "trialing",
+                amount: 0, // No charge during trial
               });
+            }
+            break;
+          }
+
+          case "customer.subscription.updated": {
+            // Handles trial → active transition and other status changes
+            const subscription = event.data.object;
+            const subId = subscription.id;
+            const allSubs = getAllSubscriptions();
+            const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
+            if (sub) {
+              const newStatus = subscription.status === "active" ? "active"
+                : subscription.status === "trialing" ? "trialing"
+                : subscription.status === "past_due" ? "past_due"
+                : subscription.status;
+              const updates = { status: newStatus };
+              if (subscription.current_period_end) {
+                updates.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+              }
+              if (subscription.trial_end) {
+                updates.trial_end = new Date(subscription.trial_end * 1000).toISOString();
+              }
+              setSubscription(sub.user_id, updates);
+
+              // Log trial-to-active conversion
+              if (newStatus === "active" && sub.status === "trialing") {
+                logSubscriptionEvent("trial_converted", {
+                  user_id: sub.user_id,
+                  plan: sub.plan,
+                  amount: sub.plan?.includes("annual") ? 990 : 99,
+                });
+              }
             }
             break;
           }
@@ -1006,17 +1056,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/similar") {
       const body = await collectBody(req);
 
-      // Subscription check
+      // Find Similar does NOT count as a search — allow for anyone
       const identity = getRequestIdentity(req, body);
-      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "similar");
-      if (!access.allowed) {
-        return json(res, 402, {
-          error: "subscription_required",
-          status: access.status,
-          reason: access.reason,
-          searches_remaining: 0,
-        });
-      }
 
       const productId = String(body.product_id || "");
       if (!productId) return json(res, 400, { error: "product_id required" });
@@ -1046,19 +1087,13 @@ const server = http.createServer(async (req, res) => {
         return sim;
       });
 
-      // Increment guest search count
-      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
-        incrementGuestSearch(identity.fingerprint);
-      }
+      // Find Similar does NOT increment guest search counter
 
-      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "similar");
       return json(res, 200, {
         source_product_id: productId,
         products: annotated,
         total: annotated.length,
         method: "semantic",
-        searches_remaining: updatedAccess.searches_remaining,
-        subscription_status: updatedAccess.status,
       });
     }
 
@@ -1524,6 +1559,12 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return result.user.email === "tyler@spekd.ai";
     }
 
+    // GET /admin/funnel — trial funnel metrics
+    if (req.method === "GET" && req.url === "/admin/funnel") {
+      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      return json(res, 200, getFunnelMetrics());
+    }
+
     // 1. GET /admin/overview — top-line metrics + recent activity
     if (req.method === "GET" && req.url === "/admin/overview") {
       if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
@@ -1829,13 +1870,55 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const query = String(body.query || "").trim();
       if (!query) return json(res, 400, { error: "query required" });
 
-      // Determine if user is Pro
+      // ── Determine search tier ──
       const identity = getRequestIdentity(req, body);
-      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
-      const isPro = access.allowed && (access.status === "active" || access.status === "cancelled" || access.status === "past_due" || access.status === "internal");
 
-      // ── FREE PATH: vector-only, no Haiku, no API cost ──
-      if (!isPro) {
+      let searchTier; // "pro" | "free_hook" | "trial_required" | "free_fallback"
+      let searchesRemaining = null;
+      let trialDaysRemaining = null;
+      let subStatus = "guest";
+
+      if (identity.userId) {
+        const status = getUserStatus(identity.userId);
+        subStatus = status;
+        if (status === "active" || status === "trialing" || status === "cancelled" || status === "past_due" || status === "internal") {
+          searchTier = "pro";
+          // Calculate trial days remaining
+          if (status === "trialing") {
+            const sub = getSubscription(identity.userId);
+            if (sub?.trial_end) {
+              trialDaysRemaining = Math.max(0, Math.ceil((new Date(sub.trial_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+            }
+          }
+        } else {
+          searchTier = "free_fallback"; // expired user → vector-only
+        }
+      } else if (!identity.fingerprint && !identity.localStorageId) {
+        // No identification at all — internal/API call
+        searchTier = "pro";
+        subStatus = "internal";
+      } else {
+        // Anonymous user
+        const usage = getGuestUsage(identity.fingerprint, identity.ip, identity.localStorageId);
+        if (usage.search_count < FREE_SEARCH_LIMIT) {
+          searchTier = "free_hook"; // full Haiku pipeline, then increment counter
+          searchesRemaining = FREE_SEARCH_LIMIT - usage.search_count - 1; // remaining AFTER this search
+        } else {
+          searchTier = "trial_required";
+        }
+      }
+
+      // 402 — anonymous user out of free searches → show trial signup modal
+      if (searchTier === "trial_required") {
+        return json(res, 402, {
+          error: "trial_required",
+          searches_remaining: 0,
+          subscription_status: "trial_expired",
+        });
+      }
+
+      // ── FREE FALLBACK: expired/cancelled user → vector-only, no Haiku ──
+      if (searchTier === "free_fallback") {
         const vectorStats = getVectorStoreStats();
         if (!vectorStats.ready || vectorStats.total_vectors === 0) {
           return json(res, 503, { error: "Search index not ready" });
@@ -1866,7 +1949,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           has_more: products.length > 20, page: 1,
           result_mode: "vector-only", tier_used: 0, ai_called: false, cache_hit: false,
           facets: {}, products: finalProducts,
-          searches_remaining: null, subscription_status: access.status || "free",
+          searches_remaining: null, subscription_status: subStatus,
+          is_free_fallback: true,
         });
       }
 
@@ -1953,15 +2037,15 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       });
       recordSearch(query);
 
-      // Increment guest search count
-      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
+      // Increment free search counter for anonymous users (free_hook)
+      if (searchTier === "free_hook") {
         incrementGuestSearch(identity.fingerprint);
       }
 
       // Add subscription info to response
-      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
-      response.searches_remaining = updatedAccess.searches_remaining;
-      response.subscription_status = updatedAccess.status;
+      response.searches_remaining = searchesRemaining;
+      response.subscription_status = subStatus;
+      response.trial_days_remaining = trialDaysRemaining;
 
       // Cache for 2 hours (handled by searchPipeline, but also cache here for the old cacheKey format)
       const cacheKey = `search:${query.toLowerCase()}:${JSON.stringify(requestFilters)}:p${page}`;
@@ -2772,16 +2856,21 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     if (req.method === "POST" && req.url === "/conversational-search") {
       const body = await collectBody(req);
 
-      // Subscription check
+      // Follow-up refinements do NOT count as separate searches
+      // But user must have had at least one search in the session (or be a subscriber)
       const identity = getRequestIdentity(req, body);
-      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
-      if (!access.allowed) {
-        return json(res, 402, {
-          error: "subscription_required",
-          status: access.status,
-          reason: access.reason,
-          searches_remaining: 0,
-        });
+
+      // Block only if completely unauthorized (no free searches ever, no subscription)
+      if (identity.userId) {
+        const status = getUserStatus(identity.userId);
+        if (status === "trial_expired") {
+          // Expired users can't use conversational search (Pro feature)
+          return json(res, 402, {
+            error: "subscription_required",
+            status: "trial_expired",
+            reason: "Pro subscription required for conversational search",
+          });
+        }
       }
 
       const conversation = Array.isArray(body.conversation) ? body.conversation : [];
@@ -2798,12 +2887,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const result = await searchPipeline(queryText, { conversation });
       const responseProducts = result.products.map(sanitizeSearchProduct);
 
-      // Increment guest search count
-      if (!identity.userId || getUserStatus(identity.userId) === "guest") {
-        incrementGuestSearch(identity.fingerprint);
-      }
+      // Follow-ups do NOT increment guest search counter
 
-      const updatedAccess = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
       return json(res, 200, {
         intent: result.intent,
         ai_summary: result.ai_summary,
@@ -2818,8 +2903,6 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           previous_results_count: 0,
         },
         session_id: sessionId,
-        searches_remaining: updatedAccess.searches_remaining,
-        subscription_status: updatedAccess.status,
       });
     }
 

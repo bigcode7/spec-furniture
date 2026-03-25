@@ -16,7 +16,7 @@ const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const EVENTS_FILE = path.join(DATA_DIR, "subscription-events.json");
 const TEAMS_FILE = path.join(DATA_DIR, "teams.json");
 
-const FREE_SEARCH_LIMIT = 5;
+const FREE_SEARCH_LIMIT = 3;
 const FREE_QUOTE_LIMIT = 1;
 const FREE_QUOTE_ITEM_LIMIT = 5;
 const GRACE_PERIOD_DAYS = 7;
@@ -182,6 +182,13 @@ function getUserStatus(userId) {
   if (!sub) return "guest";
 
   if (sub.status === "active") return "active";
+  if (sub.status === "trialing") {
+    // Check if trial has ended
+    const trialEnd = new Date(sub.trial_end || 0);
+    if (Date.now() < trialEnd.getTime()) return "trialing";
+    // Trial ended but no payment yet — will be caught by webhook
+    return "trialing"; // Stripe manages the transition
+  }
 
   if (sub.status === "past_due") {
     // Check grace period
@@ -233,9 +240,15 @@ function checkAccess(userId, fingerprint, ip, localStorageId, action = "search")
     }
 
     const status = getUserStatus(userId);
-    if (status === "active" || status === "cancelled") {
-      // cancelled still has access until period end
-      return { allowed: true, status };
+    if (status === "active" || status === "trialing" || status === "cancelled") {
+      // trialing = 7-day trial, cancelled still has access until period end
+      const sub = subscriptions[userId];
+      return {
+        allowed: true,
+        status,
+        trial_end: sub?.trial_end || null,
+        current_period_end: sub?.current_period_end || null,
+      };
     }
     if (status === "past_due") {
       // Still has access during grace period, but show warning
@@ -638,6 +651,57 @@ function getTeamMembers(teamId) {
   return team.members;
 }
 
+// ─── FUNNEL METRICS ───
+
+function getFunnelMetrics() {
+  const allGuests = Object.values(guests);
+  const allSubs = Object.values(subscriptions);
+
+  const anonymousVisitors = allGuests.length;
+  const usedAllFreeSearches = allGuests.filter(g => (g.search_count || 0) >= FREE_SEARCH_LIMIT).length;
+  const trialSignups = allSubs.filter(s => s.created_at).length;
+  const trialActive = allSubs.filter(s => s.status === "trialing").length;
+  const convertedToPro = allSubs.filter(s => s.status === "active").length;
+  const cancelled = allSubs.filter(s => s.status === "cancelled" || s.status === "trial_expired").length;
+
+  // Trials expiring in next 48 hours
+  const now = Date.now();
+  const in48h = now + 48 * 60 * 60 * 1000;
+  const trialsExpiringSoon = allSubs.filter(s => {
+    if (s.status !== "trialing" || !s.trial_end) return false;
+    const end = new Date(s.trial_end).getTime();
+    return end > now && end <= in48h;
+  });
+
+  // Failed payments needing attention
+  const failedPayments = allSubs.filter(s => s.status === "past_due");
+
+  // Conversion rates
+  const signupRate = anonymousVisitors > 0 ? (trialSignups / usedAllFreeSearches * 100).toFixed(1) : "0.0";
+  const conversionRate = trialSignups > 0 ? (convertedToPro / trialSignups * 100).toFixed(1) : "0.0";
+
+  return {
+    anonymous_visitors: anonymousVisitors,
+    used_all_free_searches: usedAllFreeSearches,
+    trial_signups: trialSignups,
+    trial_active: trialActive,
+    converted_to_pro: convertedToPro,
+    cancelled,
+    signup_rate: parseFloat(signupRate),
+    conversion_rate: parseFloat(conversionRate),
+    trials_expiring_soon: trialsExpiringSoon.map(s => ({
+      user_id: s.user_id,
+      trial_end: s.trial_end,
+      plan: s.plan,
+    })),
+    failed_payments: failedPayments.map(s => ({
+      user_id: s.user_id,
+      payment_failed_at: s.payment_failed_at,
+      plan: s.plan,
+    })),
+  };
+}
+
 export {
   initSubscriptionStore,
   getGuestUsage,
@@ -667,6 +731,7 @@ export {
   removeMember,
   addSeat,
   getTeamMembers,
+  getFunnelMetrics,
   FREE_SEARCH_LIMIT,
   FREE_QUOTE_LIMIT,
   FREE_QUOTE_ITEM_LIMIT,

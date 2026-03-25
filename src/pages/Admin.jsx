@@ -988,9 +988,100 @@ function ActivityLogTab({ data, loading, error }) {
   );
 }
 
+// ── Metric Card ──
+function MetricCard({ label, value, sub }) {
+  return (
+    <div className="bg-gray-800 rounded-xl p-4">
+      <div className="text-xs text-gray-500 mb-1">{label}</div>
+      <div className="text-2xl font-bold text-white">{value}</div>
+      {sub && <div className="text-[10px] text-gray-600 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+// ── Funnel Tab ──
+
+function FunnelTab({ data, loading, error }) {
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+  if (!data) return null;
+
+  const stages = [
+    { label: "Anonymous Visitors", value: data.anonymous_visitors, color: "gray" },
+    { label: "Used All 3 Free Searches", value: data.used_all_free_searches, color: "blue" },
+    { label: "Trial Signups", value: data.trial_signups, color: "purple" },
+    { label: "Trial Active", value: data.trial_active, color: "amber" },
+    { label: "Converted to Pro", value: data.converted_to_pro, color: "emerald" },
+    { label: "Cancelled", value: data.cancelled, color: "red" },
+  ];
+
+  const maxVal = Math.max(...stages.map(s => s.value || 0), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* Funnel visualization */}
+      <div className="bg-gray-800 rounded-xl p-6 space-y-3">
+        <h3 className="text-sm font-semibold text-white mb-4">Trial Funnel</h3>
+        {stages.map((s, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-48 text-xs text-gray-400 text-right shrink-0">{s.label}</div>
+            <div className="flex-1 h-7 bg-gray-700/50 rounded relative overflow-hidden">
+              <div
+                className={`h-full rounded bg-${s.color}-500/30 border-r-2 border-${s.color}-400 transition-all`}
+                style={{ width: `${Math.max(2, ((s.value || 0) / maxVal) * 100)}%` }}
+              />
+              <span className={`absolute left-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-${s.color}-400`}>
+                {(s.value || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Conversion rates */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard label="Signup Rate" value={`${data.signup_rate || 0}%`} sub="Free searches → trial signup" />
+        <MetricCard label="Conversion Rate" value={`${data.conversion_rate || 0}%`} sub="Trial → paid Pro" />
+        <MetricCard label="Trials Active" value={data.trial_active || 0} sub="Currently trialing" />
+        <MetricCard label="Failed Payments" value={(data.failed_payments || []).length} sub="Needs attention" />
+      </div>
+
+      {/* Trials expiring soon */}
+      {(data.trials_expiring_soon || []).length > 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+          <h4 className="text-xs font-semibold text-amber-400 mb-3">Trials Expiring in 48 Hours</h4>
+          <div className="space-y-2">
+            {data.trials_expiring_soon.map((t, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="text-gray-300">{t.user_id}</span>
+                <span className="text-gray-500">{t.plan} — ends {new Date(t.trial_end).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Failed payments */}
+      {(data.failed_payments || []).length > 0 && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+          <h4 className="text-xs font-semibold text-red-400 mb-3">Failed Payments</h4>
+          <div className="space-y-2">
+            {data.failed_payments.map((p, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="text-gray-300">{p.user_id}</span>
+                <span className="text-gray-500">{p.plan} — failed {p.payment_failed_at ? new Date(p.payment_failed_at).toLocaleDateString() : "unknown"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Admin Component ──
 
-const TABS = ["Overview", "Users", "Catalog Health", "Activity Log"];
+const TABS = ["Overview", "Funnel", "Users", "Catalog Health", "Activity Log"];
 
 export default function Admin() {
   const { user, isLoadingAuth } = useAuth();
@@ -1016,6 +1107,11 @@ export default function Admin() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState(null);
   const [activityLoaded, setActivityLoaded] = useState(false);
+
+  const [funnelData, setFunnelData] = useState(null);
+  const [funnelLoading, setFunnelLoading] = useState(false);
+  const [funnelError, setFunnelError] = useState(null);
+  const [funnelLoaded, setFunnelLoaded] = useState(false);
 
   const fetchOverview = useCallback((force = false) => {
     if (overviewLoaded && !force) return;
@@ -1060,13 +1156,24 @@ export default function Admin() {
       .finally(() => setActivityLoading(false));
   }, [activityLoaded]);
 
+  const fetchFunnel = useCallback((force = false) => {
+    if (funnelLoaded && !force) return;
+    setFunnelLoading(true);
+    setFunnelError(null);
+    adminFetch("/admin/funnel")
+      .then((d) => { setFunnelData(d); setFunnelLoaded(true); })
+      .catch((e) => setFunnelError(e.message))
+      .finally(() => setFunnelLoading(false));
+  }, [funnelLoaded]);
+
   // Fetch data on tab switch
   useEffect(() => {
     if (tab === "Overview") fetchOverview();
+    else if (tab === "Funnel") fetchFunnel();
     else if (tab === "Users") fetchUsers();
     else if (tab === "Catalog Health") fetchCatalog();
     else if (tab === "Activity Log") fetchActivity();
-  }, [tab, fetchOverview, fetchUsers, fetchCatalog, fetchActivity]);
+  }, [tab, fetchOverview, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
 
   // Auth gate
   if (isLoadingAuth) return null;
@@ -1107,6 +1214,9 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {tab === "Overview" && (
           <OverviewTab data={overviewData} loading={overviewLoading} error={overviewError} />
+        )}
+        {tab === "Funnel" && (
+          <FunnelTab data={funnelData} loading={funnelLoading} error={funnelError} />
         )}
         {tab === "Users" && (
           <UsersTab

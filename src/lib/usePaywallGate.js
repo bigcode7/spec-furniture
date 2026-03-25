@@ -19,7 +19,7 @@ export function usePaywallGate() {
     // Check localStorage for subscription status
     try {
       const status = localStorage.getItem("spec_sub_status");
-      return status === "active" || status === "cancelled"; // cancelled still has access
+      return status === "active" || status === "trialing" || status === "cancelled"; // trialing/cancelled still have access
     } catch {
       return false;
     }

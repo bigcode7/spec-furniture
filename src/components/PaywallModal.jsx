@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Lock, Zap, Search, FileText, Star, Layers, Users, ArrowRight, Loader2, Check, Shield, Headphones, Building2, Crown } from "lucide-react";
+import { motion } from "framer-motion";
+import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, Users, Shield, Headphones, Building2, Crown, X, Loader2, Check } from "lucide-react";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
 const GOLD = "#C9A96E";
-const GOLD_BG = "rgba(201,169,110,0.08)";
-const GOLD_BORDER = "rgba(201,169,110,0.3)";
 const GOLD_SHADOW = "rgba(201,169,110,0.3)";
 
 const PRO_FEATURES = [
   { icon: Zap, text: "AI-powered search with expert advice" },
-  { icon: Search, text: "Up to 80 results per search (vs 20 free)" },
+  { icon: Search, text: "Up to 80 results per search" },
   { icon: ArrowRight, text: "Conversational search refinement" },
   { icon: Layers, text: "Paste sourcing lists with room buckets" },
   { icon: FileText, text: "Unlimited quotes & PDF generation" },
@@ -20,25 +18,18 @@ const PRO_FEATURES = [
   { icon: Zap, text: "Room packages with auto-matching" },
 ];
 
-const TEAM_EXTRAS = [
-  { icon: Users, text: "5 team seats included" },
-  { icon: Layers, text: "Shared quotes & favorites" },
-  { icon: Shield, text: "Team admin dashboard" },
-  { icon: Users, text: "Additional seats at $49/mo each" },
-];
-
-const ENTERPRISE_EXTRAS = [
-  { icon: Users, text: "Unlimited seats" },
-  { icon: Shield, text: "SSO & SAML" },
-  { icon: Headphones, text: "Dedicated account manager" },
-  { icon: Building2, text: "Custom integrations" },
-  { icon: Headphones, text: "Priority support" },
-  { icon: Check, text: "SLA guarantee" },
-];
-
-export default function PaywallModal({ show, onAuthSuccess }) {
-  const [mode, setMode] = useState("paywall"); // paywall | signup | login | forgot
-  const [billing, setBilling] = useState("monthly"); // monthly | annual
+/**
+ * PaywallModal — Trial signup flow.
+ *
+ * Props:
+ *   show       — boolean, whether to render
+ *   onAuthSuccess(user) — called after successful signup+checkout redirect
+ *   mode       — "trial_required" (3 free searches used) | "upgrade" (expired user) | "feature" (Pro feature gate)
+ *   upgradeMessage — optional custom message for upgrade mode
+ */
+export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = "trial_required", upgradeMessage }) {
+  const [step, setStep] = useState("intro"); // intro | signup | login | forgot
+  const [billing, setBilling] = useState("monthly");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -49,10 +40,16 @@ export default function PaywallModal({ show, onAuthSuccess }) {
 
   if (!show) return null;
 
-  const planValue = billing; // "monthly" or "annual" — legacy plan names for Stripe
+  const isUpgrade = initialMode === "upgrade" || initialMode === "feature";
+  const planValue = billing === "annual" ? "annual" : "monthly";
+  const priceLabel = billing === "annual" ? "$990/yr" : "$99/mo";
 
-  const priceLabel = () => {
-    return billing === "annual" ? "$990/yr" : "$99/mo";
+  const inputClass =
+    "w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
+
+  const goldBtnStyle = {
+    background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
+    boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
   };
 
   const handleCheckout = async (e) => {
@@ -92,7 +89,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
         setError("Could not create checkout session");
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
       setLoading(false);
     }
@@ -138,152 +135,11 @@ export default function PaywallModal({ show, onAuthSuccess }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
-      // Always show success regardless of response to avoid leaking account existence
       setForgotSuccess(true);
     } catch {
       setError("Network error. Please try again.");
     }
     setLoading(false);
-  };
-
-  const handleTierSelect = (tier) => {
-    if (tier === "pro") {
-      setMode("signup");
-    }
-    // Team is "Coming Soon" (disabled), Enterprise is "Contact Us" (mailto link)
-    // Neither should reach here, but guard anyway
-  };
-
-  /* --- Shared styles --- */
-  const inputClass =
-    "w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
-
-  const goldBtnStyle = {
-    background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
-    boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
-  };
-
-  /* --- Pricing card renderer --- */
-  const PricingCard = ({ tier, title, monthly, annual, annualSavings, annualPerMonth, features, extras, cta, popular, disabled }) => {
-    const isEnterprise = tier === "enterprise";
-    const isTeam = tier === "team";
-    const cardBorder = popular ? GOLD_BORDER : "rgba(255,255,255,0.08)";
-    const cardBg = popular ? "rgba(201,169,110,0.04)" : "rgba(255,255,255,0.02)";
-
-    return (
-      <div
-        className="relative flex flex-col rounded-2xl p-6"
-        style={{
-          background: cardBg,
-          border: `1px solid ${cardBorder}`,
-          flex: "1 1 0",
-          minWidth: 0,
-        }}
-      >
-        {popular && (
-          <div
-            className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-bold px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
-            style={{ background: GOLD, color: "#101018" }}
-          >
-            <Crown className="h-3 w-3" /> Most Popular
-          </div>
-        )}
-
-        <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
-
-        {!isEnterprise ? (
-          <>
-            <div className="mb-4">
-              {billing === "monthly" ? (
-                <div className="text-3xl font-bold text-white">
-                  ${monthly}<span className="text-sm font-normal text-white/40">/mo</span>
-                </div>
-              ) : (
-                <>
-                  <div className="text-3xl font-bold text-white">
-                    ${annual.toLocaleString()}<span className="text-sm font-normal text-white/40">/yr</span>
-                  </div>
-                  <div className="text-xs text-white/40 mt-0.5">${annualPerMonth}/mo</div>
-                  <div
-                    className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-1"
-                    style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
-                  >
-                    Save ${annualSavings}
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="mb-4">
-            <div className="text-2xl font-bold text-white">Custom pricing</div>
-          </div>
-        )}
-
-        {/* Feature list */}
-        <div className="space-y-2 mb-6 flex-1">
-          {features.map((f, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
-              <span className="text-xs text-white/60 leading-tight">{f.text}</span>
-            </div>
-          ))}
-          {extras && extras.length > 0 && (
-            <>
-              <div className="border-t border-white/[0.06] my-2" />
-              {extras.map((f, i) => (
-                <div key={`e-${i}`} className="flex items-start gap-2">
-                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
-                  <span className="text-xs text-white/60 leading-tight">{f.text}</span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* CTA button */}
-        {isEnterprise ? (
-          <a
-            href="mailto:sales@spekd.ai"
-            className="block w-full py-3 rounded-xl text-sm font-semibold text-center transition-all hover:brightness-110"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "white",
-            }}
-          >
-            {cta}
-          </a>
-        ) : disabled ? (
-          <button
-            disabled
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white/40 cursor-not-allowed"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            {cta}
-          </button>
-        ) : (
-          <button
-            onClick={() => handleTierSelect(tier)}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
-            style={popular ? goldBtnStyle : {
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            {cta}
-          </button>
-        )}
-
-        {/* Session note for Pro */}
-        {tier === "pro" && (
-          <p className="text-[10px] text-white/25 text-center mt-2">Single user, one active session</p>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -292,103 +148,122 @@ export default function PaywallModal({ show, onAuthSuccess }) {
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }}
+      // NOT dismissable by clicking outside
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className={`relative mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8 ${
-          mode === "paywall" ? "w-full max-w-5xl" : "w-full max-w-lg"
-        }`}
+        className="relative mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8 w-full max-w-lg"
         style={{
           background: "rgba(16,17,24,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
         }}
       >
-        {/* --- PAYWALL / TIER SELECTION --- */}
-        {mode === "paywall" && (
+        {/* ── INTRO: Trial pitch ── */}
+        {step === "intro" && (
           <div>
-            {/* Header */}
             <div className="flex justify-center mb-5">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ background: "rgba(201,169,110,0.1)", border: `1px solid rgba(201,169,110,0.2)` }}
+                style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
               >
-                <Lock className="h-6 w-6" style={{ color: GOLD }} />
+                <Zap className="h-6 w-6" style={{ color: GOLD }} />
               </div>
             </div>
 
-            <h2 className="text-xl font-semibold text-white text-center mb-2">
-              Unlock the full SPEKD experience
-            </h2>
-            <p className="text-sm text-white/50 text-center mb-6 leading-relaxed max-w-xl mx-auto">
-              Free search finds great products. Pro search adds AI-powered expert advice, conversational refinement, quotes, PDFs, and up to 80 results per search.
-            </p>
+            {isUpgrade ? (
+              <>
+                <h2 className="text-xl font-semibold text-white text-center mb-2">
+                  {upgradeMessage ? "Upgrade to Pro" : "Welcome back!"}
+                </h2>
+                <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                  {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-white text-center mb-2">
+                  You just experienced SPEKD Pro.
+                </h2>
+                <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                  Designers using SPEKD source an entire room in under 5 minutes — that used to take 3-4 hours across 20 vendor websites.
+                </p>
+              </>
+            )}
 
             {/* Billing toggle */}
-            <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex items-center justify-center gap-3 mb-5">
               <button
                 onClick={() => setBilling("monthly")}
                 className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
                 style={{
-                  background: billing === "monthly" ? GOLD_BG : "transparent",
-                  border: `1px solid ${billing === "monthly" ? GOLD_BORDER : "rgba(255,255,255,0.08)"}`,
+                  background: billing === "monthly" ? "rgba(201,169,110,0.08)" : "transparent",
+                  border: `1px solid ${billing === "monthly" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
                   color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
                 }}
               >
-                Monthly
+                $99/mo
               </button>
               <button
                 onClick={() => setBilling("annual")}
-                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
+                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
                 style={{
-                  background: billing === "annual" ? GOLD_BG : "transparent",
-                  border: `1px solid ${billing === "annual" ? GOLD_BORDER : "rgba(255,255,255,0.08)"}`,
+                  background: billing === "annual" ? "rgba(201,169,110,0.08)" : "transparent",
+                  border: `1px solid ${billing === "annual" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
                   color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
                 }}
               >
-                Annual
+                $990/yr
+                <span
+                  className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
+                >
+                  Save $198
+                </span>
               </button>
             </div>
 
-            {/* Pricing cards — 3 columns on desktop, stacked on mobile */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <PricingCard
-                tier="pro"
-                title="Pro"
-                monthly={99}
-                annual={990}
-                annualSavings={198}
-                annualPerMonth="82.50"
-                features={PRO_FEATURES}
-                cta="Start Pro"
-                popular
-              />
-              <PricingCard
-                tier="team"
-                title="Team"
-                monthly={249}
-                annual={2490}
-                annualSavings={498}
-                annualPerMonth="207.50"
-                features={PRO_FEATURES}
-                extras={TEAM_EXTRAS}
-                cta="Coming Soon"
-                disabled
-              />
-              <PricingCard
-                tier="enterprise"
-                title="Enterprise"
-                features={[...PRO_FEATURES.slice(0, 3), ...TEAM_EXTRAS.slice(0, 2)]}
-                extras={ENTERPRISE_EXTRAS}
-                cta="Contact Us"
-              />
+            {/* Feature list */}
+            <div className="space-y-2 mb-6">
+              {PRO_FEATURES.map((f, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
+                  <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+                </div>
+              ))}
             </div>
 
-            <p className="text-center">
+            {/* Team & Enterprise teaser */}
+            <div className="flex gap-3 mb-6">
+              <div className="flex-1 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="text-xs font-semibold text-white/50 mb-0.5">Team</div>
+                <div className="text-[10px] text-white/30">$249/mo — Coming Soon</div>
+              </div>
+              <div className="flex-1 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="text-xs font-semibold text-white/50 mb-0.5">Enterprise</div>
+                <div className="text-[10px] text-white/30">Custom — Coming Soon</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep("signup")}
+              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              style={goldBtnStyle}
+            >
+              {isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
+            </button>
+
+            {!isUpgrade && (
+              <p className="text-[11px] text-white/30 text-center mt-2">
+                You won't be charged for 7 days. Cancel anytime.
+              </p>
+            )}
+
+            <p className="text-center mt-4">
               <button
-                onClick={() => setMode("login")}
+                onClick={() => { setError(""); setStep("login"); }}
                 className="text-xs text-white/30 hover:text-white/50 transition-colors"
               >
                 Already have an account? <span className="underline">Sign in</span>
@@ -397,11 +272,11 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           </div>
         )}
 
-        {/* --- SIGNUP FORM --- */}
-        {mode === "signup" && (
+        {/* ── SIGNUP: Email, password, name, company → Stripe ── */}
+        {step === "signup" && (
           <div>
             <button
-              onClick={() => setMode("paywall")}
+              onClick={() => setStep("intro")}
               className="absolute top-4 right-4 text-white/30 hover:text-white/60"
             >
               <X className="h-5 w-5" />
@@ -409,54 +284,58 @@ export default function PaywallModal({ show, onAuthSuccess }) {
 
             <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
             <p className="text-xs text-white/40 mb-1">
-              Pro plan — {priceLabel()}
+              {isUpgrade ? `Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
             </p>
-            <p className="text-xs text-white/30 mb-6">Then you'll complete payment with Stripe</p>
+            <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
 
-            <form onSubmit={handleCheckout} className="space-y-4">
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputClass}
-                  placeholder="you@studio.com"
-                />
+            <form onSubmit={handleCheckout} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="you@studio.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                    placeholder="Min. 8 characters"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputClass}
-                  placeholder="Min. 8 characters"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Full name</label>
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className={inputClass}
-                  placeholder="Jane Smith"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Company / studio name</label>
-                <input
-                  type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  className={inputClass}
-                  placeholder="Optional"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Full name</label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Jane Smith"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Company</label>
+                  <input
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Optional"
+                  />
+                </div>
               </div>
 
               {error && (
@@ -472,13 +351,19 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                 style={goldBtnStyle}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loading ? "Creating account..." : `Continue to Payment — ${priceLabel()}`}
+                {loading ? "Creating account..." : isUpgrade ? `Continue to Payment — ${priceLabel}` : "Continue to Payment"}
               </button>
             </form>
 
+            {!isUpgrade && (
+              <p className="text-[11px] text-white/30 text-center mt-2">
+                Card required but not charged during your 7-day trial
+              </p>
+            )}
+
             <p className="text-center mt-4">
               <button
-                onClick={() => setMode("login")}
+                onClick={() => { setError(""); setStep("login"); }}
                 className="text-xs text-white/30 hover:text-white/50 transition-colors"
               >
                 Already have an account? <span className="underline">Sign in</span>
@@ -487,11 +372,11 @@ export default function PaywallModal({ show, onAuthSuccess }) {
           </div>
         )}
 
-        {/* --- LOGIN FORM --- */}
-        {mode === "login" && (
+        {/* ── LOGIN ── */}
+        {step === "login" && (
           <div>
             <button
-              onClick={() => setMode("paywall")}
+              onClick={() => setStep("intro")}
               className="absolute top-4 right-4 text-white/30 hover:text-white/60"
             >
               <X className="h-5 w-5" />
@@ -541,26 +426,26 @@ export default function PaywallModal({ show, onAuthSuccess }) {
 
             <div className="text-center mt-4 space-y-2">
               <button
-                onClick={() => { setError(""); setForgotSuccess(false); setMode("forgot"); }}
+                onClick={() => { setError(""); setForgotSuccess(false); setStep("forgot"); }}
                 className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
               >
                 Forgot password?
               </button>
               <button
-                onClick={() => setMode("paywall")}
+                onClick={() => setStep("intro")}
                 className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
               >
-                Don't have an account? <span className="underline">View plans</span>
+                Don't have an account? <span className="underline">Start free trial</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* --- FORGOT PASSWORD --- */}
-        {mode === "forgot" && (
+        {/* ── FORGOT PASSWORD ── */}
+        {step === "forgot" && (
           <div>
             <button
-              onClick={() => setMode("login")}
+              onClick={() => setStep("login")}
               className="absolute top-4 right-4 text-white/30 hover:text-white/60"
             >
               <X className="h-5 w-5" />
@@ -575,7 +460,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
                   If an account exists with that email, a reset link has been sent.
                 </div>
                 <button
-                  onClick={() => { setForgotSuccess(false); setError(""); setMode("login"); }}
+                  onClick={() => { setForgotSuccess(false); setError(""); setStep("login"); }}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
                 >
                   Back to login
@@ -615,7 +500,7 @@ export default function PaywallModal({ show, onAuthSuccess }) {
 
                 <p className="text-center mt-4">
                   <button
-                    onClick={() => { setError(""); setMode("login"); }}
+                    onClick={() => { setError(""); setStep("login"); }}
                     className="text-xs text-white/30 hover:text-white/50 transition-colors"
                   >
                     Back to login

@@ -108,6 +108,7 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
     cancel_url: cancelUrl,
     metadata: { user_id: userId, plan },
     subscription_data: {
+      trial_period_days: 7,
       metadata: { user_id: userId, plan },
     },
   });

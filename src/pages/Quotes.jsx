@@ -195,7 +195,7 @@ export default function Quotes() {
   const handleGeneratePdf = async (pdfMode) => {
     // Paywall gate: require active subscription for PDF generation
     const subStatus = localStorage.getItem("spec_sub_status");
-    if (subStatus !== "active" && subStatus !== "cancelled") {
+    if (subStatus !== "active" && subStatus !== "trialing" && subStatus !== "cancelled") {
       alert("Upgrade to Pro to generate PDFs");
       return;
     }

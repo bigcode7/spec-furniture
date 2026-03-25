@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 
-export default function UsageCounter({ remaining, total = 5 }) {
+export default function UsageCounter({ remaining, total = 3 }) {
   // Don't show for active subscribers (remaining would be null/undefined)
   if (remaining == null || remaining > total) return null;
 
-  const urgency = remaining <= 1 ? "#ef4444" : remaining <= 2 ? "#f59e0b" : "#C9A96E";
+  const urgency = remaining <= 0 ? "#ef4444" : remaining <= 1 ? "#f59e0b" : "#C9A96E";
 
   return (
     <AnimatePresence>

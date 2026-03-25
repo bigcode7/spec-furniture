@@ -39,12 +39,10 @@ import {
   getQuote,
   addQuoteRoom,
 } from "@/lib/growth-store";
-import { useGuestGate } from "@/lib/GuestGate";
 import { useTradePricing } from "@/lib/TradePricingContext";
 import PaywallModal from "@/components/PaywallModal";
-import OnboardingFlow from "@/components/OnboardingFlow";
 import UsageCounter from "@/components/UsageCounter";
-import { ensureGuestToken, incrementLocalUsage, checkSubscriptionStatus } from "@/lib/fingerprint";
+import { ensureGuestToken, checkSubscriptionStatus } from "@/lib/fingerprint";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 
@@ -292,11 +290,13 @@ export default function SearchPage() {
   const [bucketSelections, setBucketSelections] = useState(new Map());
   const originalBucketProducts = useRef(null); // stores original product order per bucket
 
-  // Paywall & subscription
+  // Trial & subscription
   const [showPaywall, setShowPaywall] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [paywallMode, setPaywallMode] = useState("trial_required");
   const [searchesRemaining, setSearchesRemaining] = useState(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(null);
+  const [isFreeFallback, setIsFreeFallback] = useState(false);
 
   const [totalAvailable, setTotalAvailable] = useState(0);
 
@@ -304,13 +304,11 @@ export default function SearchPage() {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
-  // Guest gate — track searches, gate features
-  const { trackSearch, requireAccount, isGuest } = useGuestGate();
 
   const isPro = (() => {
     try {
       const status = localStorage.getItem("spec_sub_status");
-      return status === "active" || status === "cancelled";
+      return status === "active" || status === "trialing" || status === "cancelled";
     } catch { return false; }
   })();
 
@@ -353,16 +351,21 @@ export default function SearchPage() {
       if (status.searches_remaining != null) {
         setSearchesRemaining(status.searches_remaining);
       }
+      if (status.trial_days_remaining != null) {
+        setTrialDaysRemaining(status.trial_days_remaining);
+      }
+      if (status.status === "trial_expired") {
+        setIsFreeFallback(true);
+      }
       // Check URL for subscription success (returning from Stripe)
       const params = new URLSearchParams(window.location.search);
       if (params.get("subscription") === "success") {
-        setShowOnboarding(true);
-        // Clean URL
+        // Clean URL — user just returned from Stripe checkout
         window.history.replaceState({}, "", "/Search");
+        window.location.reload();
       }
     }
     initSubscription();
-    // Also ensure guest token exists
     ensureGuestToken();
   }, []);
 
@@ -439,13 +442,9 @@ export default function SearchPage() {
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, assistantMsg]);
-      // Update remaining count for guests
-      if (subscriptionStatus === "guest" || !subscriptionStatus) {
-        incrementLocalUsage("searches");
-        setSearchesRemaining(prev => prev != null ? Math.max(0, prev - 1) : null);
-      }
     } catch (err) {
       if (err.status === 402 || err.message === "subscription_required") {
+        setPaywallMode("upgrade");
         setShowPaywall(true);
         setLoading(false);
         return;
@@ -596,14 +595,25 @@ export default function SearchPage() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setRecentSearches(pushRecentSearch(trimmed));
-      trackSearch(); // Track for guest signup prompt
-      // Update remaining count for pro guests only
-      if (isPro && (subscriptionStatus === "guest" || !subscriptionStatus)) {
-        incrementLocalUsage("searches");
-        setSearchesRemaining(prev => prev != null ? Math.max(0, prev - 1) : null);
+      // Update search counter and trial info from response
+      if (data.searches_remaining != null) {
+        setSearchesRemaining(data.searches_remaining);
+      }
+      if (data.trial_days_remaining != null) {
+        setTrialDaysRemaining(data.trial_days_remaining);
+      }
+      if (data.is_free_fallback) {
+        setIsFreeFallback(true);
       }
     } catch (err) {
       if (err.status === 402 || err.message === "subscription_required") {
+        // Determine paywall mode based on error
+        const errData = err.data || {};
+        if (errData.error === "trial_required") {
+          setPaywallMode("trial_required");
+        } else {
+          setPaywallMode("upgrade");
+        }
         setShowPaywall(true);
         setLoading(false);
         return;
@@ -770,35 +780,32 @@ export default function SearchPage() {
   };
 
   const handleToggleFavorite = (product) => {
-    requireAccount("favorite", product, () => {
-      // Paywall gate: require active subscription for favorites
-      const subStatus = localStorage.getItem("spec_sub_status");
-      if (subStatus !== "active" && subStatus !== "cancelled") {
-        setShowPaywall(true);
-        return;
-      }
-      const { next, added } = toggleFavorite(normalizeSearchResult(product));
-      setFavorites(next);
-      setFavoriteToast(added ? "Saved to favorites" : "Removed from favorites");
-      setTimeout(() => setFavoriteToast(null), 2000);
-    });
+    // Require active subscription for favorites
+    const subStatus = localStorage.getItem("spec_sub_status");
+    if (subStatus !== "active" && subStatus !== "trialing" && subStatus !== "cancelled") {
+      setPaywallMode("feature");
+      setShowPaywall(true);
+      return;
+    }
+    const { next, added } = toggleFavorite(normalizeSearchResult(product));
+    setFavorites(next);
+    setFavoriteToast(added ? "Saved to favorites" : "Removed from favorites");
+    setTimeout(() => setFavoriteToast(null), 2000);
   };
 
   const handleAddToQuote = (product, e) => {
     if (!isPro) {
+      setPaywallMode("feature");
       setShowPaywall(true);
       return;
     }
-    requireAccount("quote", product, () => {
-      // Show dropdown with room choices
-      const rect = e?.currentTarget?.getBoundingClientRect?.();
-      if (rect) {
-        setQuoteDropdownPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 220) });
-      } else {
-        setQuoteDropdownPos({ top: window.innerHeight / 2, left: window.innerWidth / 2 - 100 });
-      }
-      setQuoteDropdownProduct(product);
-    });
+    const rect = e?.currentTarget?.getBoundingClientRect?.();
+    if (rect) {
+      setQuoteDropdownPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 220) });
+    } else {
+      setQuoteDropdownPos({ top: window.innerHeight / 2, left: window.innerWidth / 2 - 100 });
+    }
+    setQuoteDropdownProduct(product);
   };
 
   const handleQuoteRoomSelect = (product, roomId, roomName) => {
@@ -1121,23 +1128,6 @@ export default function SearchPage() {
                 </div>
               </motion.div>
             )}
-            {/* AI teaser — Free users */}
-            {!isPro && !loading && visibleProducts.length > 0 && (
-              <div className="relative mb-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 overflow-hidden">
-                <div className="absolute inset-0 backdrop-blur-[6px] bg-[#0e0e14]/60 z-10 flex items-center justify-center">
-                  <div className="text-center">
-                    <Zap className="h-5 w-5 text-gold/60 mx-auto mb-2" />
-                    <p className="text-sm text-white/70 font-medium">AI-powered designer insights</p>
-                    <p className="text-xs text-white/35 mt-1 mb-3">Get expert advice tailored to your search</p>
-                    <button onClick={() => setShowPaywall(true)} className="text-xs font-semibold text-gold hover:text-gold/80 transition-colors">
-                      Upgrade to Pro &rarr;
-                    </button>
-                  </div>
-                </div>
-                <p className="text-sm text-white/20 leading-relaxed">For leather sofas, Hancock & Moore offers the best full-grain hides in the trade...</p>
-              </div>
-            )}
-
             {/* Loading */}
             {loading && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-3 py-4">
@@ -1444,18 +1434,6 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {/* Free tier result limit */}
-                {!isPro && totalAvailable > 20 && (
-                  <div className="mt-4 rounded-xl border border-gold/10 bg-gold/[0.02] p-5 text-center">
-                    <p className="text-sm text-white/60">
-                      Showing 20 of {totalAvailable} matches
-                    </p>
-                    <button onClick={() => setShowPaywall(true)} className="mt-2 text-xs font-semibold text-gold hover:text-gold/80 transition-colors">
-                      Upgrade to Pro to see all results &rarr;
-                    </button>
-                  </div>
-                )}
-
                 {/* End of results */}
                 {!hasMoreLocal && !hasMoreServer && sorted.length > INITIAL_PAGE_SIZE && (
                   <div className="text-center py-8">
@@ -1491,7 +1469,7 @@ export default function SearchPage() {
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={!isPro && hasConversation ? "Upgrade to Pro for conversational search refinement" : "Refine your search or ask me anything..."}
+                      placeholder="Refine your search or ask me anything..."
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -1609,23 +1587,46 @@ export default function SearchPage() {
 
       <PaywallModal
         show={showPaywall}
+        mode={paywallMode}
         onAuthSuccess={(user) => {
           setShowPaywall(false);
           setSubscriptionStatus("active");
           setSearchesRemaining(null);
-          // Refresh auth context
+          setIsFreeFallback(false);
           window.location.reload();
         }}
       />
-      <OnboardingFlow
-        show={showOnboarding}
-        onComplete={() => {
-          setShowOnboarding(false);
-          setSubscriptionStatus("active");
-          setSearchesRemaining(null);
-        }}
-      />
-      {isPro && <UsageCounter remaining={searchesRemaining} />}
+
+      {/* Free searches remaining counter (anonymous users only) */}
+      {!isPro && searchesRemaining != null && searchesRemaining >= 0 && <UsageCounter remaining={searchesRemaining} total={3} />}
+
+      {/* Trial banner */}
+      {subscriptionStatus === "trialing" && trialDaysRemaining != null && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-1.5 text-xs font-medium"
+          style={{ background: "rgba(201,169,110,0.15)", color: "#C9A96E", borderBottom: "1px solid rgba(201,169,110,0.2)" }}
+        >
+          Trial: {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} remaining
+        </div>
+      )}
+
+      {/* Free fallback upgrade banner */}
+      {isFreeFallback && !showPaywall && (
+        <div
+          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-auto z-40 flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer hover:brightness-110 transition-all"
+          style={{
+            background: "rgba(16,17,24,0.95)",
+            border: "1px solid rgba(201,169,110,0.25)",
+            backdropFilter: "blur(12px)",
+          }}
+          onClick={() => { setPaywallMode("upgrade"); setShowPaywall(true); }}
+        >
+          <Zap className="h-4 w-4 shrink-0" style={{ color: "#C9A96E" }} />
+          <span className="text-xs text-white/70">
+            Upgrade to Pro for AI-powered search, unlimited results, and client presentations — <span className="font-semibold" style={{ color: "#C9A96E" }}>$99/month</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

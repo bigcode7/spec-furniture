@@ -99,7 +99,7 @@ async function ensureGuestToken() {
   return {
     token: existing,
     status: "guest",
-    searches_remaining: Math.max(0, 5 - getLocalUsage().searches),
+    searches_remaining: Math.max(0, 3 - getLocalUsage().searches),
     quotes_remaining: Math.max(0, 1 - getLocalUsage().quotes),
   };
 }
@@ -144,7 +144,7 @@ async function checkSubscriptionStatus() {
     } catch {}
     return data;
   } catch {
-    return { status: "guest", searches_remaining: 5 };
+    return { status: "guest", searches_remaining: 3 };
   }
 }
 

@@ -907,9 +907,13 @@ function SubscriptionSection({ toast }) {
   }
 
   const isActive = sub?.status === "active";
+  const isTrialing = sub?.status === "trialing";
   const isCancelled = sub?.status === "cancelled";
   const isPastDue = sub?.status === "past_due";
+  const isExpired = sub?.status === "trial_expired" || sub?.status === "guest";
   const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
+  const trialEnd = sub?.trial_end ? new Date(sub.trial_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
+  const trialDays = sub?.trial_days_remaining;
 
   return (
     <Section title="Subscription" description="Manage your plan and billing.">
@@ -918,22 +922,28 @@ function SubscriptionSection({ toast }) {
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold)]/70 mb-1">
-              {isActive ? "SPEKD Pro" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
+              {isActive ? "SPEKD Pro" : isTrialing ? "SPEKD Pro — Trial" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
             </div>
             <div className="text-xl font-semibold text-white">
-              {sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
+              {isTrialing ? "Free Trial" : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
             </div>
+            {isTrialing && trialEnd && (
+              <div className="text-xs text-white/40 mt-0.5">
+                Trial ends {trialEnd}{trialDays != null && ` (${trialDays} day${trialDays !== 1 ? "s" : ""} remaining)`}
+              </div>
+            )}
           </div>
           <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${
             isActive ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+            isTrialing ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
             isCancelled ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
             isPastDue ? "bg-red-500/10 text-red-400 border border-red-500/20" :
             "bg-white/5 text-white/40 border border-white/10"
           }`}>
             <div className={`h-1.5 w-1.5 rounded-full ${
-              isActive ? "bg-emerald-400" : isCancelled ? "bg-amber-400" : isPastDue ? "bg-red-400" : "bg-white/30"
+              isActive ? "bg-emerald-400" : isTrialing ? "bg-blue-400" : isCancelled ? "bg-amber-400" : isPastDue ? "bg-red-400" : "bg-white/30"
             }`} />
-            {isActive ? "Active" : isCancelled ? "Cancels soon" : isPastDue ? "Payment failed" : "Inactive"}
+            {isActive ? "Active" : isTrialing ? "Trial" : isCancelled ? "Cancels soon" : isPastDue ? "Payment failed" : "Inactive"}
           </div>
         </div>
 
@@ -946,25 +956,25 @@ function SubscriptionSection({ toast }) {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-3">
-          {(isActive || isCancelled || isPastDue) && (
+          {(isActive || isTrialing || isCancelled || isPastDue) && (
             <button onClick={handlePortal} disabled={portalLoading}
               className="flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2.5 text-xs font-medium text-white/50 hover:text-white/80 hover:border-white/15 transition-all disabled:opacity-40">
               {portalLoading ? <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-              Update Payment Method
+              {isPastDue ? "Update Payment Method" : "Manage Billing"}
             </button>
           )}
-          {isCancelled && (
+          {(isCancelled || isExpired) && (
             <button onClick={handleReactivate}
               className="flex items-center gap-2 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20 px-4 py-2.5 text-xs font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/15 transition-all">
               <ArrowRight className="h-3.5 w-3.5" />
-              Reactivate Subscription
+              {isExpired ? "Reactivate Pro — $99/mo" : "Reactivate Subscription"}
             </button>
           )}
         </div>
       </div>
 
       {/* Cancel section */}
-      {isActive && !showCancel && (
+      {(isActive || isTrialing) && !showCancel && (
         <button onClick={() => setShowCancel(true)}
           className="text-xs text-white/25 hover:text-red-400/60 transition-colors mt-2">
           Cancel subscription
