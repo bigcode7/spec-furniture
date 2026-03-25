@@ -358,6 +358,8 @@ async function resolveLFSPointer() {
  * Download catalog from CATALOG_URL if the file doesn't exist on disk.
  * Supports direct download URLs (S3, R2, Dropbox, Google Drive, etc.)
  */
+let catalogDownloadedFromURL = false;
+
 async function downloadCatalogIfMissing() {
   if (fs.existsSync(DB_PATH)) return; // already have it
 
@@ -389,6 +391,7 @@ async function downloadCatalogIfMissing() {
     const merged = { ...baseData, products: mergedProducts };
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(DB_PATH, JSON.stringify(merged));
+    catalogDownloadedFromURL = true;
     console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products`);
   } catch (err) {
     console.error(`[catalog-db] Catalog download failed: ${err.message}`);
@@ -540,6 +543,8 @@ function forceWriteToDisk() {
  * Waits SAVE_DEBOUNCE_MS after the last mutation before writing.
  */
 function scheduleSave() {
+  // On Railway (ephemeral filesystem), skip disk writes — catalog is downloaded fresh each deploy
+  if (catalogDownloadedFromURL) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
