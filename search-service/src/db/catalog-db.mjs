@@ -361,15 +361,16 @@ async function resolveLFSPointer() {
 let catalogDownloadedFromURL = false;
 
 async function downloadCatalogIfMissing() {
-  // Skip download if catalog exists and is large enough (>1MB = real catalog, not sample)
+  // Skip download if catalog exists and is large enough (>50MB = real catalog)
   if (fs.existsSync(DB_PATH)) {
     const size = fs.statSync(DB_PATH).size;
-    if (size > 1_000_000) {
-      // Full catalog on volume — disable disk writes (ephemeral env, protect the file)
+    console.log(`[catalog-db] Existing catalog file: ${(size / 1024 / 1024).toFixed(1)}MB`);
+    if (size > 50_000_000) {
+      // Full catalog on volume — disable disk writes to protect it
       if (process.env.CATALOG_URL) catalogDownloadedFromURL = true;
       return;
     }
-    console.log(`[catalog-db] Existing catalog is only ${(size / 1024).toFixed(0)}KB — re-downloading full catalog`);
+    console.log(`[catalog-db] Catalog too small (${(size / 1024 / 1024).toFixed(1)}MB < 50MB) — re-downloading full catalog`);
     fs.unlinkSync(DB_PATH);
   }
 
