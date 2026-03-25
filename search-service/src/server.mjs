@@ -214,6 +214,11 @@ async function runHeavyInit() {
 
   serviceReady = true;
   console.log(`[server] Heavy init complete — service fully ready`);
+
+  // Heartbeat: log product count every 60s to detect data loss
+  setInterval(() => {
+    console.log(`[heartbeat] products=${getProductCount()} vectors=${getVectorStoreStats().total_vectors} uptime=${Math.floor(process.uptime())}s`);
+  }, 60_000);
 }
 
 const catalogDBInterface = {
@@ -397,7 +402,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/health") {
-      return json(res, 200, { ok: true, ready: serviceReady, catalog_size: getProductCount(), uptime: Math.floor(process.uptime()) });
+      const vs = getVectorStoreStats();
+      return json(res, 200, { ok: true, ready: serviceReady, catalog_size: getProductCount(), vectors: vs.total_vectors, uptime: Math.floor(process.uptime()) });
     }
 
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
