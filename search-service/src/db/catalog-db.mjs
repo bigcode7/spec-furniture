@@ -361,16 +361,32 @@ async function resolveLFSPointer() {
 let catalogDownloadedFromURL = false;
 
 async function downloadCatalogIfMissing() {
-  // Skip download if catalog exists and is large enough (>50MB = real catalog)
+  // Clean up any stale .tmp files
+  const tmpPath = DB_PATH + ".tmp";
+  if (fs.existsSync(tmpPath)) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+  }
+
+  // Check if catalog exists and validate it
   if (fs.existsSync(DB_PATH)) {
     const size = fs.statSync(DB_PATH).size;
     console.log(`[catalog-db] Existing catalog file: ${(size / 1024 / 1024).toFixed(1)}MB`);
+
+    // Validate the file actually contains enough products
     if (size > 50_000_000) {
-      // Full catalog on volume — disable disk writes to protect it
-      if (process.env.CATALOG_URL) catalogDownloadedFromURL = true;
-      return;
+      try {
+        const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 500);
+        const countMatch = head.match(/"product_count"\s*:\s*(\d+)/);
+        const fileProductCount = countMatch ? parseInt(countMatch[1]) : 0;
+        console.log(`[catalog-db] File reports ${fileProductCount} products`);
+        if (fileProductCount > 10000) {
+          catalogDownloadedFromURL = true;
+          return; // File is valid
+        }
+      } catch {}
     }
-    console.log(`[catalog-db] Catalog too small (${(size / 1024 / 1024).toFixed(1)}MB < 50MB) — re-downloading full catalog`);
+
+    console.log(`[catalog-db] Catalog invalid or too small — re-downloading`);
     fs.unlinkSync(DB_PATH);
   }
 
@@ -488,11 +504,9 @@ function validateBeforeWrite() {
  * Serialize and write the database to disk.
  */
 function writeToDisk() {
-  // Never overwrite the catalog when running from CATALOG_URL (Railway volume)
-  if (catalogDownloadedFromURL) {
-    console.log(`[catalog-db] Write skipped — protecting volume catalog`);
-    return;
-  }
+  // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
+  if (process.env.CATALOG_URL) return;
+
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
   // Safety check before writing
@@ -535,6 +549,9 @@ function writeToDisk() {
  * want to allow large deletions (e.g. cleanup scripts with --force flag).
  */
 function forceWriteToDisk() {
+  // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
+  if (process.env.CATALOG_URL) return;
+
   console.warn(`[catalog-db] ⚠ Force-writing ${products.size} products (safety checks bypassed)`);
   lastKnownVendorCounts = snapshotVendorCounts();
 
@@ -559,8 +576,8 @@ function forceWriteToDisk() {
  * Waits SAVE_DEBOUNCE_MS after the last mutation before writing.
  */
 function scheduleSave() {
-  // On Railway (ephemeral filesystem), skip disk writes — catalog is downloaded fresh each deploy
-  if (catalogDownloadedFromURL) return;
+  // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
+  if (process.env.CATALOG_URL) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
