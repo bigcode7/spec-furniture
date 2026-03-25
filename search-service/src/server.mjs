@@ -584,6 +584,13 @@ const server = http.createServer(async (req, res) => {
         if (fingerprint) linkFingerprintToUser(fingerprint, userId);
       }
 
+      // Admin/founder bypass — skip Stripe entirely, just activate
+      if (isAdminEmail(email)) {
+        setSubscription(userId, { status: "active", plan: "admin", comped: true, comped_at: new Date().toISOString() });
+        console.log(`[admin] Admin account activated: ${email}`);
+        return json(res, 200, { token, user_id: userId, admin_bypass: true });
+      }
+
       // Check multi-account abuse
       if (fingerprint) {
         const abuse = checkMultiAccountAbuse(fingerprint);

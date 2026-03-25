@@ -83,6 +83,13 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
         localStorage.setItem("spec_auth_token", data.token);
       }
 
+      // Admin bypass — no Stripe needed, just activate
+      if (data.admin_bypass) {
+        localStorage.setItem("spec_sub_status", "active");
+        if (onAuthSuccess) onAuthSuccess({ email: email.trim() });
+        return;
+      }
+
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
