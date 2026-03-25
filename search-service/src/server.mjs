@@ -64,7 +64,7 @@ import { getVendorProcurement, getAllVendorProcurement, getProductProcurement, e
 import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
-import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers } from "./lib/auth-store.mjs";
+import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers, initDatabase } from "./lib/auth-store.mjs";
 import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
@@ -171,6 +171,9 @@ async function runHeavyInit() {
 
   // Initialize analytics
   initAnalytics();
+
+  // Initialize database (PostgreSQL or JSON fallback)
+  await initDatabase();
 
   // Initialize subscription store and Stripe
   initSubscriptionStore();
@@ -318,7 +321,7 @@ function collectBody(req, { raw: returnRaw = false } = {}) {
   });
 }
 
-function getRequestIdentity(req, body) {
+async function getRequestIdentity(req, body) {
   // Check for authenticated user first
   const authHeader = req.headers["authorization"];
   const token = extractToken(authHeader);
@@ -328,7 +331,7 @@ function getRequestIdentity(req, body) {
   let userStatus = "guest";
 
   if (token && !token.startsWith("g.")) {
-    const result = getUserFromToken(token);
+    const result = await getUserFromToken(token);
     if (result.ok) {
       userId = result.user.id;
       userEmail = result.user.email;
@@ -437,7 +440,7 @@ const server = http.createServer(async (req, res) => {
       const url = new URL(req.url, `http://${req.headers.host}`);
       const token = url.searchParams.get("token");
       if (!token) return json(res, 400, { error: "Token required" });
-      const result = verifyEmail(token);
+      const result = await verifyEmail(token);
       if (result.ok) {
         // Redirect to app with success message
         const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
@@ -450,7 +453,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/auth/forgot-password") {
       const body = await collectBody(req);
-      const result = generateResetToken(body.email);
+      const result = await generateResetToken(body.email);
       // Always return success to not reveal email existence
       // In production, would send email here
       if (result.token) {
@@ -462,28 +465,28 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/auth/reset-password") {
       const body = await collectBody(req);
-      const result = resetPassword(body.token, body.new_password);
+      const result = await resetPassword(body.token, body.new_password);
       return json(res, result.ok ? 200 : 400, result);
     }
 
     if (req.method === "GET" && req.url === "/auth/me") {
       const token = extractToken(req.headers.authorization);
-      const result = getUserFromToken(token);
+      const result = await getUserFromToken(token);
       return json(res, result.ok ? 200 : 401, result);
     }
 
     if (req.method === "PUT" && req.url === "/auth/me") {
       const token = extractToken(req.headers.authorization);
-      const auth = getUserFromToken(token);
+      const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
       const body = await collectBody(req);
-      const result = updateUser(auth.user.id, body);
+      const result = await updateUser(auth.user.id, body);
       return json(res, result.ok ? 200 : 400, result);
     }
 
     if (req.method === "POST" && req.url === "/auth/change-password") {
       const token = extractToken(req.headers.authorization);
-      const auth = getUserFromToken(token);
+      const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
       const body = await collectBody(req);
       const result = await changePassword(auth.user.id, body);
@@ -492,17 +495,17 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "DELETE" && req.url === "/auth/me") {
       const token = extractToken(req.headers.authorization);
-      const auth = getUserFromToken(token);
+      const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
-      const result = deleteUser(auth.user.id);
+      const result = await deleteUser(auth.user.id);
       return json(res, result.ok ? 200 : 400, result);
     }
 
     if (req.method === "GET" && req.url === "/auth/export") {
       const token = extractToken(req.headers.authorization);
-      const auth = getUserFromToken(token);
+      const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
-      const result = exportUserData(auth.user.id);
+      const result = await exportUserData(auth.user.id);
       return json(res, result.ok ? 200 : 400, result);
     }
 
@@ -523,7 +526,7 @@ const server = http.createServer(async (req, res) => {
     // ── SUBSCRIPTION ENDPOINTS ──────────────────────────────────
 
     if (req.method === "GET" && req.url === "/subscribe/status") {
-      const identity = getRequestIdentity(req, {});
+      const identity = await getRequestIdentity(req, {});
 
       if (identity.userId) {
         // Admin bypass — always active, no Stripe needed
@@ -572,7 +575,7 @@ const server = http.createServer(async (req, res) => {
       let userId, token;
       const existingAuth = extractToken(req.headers["authorization"]);
       if (existingAuth && !existingAuth.startsWith("g.")) {
-        const me = getUserFromToken(existingAuth);
+        const me = await getUserFromToken(existingAuth);
         if (me.ok) {
           userId = me.user.id;
           token = existingAuth;
@@ -766,7 +769,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/subscribe/cancel") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
 
       const sub = getSubscription(identity.userId);
@@ -787,7 +790,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/subscribe/reactivate") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
 
       const sub = getSubscription(identity.userId);
@@ -814,7 +817,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/subscribe/portal") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
 
       const sub = getSubscription(identity.userId);
@@ -831,7 +834,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/subscribe/onboarding") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
 
       const { project_types, trade_discounts } = body;
@@ -851,14 +854,14 @@ const server = http.createServer(async (req, res) => {
     // ── TEAM ENDPOINTS ──────────────────────────────────────
     if (req.method === "POST" && req.url === "/team/create") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const result = createTeam(identity.userId, body.team_name || "My Team");
       return json(res, result.error ? 400 : 201, result);
     }
 
     if (req.method === "GET" && req.url === "/team/members") {
-      const identity = getRequestIdentity(req, {});
+      const identity = await getRequestIdentity(req, {});
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const team = getTeamByUser(identity.userId);
       if (!team) return json(res, 404, { error: "No team found" });
@@ -868,7 +871,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/team/invite") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const team = getTeamByUser(identity.userId);
       if (!team) return json(res, 404, { error: "No team found" });
@@ -878,7 +881,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/team/remove") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const team = getTeamByUser(identity.userId);
       if (!team) return json(res, 404, { error: "No team found" });
@@ -888,7 +891,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && req.url === "/team/add-seat") {
       const body = await collectBody(req);
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const team = getTeamByUser(identity.userId);
       if (!team) return json(res, 404, { error: "No team found" });
@@ -905,7 +908,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && req.url === "/team/sharing-status") {
-      const identity = getRequestIdentity(req, {});
+      const identity = await getRequestIdentity(req, {});
       if (!identity.userId) return json(res, 401, { error: "Authentication required" });
       const violation = checkSharingViolation(identity.userId);
       return json(res, 200, violation);
@@ -1091,7 +1094,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req);
 
       // Find Similar does NOT count as a search — allow for anyone
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
 
       const productId = String(body.product_id || "");
       if (!productId) return json(res, 400, { error: "product_id required" });
@@ -1267,7 +1270,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req);
 
       // Subscription check
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
       if (!access.allowed) {
         return json(res, 402, {
@@ -1317,7 +1320,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req);
 
       // Subscription check — each item counts as a separate search
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
       const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "search");
       if (!access.allowed) {
         return json(res, 402, {
@@ -1584,26 +1587,26 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ADMIN ENDPOINTS — tyler@spekd.ai only, returns 404 for others
     // ══════════════════════════════════════════════════════════════════
 
-    function isAdmin(req) {
+    async function isAdmin(req) {
       const authHeader = req.headers["authorization"];
       const token = extractToken(authHeader);
       if (!token) return false;
-      const result = getUserFromToken(token);
+      const result = await getUserFromToken(token);
       if (!result.ok) return false;
       return result.user.email === "tyler@spekd.ai";
     }
 
     // GET /admin/funnel — trial funnel metrics
     if (req.method === "GET" && req.url === "/admin/funnel") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
       return json(res, 200, getFunnelMetrics());
     }
 
     // 1. GET /admin/overview — top-line metrics + recent activity
     if (req.method === "GET" && req.url === "/admin/overview") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
-      const allUsers = getAllUsers();
+      const allUsers = await getAllUsers();
       const allSubs = getAllSubscriptions();
       const analytics = getAnalyticsDashboard();
       const searchesByDay = getSearchesByDay(30);
@@ -1663,9 +1666,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 2. GET /admin/users — all users with subscription info
     if (req.method === "GET" && req.url === "/admin/users") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
-      const allUsers = getAllUsers();
+      const allUsers = await getAllUsers();
       const allSubs = getAllSubscriptions();
 
       const usersWithSubs = allUsers.map(u => ({
@@ -1680,10 +1683,10 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 3. GET /admin/users/:id — detailed user info
     if (req.method === "GET" && req.url.match(/^\/admin\/users\/[^/]+$/) && !req.url.includes("/comp") && !req.url.includes("/upgrade") && !req.url.includes("/deactivate") && !req.url.includes("/reactivate")) {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const userId = req.url.split("/admin/users/")[1];
-      const allUsers = getAllUsers();
+      const allUsers = await getAllUsers();
       const user = allUsers.find(u => u.id === userId);
       if (!user) return json(res, 404, { error: "User not found" });
 
@@ -1693,13 +1696,13 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 4. POST /admin/comp — comp free Pro access
     if (req.method === "POST" && req.url === "/admin/comp") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const body = await collectBody(req);
       const { email, days, note } = body;
       if (!email) return json(res, 400, { error: "Email required" });
 
-      const allUsers = getAllUsers();
+      const allUsers = await getAllUsers();
       const user = allUsers.find(u => u.email === email.toLowerCase().trim());
       if (!user) return json(res, 404, { error: "User not found with that email" });
 
@@ -1723,20 +1726,20 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 5. GET /admin/comps — list all comps
     if (req.method === "GET" && req.url === "/admin/comps") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
       return json(res, 200, { comps: getCompLog(), active_comps: getActiveComps() });
     }
 
     // 6. POST /admin/deactivate — deactivate user account
     if (req.method === "POST" && req.url === "/admin/deactivate") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const body = await collectBody(req);
       const { user_id, reason } = body;
       if (!user_id) return json(res, 400, { error: "user_id required" });
 
       // Set deactivated flag on user account
-      const result = updateUser(user_id, {
+      const result = await updateUser(user_id, {
         deactivated: true,
         deactivated_at: new Date().toISOString(),
         deactivated_reason: reason || "Admin deactivated",
@@ -1758,13 +1761,13 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 7. POST /admin/reactivate — reactivate user account
     if (req.method === "POST" && req.url === "/admin/reactivate") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const body = await collectBody(req);
       const { user_id } = body;
       if (!user_id) return json(res, 400, { error: "user_id required" });
 
-      const result = updateUser(user_id, {
+      const result = await updateUser(user_id, {
         deactivated: false,
         deactivated_at: null,
         deactivated_reason: null,
@@ -1779,13 +1782,13 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 8. GET /admin/analytics — search analytics
     if (req.method === "GET" && req.url === "/admin/analytics") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
       return json(res, 200, getAnalyticsDashboard());
     }
 
     // 9. GET /admin/catalog-health — catalog health dashboard
     if (req.method === "GET" && req.url === "/admin/catalog-health") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const summary = getVendorHealthSummary();
       const alerts = getHealthAlerts();
@@ -1795,7 +1798,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 10. POST /admin/run-health-check — trigger immediate health check
     if (req.method === "POST" && req.url === "/admin/run-health-check") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       runCatalogHealthCheck(getAllProducts);
       logAdminAction("run_health_check", "catalog", "Manual health check triggered");
@@ -1806,7 +1809,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 11. POST /admin/dismiss-alert — dismiss a health alert
     if (req.method === "POST" && req.url === "/admin/dismiss-alert") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const body = await collectBody(req);
       if (!body.alert_id) return json(res, 400, { error: "alert_id required" });
@@ -1817,20 +1820,20 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 12. GET /admin/activity-log — admin action history
     if (req.method === "GET" && req.url === "/admin/activity-log") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
       return json(res, 200, { log: getActivityLog(100) });
     }
 
     // 13. GET /admin/search?q=... — search users, products, vendors
     if (req.method === "GET" && req.url.startsWith("/admin/search")) {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       const urlObj = new URL(req.url, "http://localhost");
       const q = (urlObj.searchParams.get("q") || "").toLowerCase().trim();
       if (!q) return json(res, 200, { users: [], products: [], vendors: [] });
 
       // Search users
-      const allUsers = getAllUsers();
+      const allUsers = await getAllUsers();
       const matchedUsers = allUsers.filter(u =>
         (u.full_name || "").toLowerCase().includes(q) ||
         (u.email || "").toLowerCase().includes(q) ||
@@ -1866,7 +1869,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 14. POST /admin/rebuild-vectors — trigger vector index rebuild
     if (req.method === "POST" && req.url === "/admin/rebuild-vectors") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       clearVectorSearchCache();
       vectorIndexAll(getAllProducts(), { reindex: true }).then(() => {
@@ -1880,7 +1883,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     // 15. POST /admin/rebuild-catalog-index — trigger catalog index rebuild
     if (req.method === "POST" && req.url === "/admin/rebuild-catalog-index") {
-      if (!isAdmin(req)) return json(res, 404, { error: "Not found" });
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
 
       buildCatalogIndex(getAllProducts());
       clearVectorSearchCache();
@@ -1905,7 +1908,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       if (!query) return json(res, 400, { error: "query required" });
 
       // ── Determine search tier ──
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
 
       let searchTier; // "pro" | "free_hook" | "trial_required" | "free_fallback"
       let searchesRemaining = null;
@@ -2896,7 +2899,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
       // Follow-up refinements do NOT count as separate searches
       // But user must have had at least one search in the session (or be a subscriber)
-      const identity = getRequestIdentity(req, body);
+      const identity = await getRequestIdentity(req, body);
 
       // Block only if completely unauthorized (no free searches ever, no subscription)
       if (identity.userId) {
