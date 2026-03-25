@@ -79,9 +79,12 @@ let serviceReady = false;
 
 // ── Initialize catalog database ──
 await initCatalogDB();
+console.log(`[startup] After initCatalogDB: ${getProductCount()} products in memory`);
 
 // ── Deferred heavy init — runs AFTER server.listen so Railway sees the port immediately ──
 async function runHeavyInit() {
+  console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
+
   // Fix miscategorized products
   for (const product of getAllProducts()) {
     if (product.category === "beds") {
