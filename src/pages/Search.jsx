@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts } from "@/api/searchClient";
 import {
   getRecentSearches,
@@ -906,6 +907,7 @@ export default function SearchPage() {
 
   return (
     <div className="relative min-h-screen">
+      <AnimatedGradientBackground />
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (

@@ -4,6 +4,7 @@ import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, F
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import ParticleField from "@/components/ParticleField";
+import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
@@ -362,7 +363,7 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <Atmosphere />
+      <AnimatedGradientBackground />
       <ParticleField className="z-0 fixed" />
 
       {/* ═══════════ HERO ═══════════ */}
