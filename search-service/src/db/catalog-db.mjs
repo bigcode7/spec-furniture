@@ -360,22 +360,36 @@ async function resolveLFSPointer() {
  */
 async function downloadCatalogIfMissing() {
   if (fs.existsSync(DB_PATH)) return; // already have it
-  const url = process.env.CATALOG_URL;
-  if (!url) return; // no URL configured
 
-  console.log(`[catalog-db] No catalog on disk — downloading from CATALOG_URL...`);
+  // Support single URL or comma-separated URLs for split catalogs
+  const urlEnv = process.env.CATALOG_URL;
+  if (!urlEnv) return;
+  const urls = urlEnv.split(",").map(u => u.trim()).filter(Boolean);
+
+  console.log(`[catalog-db] No catalog on disk — downloading ${urls.length} part(s) from CATALOG_URL...`);
   try {
-    const resp = await fetch(url, { redirect: "follow" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    let buffer = Buffer.from(await resp.arrayBuffer());
-    // Auto-detect gzip (magic bytes 1f 8b)
-    if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
-      console.log(`[catalog-db] Decompressing gzipped catalog...`);
-      buffer = gunzipSync(buffer);
+    let mergedProducts = [];
+    let baseData = {};
+
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      console.log(`[catalog-db] Downloading part ${i + 1}/${urls.length}...`);
+      const resp = await fetch(url, { redirect: "follow" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+      let buffer = Buffer.from(await resp.arrayBuffer());
+      // Auto-detect gzip (magic bytes 1f 8b)
+      if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
+        buffer = gunzipSync(buffer);
+      }
+      const part = JSON.parse(buffer.toString("utf8"));
+      if (i === 0) baseData = { ...part, products: undefined };
+      if (part.products) mergedProducts.push(...part.products);
     }
+
+    const merged = { ...baseData, products: mergedProducts };
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DB_PATH, buffer);
-    console.log(`[catalog-db] Downloaded catalog (${(buffer.length / 1024 / 1024).toFixed(0)}MB)`);
+    fs.writeFileSync(DB_PATH, JSON.stringify(merged));
+    console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products`);
   } catch (err) {
     console.error(`[catalog-db] Catalog download failed: ${err.message}`);
   }
