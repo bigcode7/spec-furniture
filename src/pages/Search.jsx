@@ -907,7 +907,11 @@ export default function SearchPage() {
 
   return (
     <div className="relative min-h-screen">
-      <AnimatedGradientBackground />
+      <AnimatedGradientBackground
+        Breathing
+        gradientColors={["#080c18", "#0f1e3d", "#1a2f5e", "#8b6914", "#b8860b"]}
+        gradientStops={[0, 30, 55, 80, 100]}
+      />
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (

@@ -363,7 +363,11 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <AnimatedGradientBackground />
+      <AnimatedGradientBackground
+        Breathing
+        gradientColors={["#080c18", "#0f1e3d", "#1a2f5e", "#8b6914", "#b8860b"]}
+        gradientStops={[0, 30, 55, 80, 100]}
+      />
       <ParticleField className="z-0 fixed" />
 
       {/* ═══════════ HERO ═══════════ */}

@@ -1,62 +1,101 @@
-import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
-/*
- * AnimatedGradientBackground — breathing radial gradient for SPEKD
+/**
+ * AnimatedGradientBackground
  *
- * Props:
- *  breathing  – enable slow scale animation (default true)
- *  className  – extra classes on the wrapper
- *  style      – extra inline styles on the wrapper
+ * Renders a customizable animated radial gradient background with a breathing effect.
+ * Uses framer-motion for entrance animation and raw CSS gradients for the dynamic background.
+ *
+ * @param {object} props
+ * @param {number}   [props.startingGap=125]        - Initial radial gradient size (width %)
+ * @param {boolean}  [props.Breathing=false]         - Enable breathing animation
+ * @param {string[]} [props.gradientColors]          - Array of CSS colors for the gradient
+ * @param {number[]} [props.gradientStops]           - Stop percentages matching gradientColors
+ * @param {number}   [props.animationSpeed=0.02]     - Breathing animation speed
+ * @param {number}   [props.breathingRange=5]        - Max breathing expansion range (%)
+ * @param {object}   [props.containerStyle={}]       - Extra inline styles
+ * @param {string}   [props.containerClassName=""]   - Extra class names
+ * @param {number}   [props.topOffset=0]             - Top offset for gradient origin
  */
+const AnimatedGradientBackground = ({
+  startingGap = 125,
+  Breathing = false,
+  gradientColors = [
+    "#0A0A0A",
+    "#2979FF",
+    "#FF80AB",
+    "#FF6D00",
+    "#FFD600",
+    "#00E676",
+    "#3D5AFE",
+  ],
+  gradientStops = [35, 50, 60, 70, 80, 90, 100],
+  animationSpeed = 0.02,
+  breathingRange = 5,
+  containerStyle = {},
+  topOffset = 0,
+  containerClassName = "",
+}) => {
+  if (gradientColors.length !== gradientStops.length) {
+    throw new Error(
+      `GradientColors and GradientStops must have the same length. Received gradientColors length: ${gradientColors.length}, gradientStops length: ${gradientStops.length}`
+    );
+  }
 
-const GRADIENT_STOPS = [
-  { color: "#080c18", pos: "0%" },
-  { color: "#0f1e3d", pos: "30%" },
-  { color: "#1a2f5e", pos: "55%" },
-  { color: "#8b6914", pos: "80%" },
-  { color: "#b8860b", pos: "100%" },
-];
+  const containerRef = useRef(null);
 
-const radialGradient = `radial-gradient(ellipse at center, ${GRADIENT_STOPS.map(
-  (s) => `${s.color} ${s.pos}`
-).join(", ")})`;
+  useEffect(() => {
+    let animationFrame;
+    let width = startingGap;
+    let directionWidth = 1;
 
-export default function AnimatedGradientBackground({
-  breathing = true,
-  className = "",
-  style = {},
-}) {
+    const animateGradient = () => {
+      if (width >= startingGap + breathingRange) directionWidth = -1;
+      if (width <= startingGap - breathingRange) directionWidth = 1;
+
+      if (!Breathing) directionWidth = 0;
+      width += directionWidth * animationSpeed;
+
+      const gradientStopsString = gradientStops
+        .map((stop, index) => `${gradientColors[index]} ${stop}%`)
+        .join(", ");
+
+      const gradient = `radial-gradient(${width}% ${width + topOffset}% at 50% 20%, ${gradientStopsString})`;
+
+      if (containerRef.current) {
+        containerRef.current.style.background = gradient;
+      }
+
+      animationFrame = requestAnimationFrame(animateGradient);
+    };
+
+    animationFrame = requestAnimationFrame(animateGradient);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [startingGap, Breathing, gradientColors, gradientStops, animationSpeed, breathingRange, topOffset]);
+
   return (
-    <div
-      className={`absolute inset-0 overflow-hidden ${className}`}
-      style={{ zIndex: 0, ...style }}
+    <motion.div
+      key="animated-gradient-background"
+      initial={{ opacity: 0, scale: 1.5 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        transition: {
+          duration: 2,
+          ease: [0.25, 0.1, 0.25, 1],
+        },
+      }}
+      className={`absolute inset-0 overflow-hidden ${containerClassName}`}
     >
-      <motion.div
-        className="absolute inset-0"
-        style={{ background: radialGradient }}
-        animate={
-          breathing
-            ? { scale: [1, 1.05, 1], opacity: [0.9, 1, 0.9] }
-            : undefined
-        }
-        transition={
-          breathing
-            ? { duration: 8, repeat: Infinity, ease: "easeInOut" }
-            : undefined
-        }
-      />
-      {/* Subtle noise overlay for texture */}
       <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
-          backgroundRepeat: "repeat",
-          backgroundSize: "256px 256px",
-          opacity: 0.3,
-        }}
+        ref={containerRef}
+        style={containerStyle}
+        className="absolute inset-0 transition-transform"
       />
-    </div>
+    </motion.div>
   );
-}
+};
+
+export default AnimatedGradientBackground;
