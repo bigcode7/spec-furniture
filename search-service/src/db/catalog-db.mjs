@@ -353,6 +353,28 @@ async function resolveLFSPointer() {
   }
 }
 
+/**
+ * Download catalog from CATALOG_URL if the file doesn't exist on disk.
+ * Supports direct download URLs (S3, R2, Dropbox, Google Drive, etc.)
+ */
+async function downloadCatalogIfMissing() {
+  if (fs.existsSync(DB_PATH)) return; // already have it
+  const url = process.env.CATALOG_URL;
+  if (!url) return; // no URL configured
+
+  console.log(`[catalog-db] No catalog on disk — downloading from CATALOG_URL...`);
+  try {
+    const resp = await fetch(url, { redirect: "follow" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const buffer = Buffer.from(await resp.arrayBuffer());
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(DB_PATH, buffer);
+    console.log(`[catalog-db] Downloaded catalog (${(buffer.length / 1024 / 1024).toFixed(0)}MB)`);
+  } catch (err) {
+    console.error(`[catalog-db] Catalog download failed: ${err.message}`);
+  }
+}
+
 function loadFromDisk() {
   if (!fs.existsSync(DB_PATH)) return false;
 
@@ -747,6 +769,7 @@ async function seedFromSampleCatalog() {
  */
 export async function initCatalogDB() {
   await resolveLFSPointer();
+  await downloadCatalogIfMissing();
   const loaded = loadFromDisk();
   if (loaded) {
     console.log(`[catalog-db] Loaded ${products.size} products from disk`);
