@@ -1,5 +1,5 @@
 [build]
-builder = "Railpack"
+builder = "nixpacks"
 
 [deploy]
 startCommand = "node src/server.mjs"
