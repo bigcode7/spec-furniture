@@ -30,3 +30,6 @@ dist-ssr
 *.sw?
 
 search-service/data/images/
+search-service/data/backups/
+search-service/data/catalog.db.json
+search-service/data/catalog-backup-before-tagging.db.json
