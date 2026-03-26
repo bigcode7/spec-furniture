@@ -242,16 +242,20 @@ export default function Layout({ children, currentPageName }) {
   const [quoteCount, setQuoteCount] = useState(0);
   const [subWarning, setSubWarning] = useState(null);
   const [subStatus, setSubStatus] = useState(null);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
     checkSubscriptionStatus().then(status => {
       setSubStatus(status.status);
+      if (status.trial_days_remaining != null) {
+        setTrialDaysLeft(status.trial_days_remaining);
+      }
       if (status.status === "past_due") {
         setSubWarning("Your payment failed. Update your card to keep your access.");
       }
     });
-  }, []);
+  }, [location.search]); // Re-check when URL changes (e.g. after Stripe redirect)
 
   useEffect(() => {
     setQuoteCount(getQuoteItemCount());
@@ -326,6 +330,22 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Right side — account + trial CTA */}
             <div className="flex items-center gap-2.5">
+              {/* Trial countdown — shown when user has active trial */}
+              {user && subStatus === "trialing" && trialDaysLeft != null && (
+                <div
+                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium"
+                  style={{
+                    background: "rgba(201,169,110,0.08)",
+                    border: "1px solid rgba(201,169,110,0.2)",
+                    color: "#C9A96E",
+                  }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span className="hidden sm:inline">Pro Trial — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} left</span>
+                  <span className="sm:hidden">{trialDaysLeft}d left</span>
+                </div>
+              )}
+              {/* Start Free Trial — shown for logged-in users without subscription */}
               {user && subStatus && subStatus !== "active" && subStatus !== "trialing" && subStatus !== "cancelled" && (
                 <Link
                   to={createPageUrl("Search") + "?upgrade=true"}

@@ -814,6 +814,79 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       return json(res, 200, usage);
     }
 
+    // Verify checkout session directly with Stripe — fallback when webhook is delayed
+    if (req.method === "POST" && req.url === "/subscribe/verify-session") {
+      const body = await collectBody(req);
+      const { session_id } = body;
+      const identity = await getRequestIdentity(req, body);
+
+      if (!identity.userId) return json(res, 401, { error: "Authentication required" });
+      if (!session_id) return json(res, 400, { error: "session_id required" });
+
+      try {
+        if (!await ensureStripe()) return json(res, 500, { error: "Stripe not configured" });
+
+        // Import stripe to use directly
+        const Stripe = (await import("stripe")).default;
+        const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+        const session = await stripeClient.checkout.sessions.retrieve(session_id);
+
+        if (session.payment_status === "paid" || session.status === "complete") {
+          const userId = session.metadata?.user_id || identity.userId;
+          const plan = session.metadata?.plan || "monthly";
+          const stripeSubId = session.subscription;
+
+          // Get subscription details from Stripe
+          let subStatus = "active";
+          let trialEnd = null;
+          let periodEnd = null;
+          if (stripeSubId) {
+            try {
+              const stripeSub = await getStripeSubscription(stripeSubId);
+              if (stripeSub.status === "trialing" && stripeSub.trial_end) {
+                subStatus = "trialing";
+                trialEnd = new Date(stripeSub.trial_end * 1000).toISOString();
+              }
+              if (stripeSub.current_period_end) {
+                periodEnd = new Date(stripeSub.current_period_end * 1000).toISOString();
+              }
+            } catch (e) {
+              console.warn("[verify-session] Could not fetch subscription details:", e.message);
+            }
+          }
+
+          // Activate the subscription
+          setSubscription(userId, {
+            status: subStatus,
+            plan,
+            stripe_subscription_id: stripeSubId,
+            stripe_customer_id: session.customer,
+            trial_end: trialEnd,
+            current_period_end: periodEnd,
+            created_at: new Date().toISOString(),
+          });
+
+          const trialDaysRemaining = trialEnd
+            ? Math.max(0, Math.ceil((new Date(trialEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+            : null;
+
+          console.log(`[verify-session] Subscription activated for user ${userId}: ${subStatus} (${plan})`);
+          return json(res, 200, {
+            status: subStatus,
+            plan,
+            trial_end: trialEnd,
+            trial_days_remaining: trialDaysRemaining,
+            activated: true,
+          });
+        }
+
+        return json(res, 200, { status: "pending", activated: false });
+      } catch (err) {
+        console.error("[verify-session] Error:", err.message);
+        return json(res, 500, { error: err.message });
+      }
+    }
+
     if (req.method === "POST" && req.url === "/subscribe/create-checkout") {
       const body = await collectBody(req);
       const { plan, email, password, full_name, business_name, fingerprint } = body;

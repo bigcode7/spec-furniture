@@ -343,26 +343,54 @@ export default function SearchPage() {
       // Check URL for subscription success (returning from Stripe)
       const params = new URLSearchParams(window.location.search);
       if (params.get("subscription") === "success") {
+        const sessionId = params.get("session_id");
         window.history.replaceState({}, "", "/Search");
-        // Poll for subscription activation (webhook may be delayed)
+        setSubscriptionStatus("activating");
+
+        // Verify the checkout session directly with Stripe (doesn't depend on webhook)
+        if (sessionId) {
+          try {
+            const token = localStorage.getItem("spec_auth_token");
+            const verifyResp = await fetch(`${SEARCH_SERVICE}/subscribe/verify-session`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ session_id: sessionId }),
+            });
+            const verifyData = await verifyResp.json();
+            if (verifyData.activated && (verifyData.status === "active" || verifyData.status === "trialing")) {
+              setSubscriptionStatus(verifyData.status);
+              if (verifyData.trial_days_remaining != null) setTrialDaysRemaining(verifyData.trial_days_remaining);
+              setSearchesRemaining(null);
+              setIsFreeFallback(false);
+              setShowPaywall(false);
+              localStorage.setItem("spec_sub_status", verifyData.status);
+              return;
+            }
+          } catch (e) {
+            console.warn("[checkout] verify-session failed:", e);
+          }
+        }
+
+        // Fallback: poll status endpoint
         let attempts = 0;
-        const maxAttempts = 6;
         const poll = async () => {
           attempts++;
           const freshStatus = await checkSubscriptionStatus();
           if (freshStatus.status === "active" || freshStatus.status === "trialing") {
             setSubscriptionStatus(freshStatus.status);
+            if (freshStatus.trial_days_remaining != null) setTrialDaysRemaining(freshStatus.trial_days_remaining);
             setSearchesRemaining(null);
             setIsFreeFallback(false);
             setShowPaywall(false);
             return;
           }
-          if (attempts < maxAttempts) {
+          if (attempts < 5) {
             setTimeout(poll, 2000);
           } else {
-            // Webhook still hasn't arrived — show message and reload
-            setSubscriptionStatus("activating");
-            setTimeout(() => window.location.reload(), 5000);
+            setTimeout(() => window.location.reload(), 3000);
           }
         };
         poll();
