@@ -132,12 +132,22 @@ function loadUsersFromFile() {
   }
 }
 
+let saveTimer = null;
 function saveUsersToFile() {
+  // Immediate sync write for reliability
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    // Write to temp file first, then rename (atomic write)
+    const tmpFile = USERS_FILE + ".tmp";
+    fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2));
+    fs.renameSync(tmpFile, USERS_FILE);
   } catch (err) {
-    console.error("[auth] Failed to save users:", err.message);
+    // Fallback: direct write
+    try {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    } catch (err2) {
+      console.error("[auth] Failed to save users:", err2.message);
+    }
   }
 }
 

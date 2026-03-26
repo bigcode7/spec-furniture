@@ -941,25 +941,132 @@ export async function searchPipeline(query, options = {}) {
  * Find similar products — pure vector similarity, cross-vendor diversity.
  */
 export function findSimilar(productId, limit = 20) {
-  const sourceProduct = getProduct(productId);
-  if (!sourceProduct) return [];
+  const src = getProduct(productId);
+  if (!src) return [];
 
-  const sourceVendorId = sourceProduct.vendor_id;
+  const srcVendor = src.vendor_id;
+  const srcType = (src.ai_furniture_type || "").toLowerCase().trim();
+  const srcStyle = (src.ai_style || "").toLowerCase().trim();
+  const srcMaterial = (src.ai_primary_material || "").toLowerCase().trim();
+  const srcColor = (src.ai_primary_color || "").toLowerCase().trim();
+  const srcSilhouette = (src.ai_silhouette || "").toLowerCase().trim();
+  const srcFormality = (src.ai_formality || "").toLowerCase().trim();
+  const srcScale = (src.ai_scale || "").toLowerCase().trim();
 
-  const filter = (id) => {
-    const p = getProduct(id);
-    return p && p.vendor_id !== sourceVendorId;
-  };
+  // Step 1: Find candidates that share the same furniture type (must match)
+  // This ensures a sofa returns sofas, a dining table returns dining tables
+  if (!srcType) {
+    // No AI tags — fall back to pure vector similarity
+    const filter = (id) => { const p = getProduct(id); return p && p.vendor_id !== srcVendor; };
+    const results = vectorFindSimilar(productId, limit, filter);
+    return results.map(({ id, score }) => {
+      const product = getProduct(id);
+      if (!product) return null;
+      product.relevance_score = score;
+      product._similarity = score;
+      return product;
+    }).filter(Boolean);
+  }
 
-  const results = vectorFindSimilar(productId, limit, filter);
+  // Score every product by how many AI tag attributes match the source
+  const allProducts = getAllProducts();
+  const scored = [];
 
-  return results.map(({ id, score }) => {
-    const product = getProduct(id);
-    if (!product) return null;
-    product.relevance_score = score;
-    product._similarity = score;
-    return product;
-  }).filter(Boolean);
+  for (const p of allProducts) {
+    if (p.id === productId) continue;
+    if (p.vendor_id === srcVendor) continue; // Different vendor only
+
+    const pType = (p.ai_furniture_type || "").toLowerCase().trim();
+    // Must be same furniture type
+    if (!pType || !typeMatches(pType, srcType)) continue;
+
+    let score = 0;
+
+    // Style match (strong signal)
+    if (srcStyle && p.ai_style) {
+      const pStyle = p.ai_style.toLowerCase();
+      if (pStyle === srcStyle) score += 3;
+      else if (pStyle.includes(srcStyle) || srcStyle.includes(pStyle)) score += 2;
+    }
+
+    // Material match (strong signal)
+    if (srcMaterial && p.ai_primary_material) {
+      const pMat = p.ai_primary_material.toLowerCase();
+      const srcMatWords = srcMaterial.split(/[,\s]+/).filter(w => w.length > 2);
+      const pMatWords = pMat.split(/[,\s]+/).filter(w => w.length > 2);
+      const overlap = srcMatWords.filter(w => pMatWords.some(pw => pw.includes(w) || w.includes(pw)));
+      if (overlap.length > 0) score += 2 + Math.min(overlap.length, 2);
+    }
+
+    // Color match (medium signal)
+    if (srcColor && p.ai_primary_color) {
+      const pColor = p.ai_primary_color.toLowerCase();
+      if (pColor === srcColor) score += 2;
+      else if (pColor.includes(srcColor) || srcColor.includes(pColor)) score += 1;
+    }
+
+    // Silhouette match (strong signal — looks alike)
+    if (srcSilhouette && p.ai_silhouette) {
+      const pSil = p.ai_silhouette.toLowerCase();
+      const srcWords = srcSilhouette.split(/\s+/).filter(w => w.length > 3);
+      const pWords = pSil.split(/\s+/).filter(w => w.length > 3);
+      const overlap = srcWords.filter(w => pWords.includes(w));
+      score += Math.min(overlap.length, 3);
+    }
+
+    // Formality match
+    if (srcFormality && p.ai_formality) {
+      if (p.ai_formality.toLowerCase() === srcFormality) score += 1;
+    }
+
+    // Scale match
+    if (srcScale && p.ai_scale) {
+      if (p.ai_scale.toLowerCase() === srcScale) score += 1;
+    }
+
+    // Price proximity (bonus for similar price range)
+    if (src.retail_price && p.retail_price && src.retail_price > 0 && p.retail_price > 0) {
+      const ratio = p.retail_price / src.retail_price;
+      if (ratio >= 0.7 && ratio <= 1.4) score += 1;
+    }
+
+    if (score > 0) {
+      scored.push({ product: p, tagScore: score });
+    }
+  }
+
+  // Sort by tag score descending, take top candidates
+  scored.sort((a, b) => b.tagScore - a.tagScore);
+  const topCandidates = scored.slice(0, Math.max(limit * 4, 80));
+
+  // Step 2: Re-rank top candidates by vector similarity for final ordering
+  const candidateIds = new Set(topCandidates.map(c => c.product.id));
+  const vectorResults = vectorFindSimilar(productId, limit * 4, (id) => candidateIds.has(id));
+  const vectorScoreMap = new Map(vectorResults.map(r => [r.id, r.score]));
+
+  // Combine: 60% tag score (normalized), 40% vector similarity
+  const maxTagScore = topCandidates.length > 0 ? topCandidates[0].tagScore : 1;
+  const combined = topCandidates.map(c => {
+    const tagNorm = c.tagScore / maxTagScore;
+    const vecScore = vectorScoreMap.get(c.product.id) || 0;
+    const finalScore = tagNorm * 0.6 + vecScore * 0.4;
+    return { product: c.product, finalScore, tagScore: c.tagScore, vecScore };
+  });
+
+  combined.sort((a, b) => b.finalScore - a.finalScore);
+
+  return combined.slice(0, limit).map(c => {
+    c.product.relevance_score = c.finalScore;
+    c.product._similarity = c.finalScore;
+    c.product._tag_score = c.tagScore;
+    return c.product;
+  });
+}
+
+/** Check if two furniture types are equivalent (handles plurals, hyphens) */
+function typeMatches(a, b) {
+  const norm = (s) => s.replace(/s$/, "").replace(/-/g, " ").trim();
+  return norm(a) === norm(b);
 }
 
 /**

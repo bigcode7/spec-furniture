@@ -1295,10 +1295,23 @@ const server = http.createServer(async (req, res) => {
         const sim = sanitizeSearchProduct(p);
         if (sourceProduct) {
           const signals = [];
-          if (p.category && p.category === sourceProduct.category) signals.push({ type: "attribute", label: `same category: ${p.category}`, strength: "strong" });
-          if (p.style && p.style === sourceProduct.style) signals.push({ type: "attribute", label: `${p.style} style`, strength: "strong" });
-          if (p.material && sourceProduct.material && normalizeText(p.material).includes(normalizeText(sourceProduct.material).split(" ")[0])) {
-            signals.push({ type: "attribute", label: `similar material`, strength: "medium" });
+          // AI tag matches
+          if (p.ai_furniture_type && sourceProduct.ai_furniture_type &&
+              p.ai_furniture_type.toLowerCase().replace(/s$/, "") === sourceProduct.ai_furniture_type.toLowerCase().replace(/s$/, "")) {
+            signals.push({ type: "attribute", label: `same type: ${p.ai_furniture_type}`, strength: "strong" });
+          }
+          if (p.ai_style && sourceProduct.ai_style && p.ai_style.toLowerCase() === sourceProduct.ai_style.toLowerCase()) {
+            signals.push({ type: "attribute", label: `${p.ai_style} style`, strength: "strong" });
+          }
+          if (p.ai_primary_material && sourceProduct.ai_primary_material) {
+            const srcWords = sourceProduct.ai_primary_material.toLowerCase().split(/[,\s]+/).filter(w => w.length > 2);
+            const pWords = p.ai_primary_material.toLowerCase().split(/[,\s]+/).filter(w => w.length > 2);
+            if (srcWords.some(w => pWords.some(pw => pw.includes(w) || w.includes(pw)))) {
+              signals.push({ type: "attribute", label: `similar material`, strength: "medium" });
+            }
+          }
+          if (p.ai_primary_color && sourceProduct.ai_primary_color && p.ai_primary_color.toLowerCase() === sourceProduct.ai_primary_color.toLowerCase()) {
+            signals.push({ type: "attribute", label: `same color: ${p.ai_primary_color}`, strength: "medium" });
           }
           if (p.retail_price && sourceProduct.retail_price) {
             const ratio = p.retail_price / sourceProduct.retail_price;
@@ -1307,7 +1320,7 @@ const server = http.createServer(async (req, res) => {
           if (p.vendor_id !== sourceProduct.vendor_id) {
             signals.push({ type: "vendor", label: `from ${p.vendor_name || p.vendor_id}`, strength: "medium" });
           }
-          sim.match_explanation = { signals, score: p._similarity ? Math.round(p._similarity * 100) : null };
+          sim.match_explanation = { signals, score: p._similarity ? Math.round(p._similarity * 100) : null, tag_score: p._tag_score || null };
         }
         return sim;
       });
