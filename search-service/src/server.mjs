@@ -582,6 +582,57 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, message: "If an account exists with that email, a reset link has been sent." });
     }
 
+    // Serve password reset form (linked from email)
+    if (req.method === "GET" && req.url.startsWith("/auth/reset-password-form")) {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const token = url.searchParams.get("token") || "";
+      const appUrl = process.env.APP_URL || "https://spekd.ai";
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset Password — SPEKD</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#080c18;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.card{background:#0e0e14;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:40px 32px;max-width:400px;width:100%}
+h1{font-size:20px;margin-bottom:8px;color:#C9A96E;letter-spacing:0.15em;font-weight:700}
+h2{font-size:16px;margin-bottom:24px;color:rgba(255,255,255,0.7);font-weight:400}
+label{display:block;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:6px}
+input{width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;margin-bottom:16px;outline:none}
+input:focus{border-color:#C9A96E}
+button{width:100%;padding:14px;background:#C9A96E;color:#080c18;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.02em}
+button:hover{background:#d4b87a}
+.msg{margin-top:16px;padding:12px;border-radius:8px;font-size:13px;text-align:center}
+.err{background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2)}
+.ok{background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)}
+</style></head><body>
+<div class="card">
+<h1>SPEKD</h1><h2>Reset your password</h2>
+<div id="form-wrap">
+<label>New Password</label>
+<input type="password" id="pw" placeholder="Min 8 chars, include a number" autofocus>
+<label>Confirm Password</label>
+<input type="password" id="pw2" placeholder="Confirm password">
+<button onclick="doReset()">Reset Password</button>
+</div>
+<div id="msg"></div>
+</div>
+<script>
+async function doReset(){
+  const pw=document.getElementById('pw').value;
+  const pw2=document.getElementById('pw2').value;
+  const msg=document.getElementById('msg');
+  if(!pw||pw.length<8){msg.className='msg err';msg.textContent='Password must be at least 8 characters';return}
+  if(pw!==pw2){msg.className='msg err';msg.textContent='Passwords do not match';return}
+  try{
+    const r=await fetch(location.origin+'/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:'${token}',new_password:pw})});
+    const d=await r.json();
+    if(d.ok){msg.className='msg ok';msg.textContent='Password reset! Redirecting...';document.getElementById('form-wrap').style.display='none';setTimeout(()=>location.href='${appUrl}/Search',2000)}
+    else{msg.className='msg err';msg.textContent=d.error||'Reset failed'}
+  }catch(e){msg.className='msg err';msg.textContent='Network error'}
+}
+document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')doReset()}));
+</script></body></html>`);
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/auth/reset-password") {
       const body = await collectBody(req);
       const result = await resetPassword(body.token, body.new_password);

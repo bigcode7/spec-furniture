@@ -15,6 +15,12 @@ function getAppUrl() {
   return process.env.APP_URL || "https://spekd.ai";
 }
 
+function getApiUrl() {
+  return process.env.SEARCH_SERVICE_URL || process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : "https://spec-furniture-production.up.railway.app";
+}
+
 async function sendEmail({ to, subject, html }) {
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -92,7 +98,8 @@ function button(text, url) {
 // ── Email templates ──
 
 export async function sendVerificationEmail(to, token) {
-  const url = `${getAppUrl()}/auth/verify-email?token=${token}`;
+  // Verify link goes to the backend API, which redirects to frontend on success
+  const url = `${getApiUrl()}/auth/verify-email?token=${token}`;
   return sendEmail({
     to,
     subject: "Verify your SPEKD account",
@@ -110,7 +117,8 @@ export async function sendVerificationEmail(to, token) {
 }
 
 export async function sendPasswordResetEmail(to, token) {
-  const url = `${getAppUrl()}/Search?reset_token=${token}`;
+  // Reset link goes to the backend API, which serves a reset form
+  const url = `${getApiUrl()}/auth/reset-password-form?token=${token}`;
   return sendEmail({
     to,
     subject: "Reset your SPEKD password",
