@@ -69,9 +69,61 @@ import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGu
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendSubscriptionConfirmationEmail, sendPaymentFailedEmail } from "./lib/email.mjs";
+import { initUserDataStore, getSavedProducts, saveProduct, unsaveProduct, getUserQuote, saveUserQuote, addSearchHistory, getSearchHistory } from "./lib/user-data-store.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
+
+// ── Rate Limiting ──
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+
+function getRateLimitKey(ip) {
+  return ip || "unknown";
+}
+
+function checkRateLimit(ip, maxRequests) {
+  const key = getRateLimitKey(ip);
+  const now = Date.now();
+  let entry = rateLimitStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    rateLimitStore.set(key, entry);
+  }
+  entry.count++;
+  if (entry.count > maxRequests) {
+    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  return { allowed: true };
+}
+
+// Clean up stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore) {
+    if (now > entry.resetAt) rateLimitStore.delete(key);
+  }
+}, 5 * 60 * 1000);
+
+// ── CORS allowed origins ──
+const ALLOWED_ORIGINS = new Set([
+  "https://spekd.ai",
+  "https://www.spekd.ai",
+  "http://localhost:4174",
+  "http://localhost:5173",
+  "http://127.0.0.1:4174",
+  "http://127.0.0.1:5173",
+]);
+
+function getCorsOrigin(req) {
+  const origin = req.headers["origin"];
+  if (!origin) return "*"; // non-browser requests (curl, server-to-server)
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  // Allow Railway preview URLs
+  if (origin.endsWith(".up.railway.app")) return origin;
+  return null; // blocked
+}
 const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id);
 
 // ── Health flag — set true after heavy init completes ──
@@ -80,6 +132,7 @@ let serviceReady = false;
 // ── Initialize catalog database ──
 await initCatalogDB();
 console.log(`[startup] After initCatalogDB: ${getProductCount()} products in memory`);
+await initUserDataStore();
 
 // ── Deferred heavy init — runs AFTER server.listen so Railway sees the port immediately ──
 async function runHeavyInit() {
@@ -284,12 +337,19 @@ function pickRelevantVendors(intent, maxVendors = 5) {
     .map(v => v.id);
 }
 
+// Store current request's CORS origin (set per-request in the handler)
+let _currentCorsOrigin = "*";
+
 function json(res, status, payload) {
   res.writeHead(status, {
     "content-type": "application/json",
-    "access-control-allow-origin": "*",
+    "access-control-allow-origin": _currentCorsOrigin,
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type, authorization, x-fingerprint, x-ls-id, x-admin-key, stripe-signature",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "x-xss-protection": "1; mode=block",
+    "referrer-policy": "strict-origin-when-cross-origin",
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -391,14 +451,45 @@ async function getRequestIdentity(req, body) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    // Set CORS origin for this request
+    const corsOrigin = getCorsOrigin(req);
+    _currentCorsOrigin = corsOrigin || "null";
+
     if (req.method === "OPTIONS") {
+      if (!corsOrigin) {
+        res.writeHead(403);
+        res.end();
+        return;
+      }
       res.writeHead(204, {
-        "access-control-allow-origin": "*",
+        "access-control-allow-origin": corsOrigin,
         "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
         "access-control-allow-headers": "content-type, authorization, x-fingerprint, x-ls-id, x-admin-key, stripe-signature",
+        "access-control-max-age": "86400",
       });
       res.end();
       return;
+    }
+
+    // Rate limiting on search endpoints
+    const reqIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+    if (req.method === "POST" && (req.url === "/search" || req.url === "/smart-search" || req.url === "/conversational-search" || req.url === "/list-search")) {
+      // Check auth to determine limit (Pro = 60/min, Guest = 30/min)
+      const authHeader = req.headers["authorization"];
+      const authToken = extractToken(authHeader);
+      let isProUser = false;
+      if (authToken && !authToken.startsWith("g.")) {
+        const authResult = await getUserFromToken(authToken);
+        if (authResult.ok) {
+          const status = isAdminEmail(authResult.user.email) ? "active" : getUserStatus(authResult.user.id);
+          isProUser = status === "active";
+        }
+      }
+      const maxReqs = isProUser ? 60 : 30;
+      const rateCheck = checkRateLimit(reqIp, maxReqs);
+      if (!rateCheck.allowed) {
+        return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rateCheck.retryAfter });
+      }
     }
 
     if (req.method === "GET" && req.url === "/health") {
@@ -429,6 +520,8 @@ const server = http.createServer(async (req, res) => {
         const verifyToken = generateVerificationToken(result.user.id, result.user.email);
         result.verification_token = verifyToken;
         console.log(`[auth] Verification link: /auth/verify-email?token=${verifyToken}`);
+        // Send verification email
+        sendVerificationEmail(result.user.email, verifyToken).catch(err => console.error("[email] verification send failed:", err));
         // Auto-activate admin accounts on registration
         if (isAdminEmail(result.user.email)) {
           setSubscription(result.user.id, { status: "active", plan: "admin", comped: true, comped_at: new Date().toISOString() });
@@ -471,6 +564,8 @@ const server = http.createServer(async (req, res) => {
       if (!token) return json(res, 400, { error: "Token required" });
       const result = await verifyEmail(token);
       if (result.ok) {
+        // Send welcome email
+        sendWelcomeEmail(result.user.email, result.user.full_name).catch(err => console.error("[email] welcome send failed:", err));
         // Redirect to app with success message
         const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
         res.writeHead(302, { Location: `${origin}/Search?verified=true` });
@@ -487,7 +582,7 @@ const server = http.createServer(async (req, res) => {
       // In production, would send email here
       if (result.token) {
         console.log(`[auth] Password reset token for ${result.email}: ${result.token}`);
-        // TODO: Send email with reset link
+        sendPasswordResetEmail(result.email, result.token).catch(err => console.error("[email] reset send failed:", err));
       }
       return json(res, 200, { ok: true, message: "If an account exists with that email, a reset link has been sent." });
     }
@@ -550,6 +645,59 @@ const server = http.createServer(async (req, res) => {
 
       const result = generateGuestToken(fingerprint, ip, ls_id);
       return json(res, 200, result);
+    }
+
+    // ── USER DATA ENDPOINTS (server-side persistence) ──────────
+
+    if (req.method === "GET" && req.url === "/user/favorites") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const favorites = await getSavedProducts(auth.user.id);
+      return json(res, 200, { ok: true, favorites });
+    }
+
+    if (req.method === "POST" && req.url === "/user/favorites") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const body = await collectBody(req);
+      const result = await saveProduct(auth.user.id, body.product);
+      return json(res, 200, result);
+    }
+
+    if (req.method === "DELETE" && req.url.startsWith("/user/favorites/")) {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const productId = decodeURIComponent(req.url.split("/user/favorites/")[1]);
+      const result = await unsaveProduct(auth.user.id, productId);
+      return json(res, 200, result);
+    }
+
+    if (req.method === "GET" && req.url === "/user/quote") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const quote = await getUserQuote(auth.user.id);
+      return json(res, 200, { ok: true, quote });
+    }
+
+    if (req.method === "PUT" && req.url === "/user/quote") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const body = await collectBody(req);
+      const result = await saveUserQuote(auth.user.id, body.quote);
+      return json(res, 200, result);
+    }
+
+    if (req.method === "GET" && req.url === "/user/search-history") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const history = await getSearchHistory(auth.user.id);
+      return json(res, 200, { ok: true, history });
     }
 
     // ── SUBSCRIPTION ENDPOINTS ──────────────────────────────────
@@ -699,6 +847,14 @@ const server = http.createServer(async (req, res) => {
                 trial: subStatus === "trialing",
                 amount: 0, // No charge during trial
               });
+              // Send subscription confirmation email
+              try {
+                const subUsers = await getAllUsers();
+                const subUser = subUsers.find(u => u.id === userId);
+                if (subUser?.email) {
+                  sendSubscriptionConfirmationEmail(subUser.email, subUser.full_name, plan).catch(err => console.error("[email] sub confirmation failed:", err));
+                }
+              } catch {}
             }
             break;
           }
@@ -773,6 +929,14 @@ const server = http.createServer(async (req, res) => {
                 payment_failed_at: new Date().toISOString(),
               });
               logSubscriptionEvent("failed_payment", { user_id: sub.user_id });
+              // Send payment failed email
+              try {
+                const pfUsers = await getAllUsers();
+                const pfUser = pfUsers.find(u => u.id === sub.user_id);
+                if (pfUser?.email) {
+                  sendPaymentFailedEmail(pfUser.email, pfUser.full_name).catch(err => console.error("[email] payment failed email error:", err));
+                }
+              } catch {}
             }
             break;
           }
@@ -1042,7 +1206,7 @@ const server = http.createServer(async (req, res) => {
           if (existsSync(product.cached_image_path)) {
             const ext = product.cached_image_path.split(".").pop();
             const ct = ext === "webp" ? "image/webp" : ext === "png" ? "image/png" : "image/jpeg";
-            res.writeHead(200, { "content-type": ct, "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" });
+            res.writeHead(200, { "content-type": ct, "cache-control": "public, max-age=86400", "access-control-allow-origin": _currentCorsOrigin });
             createReadStream(product.cached_image_path).pipe(res);
             return;
           }
@@ -1062,14 +1226,14 @@ const server = http.createServer(async (req, res) => {
           res.writeHead(200, {
             "content-type": contentType,
             "cache-control": "public, max-age=86400",
-            "access-control-allow-origin": "*",
+            "access-control-allow-origin": _currentCorsOrigin,
           });
           res.end(buffer);
           return;
         }
       } catch {}
       // Fallback: redirect if proxy fails
-      res.writeHead(302, { location: product.image_url, "access-control-allow-origin": "*" });
+      res.writeHead(302, { location: product.image_url, "access-control-allow-origin": _currentCorsOrigin });
       res.end();
       return;
     }
@@ -1090,7 +1254,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, {
           "content-type": contentType,
           "cache-control": "public, max-age=86400",
-          "access-control-allow-origin": "*",
+          "access-control-allow-origin": _currentCorsOrigin,
         });
         res.end(buffer);
       } catch {
@@ -2110,6 +2274,11 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       // Increment free search counter for anonymous users (free_hook)
       if (searchTier === "free_hook") {
         incrementGuestSearch(identity.fingerprint);
+      }
+
+      // Track search history for logged-in users
+      if (identity.userId) {
+        addSearchHistory(identity.userId, query, finalProducts.length).catch(() => {});
       }
 
       // Add subscription info to response

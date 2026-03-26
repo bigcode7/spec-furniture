@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { getMe, logout as authLogout, isLoggedIn, getCachedUser } from '@/api/authClient';
+import { syncFromServer } from '@/lib/growth-store';
 
 const AuthContext = createContext();
 
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }) => {
         if (result.ok) {
           setUser(result.user);
           setIsAuthenticated(true);
+          syncFromServer().catch(() => {});
         } else {
           // Only log out if token was definitively rejected (401)
           // getMe() now handles this internally — if it returns ok:false
@@ -69,6 +71,7 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     setIsAuthenticated(true);
     setShowAuthModal(false);
+    syncFromServer().catch(() => {});
   }, []);
 
   return (

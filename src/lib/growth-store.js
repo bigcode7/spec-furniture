@@ -1,4 +1,21 @@
+import { syncFavoriteToServer, syncQuoteToServer, fetchServerFavorites, fetchServerQuote } from "@/api/searchClient";
+
 const isBrowser = typeof window !== "undefined";
+
+function isLoggedIn() {
+  if (!isBrowser) return false;
+  return !!window.localStorage.getItem("spec_auth_token");
+}
+
+// Debounce quote sync to server
+let _quoteSyncTimer = null;
+function debouncedQuoteSync(quote) {
+  if (!isLoggedIn()) return;
+  clearTimeout(_quoteSyncTimer);
+  _quoteSyncTimer = setTimeout(() => {
+    syncQuoteToServer(quote).catch(() => {});
+  }, 2000);
+}
 
 const STORAGE_KEYS = {
   favorites: "spec_growth_favorites",
@@ -41,6 +58,8 @@ export function toggleFavorite(item) {
     ? current.filter((entry) => entry.id !== item.id)
     : [{ ...item, savedAt: new Date().toISOString() }, ...current].slice(0, 40);
   writeJson(STORAGE_KEYS.favorites, next);
+  // Sync to server
+  syncFavoriteToServer(item, !exists).catch(() => {});
   return { next, added: !exists };
 }
 
@@ -325,7 +344,9 @@ export function getQuote() {
 }
 
 export function saveQuote(quote) {
-  writeJson(STORAGE_KEYS.quote, { ...quote, updated_at: new Date().toISOString() });
+  const updated = { ...quote, updated_at: new Date().toISOString() };
+  writeJson(STORAGE_KEYS.quote, updated);
+  debouncedQuoteSync(updated);
 }
 
 export function addToQuote(product, roomId) {
@@ -465,6 +486,40 @@ export function getQuoteSettings() {
 
 export function saveQuoteSettings(settings) {
   writeJson(STORAGE_KEYS.quoteSettings, settings);
+}
+
+// ── Server sync on login ──
+// Call this after login to merge server data with localStorage
+export async function syncFromServer() {
+  if (!isLoggedIn()) return;
+  try {
+    const [serverFavs, serverQuote] = await Promise.all([
+      fetchServerFavorites(),
+      fetchServerQuote(),
+    ]);
+    // Merge server favorites with local (server wins for conflicts)
+    if (serverFavs && serverFavs.length > 0) {
+      const local = getFavorites();
+      const merged = new Map();
+      for (const f of serverFavs) merged.set(f.id, f);
+      for (const f of local) { if (!merged.has(f.id)) merged.set(f.id, f); }
+      writeJson(STORAGE_KEYS.favorites, [...merged.values()].slice(0, 40));
+    }
+    // Merge server quote with local (server wins if it has items)
+    if (serverQuote && serverQuote.rooms) {
+      const localQuote = getQuote();
+      const localItemCount = localQuote.rooms.reduce((s, r) => s + r.items.length, 0);
+      const serverItemCount = serverQuote.rooms.reduce((s, r) => s + r.items.length, 0);
+      if (serverItemCount > 0 && serverItemCount >= localItemCount) {
+        writeJson(STORAGE_KEYS.quote, serverQuote);
+      } else if (localItemCount > 0) {
+        // Local has more, push to server
+        syncQuoteToServer(localQuote).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn("[growth-store] Server sync failed:", err);
+  }
 }
 
 export function normalizeProduct(product) {

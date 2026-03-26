@@ -293,6 +293,57 @@ export async function crossMatchProducts(selectedIds, candidateIds) {
   }
 }
 
+// ── User Data (server-side persistence) ──
+
+export async function fetchServerFavorites() {
+  try {
+    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.favorites || [];
+  } catch { return null; }
+}
+
+export async function syncFavoriteToServer(product, add) {
+  try {
+    if (add) {
+      await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ product }),
+      });
+    } else {
+      await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites/${encodeURIComponent(product.id)}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeaders() },
+      });
+    }
+  } catch {}
+}
+
+export async function fetchServerQuote() {
+  try {
+    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.quote;
+  } catch { return null; }
+}
+
+export async function syncQuoteToServer(quote) {
+  try {
+    await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ quote }),
+    });
+  } catch {}
+}
+
 function isVendorAssetUrl(url, vendorDomain) {
   if (!url || !vendorDomain) return false;
   try {

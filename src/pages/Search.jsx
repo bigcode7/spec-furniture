@@ -646,7 +646,7 @@ export default function SearchPage() {
     if (!product?.id) return;
     setSimilarLoading(true);
     try {
-      const data = await findSimilarProducts(product.id, 8);
+      const data = await findSimilarProducts(product.id, 12);
       setSimilarProducts(data.products || []);
     } catch {
       setSimilarProducts([]);
@@ -2031,6 +2031,37 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   </div>
                 )}
               </div>
+
+              {/* Description */}
+              {(product.description || product.snippet) && (
+                <div>
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-1">Description</div>
+                  <p className="text-[12px] text-white/50 leading-relaxed">{(product.description || product.snippet).slice(0, 500)}</p>
+                </div>
+              )}
+
+              {/* AI Intelligence Tags */}
+              {(() => {
+                const aiTags = [];
+                if (product.ai_style) aiTags.push({ label: "Style", value: product.ai_style });
+                if (product.ai_formality) aiTags.push({ label: "Formality", value: product.ai_formality });
+                if (product.ai_mood) aiTags.push({ label: "Mood", value: product.ai_mood });
+                if (product.ai_primary_material) aiTags.push({ label: "Material", value: product.ai_primary_material });
+                if (product.ai_furniture_type) aiTags.push({ label: "Type", value: product.ai_furniture_type });
+                if (product.ai_silhouette) aiTags.push({ label: "Silhouette", value: product.ai_silhouette });
+                return aiTags.length > 0 ? (
+                  <div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-2">AI Intelligence</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {aiTags.map(({ label, value }) => (
+                        <span key={label} className="rounded-full bg-gold/[0.04] border border-gold/[0.08] px-2.5 py-0.5 text-[10px] text-gold/50">
+                          <span className="text-gold/30 mr-1">{label}:</span>{value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
 
               {/* Visual tags */}
               {tags.length > 0 && (
