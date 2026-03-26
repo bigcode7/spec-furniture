@@ -525,6 +525,21 @@ function UsersTab({ data, loading, error, onRefresh }) {
     }
   };
 
+  const handleDeleteUser = async (userId, email) => {
+    if (!window.confirm(`PERMANENTLY DELETE ${email}? This cannot be undone.`)) return;
+    if (!window.confirm(`Are you absolutely sure? All data for ${email} will be erased.`)) return;
+    setActionLoading((p) => ({ ...p, [userId]: "delete" }));
+    try {
+      await adminPost("/admin/delete-user", { user_id: userId });
+      setToast(`User ${email} permanently deleted.`);
+      onRefresh();
+    } catch (err) {
+      setToast(`Error: ${err.message}`);
+    } finally {
+      setActionLoading((p) => ({ ...p, [userId]: null }));
+    }
+  };
+
   if (loading) return <Loading />;
   if (error) return <ErrorBox msg={error} />;
   if (!data) return null;
@@ -707,23 +722,33 @@ function UsersTab({ data, loading, error, onRefresh }) {
                       </span>
                     </td>
                     <td className="py-2 px-3">
-                      {isDeactivated ? (
+                      <div className="flex items-center gap-1.5">
+                        {isDeactivated ? (
+                          <button
+                            onClick={() => handleReactivate(uid)}
+                            disabled={actionLoading[uid] === "reactivate"}
+                            className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                          >
+                            {actionLoading[uid] === "reactivate" ? "..." : "Reactivate"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDeactivate(uid)}
+                            disabled={actionLoading[uid] === "deactivate"}
+                            className="bg-red-700 hover:bg-red-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                          >
+                            {actionLoading[uid] === "deactivate" ? "..." : "Deactivate"}
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleReactivate(uid)}
-                          disabled={actionLoading[uid] === "reactivate"}
-                          className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                          onClick={() => handleDeleteUser(uid, u.email)}
+                          disabled={!!actionLoading[uid]}
+                          className="bg-gray-700 hover:bg-red-800 text-gray-400 hover:text-red-300 text-xs px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                          title="Permanently delete"
                         >
-                          {actionLoading[uid] === "reactivate" ? "..." : "Reactivate"}
+                          {actionLoading[uid] === "delete" ? "..." : "Delete"}
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => handleDeactivate(uid)}
-                          disabled={actionLoading[uid] === "deactivate"}
-                          className="bg-red-700 hover:bg-red-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
-                        >
-                          {actionLoading[uid] === "deactivate" ? "..." : "Deactivate"}
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );

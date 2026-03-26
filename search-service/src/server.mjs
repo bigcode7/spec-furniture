@@ -2136,6 +2136,29 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, { ok: true, message: "User reactivated" });
     }
 
+    // 7b. POST /admin/delete-user — permanently delete user account
+    if (req.method === "POST" && req.url === "/admin/delete-user") {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+
+      const body = await collectBody(req);
+      const { user_id, reason } = body;
+      if (!user_id) return json(res, 400, { error: "user_id required" });
+
+      // Cancel subscription first
+      setSubscription(user_id, {
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: "admin_deleted",
+      });
+
+      const result = await deleteUser(user_id);
+      if (!result.ok) return json(res, 404, { error: result.error });
+
+      logAdminAction("delete_user", user_id, reason || "Admin deleted");
+
+      return json(res, 200, { ok: true, message: "User permanently deleted" });
+    }
+
     // 8. GET /admin/analytics — search analytics
     if (req.method === "GET" && req.url === "/admin/analytics") {
       if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
