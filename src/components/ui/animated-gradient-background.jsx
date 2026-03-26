@@ -1,22 +1,12 @@
 import { motion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * AnimatedGradientBackground
  *
  * Renders a customizable animated radial gradient background with a breathing effect.
- * Uses framer-motion for entrance animation and raw CSS gradients for the dynamic background.
- *
- * @param {object} props
- * @param {number}   [props.startingGap=125]        - Initial radial gradient size (width %)
- * @param {boolean}  [props.Breathing=false]         - Enable breathing animation
- * @param {string[]} [props.gradientColors]          - Array of CSS colors for the gradient
- * @param {number[]} [props.gradientStops]           - Stop percentages matching gradientColors
- * @param {number}   [props.animationSpeed=0.02]     - Breathing animation speed
- * @param {number}   [props.breathingRange=5]        - Max breathing expansion range (%)
- * @param {object}   [props.containerStyle={}]       - Extra inline styles
- * @param {string}   [props.containerClassName=""]   - Extra class names
- * @param {number}   [props.topOffset=0]             - Top offset for gradient origin
+ * On mobile devices, the breathing animation is disabled and a static gradient is used
+ * to prevent GPU drain and improve performance.
  */
 const AnimatedGradientBackground = ({
   startingGap = 125,
@@ -44,8 +34,34 @@ const AnimatedGradientBackground = ({
   }
 
   const containerRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
 
+  // Detect mobile once on mount
   useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches || navigator.maxTouchPoints > 0);
+    const handler = (e) => setIsMobile(e.matches || navigator.maxTouchPoints > 0);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Set static gradient on mobile, animate on desktop
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const gradientStopsString = gradientStops
+      .map((stop, index) => `${gradientColors[index]} ${stop}%`)
+      .join(", ");
+
+    // Mobile: static gradient, no animation loop
+    if (isMobile) {
+      containerRef.current.style.background =
+        `radial-gradient(${startingGap}% ${startingGap + topOffset}% at 50% 20%, ${gradientStopsString})`;
+      containerRef.current.style.willChange = "auto";
+      return;
+    }
+
+    // Desktop: breathing animation via rAF
     let animationFrame;
     let width = startingGap;
     let directionWidth = 1;
@@ -57,42 +73,33 @@ const AnimatedGradientBackground = ({
       if (!Breathing) directionWidth = 0;
       width += directionWidth * animationSpeed;
 
-      const gradientStopsString = gradientStops
-        .map((stop, index) => `${gradientColors[index]} ${stop}%`)
-        .join(", ");
-
       const gradient = `radial-gradient(${width}% ${width + topOffset}% at 50% 20%, ${gradientStopsString})`;
-
-      if (containerRef.current) {
-        containerRef.current.style.background = gradient;
-      }
+      containerRef.current.style.background = gradient;
 
       animationFrame = requestAnimationFrame(animateGradient);
     };
 
     animationFrame = requestAnimationFrame(animateGradient);
-
     return () => cancelAnimationFrame(animationFrame);
-  }, [startingGap, Breathing, gradientColors, gradientStops, animationSpeed, breathingRange, topOffset]);
+  }, [startingGap, Breathing, gradientColors, gradientStops, animationSpeed, breathingRange, topOffset, isMobile]);
 
   return (
     <motion.div
       key="animated-gradient-background"
-      initial={{ opacity: 0, scale: 1.5 }}
+      initial={isMobile ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 1.5 }}
       animate={{
         opacity: 1,
         scale: 1,
-        transition: {
-          duration: 2,
-          ease: [0.25, 0.1, 0.25, 1],
-        },
+        transition: isMobile
+          ? { duration: 0 }
+          : { duration: 2, ease: [0.25, 0.1, 0.25, 1] },
       }}
       className={`absolute inset-0 overflow-hidden ${containerClassName}`}
     >
       <div
         ref={containerRef}
         style={containerStyle}
-        className="absolute inset-0 transition-transform"
+        className="absolute inset-0"
       />
     </motion.div>
   );

@@ -432,14 +432,14 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
               className="mb-6"
             >
-              <span className="font-brand text-3xl sm:text-4xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
+              <span className="font-brand text-2xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
                 SPEKD
               </span>
             </motion.div>
 
             {/* Headline */}
             <motion.h1
-              className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-[80px] leading-[1.05] text-white"
+              className="font-display text-[28px] sm:text-5xl md:text-7xl lg:text-[80px] leading-[1.05] text-white"
               initial={{ clipPath: "inset(0 100% 0 0)" }}
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
@@ -454,7 +454,7 @@ export default function Landing() {
 
             {/* Subtitle — live numbers */}
             <motion.p
-              className="mt-8 mx-auto max-w-2xl text-lg md:text-xl leading-relaxed"
+              className="mt-6 sm:mt-8 mx-auto max-w-2xl text-[15px] sm:text-lg md:text-xl leading-relaxed"
               style={{ color: "var(--warm-gray)" }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -479,18 +479,18 @@ export default function Landing() {
               <div className="absolute -inset-10 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(79,107,255,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
               />
-              <div className="search-bar-glow relative flex h-16 md:h-[68px] items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-6 group">
-                <div className="relative mr-4">
+              <div className="search-bar-glow relative flex h-14 sm:h-16 md:h-[68px] items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-4 sm:px-6 group">
+                <div className="relative mr-3 sm:mr-4 hidden sm:block">
                   <div className="spec-diamond" />
                 </div>
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder='Describe what you need — "modern swivel chair under $2k"'
-                  className="flex-1 bg-transparent text-white/80 text-sm md:text-base placeholder:text-white/25 focus:outline-none"
+                  placeholder='Describe what you need...'
+                  className="flex-1 bg-transparent text-white/80 text-base placeholder:text-white/25 focus:outline-none"
                 />
-                <button type="submit" className="btn-gold ml-4 h-11 px-7 rounded-full text-sm shrink-0">
+                <button type="submit" className="btn-gold ml-3 sm:ml-4 h-10 sm:h-11 px-5 sm:px-7 rounded-full text-sm shrink-0">
                   Search
                 </button>
               </div>
@@ -498,7 +498,7 @@ export default function Landing() {
 
             {/* Suggested searches */}
             <motion.div
-              className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2"
+              className="mt-6 flex flex-wrap justify-center gap-x-3 sm:gap-x-4 gap-y-2 px-4 sm:px-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 1.4, ease: EASE }}
@@ -715,7 +715,7 @@ export default function Landing() {
             <span className="label-caps text-gold/50 tracking-[0.25em]">Get Started</span>
           </Reveal>
           <Reveal delay={0.1} className="mt-5">
-            <h2 className="font-display text-4xl md:text-6xl lg:text-7xl text-white">
+            <h2 className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-white">
               Start sourcing <span className="text-gold">smarter</span>
             </h2>
           </Reveal>

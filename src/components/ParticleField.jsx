@@ -1,15 +1,24 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const PARTICLE_COUNT = 35;
 const PARALLAX_STRENGTH = 10;
+
+function isMobileDevice() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 768px)").matches || navigator.maxTouchPoints > 0;
+}
 
 export default function ParticleField({ className = "" }) {
   const canvasRef = useRef(null);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
   const particlesRef = useRef([]);
   const animRef = useRef(null);
+  const [mobile] = useState(isMobileDevice);
 
   useEffect(() => {
+    // Don't run the particle animation on mobile at all
+    if (mobile) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -113,7 +122,10 @@ export default function ParticleField({ className = "" }) {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handleMouse);
     };
-  }, []);
+  }, [mobile]);
+
+  // Don't render canvas on mobile
+  if (mobile) return null;
 
   return (
     <canvas

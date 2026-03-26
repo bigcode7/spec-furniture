@@ -129,7 +129,7 @@
     z-index: 2;
   }
 
-  /* ── Disable heavy background animations on mobile ── */
+  /* ── Disable heavy animations on mobile for performance ── */
   @media (max-width: 768px) {
     body::after {
       animation: none !important;
@@ -139,6 +139,30 @@
     }
     body::before {
       display: none;
+    }
+    /* Kill continuous CSS animations on mobile */
+    .animate-float,
+    .animate-glow,
+    .animate-ken-burns,
+    .animate-marquee,
+    .animate-chevron-pulse {
+      animation: none !important;
+    }
+    /* Reduce backdrop-filter complexity */
+    .glass-surface,
+    .glass-header,
+    .glass-panel,
+    .surface-panel-dark {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    /* Disable hover transforms on touch */
+    .glass-surface:hover,
+    .product-card-editorial:hover,
+    .product-scroll-card:hover,
+    .metric-card:hover,
+    .quick-card:hover {
+      transform: none !important;
     }
   }
 
@@ -1052,4 +1076,66 @@ button:active, a:active, [role="button"]:active {
   background: rgba(79,107,255,0.12);
   border-color: rgba(79,107,255,0.25);
   color: var(--gold);
+}
+
+/* ════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE OVERRIDES
+   ════════════════════════════════════════════════════════ */
+
+/* ── Fix Safari 100vh issue — use dvh where supported ── */
+@supports (height: 100dvh) {
+  .h-screen-safe { height: 100dvh; }
+  .min-h-screen-safe { min-height: 100dvh; }
+}
+
+/* ── Mobile tap targets — minimum 44px ── */
+@media (max-width: 768px) {
+  /* Ensure all interactive elements have minimum tap size */
+  button, a, [role="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception: inline text links and icon-only buttons that use padding */
+  .inline-link, nav a, .text-link {
+    min-height: auto;
+    min-width: auto;
+  }
+
+  /* Prevent iOS input zoom — inputs must be 16px+ */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* No horizontal scroll anywhere */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Overscroll containment on modals */
+  [class*="fixed inset-0"] {
+    overscroll-behavior: contain;
+  }
+
+  /* Product card adjustments for mobile */
+  .product-card {
+    border-radius: 10px;
+  }
+
+  /* Filter chips — increase tap target */
+  .filter-chip {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  /* Landing page headline scaling */
+  .font-display {
+    word-break: break-word;
+  }
+
+  /* Reduce glass blur on mobile for performance */
+  .search-bar-glow {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
 }

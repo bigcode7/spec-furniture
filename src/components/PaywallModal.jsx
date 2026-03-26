@@ -52,7 +52,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
   const priceLabel = billing === "annual" ? "$990/yr" : "$99/mo";
 
   const inputClass =
-    "w-full rounded-lg px-3.5 py-2.5 text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
+    "w-full rounded-lg px-3.5 py-3 text-base sm:text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
 
   const goldBtnStyle = {
     background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
@@ -205,7 +205,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
       style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}
     >
@@ -213,11 +213,12 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8 w-full max-w-lg"
+        className="relative w-full h-[100dvh] sm:h-auto sm:mx-4 sm:max-h-[90vh] overflow-y-auto sm:rounded-2xl rounded-t-2xl p-6 sm:p-8 sm:max-w-lg"
         style={{
           background: "rgba(16,17,24,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+          paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
         }}
       >
         {/* Close button — always visible */}
@@ -374,7 +375,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
               <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
 
               <form onSubmit={handleCheckout} className="space-y-3.5">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Email</label>
                     <input
@@ -400,7 +401,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Full name</label>
                     <input

@@ -89,8 +89,10 @@ const SORT_OPTIONS = [
   { key: "popular", label: "Most Popular" },
 ];
 
-const INITIAL_PAGE_SIZE = 48;
-const LOAD_MORE_SIZE = 48;
+// Smaller initial load on mobile for faster paint
+const IS_MOBILE = typeof window !== "undefined" && (window.matchMedia("(max-width: 768px)").matches || navigator.maxTouchPoints > 0);
+const INITIAL_PAGE_SIZE = IS_MOBILE ? 20 : 48;
+const LOAD_MORE_SIZE = IS_MOBILE ? 20 : 48;
 const MAX_RESULTS = 500;
 
 // 100 designer-friendly accent colors for bucket headers
@@ -760,7 +762,7 @@ export default function SearchPage() {
         } catch {
           setAutocompleteResults([]);
         }
-      }, 150);
+      }, 300);
     } else {
       setAutocompleteResults([]);
       setShowAutocomplete(false);
@@ -1008,7 +1010,7 @@ export default function SearchPage() {
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder={'Search 42,000+ trade products...'}
-                      className="min-h-[60px] w-full bg-transparent pl-6 pr-4 py-5 text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
+                      className="min-h-[56px] sm:min-h-[60px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-5 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
                       rows={1}
                     />
                     <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0">
@@ -1074,7 +1076,7 @@ export default function SearchPage() {
                       value={inputValue}
                       onChange={(e) => handleInputChange(e.target.value)}
                       placeholder="Search..."
-                      className="h-8 w-full bg-transparent pl-2 pr-8 text-[12px] text-white/70 placeholder:text-white/20 outline-none"
+                      className="h-10 sm:h-8 w-full bg-transparent pl-2 pr-8 text-base sm:text-[12px] text-white/70 placeholder:text-white/20 outline-none"
                       disabled={loading}
                     />
                     {inputValue.trim() && (
@@ -1487,7 +1489,7 @@ export default function SearchPage() {
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
-                      className="h-12 w-full bg-transparent pl-3 pr-28 text-sm text-white/80 placeholder:text-white/20 outline-none"
+                      className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => fileInputRef.current?.click()}
@@ -1656,13 +1658,13 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
 
   return (
     <div className="pb-3 border-b border-white/[0.04] mb-4">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap">
         {/* Filter chips for each dimension */}
         {filterGroups.map((group) => (
-          <div key={group.key} className="relative">
+          <div key={group.key} className="relative shrink-0">
             <button
               onClick={() => setExpanded(expanded === group.key ? null : group.key)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] transition-all border ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-2 sm:py-1.5 text-[12px] sm:text-[11px] transition-all border whitespace-nowrap ${
                 (filters[group.key]?.length > 0)
                   ? "border-gold/30 bg-gold/10 text-gold"
                   : "border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-white/60 hover:border-white/10"
