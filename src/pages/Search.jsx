@@ -55,9 +55,9 @@ function proxyUrl(url, productId) {
 }
 
 // Image component: always uses server-side proxy to bypass vendor hotlink protection
-function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, ...rest }) {
+function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, eager, ...rest }) {
   const finalSrc = src ? proxyUrl(src, productId) : "";
-  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" onError={externalOnError} onLoad={onLoad} {...rest} />;
+  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" onError={externalOnError} onLoad={onLoad} {...rest} />;
 }
 
 const EXAMPLE_SEARCHES = [
@@ -917,7 +917,7 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4" style={{ marginTop: "-5vh" }}>
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] sm:min-h-screen px-3 sm:px-4" style={{ marginTop: "-5vh" }}>
           <div className="w-full max-w-xl">
             {/* Copy */}
             <div className="text-center mb-10">
@@ -975,7 +975,7 @@ export default function SearchPage() {
             </form>
 
             {/* Search suggestions */}
-            <div className="mt-8 flex flex-wrap justify-center gap-2">
+            <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-1.5 sm:gap-2">
               {[
                 "leather sofas",
                 "swivel chairs",
@@ -986,7 +986,7 @@ export default function SearchPage() {
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
-                  className="px-3.5 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
+                  className="px-3 py-1.5 sm:px-3.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[11px] sm:text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
                 >
                   {suggestion}
                 </button>
@@ -1000,7 +1000,7 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl">
+          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/95 backdrop-blur-md sm:backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <div className={`spec-diamond${loading ? " animate-pulse" : ""}`} />
@@ -1019,8 +1019,8 @@ export default function SearchPage() {
                       disabled={loading}
                     />
                     {inputValue.trim() && (
-                      <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-white/30 hover:text-gold/60 transition-colors">
-                        <ArrowRight className="h-3 w-3" />
+                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded text-white/30 hover:text-gold/60 transition-colors">
+                        <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
@@ -1210,7 +1210,7 @@ export default function SearchPage() {
                       {/* Product cards for this bucket */}
                       <div className="px-4 py-3">
                         {visibleItems.length > 0 ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-2.5">
                             {visibleItems.map((product, pIdx) => (
                               <div key={product.id || pIdx} className="relative">
                                 {/* Selection highlight */}
@@ -1361,7 +1361,7 @@ export default function SearchPage() {
             {/* ── Product grid (single search mode) ── */}
             {!loading && !listMode && visibleProducts.length > 0 && (
               <motion.div key={messages.length} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {visibleProducts.map((item, idx) => (
                     <ProductCard
                       key={item.id || idx}
@@ -1416,7 +1416,8 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/90 backdrop-blur-xl"
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/95 backdrop-blur-md sm:backdrop-blur-xl"
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="max-w-7xl mx-auto px-4 py-3">
               <form onSubmit={handleSubmit} className="relative">
@@ -1733,10 +1734,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay: Math.min(index * 0.04, 0.48), ease: [0.16, 1, 0.3, 1] }}
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="product-card group cursor-pointer"
@@ -1756,8 +1754,8 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
               </div>
             )}
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
-              className={`h-full w-full transition-all duration-700 ${imgLoaded ? "opacity-100" : "opacity-0"} ${hovered ? "scale-[1.03]" : "scale-100"}`}
-              style={{ objectFit: "contain", padding: "12px", transitionTimingFunction: "cubic-bezier(0.25, 0.46, 0.45, 0.94)" }}
+              className={`h-full w-full transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+              style={{ objectFit: "contain", padding: "12px" }}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
         ) : (
@@ -1767,13 +1765,13 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
           </div>
         )}
 
-        {/* Overlay buttons */}
+        {/* Overlay buttons — always visible on mobile, hover-reveal on desktop */}
         <div className="absolute top-2 left-2 flex gap-1.5">
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isFavorited ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
+            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
+              isFavorited ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}>
-            <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
+            <Heart className={`h-4 w-4 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
           <button data-action onClick={(ev) => {
               ev.stopPropagation();
@@ -1783,19 +1781,12 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
                 setTimeout(() => setJustAdded(false), 2000);
               }
             }}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/40 text-white/40 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
+            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
+              isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}
             title={isInQuote ? "In quote" : "Add to quote"}>
-            {isInQuote || justAdded ? <ClipboardCheck className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+            {isInQuote || justAdded ? <ClipboardCheck className="h-4 w-4 sm:h-3 sm:w-3" /> : <FileText className="h-4 w-4 sm:h-3 sm:w-3" />}
           </button>
-        </div>
-
-        {/* Quick view indicator */}
-        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-sm px-2 py-1 text-[9px] text-white/60">
-            <Eye className="h-2.5 w-2.5" /> Quick view
-          </div>
         </div>
       </div>
 
@@ -1803,10 +1794,10 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
       <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
 
       {/* Card meta */}
-      <div className="card-meta p-4 pb-3">
-        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-1.5 truncate">{item.manufacturer_name}</div>
-        <h3 className="product-name text-white/90 line-clamp-2 mb-2">{item.product_name}</h3>
-        {materialStyle && <div className="text-[12px] text-white/25 truncate mb-2">{materialStyle}</div>}
+      <div className="card-meta p-3 sm:p-4 pb-2 sm:pb-3">
+        <div className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-1 sm:mb-1.5 truncate">{item.manufacturer_name}</div>
+        <h3 className="product-name text-white/90 line-clamp-2 mb-1.5 sm:mb-2 text-[13px] sm:text-sm">{item.product_name}</h3>
+        {materialStyle && <div className="text-[12px] text-white/25 truncate mb-1.5 sm:mb-2">{materialStyle}</div>}
         <div className="flex items-center gap-2 flex-wrap">
           {priceStr && (
             <span className={`text-[13px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
@@ -1826,7 +1817,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
           </a>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1880,12 +1871,14 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 400 }}
-        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14]/95 backdrop-blur-xl shadow-2xl"
+        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto md:rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl shadow-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
-        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#0e0e14]/95 backdrop-blur-xl">
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors">
-            <X className="h-4 w-4" />
+        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl"
+          style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
+          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors">
+            <X className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
         </div>
 
@@ -1907,13 +1900,13 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       <>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx - 1 + productImages.length) % productImages.length); }}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
                         >
                           ‹
                         </button>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx + 1) % productImages.length); }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
                         >
                           ›
                         </button>
