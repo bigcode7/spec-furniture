@@ -4,8 +4,8 @@
  */
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-const FROM_EMAIL = "SPEKD <hello@spekd.ai>";
-const NOREPLY_EMAIL = "SPEKD <noreply@spekd.ai>";
+const FROM_EMAIL = "SPEKD <admin@spekd.ai>";
+const NOREPLY_EMAIL = "SPEKD <admin@spekd.ai>";
 
 function getApiKey() {
   return process.env.RESEND_API_KEY || null;
