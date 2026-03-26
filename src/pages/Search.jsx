@@ -977,12 +977,11 @@ export default function SearchPage() {
             {/* Search suggestions */}
             <div className="mt-8 flex flex-wrap justify-center gap-2">
               {[
-                "blue velvet sofa",
-                "walnut dining table seats 8",
-                "boucle accent chair",
-                "brass and marble console",
-                "leather swivel chair",
-                "modern chandelier",
+                "leather sofas",
+                "swivel chairs",
+                "round dining tables",
+                "sofa with nailhead",
+                "modern credenzas",
               ].map((suggestion) => (
                 <button
                   key={suggestion}
