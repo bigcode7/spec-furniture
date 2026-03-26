@@ -8,14 +8,13 @@ const GOLD = "#C9A96E";
 const GOLD_SHADOW = "rgba(201,169,110,0.3)";
 
 const PRO_FEATURES = [
-  { icon: Zap, text: "AI-powered search with expert advice" },
-  { icon: Search, text: "Up to 80 results per search" },
+  { icon: Zap, text: "Unlimited AI-powered search across 40,000+ trade products" },
+  { icon: Search, text: "Find Similar — cross-vendor sourcing in one click" },
   { icon: ArrowRight, text: "Conversational search refinement" },
   { icon: Layers, text: "Paste sourcing lists with room buckets" },
   { icon: FileText, text: "Unlimited quotes & PDF generation" },
-  { icon: Star, text: "Trade discount calculator" },
+  { icon: Star, text: "Trade pricing with client markup calculator" },
   { icon: Lock, text: "Save favorites & collections" },
-  { icon: Zap, text: "Room packages with auto-matching" },
 ];
 
 /**
@@ -192,10 +191,10 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
             ) : (
               <>
                 <h2 className="text-xl font-semibold text-white text-center mb-2">
-                  You just experienced SPEKD Pro.
+                  Try SPEKD Pro free for 7 days
                 </h2>
                 <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                  Designers using SPEKD source an entire room in under 5 minutes — that used to take 3-4 hours across 20 vendor websites.
+                  You've used your 3 free searches. Start a trial to get unlimited AI-powered sourcing across 40,000+ trade products — no charge for 7 days.
                 </p>
               </>
             )}

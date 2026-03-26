@@ -1555,7 +1555,13 @@ export default function SearchPage() {
       />
 
       {/* Free searches remaining counter (anonymous users only) */}
-      {!isPro && searchesRemaining != null && searchesRemaining >= 0 && <UsageCounter remaining={searchesRemaining} total={3} />}
+      {!isPro && searchesRemaining != null && searchesRemaining >= 0 && (
+        <UsageCounter
+          remaining={searchesRemaining}
+          total={3}
+          onTrialClick={() => { setPaywallMode("trial_required"); setShowPaywall(true); }}
+        />
+      )}
 
       {/* Trial banner */}
       {subscriptionStatus === "trialing" && trialDaysRemaining != null && (

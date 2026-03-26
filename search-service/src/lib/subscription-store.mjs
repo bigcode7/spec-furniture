@@ -87,11 +87,13 @@ function getGuestUsage(fingerprint, ip, localStorageId) {
     quoteCount = Math.max(quoteCount, guests[fingerprint].quote_count || 0);
   }
 
-  // Check by IP — only flag if 3+ different fingerprints from same IP all hit limit
+  // Check by IP — count total searches across ALL fingerprints from this IP.
+  // Prevents incognito abuse: new fingerprint each session, but same IP.
+  // Cap: max FREE_SEARCH_LIMIT * 2 total anonymous searches per IP.
   if (ip) {
-    const ipMatches = Object.values(guests).filter(g => g.ip === ip && g.fingerprint !== fingerprint);
-    const limitedFromIp = ipMatches.filter(g => (g.search_count || 0) >= FREE_SEARCH_LIMIT);
-    if (limitedFromIp.length >= 3) {
+    const ipMatches = Object.values(guests).filter(g => g.ip === ip);
+    const totalIpSearches = ipMatches.reduce((sum, g) => sum + (g.search_count || 0), 0);
+    if (totalIpSearches >= FREE_SEARCH_LIMIT * 2) {
       searchCount = FREE_SEARCH_LIMIT;
     }
   }
