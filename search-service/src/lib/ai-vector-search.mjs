@@ -695,7 +695,7 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
         // Primary AI field is null/undefined — try fallback ONLY for category-level fields.
         // Feature-specific fields (distinctive_features, arm_style, back_style, etc.)
         // must NOT use fallbacks — we can't verify an untagged product has those features.
-        const FALLBACK_ALLOWED_FIELDS = new Set(["ai_furniture_type", "ai_primary_material", "ai_style", "ai_primary_color"]);
+        const FALLBACK_ALLOWED_FIELDS = new Set(["ai_furniture_type", "ai_style", "ai_primary_color"]);
         if (FALLBACK_ALLOWED_FIELDS.has(fieldName)) {
           const fallback = FIELD_FALLBACKS[fieldName];
           if (fallback) {
