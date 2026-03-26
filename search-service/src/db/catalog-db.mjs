@@ -851,11 +851,24 @@ async function seedFromSampleCatalog() {
 export async function initCatalogDB() {
   await resolveLFSPointer();
   await downloadCatalogIfMissing();
-  const loaded = loadFromDisk();
+  let loaded = loadFromDisk();
   if (loaded) {
     console.log(`[catalog-db] Loaded ${products.size} products from disk`);
   } else {
     console.log("[catalog-db] No existing database found, starting fresh");
+  }
+
+  // SAFETY NET: If we have too few products and CATALOG_URL is available, force download
+  if (products.size < 10000 && process.env.CATALOG_URL) {
+    console.log(`[catalog-db] SAFETY NET: Only ${products.size} products loaded but CATALOG_URL is set — forcing download`);
+    // Delete whatever bad file is on disk
+    try { if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH); } catch {}
+    catalogDownloadedFromURL = false;
+    await downloadCatalogIfMissing();
+    products = new Map();
+    invertedIndex = new Map();
+    loaded = loadFromDisk();
+    console.log(`[catalog-db] After forced re-download: ${products.size} products`);
   }
 
   // Regenerate tags and search_text for all products (stripped from disk to save space)
@@ -893,8 +906,10 @@ export async function initCatalogDB() {
   }
   console.log(`[catalog-db] Index built: ${invertedIndex.size} unique tokens`);
 
-  // Seed from sample catalog (only adds missing products)
-  await seedFromSampleCatalog();
+  // Seed from sample catalog (only when NOT using CATALOG_URL — sample is just 25 demo products)
+  if (!process.env.CATALOG_URL) {
+    await seedFromSampleCatalog();
+  }
 
   // Reset cache
   searchCache = new Map();
