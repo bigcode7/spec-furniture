@@ -898,7 +898,8 @@ export async function searchPipeline(query, options = {}) {
 
   // ── Step 5: Build response ──
   const totalAvailable = results.length;
-  const pageResults = results.slice(0, 80);
+  const MAX_PAGE = 500;
+  const pageResults = results.slice(0, MAX_PAGE);
 
   const response = {
     query,
@@ -908,7 +909,7 @@ export async function searchPipeline(query, options = {}) {
     assistant_message: haiku.response,
     total: pageResults.length,
     total_available: totalAvailable,
-    has_more: totalAvailable > 80,
+    has_more: totalAvailable > MAX_PAGE,
     page,
     result_mode: "ai-field-match",
     tier_used: 1,

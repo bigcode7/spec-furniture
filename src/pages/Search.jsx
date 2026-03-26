@@ -90,9 +90,9 @@ const SORT_OPTIONS = [
   { key: "popular", label: "Most Popular" },
 ];
 
-const INITIAL_PAGE_SIZE = 24;
-const LOAD_MORE_SIZE = 12;
-const MAX_RESULTS = 200;
+const INITIAL_PAGE_SIZE = 48;
+const LOAD_MORE_SIZE = 48;
+const MAX_RESULTS = 500;
 
 // 100 designer-friendly accent colors for bucket headers
 const BUCKET_COLORS = [
@@ -366,7 +366,7 @@ export default function SearchPage() {
         if (entry.isIntersecting && !loading && !loadingMore && hasConversation) {
           if (hasMoreLocal) {
             setVisibleCount(v => Math.min(v + LOAD_MORE_SIZE, sorted.length));
-          } else if (isPro && hasMoreServer && allResults.length < MAX_RESULTS) {
+          } else if (hasMoreServer && allResults.length < MAX_RESULTS) {
             loadMoreFromServer();
           }
         }

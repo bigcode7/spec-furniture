@@ -2215,42 +2215,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         });
       }
 
-      // ── FREE FALLBACK: expired/cancelled user → vector-only, no Haiku ──
-      if (searchTier === "free_fallback") {
-        const vectorStats = getVectorStoreStats();
-        if (!vectorStats.ready || vectorStats.total_vectors === 0) {
-          return json(res, 503, { error: "Search index not ready" });
-        }
-        const rawResults = await vectorSearch(query, { limit: 200 });
-        const products = [];
-        for (const { id, score } of rawResults) {
-          const product = getProduct(id);
-          if (product) { product.relevance_score = score; products.push(product); }
-        }
-        // Vendor diversity (max 3 per vendor)
-        const diverse = [];
-        const vendorCounts = {};
-        for (const p of products) {
-          const v = p.vendor_name || "unknown";
-          vendorCounts[v] = (vendorCounts[v] || 0) + 1;
-          if (vendorCounts[v] <= 3) diverse.push(p);
-        }
-        const finalProducts = diverse.slice(0, 20).map(sanitizeSearchProduct);
-        for (const product of finalProducts) {
-          product.material_badges = getProductMaterialBadges(product);
-        }
-        trackSearch({ query, resultCount: finalProducts.length, vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))], tier: 0, cacheHit: false });
-        recordSearch(query);
-        return json(res, 200, {
-          query, intent: null, ai_summary: null, assistant_message: null,
-          total: finalProducts.length, total_available: products.length,
-          has_more: products.length > 20, page: 1,
-          result_mode: "vector-only", tier_used: 0, ai_called: false, cache_hit: false,
-          facets: {}, products: finalProducts,
-          searches_remaining: null, subscription_status: subStatus,
-          is_free_fallback: true,
-        });
-      }
+      // ── FREE FALLBACK: expired/cancelled user → still use full Haiku pipeline ──
+      // (Same as Pro path below — no reason to degrade search quality for expired users,
+      //  paywall is enforced on the frontend. Keeping search quality high encourages re-subscription.)
 
       // ── PRO PATH: full Haiku pipeline (existing code, untouched) ──
       const excludeIds = new Set(Array.isArray(body.exclude_ids) ? body.exclude_ids : []);
