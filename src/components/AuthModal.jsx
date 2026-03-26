@@ -175,7 +175,7 @@ export default function AuthModal() {
                   ? "Enter your email and we'll send you a reset link."
                   : mode === "signup"
                   ? "Join thousands of designers sourcing smarter."
-                  : "Sign in to access your quotes, projects, and trade pricing."}
+                  : "Sign in to access your quotes, projects, and saved collections."}
               </p>
             </div>
 

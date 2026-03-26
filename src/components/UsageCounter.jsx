@@ -48,7 +48,7 @@ export default function UsageCounter({ remaining, total = 3, onTrialClick }) {
 
           {remaining > 0 ? (
             <p className="text-[10px] text-white/30 leading-snug">
-              Start a 7-day free trial for unlimited AI search, quotes, and trade pricing.
+              Start a 7-day free trial for unlimited AI search, quotes, and sourcing tools.
             </p>
           ) : (
             <button

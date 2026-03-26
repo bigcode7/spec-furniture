@@ -13,8 +13,8 @@ const PRO_FEATURES = [
   { icon: ArrowRight, text: "Conversational search refinement" },
   { icon: Layers, text: "Paste sourcing lists with room buckets" },
   { icon: FileText, text: "Unlimited quotes & PDF generation" },
-  { icon: Star, text: "Trade pricing with client markup calculator" },
-  { icon: Lock, text: "Save favorites & collections" },
+  { icon: Star, text: "Save & organize favorites into collections" },
+  { icon: Lock, text: "Priority access to new features" },
 ];
 
 /**

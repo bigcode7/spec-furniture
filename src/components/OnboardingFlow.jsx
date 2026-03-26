@@ -1,26 +1,29 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ArrowRight, X, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Search, Layers, FileText, Heart, Zap } from "lucide-react";
+
+const GOLD = "#C9A96E";
+
+const PROJECT_TYPES = [
+  { id: "residential", label: "Residential", emoji: "🏠" },
+  { id: "commercial", label: "Commercial", emoji: "🏢" },
+  { id: "hospitality", label: "Hospitality", emoji: "🏨" },
+  { id: "healthcare", label: "Healthcare", emoji: "🏥" },
+  { id: "multifamily", label: "Multi-Family", emoji: "🏘️" },
+  { id: "other", label: "Other", emoji: "✨" },
+];
+
+const FEATURES = [
+  { icon: Search, title: "AI-Powered Search", desc: "Describe what you need in plain language — SPEKD finds it across 40,000+ products" },
+  { icon: Layers, title: "Find Similar", desc: "See a product you like? One click finds alternatives across every vendor" },
+  { icon: FileText, title: "Quote Builder", desc: "Build and export polished quotes with product specs and pricing" },
+  { icon: Heart, title: "Collections", desc: "Save favorites and organize them into project collections" },
+];
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
-const VENDOR_LIST = [
-  "Baker Furniture", "Bernhardt", "Caracole", "Century Furniture", "CR Laine",
-  "Gabby", "Hancock & Moore", "Hickory Chair", "Lexington Home Brands",
-  "Rowe Furniture", "Stickley", "Surya", "Theodore Alexander",
-  "Universal Furniture", "Vanguard Furniture", "Wesley Hall",
-];
-
-const PROJECT_TYPES = [
-  { id: "residential", label: "Residential" },
-  { id: "commercial", label: "Commercial" },
-  { id: "hospitality", label: "Hospitality" },
-  { id: "healthcare", label: "Healthcare" },
-];
-
 export default function OnboardingFlow({ show, onComplete }) {
   const [step, setStep] = useState(1);
-  const [discounts, setDiscounts] = useState({});
   const [projectTypes, setProjectTypes] = useState([]);
 
   if (!show) return null;
@@ -34,14 +37,16 @@ export default function OnboardingFlow({ show, onComplete }) {
   const handleComplete = async () => {
     try {
       const token = localStorage.getItem("spec_auth_token");
-      await fetch(`${SEARCH_SERVICE}/subscribe/onboarding`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ project_types: projectTypes, trade_discounts: discounts }),
-      });
+      if (token && !token.startsWith("g.")) {
+        await fetch(`${SEARCH_SERVICE}/subscribe/onboarding`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ project_types: projectTypes }),
+        });
+      }
     } catch {}
     onComplete();
   };
@@ -63,128 +68,109 @@ export default function OnboardingFlow({ show, onComplete }) {
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
         }}
       >
-        {/* Progress dots */}
+        {/* Progress bar */}
         <div className="flex justify-center gap-2 mb-8">
-          {[1, 2, 3].map(s => (
+          {[1, 2].map(s => (
             <div
               key={s}
               className="h-1.5 rounded-full transition-all"
               style={{
                 width: s === step ? 24 : 8,
-                background: s <= step ? "#C9A96E" : "rgba(255,255,255,0.1)",
+                background: s <= step ? GOLD : "rgba(255,255,255,0.1)",
               }}
             />
           ))}
         </div>
 
         <AnimatePresence mode="wait">
+          {/* ── Step 1: Welcome + Feature Highlights ── */}
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <div className="flex justify-center mb-4">
-                <Sparkles className="h-8 w-8" style={{ color: "#C9A96E" }} />
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-full"
+                  style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
+                >
+                  <Sparkles className="h-7 w-7" style={{ color: GOLD }} />
+                </div>
               </div>
-              <h2 className="text-lg font-semibold text-white text-center mb-2">Welcome to SPEKD Pro!</h2>
-              <p className="text-sm text-white/40 text-center mb-6">Enter your trade discounts to see estimated trade pricing.</p>
+              <h2 className="text-xl font-semibold text-white text-center mb-1">Welcome to SPEKD</h2>
+              <p className="text-sm text-white/40 text-center mb-6">
+                AI-powered sourcing across 40,000+ trade furniture products. Here's what you can do:
+              </p>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {VENDOR_LIST.map(vendor => (
-                  <div key={vendor} className="flex items-center justify-between gap-3 py-1.5">
-                    <span className="text-sm text-white/60">{vendor}</span>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        min="0"
-                        max="80"
-                        placeholder="—"
-                        value={discounts[vendor] || ""}
-                        onChange={(e) => setDiscounts(d => ({ ...d, [vendor]: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="w-16 rounded-lg px-2 py-1.5 text-sm text-white text-right bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none"
-                      />
-                      <span className="text-xs text-white/20">%</span>
+              <div className="space-y-3 mb-8">
+                {FEATURES.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-xl px-4 py-3"
+                    style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                  >
+                    <f.icon className="h-4.5 w-4.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
+                    <div>
+                      <div className="text-sm font-medium text-white/80">{f.title}</div>
+                      <div className="text-xs text-white/35 leading-relaxed mt-0.5">{f.desc}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 transition-colors"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #C9A96E, #B8944F)" }}
-                >
-                  Continue <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => setStep(2)}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                style={{
+                  background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
+                  boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
+                }}
+              >
+                Get Started <ArrowRight className="h-4 w-4" />
+              </button>
             </motion.div>
           )}
 
+          {/* ── Step 2: Project Types (optional) ── */}
           {step === 2 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="text-lg font-semibold text-white text-center mb-2">What kind of projects do you work on?</h2>
-              <p className="text-sm text-white/40 text-center mb-6">This helps us personalize your experience.</p>
+              <h2 className="text-lg font-semibold text-white text-center mb-1">What do you design?</h2>
+              <p className="text-sm text-white/40 text-center mb-6">Select all that apply — helps us tailor your results.</p>
 
               <div className="grid grid-cols-2 gap-3 mb-8">
-                {PROJECT_TYPES.map(({ id, label }) => {
+                {PROJECT_TYPES.map(({ id, label, emoji }) => {
                   const selected = projectTypes.includes(id);
                   return (
                     <button
                       key={id}
                       onClick={() => toggleProjectType(id)}
-                      className="py-4 rounded-xl text-sm font-medium transition-all"
+                      className="py-4 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2"
                       style={{
                         background: selected ? "rgba(201,169,110,0.1)" : "rgba(255,255,255,0.02)",
                         border: `1px solid ${selected ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.06)"}`,
-                        color: selected ? "#C9A96E" : "rgba(255,255,255,0.5)",
+                        color: selected ? GOLD : "rgba(255,255,255,0.5)",
                       }}
                     >
-                      {selected && <Check className="h-3.5 w-3.5 inline mr-1.5" />}
-                      {label}
+                      <span>{emoji}</span> {label}
                     </button>
                   );
                 })}
               </div>
 
-              <div className="flex gap-3">
-                <button onClick={() => setStep(3)} className="flex-1 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/60 transition-colors">
-                  Skip
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #C9A96E, #B8944F)" }}
-                >
-                  Continue <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <div className="flex justify-center mb-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full"
-                  style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}>
-                  <Check className="h-8 w-8" style={{ color: "#C9A96E" }} />
-                </div>
-              </div>
-              <h2 className="text-lg font-semibold text-white text-center mb-2">You're all set!</h2>
-              <p className="text-sm text-white/40 text-center mb-8">Start sourcing with unlimited AI-powered search.</p>
-
               <button
                 onClick={handleComplete}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110"
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
                 style={{
-                  background: "linear-gradient(135deg, #C9A96E, #B8944F)",
+                  background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
                   boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
                 }}
               >
+                <Zap className="h-4 w-4" />
                 Start Sourcing
+              </button>
+
+              <button
+                onClick={handleComplete}
+                className="w-full mt-2 py-2 text-xs text-white/30 hover:text-white/50 transition-colors"
+              >
+                Skip for now
               </button>
             </motion.div>
           )}

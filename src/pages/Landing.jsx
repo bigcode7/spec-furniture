@@ -686,7 +686,7 @@ export default function Landing() {
             {[
               "Search across 40,000+ products from 18+ trade vendors in seconds — no more browsing vendor sites one by one.",
               "AI that understands design language. Say 'warm transitional accent chair' and get exactly what you mean.",
-              "Quote builder with trade pricing, designer markup, and polished PDF export — ready for client review.",
+              "Quote builder with polished PDF export — organize specs and pricing, ready for client review.",
             ].map((text, i) => (
               <Reveal key={i} delay={i * 0.1}>
                 <div className="p-6 rounded-2xl border border-white/[0.04] h-full flex flex-col" style={{ background: "rgba(255,255,255,0.015)" }}>
