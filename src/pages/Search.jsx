@@ -716,6 +716,9 @@ export default function SearchPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setShowAutocomplete(false);
+    setAutocompleteResults([]);
+    // Blur the input so onFocus doesn't re-open autocomplete
+    if (document.activeElement) document.activeElement.blur();
     // Block list paste for free users
     if (!isPro && inputValue.includes("\n")) {
       setShowPaywall(true);
@@ -1629,16 +1632,6 @@ export default function SearchPage() {
         >
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Your subscription is activating — refreshing momentarily...
-        </div>
-      )}
-
-      {/* Trial banner */}
-      {subscriptionStatus === "trialing" && trialDaysRemaining != null && (
-        <div
-          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-1.5 text-xs font-medium"
-          style={{ background: "rgba(201,169,110,0.15)", color: "#C9A96E", borderBottom: "1px solid rgba(201,169,110,0.2)" }}
-        >
-          Trial: {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} remaining
         </div>
       )}
 
