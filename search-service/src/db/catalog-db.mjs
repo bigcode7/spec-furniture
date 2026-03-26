@@ -411,9 +411,14 @@ async function downloadCatalogIfMissing() {
   }
 
   // Support single URL or comma-separated URLs for split catalogs
+  const HARDCODED_CATALOG_URLS = [
+    "https://github.com/user-attachments/files/26251021/catalog-part1.json.gz",
+    "https://github.com/user-attachments/files/26251025/catalog-part2.json.gz",
+  ];
   const urlEnv = process.env.CATALOG_URL;
-  if (!urlEnv) return;
-  const urls = urlEnv.split(",").map(u => u.trim()).filter(Boolean);
+  const urls = urlEnv
+    ? urlEnv.split(",").map(u => u.trim()).filter(Boolean)
+    : HARDCODED_CATALOG_URLS;
 
   console.log(`[catalog-db] No catalog on disk — downloading ${urls.length} part(s) from CATALOG_URL...`);
   try {
@@ -528,7 +533,7 @@ function validateBeforeWrite() {
  */
 function writeToDisk() {
   // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
-  if (process.env.CATALOG_URL) return;
+  if (catalogDownloadedFromURL) return;
 
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -573,7 +578,7 @@ function writeToDisk() {
  */
 function forceWriteToDisk() {
   // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
-  if (process.env.CATALOG_URL) return;
+  if (catalogDownloadedFromURL) return;
 
   console.warn(`[catalog-db] ⚠ Force-writing ${products.size} products (safety checks bypassed)`);
   lastKnownVendorCounts = snapshotVendorCounts();
@@ -600,7 +605,7 @@ function forceWriteToDisk() {
  */
 function scheduleSave() {
   // HARD BLOCK: Never write to catalog file when CATALOG_URL is set
-  if (process.env.CATALOG_URL) return;
+  if (catalogDownloadedFromURL) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
@@ -859,7 +864,7 @@ export async function initCatalogDB() {
   }
 
   // SAFETY NET: If we have too few products and CATALOG_URL is available, force download
-  if (products.size < 10000 && process.env.CATALOG_URL) {
+  if (products.size < 10000) {
     console.log(`[catalog-db] SAFETY NET: Only ${products.size} products loaded but CATALOG_URL is set — forcing download`);
     // Delete whatever bad file is on disk
     try { if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH); } catch {}
@@ -907,7 +912,7 @@ export async function initCatalogDB() {
   console.log(`[catalog-db] Index built: ${invertedIndex.size} unique tokens`);
 
   // Seed from sample catalog (only when NOT using CATALOG_URL — sample is just 25 demo products)
-  if (!process.env.CATALOG_URL) {
+  if (!catalogDownloadedFromURL) {
     await seedFromSampleCatalog();
   }
 
@@ -1700,6 +1705,7 @@ export function flushToDisk() {
   writeToDisk();
 }
 
+export function isCatalogFromURL() { return catalogDownloadedFromURL; }
 export { forceWriteToDisk, snapshotVendorCounts, downloadCatalogIfMissing };
 
 export function clearSearchCache() {

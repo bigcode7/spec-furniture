@@ -29,7 +29,7 @@ import { buildQueryVariants, buildSearchIntent } from "./lib/query-intelligence.
 import { aiParseAndExpand, aiDiscoverProducts, aiRankResults, aiGenerateSummary, aiCompareProducts, aiGenerateQuoteNarratives, aiGeneratePresentation, aiVendorIntelligence, aiAnalyzeProject, aiTrendAnalysis, aiExtractProduct, aiChat, aiVisualSearch, aiRoomPlan, aiDesignBrief, aiAutocomplete, aiWeeklyDigest, aiConversationalSearch, getApiCallStats } from "./lib/ai-search.mjs";
 import { crawlAllVendors, crawlVendor, searchTradeCatalog, getTradeCatalogStats, readTradeCatalog } from "./lib/catalog-crawler.mjs";
 import { tradeVendors } from "./config/trade-vendors.mjs";
-import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets, downloadCatalogIfMissing } from "./db/catalog-db.mjs";
+import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets, downloadCatalogIfMissing, isCatalogFromURL } from "./db/catalog-db.mjs";
 import { diversifyResults, getVendorDiversityStats } from "./lib/vendor-diversity.mjs";
 import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl-scheduler.mjs";
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
@@ -86,7 +86,7 @@ async function runHeavyInit() {
   console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
 
   // Skip catalog mutations on Railway — protect the volume file
-  if (!process.env.CATALOG_URL) {
+  if (!isCatalogFromURL()) {
     // Fix miscategorized products
     for (const product of getAllProducts()) {
       if (product.category === "beds") {
@@ -164,7 +164,7 @@ async function runHeavyInit() {
       }
     }
   } else {
-    console.log(`[startup] Skipping catalog cleanup (CATALOG_URL set — protecting volume data)`);
+    console.log(`[startup] Skipping catalog cleanup (catalog from URL — protecting data)`);
   }
 
   // Initialize project store
@@ -408,7 +408,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── RELOAD CATALOG (emergency) ──
     if (req.method === "POST" && req.url === "/reload-catalog") {
-      if (!process.env.CATALOG_URL) return json(res, 400, { error: "CATALOG_URL not set" });
+      // Always available — hardcoded fallback URLs exist in catalog-db.mjs
       console.log("[reload-catalog] Manual reload triggered");
       try {
         await initCatalogDB();
