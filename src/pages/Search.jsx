@@ -917,15 +917,17 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="flex flex-col items-center justify-center min-h-screen px-4" style={{ marginTop: "-3vh" }}>
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4" style={{ marginTop: "-5vh" }}>
           <div className="w-full max-w-xl">
+            {/* Copy */}
             <div className="text-center mb-10">
-              <div className="inline-block mb-6"><div className="spec-diamond" style={{ width: 10, height: 10, opacity: 0.4 }} /></div>
-              <p className="text-[13px] tracking-[0.25em] uppercase text-white/25 font-light">
-                Describe it. We'll find it.
+              <div className="inline-block mb-5"><div className="spec-diamond" style={{ width: 10, height: 10, opacity: 0.4 }} /></div>
+              <p className="text-[13px] tracking-[0.25em] uppercase text-white/30 font-light">
+                Describe it. We&apos;ll find it.
               </p>
             </div>
 
+            {/* Search bar */}
             <form onSubmit={handleSubmit}>
               <div className="relative">
                 <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]">
@@ -949,7 +951,6 @@ export default function SearchPage() {
                       placeholder={'Search 42,000+ trade products...'}
                       className="min-h-[60px] w-full bg-transparent pl-6 pr-4 py-5 text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
                       rows={1}
-                      autoFocus
                     />
                     <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0">
                       {inputValue && (
@@ -972,6 +973,26 @@ export default function SearchPage() {
                 <SmartAutocomplete show={showAutocomplete} results={autocompleteResults} onSelect={handleAutocompleteSelect} />
               </div>
             </form>
+
+            {/* Search suggestions */}
+            <div className="mt-8 flex flex-wrap justify-center gap-2">
+              {[
+                "blue velvet sofa",
+                "walnut dining table seats 8",
+                "boucle accent chair",
+                "brass and marble console",
+                "leather swivel chair",
+                "modern chandelier",
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => runSearch(suggestion)}
+                  className="px-3.5 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
