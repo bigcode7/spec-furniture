@@ -55,17 +55,19 @@ export default function OnboardingFlow({ show, onComplete }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }}
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.9)" }}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto rounded-2xl p-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="relative w-full h-[100dvh] sm:h-auto sm:max-w-lg sm:mx-4 sm:max-h-[90vh] overflow-y-auto sm:rounded-2xl rounded-t-2xl p-6 sm:p-8"
         style={{
           background: "rgba(16,17,24,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+          paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
         }}
       >
         {/* Progress bar */}

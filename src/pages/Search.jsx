@@ -95,6 +95,9 @@ const INITIAL_PAGE_SIZE = IS_MOBILE ? 20 : 48;
 const LOAD_MORE_SIZE = IS_MOBILE ? 20 : 48;
 const MAX_RESULTS = 500;
 
+// On mobile: skip framer-motion entrance animations for snappier feel
+const noAnim = { initial: false, animate: false, exit: undefined, transition: { duration: 0 } };
+
 // 100 designer-friendly accent colors for bucket headers
 const BUCKET_COLORS = [
   "#E57373","#F06292","#BA68C8","#9575CD","#7986CB","#64B5F6","#4FC3F7","#4DD0E1",
@@ -1047,12 +1050,23 @@ export default function SearchPage() {
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
-                  className="px-3 py-1.5 sm:px-3.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[11px] sm:text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
+                  className="px-3 py-2 sm:py-1.5 sm:px-3.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[12px] sm:text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
                 >
                   {suggestion}
                 </button>
               ))}
             </div>
+
+            {/* Usage counter — inline below suggestions */}
+            {!isPro && searchesRemaining != null && searchesRemaining >= 0 && (
+              <div className="mt-6 flex justify-center">
+                <UsageCounter
+                  remaining={searchesRemaining}
+                  total={3}
+                  onTrialClick={() => { setPaywallMode("trial_required"); setShowPaywall(true); }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1061,7 +1075,7 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E]/95 backdrop-blur-md sm:backdrop-blur-xl">
+          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E] sm:bg-[#08090E]/95 sm:backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <div className={`spec-diamond${loading ? " animate-pulse" : ""}`} />
@@ -1212,7 +1226,7 @@ export default function SearchPage() {
 
             {/* ── List search results (grouped by item) — collapsible color buckets ── */}
             {!loading && listMode && listResults?.items?.length > 0 && (
-              <motion.div key="list-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              <motion.div key="list-results" {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {listResults.items.map((item, itemIdx) => {
                   const bucketColor = bucketColors[itemIdx] || "#C9A96E";
                   const isExpanded = expandedBuckets.has(itemIdx);
@@ -1421,7 +1435,7 @@ export default function SearchPage() {
 
             {/* ── Product grid (single search mode) ── */}
             {!loading && !listMode && visibleProducts.length > 0 && (
-              <motion.div key={messages.length} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {visibleProducts.map((item, idx) => (
                     <ProductCard
@@ -1477,7 +1491,7 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E]/95 backdrop-blur-md sm:backdrop-blur-xl"
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E] sm:bg-[#08090E]/95 sm:backdrop-blur-xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="max-w-7xl mx-auto px-4 py-3">
@@ -1617,14 +1631,6 @@ export default function SearchPage() {
         }}
       />
 
-      {/* Free searches remaining counter (anonymous users only) */}
-      {!isPro && searchesRemaining != null && searchesRemaining >= 0 && (
-        <UsageCounter
-          remaining={searchesRemaining}
-          total={3}
-          onTrialClick={() => { setPaywallMode("trial_required"); setShowPaywall(true); }}
-        />
-      )}
 
       {/* Activating banner — shown while waiting for Stripe webhook */}
       {subscriptionStatus === "activating" && (
@@ -1907,17 +1913,17 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] bg-black/70 sm:bg-black/60 sm:backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Panel — right-sliding */}
       <motion.div
-        initial={{ opacity: 0, x: "100%" }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 400 }}
-        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto md:rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl shadow-2xl"
+        initial={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
+        animate={IS_MOBILE ? { opacity: 1 } : { opacity: 1, x: 0 }}
+        exit={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
+        transition={IS_MOBILE ? { duration: 0.15 } : { type: "spring", damping: 30, stiffness: 400 }}
+        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto md:rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl shadow-2xl overscroll-contain"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}

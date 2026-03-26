@@ -1133,9 +1133,15 @@ button:active, a:active, [role="button"]:active {
     word-break: break-word;
   }
 
-  /* Reduce glass blur on mobile for performance */
-  .search-bar-glow {
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
+  /* Kill all blur on mobile for performance */
+  .search-bar-glow,
+  [style*="backdrop-filter"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Simpler focus glow on mobile */
+  .search-bar-glow:focus-within {
+    box-shadow: 0 0 15px rgba(79,107,255,0.1);
   }
 }

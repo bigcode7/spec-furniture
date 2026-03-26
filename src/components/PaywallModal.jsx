@@ -206,7 +206,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }}
+      style={{ background: "rgba(0,0,0,0.9)" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}
     >
       <motion.div
