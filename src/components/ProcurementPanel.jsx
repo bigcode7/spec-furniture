@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
 const SEARCH_URL = (
-  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app"
+  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai"
 ).replace(/\/$/, "");
 
 function SkeletonLine({ width = "w-full" }) {

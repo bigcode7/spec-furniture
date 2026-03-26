@@ -1,7 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { getAuthHeaders } from "@/lib/fingerprint";
 
-const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app";
+const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai";
 
 function handle402(response) {
   if (response.status === 402) {

@@ -7,7 +7,7 @@ import ParticleField from "@/components/ParticleField";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 import { useAuth } from "@/lib/AuthContext";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
 
 const EXAMPLE_SEARCHES = [

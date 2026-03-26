@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 
-const API = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app";
+const API = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai";
 
 async function adminFetch(path) {
   const token = localStorage.getItem("spec_auth_token");

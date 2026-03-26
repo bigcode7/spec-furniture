@@ -45,7 +45,7 @@ import PaywallModal from "@/components/PaywallModal";
 import UsageCounter from "@/components/UsageCounter";
 import { ensureGuestToken, checkSubscriptionStatus } from "@/lib/fingerprint";
 
-const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
 // Build proxy URL for an image
 function proxyUrl(url, productId) {

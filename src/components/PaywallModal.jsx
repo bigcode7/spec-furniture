@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, Users, Shield, Headphones, Building2, Crown, X, Loader2, Check } from "lucide-react";
 
-const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
 const GOLD = "#C9A96E";
 const GOLD_SHADOW = "rgba(201,169,110,0.3)";

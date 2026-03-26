@@ -9,7 +9,7 @@ import {
 import { toggleCompareItem, normalizeSearchResult, getCompareItems } from "@/lib/growth-store";
 import AddToProjectMenu from "@/components/AddToProjectMenu";
 
-const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
 function ProxyImg({ src, alt = "", className = "", style = {}, onError: externalOnError, ...rest }) {
   const [useFallback, setUseFallback] = useState(false);

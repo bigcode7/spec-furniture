@@ -9,7 +9,7 @@ const LS_ID_KEY = "spekd_device_id";
 const GUEST_TOKEN_KEY = "spekd_guest_token";
 const USAGE_KEY = "spekd_usage";
 
-const searchServiceUrl = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+const searchServiceUrl = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
 // Get or create localStorage device ID
 function getOrCreateLsId() {

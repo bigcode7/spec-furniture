@@ -368,7 +368,7 @@ export default function Layout({ children, currentPageName }) {
           <button
             onClick={async () => {
               const token = localStorage.getItem("spec_auth_token");
-              const resp = await fetch(`${(import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "")}/subscribe/portal`, {
+              const resp = await fetch(`${(import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "")}/subscribe/portal`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               });

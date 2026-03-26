@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 
 const SEARCH_URL = (
-  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app"
+  import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai"
 ).replace(/\/$/, "");
 
 /**

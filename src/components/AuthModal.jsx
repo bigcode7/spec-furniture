@@ -100,7 +100,7 @@ export default function AuthModal() {
     setError("");
     setLoading(true);
     try {
-      const baseUrl = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://spec-furniture-production.up.railway.app").replace(/\/$/, "");
+      const baseUrl = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
       const res = await fetch(`${baseUrl}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
