@@ -48,35 +48,86 @@ function timeAgo(iso) {
 
 const fmt = (n) => (n == null ? "\u2014" : Number(n).toLocaleString());
 
-// ── Fake 404 ──
+// ── Admin Login Form ──
 
-function Fake404() {
+function AdminLogin({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API.replace(/\/$/, "")}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error || "Invalid credentials");
+        setLoading(false);
+        return;
+      }
+      // Check if admin
+      if (data.user?.email?.toLowerCase() !== "tyler@spekd.ai") {
+        setError("Not an admin account");
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem("spec_auth_token", data.token);
+      localStorage.setItem("spec_auth_user", JSON.stringify(data.user));
+      onLogin(data.user);
+    } catch {
+      setError("Network error");
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-      <div className="max-w-md w-full">
-        <div className="text-center space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-7xl font-light text-slate-300">404</h1>
-            <div className="h-0.5 w-16 bg-slate-200 mx-auto"></div>
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-2xl font-medium text-slate-800">Page Not Found</h2>
-            <p className="text-slate-600 leading-relaxed">
-              The page you&apos;re looking for doesn&apos;t exist or has been moved.
-            </p>
-          </div>
-          <div className="pt-6">
-            <button
-              onClick={() => (window.location.href = "/")}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              Go Home
-            </button>
-          </div>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900">
+      <div className="max-w-sm w-full">
+        <div className="text-center mb-8">
+          <span className="text-amber-500 font-bold text-xl tracking-wide">SPEKD</span>
+          <span className="text-gray-500 text-sm ml-2">Admin</span>
         </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg px-3.5 py-3 text-sm text-white bg-gray-800 border border-gray-700 focus:border-amber-500/50 focus:outline-none"
+              placeholder="admin@spekd.ai"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg px-3.5 py-3 text-sm text-white bg-gray-800 border border-gray-700 focus:border-amber-500/50 focus:outline-none"
+            />
+          </div>
+          {error && (
+            <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -1260,6 +1311,7 @@ const TABS = ["Overview", "Analytics", "Funnel", "Users", "Catalog Health", "Act
 
 export default function Admin() {
   const { user, isLoadingAuth } = useAuth();
+  const [adminUser, setAdminUser] = useState(null); // for direct admin login
   const [tab, setTab] = useState("Overview");
 
   // Data cache per tab
@@ -1366,9 +1418,12 @@ export default function Admin() {
     else if (tab === "Activity Log") fetchActivity();
   }, [tab, fetchOverview, fetchAnalytics, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
 
-  // Auth gate
+  // Auth gate — allow login via main auth OR direct admin login
+  const activeUser = user || adminUser;
   if (isLoadingAuth) return null;
-  if (!user || user.email !== "tyler@spekd.ai") return <Fake404 />;
+  if (!activeUser || activeUser.email !== "tyler@spekd.ai") {
+    return <AdminLogin onLogin={(u) => setAdminUser(u)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">

@@ -240,8 +240,8 @@ function verifyToken(token) {
 // ── Login rate limiting (in-memory, resets on restart — that's fine) ──
 
 const loginAttempts = {};
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOCKOUT_MINUTES = 2;
 
 export function checkLoginRateLimit(ip) {
   const record = loginAttempts[ip];
