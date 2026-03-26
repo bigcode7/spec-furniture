@@ -288,10 +288,10 @@ export default function SearchPage() {
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
 
-  const isPro = (() => {
+  const isPro = subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "activating" || (() => {
     try {
       const status = localStorage.getItem("spec_sub_status");
-      return status === "active" || status === "trialing" || status === "cancelled";
+      return status === "active" || status === "trialing";
     } catch { return false; }
   })();
 
@@ -343,9 +343,29 @@ export default function SearchPage() {
       // Check URL for subscription success (returning from Stripe)
       const params = new URLSearchParams(window.location.search);
       if (params.get("subscription") === "success") {
-        // Clean URL — user just returned from Stripe checkout
         window.history.replaceState({}, "", "/Search");
-        window.location.reload();
+        // Poll for subscription activation (webhook may be delayed)
+        let attempts = 0;
+        const maxAttempts = 6;
+        const poll = async () => {
+          attempts++;
+          const freshStatus = await checkSubscriptionStatus();
+          if (freshStatus.status === "active" || freshStatus.status === "trialing") {
+            setSubscriptionStatus(freshStatus.status);
+            setSearchesRemaining(null);
+            setIsFreeFallback(false);
+            setShowPaywall(false);
+            return;
+          }
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 2000);
+          } else {
+            // Webhook still hasn't arrived — show message and reload
+            setSubscriptionStatus("activating");
+            setTimeout(() => window.location.reload(), 5000);
+          }
+        };
+        poll();
       }
     }
     initSubscription();
@@ -1571,6 +1591,17 @@ export default function SearchPage() {
           total={3}
           onTrialClick={() => { setPaywallMode("trial_required"); setShowPaywall(true); }}
         />
+      )}
+
+      {/* Activating banner — shown while waiting for Stripe webhook */}
+      {subscriptionStatus === "activating" && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-2 text-xs font-medium"
+          style={{ background: "rgba(201,169,110,0.15)", color: "#C9A96E", borderBottom: "1px solid rgba(201,169,110,0.2)" }}
+        >
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Your subscription is activating — refreshing momentarily...
+        </div>
       )}
 
       {/* Trial banner */}

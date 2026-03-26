@@ -296,31 +296,49 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
               </div>
             )}
 
-            <button
-              onClick={() => isLoggedIn ? handleDirectCheckout() : setStep("signup")}
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={goldBtnStyle}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
-            </button>
-
-            {!isUpgrade && (
-              <p className="text-[11px] text-white/30 text-center mt-2">
-                {isLoggedIn ? `Signed in as ${existingUser?.email || ""}. ` : ""}You won't be charged for 7 days. Cancel anytime.
-              </p>
-            )}
-
-            {!isLoggedIn && (
-              <p className="text-center mt-4">
+            {isLoggedIn ? (
+              <>
                 <button
-                  onClick={() => { setError(""); setStep("login"); }}
-                  className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                  onClick={handleDirectCheckout}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={goldBtnStyle}
                 >
-                  Already have an account? <span className="underline">Sign in</span>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
                 </button>
-              </p>
+                <p className="text-[11px] text-white/30 text-center mt-2">
+                  Signed in as {existingUser?.email || ""}. You won't be charged for 7 days. Cancel anytime.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep("signup")}
+                    className="flex-1 py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                    style={goldBtnStyle}
+                  >
+                    {isUpgrade ? `Reactivate — ${priceLabel}` : "Create Account"}
+                  </button>
+                  <button
+                    onClick={() => { setError(""); setStep("login"); }}
+                    className="flex-1 py-3.5 rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "rgba(255,255,255,0.7)",
+                    }}
+                  >
+                    Sign In
+                  </button>
+                </div>
+                {!isUpgrade && (
+                  <p className="text-[11px] text-white/30 text-center mt-2">
+                    You won't be charged for 7 days. Cancel anytime.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
