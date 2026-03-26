@@ -1700,7 +1700,7 @@ export function flushToDisk() {
   writeToDisk();
 }
 
-export { forceWriteToDisk, snapshotVendorCounts };
+export { forceWriteToDisk, snapshotVendorCounts, downloadCatalogIfMissing };
 
 export function clearSearchCache() {
   searchCache.clear();

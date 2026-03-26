@@ -29,7 +29,7 @@ import { buildQueryVariants, buildSearchIntent } from "./lib/query-intelligence.
 import { aiParseAndExpand, aiDiscoverProducts, aiRankResults, aiGenerateSummary, aiCompareProducts, aiGenerateQuoteNarratives, aiGeneratePresentation, aiVendorIntelligence, aiAnalyzeProject, aiTrendAnalysis, aiExtractProduct, aiChat, aiVisualSearch, aiRoomPlan, aiDesignBrief, aiAutocomplete, aiWeeklyDigest, aiConversationalSearch, getApiCallStats } from "./lib/ai-search.mjs";
 import { crawlAllVendors, crawlVendor, searchTradeCatalog, getTradeCatalogStats, readTradeCatalog } from "./lib/catalog-crawler.mjs";
 import { tradeVendors } from "./config/trade-vendors.mjs";
-import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets } from "./db/catalog-db.mjs";
+import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets, downloadCatalogIfMissing } from "./db/catalog-db.mjs";
 import { diversifyResults, getVendorDiversityStats } from "./lib/vendor-diversity.mjs";
 import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl-scheduler.mjs";
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
@@ -404,6 +404,21 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && req.url === "/health") {
       const vs = getVectorStoreStats();
       return json(res, 200, { ok: true, ready: serviceReady, catalog_size: getProductCount(), vectors: vs.total_vectors, uptime: Math.floor(process.uptime()) });
+    }
+
+    // ── RELOAD CATALOG (emergency) ──
+    if (req.method === "POST" && req.url === "/reload-catalog") {
+      if (!process.env.CATALOG_URL) return json(res, 400, { error: "CATALOG_URL not set" });
+      console.log("[reload-catalog] Manual reload triggered");
+      try {
+        await initCatalogDB();
+        const count = getProductCount();
+        console.log(`[reload-catalog] Done — ${count} products`);
+        return json(res, 200, { ok: true, catalog_size: count });
+      } catch (err) {
+        console.error(`[reload-catalog] Failed: ${err.message}`);
+        return json(res, 500, { error: err.message });
+      }
     }
 
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
