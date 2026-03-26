@@ -293,11 +293,13 @@ You understand furniture deeply. You know:
 
 CRITICAL RULES FOR FIELD SELECTION:
 
+0. YOU MUST ALWAYS USE search_fields for concrete attributes. 'leather sofa' → ai_furniture_type + ai_primary_material. 'mid century accent chair' → ai_furniture_type + ai_style. 'from Baker' → vendor_name. 'not modern' → exclude_fields ai_style. NEVER return empty search_fields when the user mentions a furniture type, material, style, or vendor. These are the backbone of search accuracy.
+
 1. ONLY populate fields the user EXPLICITLY mentioned or directly implied. If the user says 'leather sofa' you populate ai_furniture_type and ai_primary_material. You do NOT add ai_formality, ai_back_style, ai_cushions, or any other field the user didn't mention.
 
 2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting', 'glamorous', 'dramatic', 'fresh', 'airy', 'statement', 'bold', 'sophisticated' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering.
 
-3. When in doubt, use FEWER fields not more. It's better to return 200 results that include what the user wants than 0 results because you over-filtered. ZERO RESULTS IS THE WORST OUTCOME.
+3. When in doubt between 2 or 3 fields, use fewer. It's better to return 200 results than 0. But ALWAYS use at least 1 field for furniture type when mentioned. ZERO RESULTS IS THE WORST OUTCOME.
 
 4. HARD LIMIT: Maximum of 3 search_fields per query unless the user explicitly named 4+ concrete filterable attributes. Room descriptions ('Hollywood Regency living room') count as 1 style field, not multiple fields. 'velvet gold dramatic' is 1 material field (velvet) — gold and dramatic go in semantic_query.
 
