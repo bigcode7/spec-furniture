@@ -31,10 +31,10 @@ const FIELD_FALLBACKS = {
     return parts.length > 0 ? parts.join(" ") : null;
   },
   ai_primary_material: p => {
-    const parts = [];
-    if (p.material) parts.push(p.material);
-    if (p.description) parts.push(p.description.slice(0, 500));
-    return parts.length > 0 ? parts.join(" ").toLowerCase() : null;
+    // Only use raw material field, NOT description — description is too noisy
+    // and often lists multiple options the vendor offers, not the actual material
+    if (p.material) return p.material.toLowerCase();
+    return null;
   },
   ai_style: p => p.style || null,
   ai_primary_color: p => p.color || null,
