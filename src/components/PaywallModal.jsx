@@ -241,18 +241,6 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
               ))}
             </div>
 
-            {/* Team & Enterprise teaser */}
-            <div className="flex gap-3 mb-6">
-              <div className="flex-1 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="text-xs font-semibold text-white/50 mb-0.5">Team</div>
-                <div className="text-[10px] text-white/30">$249/mo — Coming Soon</div>
-              </div>
-              <div className="flex-1 rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="text-xs font-semibold text-white/50 mb-0.5">Enterprise</div>
-                <div className="text-[10px] text-white/30">Custom — Coming Soon</div>
-              </div>
-            </div>
-
             <button
               onClick={() => setStep("signup")}
               className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"

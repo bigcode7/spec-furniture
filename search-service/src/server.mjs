@@ -567,8 +567,8 @@ const server = http.createServer(async (req, res) => {
         // Send welcome email
         sendWelcomeEmail(result.user.email, result.user.full_name).catch(err => console.error("[email] welcome send failed:", err));
         // Redirect to app with success message
-        const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
-        res.writeHead(302, { Location: `${origin}/Search?verified=true` });
+        const appUrl = (process.env.APP_URL || "https://spekd.ai").replace(/\/$/, "");
+        res.writeHead(302, { Location: `${appUrl}/Search?verified=true` });
         res.end();
         return;
       }
@@ -842,15 +842,15 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         }
       }
 
-      const origin = req.headers["origin"] || req.headers["referer"]?.replace(/\/[^/]*$/, "") || "https://spekd.ai";
+      const appUrl = (process.env.APP_URL || "https://spekd.ai").replace(/\/$/, "");
 
       try {
         const checkout = await createCheckoutSession(
           plan || "monthly",
           email,
           userId,
-          `${origin}/Search?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-          `${origin}/Search?subscription=cancelled`
+          `${appUrl}/Search?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+          `${appUrl}/Search?subscription=cancelled`
         );
         return json(res, 200, { ...checkout, token, user_id: userId });
       } catch (err) {
@@ -1067,9 +1067,9 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const sub = getSubscription(identity.userId);
       if (!sub?.stripe_customer_id) return json(res, 400, { error: "No subscription found" });
 
-      const origin = req.headers["origin"] || "https://spekd.ai";
+      const appUrl = (process.env.APP_URL || "https://spekd.ai").replace(/\/$/, "");
       try {
-        const portal = await createPortalSession(sub.stripe_customer_id, `${origin}/Account`);
+        const portal = await createPortalSession(sub.stripe_customer_id, `${appUrl}/Account`);
         return json(res, 200, portal);
       } catch (err) {
         return json(res, 500, { error: err.message });
@@ -1141,9 +1141,9 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       if (!team) return json(res, 404, { error: "No team found" });
       const sub = getSubscription(identity.userId);
       if (!sub?.stripe_customer_id) return json(res, 400, { error: "No active subscription" });
-      const origin = req.headers["origin"] || "https://spekd.ai";
+      const appUrl = (process.env.APP_URL || "https://spekd.ai").replace(/\/$/, "");
       try {
-        const checkout = await createTeamSeatCheckout(sub.stripe_customer_id, 1, `${origin}/Account?seat=added`, `${origin}/Account`);
+        const checkout = await createTeamSeatCheckout(sub.stripe_customer_id, 1, `${appUrl}/Account?seat=added`, `${appUrl}/Account`);
         const seatResult = addSeat(team.id, identity.userId);
         return json(res, 200, { ...checkout, ...seatResult });
       } catch (err) {
