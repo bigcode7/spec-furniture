@@ -273,10 +273,46 @@ function OverviewTab({ data, loading, error }) {
   const overview = data;
   const recentSignups = overview.recent_signups || [];
   const recentSearches = overview.recent_searches || [];
+  const revenue = overview.revenue_summary || {};
+  const mrr = overview.mrr || 0;
+  const arr = mrr * 12;
+  const proUsers = overview.active_pro || 0;
+  const arpu = proUsers > 0 ? Math.round(mrr / proUsers) : 0;
+  const totalUsers = overview.total_users || 0;
+  const convRate = totalUsers > 0 ? ((proUsers / totalUsers) * 100).toFixed(1) : "0";
 
   return (
     <div className="space-y-6">
-      {/* Metric Cards */}
+      {/* Revenue Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-gray-800 rounded-lg p-5 ring-1 ring-amber-500/20">
+          <div className="text-2xl font-bold text-amber-400">${mrr.toLocaleString()}</div>
+          <div className="text-sm text-gray-400">MRR</div>
+          <div className="text-[10px] text-gray-600 mt-1">Monthly Recurring Revenue</div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-5">
+          <div className="text-2xl font-bold text-white">${arr.toLocaleString()}</div>
+          <div className="text-sm text-gray-400">ARR</div>
+          <div className="text-[10px] text-gray-600 mt-1">Annualized run rate</div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-5">
+          <div className="text-2xl font-bold text-white">${arpu}</div>
+          <div className="text-sm text-gray-400">ARPU</div>
+          <div className="text-[10px] text-gray-600 mt-1">Avg revenue per Pro user</div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-5">
+          <div className="text-2xl font-bold text-white">{convRate}%</div>
+          <div className="text-sm text-gray-400">Conversion</div>
+          <div className="text-[10px] text-gray-600 mt-1">Users → Pro</div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-5">
+          <div className="text-2xl font-bold text-white">${overview.api_cost_estimate != null ? overview.api_cost_estimate.toFixed(2) : "\u2014"}</div>
+          <div className="text-sm text-gray-400">AI Cost (est.)</div>
+          <div className="text-[10px] text-gray-600 mt-1">Haiku + embeddings</div>
+        </div>
+      </div>
+
+      {/* User & Search Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gray-800 rounded-lg p-5">
           <div className="text-2xl font-bold text-white">{fmt(overview.total_users)}</div>
@@ -293,24 +329,8 @@ function OverviewTab({ data, loading, error }) {
           )}
         </div>
         <div className="bg-gray-800 rounded-lg p-5">
-          <div className="text-2xl font-bold text-white">{fmt(overview.free_users)}</div>
-          <div className="text-sm text-gray-400">Free Users</div>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-5">
-          <div className="text-2xl font-bold text-white">${overview.mrr != null ? overview.mrr.toLocaleString() : "\u2014"}</div>
-          <div className="text-sm text-gray-400">MRR</div>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-5">
           <div className="text-2xl font-bold text-white">{fmt(overview.searches_today)}</div>
           <div className="text-sm text-gray-400">Searches Today</div>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-5">
-          <div className="text-2xl font-bold text-white">{fmt(overview.searches_this_month)}</div>
-          <div className="text-sm text-gray-400">Searches This Month</div>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-5">
-          <div className="text-2xl font-bold text-white">${overview.api_cost_estimate != null ? overview.api_cost_estimate.toFixed(2) : "\u2014"}</div>
-          <div className="text-sm text-gray-400">API Cost Est.</div>
         </div>
         <div className="bg-gray-800 rounded-lg p-5">
           <div className={`text-2xl font-bold ${overview.health_alert_count > 0 ? "text-amber-400" : "text-white"}`}>
@@ -414,8 +434,9 @@ function UsersTab({ data, loading, error, onRefresh }) {
     if (!compEmail.trim()) return;
     setCompLoading(true);
     try {
-      await adminPost("/admin/comp", { email: compEmail.trim(), days: parseInt(compDays), note: compNote.trim() });
-      setToast(`Pro access granted to ${compEmail} for ${compDays} days.`);
+      const days = parseInt(compDays);
+      await adminPost("/admin/comp", { email: compEmail.trim(), days, note: compNote.trim() });
+      setToast(`Pro access granted to ${compEmail} ${days >= 36500 ? "forever (lifetime)" : `for ${compDays} days`}.`);
       setCompEmail("");
       setCompNote("");
       onRefresh();
@@ -484,7 +505,8 @@ function UsersTab({ data, loading, error, onRefresh }) {
 
       {/* Comp Pro Form */}
       <div className="bg-gray-800 rounded-lg p-5">
-        <h3 className="text-sm font-medium text-gray-400 mb-4">Grant Comp Pro Access</h3>
+        <h3 className="text-sm font-medium text-gray-400 mb-1">Grant Free Access</h3>
+        <p className="text-[11px] text-gray-600 mb-4">Give anyone a free trial or permanent free Pro membership</p>
         <form onSubmit={handleCompSubmit} className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Email</label>
@@ -503,11 +525,14 @@ function UsersTab({ data, loading, error, onRefresh }) {
               onChange={(e) => setCompDays(e.target.value)}
               className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
             >
-              <option value="7">7 days</option>
+              <option value="7">7 days (trial)</option>
               <option value="14">14 days</option>
               <option value="30">30 days</option>
               <option value="60">60 days</option>
               <option value="90">90 days</option>
+              <option value="180">6 months</option>
+              <option value="365">1 year</option>
+              <option value="36500">Lifetime (free forever)</option>
             </select>
           </div>
           <div>
@@ -552,7 +577,7 @@ function UsersTab({ data, loading, error, onRefresh }) {
                   return (
                     <tr key={i} className="text-gray-300 hover:bg-gray-700/50">
                       <td className="py-2 pr-3 text-xs font-mono">{c.email}</td>
-                      <td className="py-2 pr-3">{c.days}</td>
+                      <td className="py-2 pr-3">{c.days >= 36500 ? "Lifetime" : `${c.days}d`}</td>
                       <td className="py-2 pr-3 text-gray-500">{c.note || "\u2014"}</td>
                       <td className="py-2 pr-3 text-xs">{fmtDate(c.granted_at || c.created_at)}</td>
                       <td className="py-2 pr-3 text-xs">{fmtDate(c.expires_at)}</td>
@@ -989,12 +1014,162 @@ function ActivityLogTab({ data, loading, error }) {
 }
 
 // ── Metric Card ──
-function MetricCard({ label, value, sub }) {
+function MetricCard({ label, value, sub, highlight }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-4">
+    <div className={`bg-gray-800 rounded-xl p-4 ${highlight ? "ring-1 ring-amber-500/30" : ""}`}>
       <div className="text-xs text-gray-500 mb-1">{label}</div>
       <div className="text-2xl font-bold text-white">{value}</div>
       {sub && <div className="text-[10px] text-gray-600 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+// ── Mini Bar Chart (reusable) ──
+function MiniBarChart({ data, labelKey, valueKey, maxBars = 10, barColor = "amber" }) {
+  if (!data || data.length === 0) return <div className="text-gray-500 text-xs py-4 text-center">No data</div>;
+  const items = data.slice(0, maxBars);
+  const max = Math.max(...items.map(d => d[valueKey] || 0), 1);
+  return (
+    <div className="space-y-1.5">
+      {items.map((d, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-40 text-xs text-gray-400 truncate text-right shrink-0" title={d[labelKey]}>
+            {d[labelKey]}
+          </div>
+          <div className="flex-1 h-5 bg-gray-700/50 rounded relative overflow-hidden">
+            <div
+              className={`h-full rounded bg-${barColor}-500/40`}
+              style={{ width: `${Math.max(2, ((d[valueKey] || 0) / max) * 100)}%` }}
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-300">
+              {(d[valueKey] || 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Hourly Volume Chart ──
+function HourlyChart({ data }) {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.count || 0), 1);
+  return (
+    <div className="flex items-end gap-[2px] h-20">
+      {data.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.hour || i}:00 — ${d.count} searches`}>
+          <div
+            className="w-full bg-amber-500/50 rounded-t hover:bg-amber-500/80 transition-colors"
+            style={{ height: `${Math.max(2, ((d.count || 0) / max) * 100)}%` }}
+          />
+          {i % 4 === 0 && <span className="text-[9px] text-gray-600">{d.hour ?? i}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Analytics Tab ──
+
+function AnalyticsTab({ data, loading, error }) {
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+  if (!data) return null;
+
+  const overview = data.overview || {};
+  const topQueries = data.top_queries || [];
+  const zeroResults = data.zero_result_queries || [];
+  const topClicked = data.top_clicked_products || [];
+  const topCompared = data.top_compared_products || [];
+  const topQuoted = data.top_quoted_products || [];
+  const vendorCtr = data.vendor_ctr || [];
+  const hourly = data.hourly_volume || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Search KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <MetricCard label="Total Searches" value={fmt(overview.total_searches)} />
+        <MetricCard label="Today" value={fmt(overview.searches_today)} />
+        <MetricCard label="This Week" value={fmt(overview.searches_week)} />
+        <MetricCard label="Unique Queries" value={fmt(overview.unique_queries)} />
+        <MetricCard label="Zero-Result Rate" value={
+          overview.total_searches > 0
+            ? `${((overview.zero_result_count || 0) / overview.total_searches * 100).toFixed(1)}%`
+            : "0%"
+        } sub={`${fmt(overview.zero_result_count)} queries returned nothing`} highlight={overview.zero_result_count > 10} />
+      </div>
+
+      {/* Hourly Volume */}
+      <div className="bg-gray-800 rounded-xl p-5">
+        <h3 className="text-sm font-medium text-gray-400 mb-3">Search Volume by Hour (Today)</h3>
+        <HourlyChart data={hourly} />
+      </div>
+
+      {/* Top Queries + Zero Results side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-gray-400 mb-4">Top Queries</h3>
+          <MiniBarChart data={topQueries} labelKey="query" valueKey="count" maxBars={15} barColor="amber" />
+        </div>
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-red-400 mb-4">Zero-Result Queries</h3>
+          {zeroResults.length === 0
+            ? <div className="text-gray-500 text-xs py-4 text-center">No zero-result queries</div>
+            : <MiniBarChart data={zeroResults} labelKey="query" valueKey="count" maxBars={15} barColor="red" />
+          }
+        </div>
+      </div>
+
+      {/* Product Engagement */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-gray-400 mb-4">Most Clicked Products</h3>
+          <MiniBarChart data={topClicked} labelKey="product_name" valueKey="clicks" maxBars={10} barColor="blue" />
+        </div>
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-gray-400 mb-4">Most Compared</h3>
+          <MiniBarChart data={topCompared} labelKey="product_name" valueKey="compares" maxBars={10} barColor="purple" />
+        </div>
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-gray-400 mb-4">Most Quoted</h3>
+          <MiniBarChart data={topQuoted} labelKey="product_name" valueKey="quotes" maxBars={10} barColor="emerald" />
+        </div>
+      </div>
+
+      {/* Vendor CTR */}
+      {vendorCtr.length > 0 && (
+        <div className="bg-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-medium text-gray-400 mb-4">Vendor Click-Through Rate</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="text-gray-500 text-xs border-b border-gray-700">
+                  <th className="py-2 px-3">Vendor</th>
+                  <th className="py-2 px-3">Impressions</th>
+                  <th className="py-2 px-3">Clicks</th>
+                  <th className="py-2 px-3">CTR</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {vendorCtr.map((v, i) => (
+                  <tr key={i} className="text-gray-300 hover:bg-gray-700/50">
+                    <td className="py-2 px-3 font-medium">{v.vendor || v.vendor_id}</td>
+                    <td className="py-2 px-3">{fmt(v.impressions)}</td>
+                    <td className="py-2 px-3">{fmt(v.clicks)}</td>
+                    <td className="py-2 px-3">
+                      <Badge color={parseFloat(v.ctr) > 5 ? "green" : parseFloat(v.ctr) > 2 ? "amber" : "red"}>
+                        {v.ctr}%
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1081,7 +1256,7 @@ function FunnelTab({ data, loading, error }) {
 
 // ── Main Admin Component ──
 
-const TABS = ["Overview", "Funnel", "Users", "Catalog Health", "Activity Log"];
+const TABS = ["Overview", "Analytics", "Funnel", "Users", "Catalog Health", "Activity Log"];
 
 export default function Admin() {
   const { user, isLoadingAuth } = useAuth();
@@ -1112,6 +1287,11 @@ export default function Admin() {
   const [funnelLoading, setFunnelLoading] = useState(false);
   const [funnelError, setFunnelError] = useState(null);
   const [funnelLoaded, setFunnelLoaded] = useState(false);
+
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState(null);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
 
   const fetchOverview = useCallback((force = false) => {
     if (overviewLoaded && !force) return;
@@ -1166,14 +1346,25 @@ export default function Admin() {
       .finally(() => setFunnelLoading(false));
   }, [funnelLoaded]);
 
+  const fetchAnalytics = useCallback((force = false) => {
+    if (analyticsLoaded && !force) return;
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    adminFetch("/admin/analytics")
+      .then((d) => { setAnalyticsData(d); setAnalyticsLoaded(true); })
+      .catch((e) => setAnalyticsError(e.message))
+      .finally(() => setAnalyticsLoading(false));
+  }, [analyticsLoaded]);
+
   // Fetch data on tab switch
   useEffect(() => {
     if (tab === "Overview") fetchOverview();
+    else if (tab === "Analytics") fetchAnalytics();
     else if (tab === "Funnel") fetchFunnel();
     else if (tab === "Users") fetchUsers();
     else if (tab === "Catalog Health") fetchCatalog();
     else if (tab === "Activity Log") fetchActivity();
-  }, [tab, fetchOverview, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
+  }, [tab, fetchOverview, fetchAnalytics, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
 
   // Auth gate
   if (isLoadingAuth) return null;
@@ -1214,6 +1405,9 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {tab === "Overview" && (
           <OverviewTab data={overviewData} loading={overviewLoading} error={overviewError} />
+        )}
+        {tab === "Analytics" && (
+          <AnalyticsTab data={analyticsData} loading={analyticsLoading} error={analyticsError} />
         )}
         {tab === "Funnel" && (
           <FunnelTab data={funnelData} loading={funnelLoading} error={funnelError} />

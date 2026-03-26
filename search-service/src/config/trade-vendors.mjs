@@ -20,14 +20,10 @@ export const tradeVendors = [
   { id: "universal", name: "Universal Furniture", domain: "universalfurniture.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "storage"] },
   { id: "hickory-chair", name: "Hickory Chair", domain: "hickorychair.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "accents"] },
   { id: "theodore-alexander", name: "Theodore Alexander", domain: "theodorealexander.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "storage", "accents", "lighting"] },
-  // Four Hands — removed (incomplete import, only 3 products). Re-add when full catalog available.
-  // { id: "fourhands", name: "Four Hands", domain: "fourhands.com", tier: 1, categories: ["seating", "tables", "storage", "lighting", "accents", "outdoor"] },
   { id: "caracole", name: "Caracole", domain: "caracole.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "accents"] },
   { id: "baker", name: "Baker Furniture", domain: "bakerfurniture.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "accents"] },
   { id: "stickley", name: "Stickley", domain: "stickley.com", tier: 1, categories: ["seating", "tables", "bedroom", "dining", "storage"] },
   { id: "cr-laine", name: "CR Laine", domain: "crlaine.com", tier: 1, categories: ["seating", "accents"] },
-  // Lee Industries — removed (incomplete import, only 1 product). Re-add when full catalog available.
-  // { id: "lee-industries", name: "Lee Industries", domain: "www.leeindustries.com", tier: 1, categories: ["seating", "tables", "accents", "outdoor"] },
   { id: "sherrill", name: "Sherrill Furniture", domain: "sherrillfurniture.com", tier: 1, categories: ["seating", "tables", "accents"] },
   { id: "miles-talbott", name: "Miles Talbott", domain: "themtcompany.com", tier: 1, categories: ["seating", "tables", "accents"] },
   { id: "norwalk", name: "Norwalk Furniture", domain: "norwalkfurniture.com", tier: 1, categories: ["seating", "tables", "bedroom"] },
@@ -39,12 +35,8 @@ export const tradeVendors = [
   { id: "gabby", name: "Gabby", domain: "gabbyhome.com", tier: 2, categories: ["seating", "tables", "accents", "lighting", "storage"] },
   { id: "noir", name: "Noir Furniture", domain: "noirfurniturela.com", tier: 2, categories: ["seating", "tables", "bedroom", "accents", "lighting"] },
   { id: "currey", name: "Currey & Company", domain: "currey.com", tier: 2, categories: ["lighting", "tables", "accents", "seating"] },
-  // Visual Comfort — removed (incomplete import, only 1 product). Re-add when full catalog available.
-  // { id: "visual-comfort", name: "Visual Comfort", domain: "visualcomfort.com", tier: 2, categories: ["lighting"] },
   { id: "uttermost", name: "Uttermost", domain: "uttermost.com", tier: 2, categories: ["lighting", "mirrors", "accents", "tables"] },
   { id: "surya", name: "Surya", domain: "surya.com", tier: 2, categories: ["rugs", "lighting", "accents"] },
-  // Loloi Rugs — removed (incomplete import, only 2 products). Re-add when full catalog available.
-  // { id: "loloi", name: "Loloi Rugs", domain: "loloirugs.com", tier: 2, categories: ["rugs"] },
   { id: "jaipur-living", name: "Jaipur Living", domain: "jaipurliving.com", tier: 2, categories: ["rugs", "accents"] },
   { id: "palecek", name: "Palecek", domain: "palecek.com", tier: 2, categories: ["seating", "tables", "lighting", "accents"] },
   { id: "bungalow5", name: "Bungalow 5", domain: "bungalow5.com", tier: 2, categories: ["tables", "storage", "accents", "lighting"] },
@@ -69,7 +61,6 @@ export const tradeVendors = [
 
   // ── TIER 4 — EXPAND TO ─────────────────────────────────
   { id: "rh-trade", name: "RH (Trade Program)", domain: "rh.com", tier: 4, categories: ["seating", "tables", "bedroom", "dining", "lighting", "outdoor"] },
-  { id: "holly-hunt", name: "Holly Hunt", domain: "hollyhunt.com", tier: 4, categories: ["seating", "tables", "lighting", "accents"] },
   { id: "donghia", name: "Donghia", domain: "donghia.com", tier: 4, categories: ["seating", "tables", "accents"] },
   { id: "kravet", name: "Kravet Furniture", domain: "kravet.com", tier: 4, categories: ["seating", "tables", "accents"] },
   { id: "ralph-lauren-home", name: "Ralph Lauren Home", domain: "ralphlaurenhome.com", tier: 4, categories: ["seating", "tables", "bedroom", "dining", "lighting"] },

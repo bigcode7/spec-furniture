@@ -303,7 +303,7 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 4. HARD LIMIT: Maximum of 3 search_fields per query unless the user explicitly named 4+ concrete filterable attributes. Room descriptions ('Hollywood Regency living room') count as 1 style field, not multiple fields. 'velvet gold dramatic' is 1 material field (velvet) — gold and dramatic go in semantic_query.
 
-5. Negations and exclusions the user explicitly states go in exclude_fields. 'Not modern' means exclude modern. 'Buttonless' means exclude button tufted. Only exclude what the user specifically rejected.
+5. Negations and exclusions the user explicitly states go in exclude_fields. 'Not modern' means exclude modern. 'Buttonless' means exclude button tufted. Only exclude what the user specifically rejected. IMPORTANT: Use SHORT exclude terms for maximum coverage — 'mid-century' not 'mid-century modern', 'glass' not 'glass top', 'marble' not 'marble top'. Short terms catch more variants via substring matching.
 
 6. Use values that EXIST in the lists above. Use substring terms that would match via contains.
 7. For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
@@ -313,7 +313,29 @@ CRITICAL RULES FOR FIELD SELECTION:
 11. IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly.
 12. NEVER combine ai_style + ai_primary_material + ai_primary_color + ai_finish in the same query. Pick the 1-2 most important and put the rest in semantic_query. Each additional AND field dramatically reduces results.
 
+13. BRAND + TYPE QUERIES: When the user specifies a vendor/brand AND a specific furniture type like 'Hooker sofas' or 'Baker dining chairs' or 'Bernhardt beds', return ONLY the exact furniture type they asked for. Do NOT expand to other types. 'Hooker sofas' means ai_furniture_type: ['sofa'] + vendor_name: ['Hooker Furniture'], NOT a mix of living room furniture. The user wants that specific type from that brand. NEVER interpret a brand+type query as a room or collection query.
+
+14. PLURAL FORMS: 'sofas' means sofa, 'chairs' means chair, 'tables' means table, 'beds' means bed. Use the singular form in ai_furniture_type since our catalog uses singular: 'sofa' not 'sofas'.
+
 EXAMPLES:
+
+User: 'hooker sofas'
+search_fields: { ai_furniture_type: ['sofa'], vendor_name: ['Hooker Furniture'] }
+exclude_fields: {}
+semantic_query: 'Hooker Furniture sofa high quality upholstered seating'
+(ONLY sofa — do NOT expand to other living room types. vendor_name must use exact name from catalog)
+
+User: 'baker dining chairs'
+search_fields: { ai_furniture_type: ['dining chair'], vendor_name: ['Baker Furniture'] }
+exclude_fields: {}
+semantic_query: 'Baker Furniture dining chair formal elegant craftsmanship'
+(ONLY dining chair from Baker — do NOT add other types)
+
+User: 'bernhardt beds'
+search_fields: { ai_furniture_type: ['bed'], vendor_name: ['Bernhardt'] }
+exclude_fields: {}
+semantic_query: 'Bernhardt bed bedroom furniture premium quality'
+(ONLY bed from Bernhardt)
 
 User: 'comfortable leather sofa'
 search_fields: { ai_furniture_type: ['sofa'], ai_primary_material: ['leather'] }
@@ -349,7 +371,7 @@ User: 'glamorous Hollywood Regency living room, velvet, gold, dramatic'
 search_fields: { ai_furniture_type: ['sofa', 'accent chair', 'cocktail table', 'side table'], ai_style: ['hollywood regency'] }
 exclude_fields: {}
 semantic_query: 'glamorous hollywood regency velvet gold dramatic luxe jewel tones brass accents opulent'
-(ONLY 2 fields: type + style. velvet/gold/dramatic are vibes for semantic_query — adding material+color+features would over-filter to 0 results)
+(ONLY expand to multiple types when user asks for a ROOM, not when they name a specific type)
 
 User: 'accent chair that makes a statement without overwhelming a neutral room'
 search_fields: { ai_furniture_type: ['accent chair'] }
@@ -732,13 +754,25 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     }
     if (!matchesAll) continue;
 
-    // No excluded fields should match
+    // No excluded fields should match (check primary AI field + fallback)
     let excluded = false;
-    for (const { accessor, excludeVals } of excludeFilters) {
+    for (const { fieldName, accessor, excludeVals } of excludeFilters) {
       const val = accessor(product);
-      if (!fieldExcludes(val, excludeVals)) {
-        excluded = true;
-        break;
+      if (val != null) {
+        if (!fieldExcludes(val, excludeVals)) {
+          excluded = true;
+          break;
+        }
+      } else {
+        // Primary field is null — also check fallback for exclude
+        const fallback = FIELD_FALLBACKS[fieldName];
+        if (fallback) {
+          const fbVal = fallback(product);
+          if (fbVal && !fieldExcludes(fbVal, excludeVals)) {
+            excluded = true;
+            break;
+          }
+        }
       }
     }
     if (excluded) continue;

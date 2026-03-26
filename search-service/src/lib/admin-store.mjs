@@ -233,7 +233,7 @@ async function runCatalogHealthCheck(getAllProductsFn) {
     ).length;
 
     const aiTagged = vendorProducts.filter(
-      (p) => p.ai_visual_tags && p.ai_visual_tags.length > 0
+      (p) => p.ai_furniture_type || (p.ai_visual_tags && p.ai_visual_tags.length > 0)
     ).length;
 
     const brokenImageUrls = brokenImages

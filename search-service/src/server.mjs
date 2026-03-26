@@ -4521,7 +4521,10 @@ function hasValidProductImage(url) {
   // Reject swatches, fabric samples, finish samples, lifestyle/room scenes
   if (/swatch|fabric[_-]?sample|finish[_-]?sample|detail[_-]?shot|lifestyle|room[_-]?scene|collection[_-]?hero|catalog[_-]?page|pattern[_-]?tile/i.test(lower)) return false;
   // Reject URLs explicitly tagged as non-product image types
-  if (/[_/-](swatch|fabric|finish|detail|lifestyle|roomscene|collection|catalog|pattern)\b/i.test(lower)) return false;
+  // NOTE: exclude "catalog" from this check — Magento uses /media/catalog/product/ for ALL product images
+  if (/[_/-](swatch|fabric|finish|detail|lifestyle|roomscene|collection|pattern)\b/i.test(lower)) return false;
+  // Only reject "catalog" when it's clearly a catalog PAGE image, not Magento product path
+  if (/catalog[_-](?:page|hero|cover|image)/i.test(lower)) return false;
   // Reject tiny thumbnails (often swatches: 50x50, 100x100)
   if (/[_-](50x50|75x75|100x100|swatch)\./i.test(lower)) return false;
   return true;
