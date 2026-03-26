@@ -365,6 +365,22 @@ async function downloadCatalogIfMissing() {
   console.log(`[catalog-db] DB_PATH=${DB_PATH}`);
   console.log(`[catalog-db] CATALOG_URL set: ${!!process.env.CATALOG_URL}`);
 
+  // Log what's actually on disk
+  try {
+    if (fs.existsSync(DATA_DIR)) {
+      const files = fs.readdirSync(DATA_DIR);
+      console.log(`[catalog-db] Files in DATA_DIR: ${files.join(", ") || "(empty)"}`);
+      for (const f of files) {
+        const st = fs.statSync(path.join(DATA_DIR, f));
+        console.log(`[catalog-db]   ${f}: ${(st.size / 1024 / 1024).toFixed(1)}MB`);
+      }
+    } else {
+      console.log(`[catalog-db] DATA_DIR does not exist`);
+    }
+  } catch (e) {
+    console.log(`[catalog-db] Error listing DATA_DIR: ${e.message}`);
+  }
+
   // Clean up any stale .tmp files
   const tmpPath = DB_PATH + ".tmp";
   if (fs.existsSync(tmpPath)) {
