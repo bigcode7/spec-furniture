@@ -27,12 +27,19 @@ const PRO_FEATURES = [
  *   upgradeMessage — optional custom message for upgrade mode
  */
 export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = "trial_required", upgradeMessage }) {
+  // Detect if user is already logged in
+  const existingToken = typeof window !== "undefined" ? localStorage.getItem("spec_auth_token") : null;
+  const existingUser = (() => {
+    try { return JSON.parse(localStorage.getItem("spec_auth_user") || "null"); } catch { return null; }
+  })();
+  const isLoggedIn = !!(existingToken && existingToken.length > 10 && !existingToken.startsWith("g."));
+
   const [step, setStep] = useState("intro"); // intro | signup | login | forgot
   const [billing, setBilling] = useState("monthly");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(existingUser?.email || "");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [fullName, setFullName] = useState(existingUser?.full_name || "");
+  const [businessName, setBusinessName] = useState(existingUser?.business_name || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState(false);
@@ -49,6 +56,48 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
   const goldBtnStyle = {
     background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
     boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
+  };
+
+  // Direct checkout for logged-in users — skip signup form
+  const handleDirectCheckout = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const fingerprint = localStorage.getItem("spekd_device_id");
+      const resp = await fetch(`${SEARCH_SERVICE}/subscribe/create-checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${existingToken}`,
+        },
+        body: JSON.stringify({
+          plan: planValue,
+          email: existingUser?.email || "",
+          password: "existing-user",
+          fingerprint,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setError(data.error || "Something went wrong");
+        setLoading(false);
+        return;
+      }
+      if (data.admin_bypass) {
+        localStorage.setItem("spec_sub_status", "active");
+        if (onAuthSuccess) onAuthSuccess(existingUser);
+        return;
+      }
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        setError("Could not create checkout session");
+        setLoading(false);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   };
 
   const handleCheckout = async (e) => {
@@ -241,28 +290,38 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
               ))}
             </div>
 
+            {error && (
+              <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 mb-4">
+                {error}
+              </div>
+            )}
+
             <button
-              onClick={() => setStep("signup")}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+              onClick={() => isLoggedIn ? handleDirectCheckout() : setStep("signup")}
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
               style={goldBtnStyle}
             >
-              {isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
             </button>
 
             {!isUpgrade && (
               <p className="text-[11px] text-white/30 text-center mt-2">
-                You won't be charged for 7 days. Cancel anytime.
+                {isLoggedIn ? `Signed in as ${existingUser?.email || ""}. ` : ""}You won't be charged for 7 days. Cancel anytime.
               </p>
             )}
 
-            <p className="text-center mt-4">
-              <button
-                onClick={() => { setError(""); setStep("login"); }}
-                className="text-xs text-white/30 hover:text-white/50 transition-colors"
-              >
-                Already have an account? <span className="underline">Sign in</span>
-              </button>
-            </p>
+            {!isLoggedIn && (
+              <p className="text-center mt-4">
+                <button
+                  onClick={() => { setError(""); setStep("login"); }}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                >
+                  Already have an account? <span className="underline">Sign in</span>
+                </button>
+              </p>
+            )}
           </div>
         )}
 

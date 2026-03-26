@@ -818,22 +818,23 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const body = await collectBody(req);
       const { plan, email, password, full_name, business_name, fingerprint } = body;
 
-      if (!email || !password) {
-        return json(res, 400, { error: "Email and password required" });
-      }
-
-      // Register user if not exists, or login
-      let userId, token;
+      // Check if user is already authenticated
+      let userId, token, userEmail;
       const existingAuth = extractToken(req.headers["authorization"]);
       if (existingAuth && !existingAuth.startsWith("g.")) {
         const me = await getUserFromToken(existingAuth);
         if (me.ok) {
           userId = me.user.id;
+          userEmail = me.user.email;
           token = existingAuth;
         }
       }
 
+      // If not authenticated via token, require email/password for registration
       if (!userId) {
+        if (!email || !password) {
+          return json(res, 400, { error: "Email and password required" });
+        }
         // Try to register
         let result = await registerUser({ email, password, full_name, business_name });
         if (!result.ok && result.error?.includes("already exists")) {
@@ -844,6 +845,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
           return json(res, 400, { error: result.error });
         }
         userId = result.user.id;
+        userEmail = result.user.email;
         token = result.token;
 
         // Link fingerprint to user for anti-abuse
@@ -851,9 +853,10 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       }
 
       // Admin/founder bypass — skip Stripe entirely, just activate
-      if (isAdminEmail(email)) {
+      const checkEmail = userEmail || email;
+      if (isAdminEmail(checkEmail)) {
         setSubscription(userId, { status: "active", plan: "admin", comped: true, comped_at: new Date().toISOString() });
-        console.log(`[admin] Admin account activated: ${email}`);
+        console.log(`[admin] Admin account activated: ${checkEmail}`);
         return json(res, 200, { token, user_id: userId, admin_bypass: true });
       }
 
@@ -870,7 +873,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       try {
         const checkout = await createCheckoutSession(
           plan || "monthly",
-          email,
+          userEmail || email,
           userId,
           `${appUrl}/Search?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
           `${appUrl}/Search?subscription=cancelled`
