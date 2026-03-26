@@ -347,6 +347,12 @@ export default function SearchPage() {
         window.history.replaceState({}, "", "/Search");
         window.location.reload();
       }
+      if (params.get("upgrade") === "true") {
+        // Opened from "Start Free Trial" button — auto-open paywall
+        window.history.replaceState({}, "", "/Search");
+        setPaywallMode("upgrade");
+        setShowPaywall(true);
+      }
     }
     initSubscription();
     ensureGuestToken();

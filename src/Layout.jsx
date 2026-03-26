@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Menu, X } from "lucide-react";
+import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Menu, X, Sparkles } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
@@ -241,10 +241,12 @@ export default function Layout({ children, currentPageName }) {
   const { user, navigateToLogin, logout } = useAuth();
   const [quoteCount, setQuoteCount] = useState(0);
   const [subWarning, setSubWarning] = useState(null);
+  const [subStatus, setSubStatus] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
     checkSubscriptionStatus().then(status => {
+      setSubStatus(status.status);
       if (status.status === "past_due") {
         setSubWarning("Your payment failed. Update your card to keep your access.");
       }
@@ -322,8 +324,23 @@ export default function Layout({ children, currentPageName }) {
               })}
             </nav>
 
-            {/* Right side — account */}
+            {/* Right side — account + trial CTA */}
             <div className="flex items-center gap-2.5">
+              {user && subStatus && subStatus !== "active" && subStatus !== "trialing" && subStatus !== "cancelled" && (
+                <Link
+                  to={createPageUrl("Search") + "?upgrade=true"}
+                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-semibold transition-all hover:brightness-110"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.1))",
+                    border: "1px solid rgba(201,169,110,0.3)",
+                    color: "#C9A96E",
+                  }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span className="hidden sm:inline">Start Free Trial</span>
+                  <span className="sm:hidden">Trial</span>
+                </Link>
+              )}
               {user ? (
                 <AccountDropdown user={user} logout={logout} />
               ) : (
