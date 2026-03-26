@@ -22,7 +22,6 @@ import {
   ClipboardList,
   Plus,
   Check,
-  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
@@ -1636,23 +1635,6 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Free fallback upgrade banner */}
-      {isFreeFallback && !showPaywall && (
-        <div
-          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-auto z-40 flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer hover:brightness-110 transition-all"
-          style={{
-            background: "rgba(16,17,24,0.95)",
-            border: "1px solid rgba(201,169,110,0.25)",
-            backdropFilter: "blur(12px)",
-          }}
-          onClick={() => { setPaywallMode("upgrade"); setShowPaywall(true); }}
-        >
-          <Zap className="h-4 w-4 shrink-0" style={{ color: "#C9A96E" }} />
-          <span className="text-xs text-white/70">
-            Upgrade to Pro for AI-powered search, unlimited results, and client presentations — <span className="font-semibold" style={{ color: "#C9A96E" }}>$99/month</span>
-          </span>
-        </div>
-      )}
     </div>
   );
 }
