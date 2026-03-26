@@ -295,20 +295,21 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 1. ONLY populate fields the user EXPLICITLY mentioned or directly implied. If the user says 'leather sofa' you populate ai_furniture_type and ai_primary_material. You do NOT add ai_formality, ai_back_style, ai_cushions, or any other field the user didn't mention.
 
-2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering. The vector search naturally ranks comfortable-looking furniture higher when 'comfortable' is in the semantic_query.
+2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting', 'glamorous', 'dramatic', 'fresh', 'airy', 'statement', 'bold', 'sophisticated' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering.
 
-3. When in doubt, use FEWER fields not more. It's better to return 200 results that include what the user wants than 0 results because you over-filtered.
+3. When in doubt, use FEWER fields not more. It's better to return 200 results that include what the user wants than 0 results because you over-filtered. ZERO RESULTS IS THE WORST OUTCOME.
 
-4. Maximum of 3 search_fields per query unless the user explicitly specified more. If the user says 'traditional leather sofa with nailhead from Baker' that's 4 explicit fields (type, material, feature, vendor) — use all 4. But if the user says 'comfortable sofa' that's only 1 explicit field (type) — the rest goes in semantic_query.
+4. HARD LIMIT: Maximum of 3 search_fields per query unless the user explicitly named 4+ concrete filterable attributes. Room descriptions ('Hollywood Regency living room') count as 1 style field, not multiple fields. 'velvet gold dramatic' is 1 material field (velvet) — gold and dramatic go in semantic_query.
 
 5. Negations and exclusions the user explicitly states go in exclude_fields. 'Not modern' means exclude modern. 'Buttonless' means exclude button tufted. Only exclude what the user specifically rejected.
 
 6. Use values that EXIST in the lists above. Use substring terms that would match via contains.
 7. For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
-8. You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields).
-9. DO NOT set color, arm_style, back_style, formality, cushions, finish, texture, construction, durability, visual_weight, ideal_client unless the designer EXPLICITLY used those words. These fields are for semantic_query ranking, not filtering.
-10. For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases.
+8. You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields). More AND fields = exponentially fewer results.
+9. DO NOT set ai_primary_color, ai_arm_style, ai_back_style, ai_formality, ai_cushions, ai_finish, ai_texture_description, ai_construction_details, ai_durability_assessment, ai_visual_weight, ai_ideal_client, ai_scale unless the designer EXPLICITLY used those exact concepts. These fields are for semantic_query ranking, not hard filtering. ai_finish is especially restrictive — put finish descriptors in semantic_query.
+10. For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases like "statement piece". "Statement" is a vibe word for semantic_query.
 11. IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly.
+12. NEVER combine ai_style + ai_primary_material + ai_primary_color + ai_finish in the same query. Pick the 1-2 most important and put the rest in semantic_query. Each additional AND field dramatically reduces results.
 
 EXAMPLES:
 
@@ -341,6 +342,18 @@ search_fields: { ai_furniture_type: ['sofa'] }
 exclude_fields: { vendor_name: ['Restoration Hardware'] }
 semantic_query: 'deep plush oversized sofa with loose pillow back and down cushions cloud-like comfort'
 (1 field + exclude, ALL descriptive characteristics in semantic_query)
+
+User: 'glamorous Hollywood Regency living room, velvet, gold, dramatic'
+search_fields: { ai_furniture_type: ['sofa', 'accent chair', 'cocktail table', 'side table'], ai_style: ['hollywood regency'] }
+exclude_fields: {}
+semantic_query: 'glamorous hollywood regency velvet gold dramatic luxe jewel tones brass accents opulent'
+(ONLY 2 fields: type + style. velvet/gold/dramatic are vibes for semantic_query — adding material+color+features would over-filter to 0 results)
+
+User: 'accent chair that makes a statement without overwhelming a neutral room'
+search_fields: { ai_furniture_type: ['accent chair'] }
+exclude_fields: {}
+semantic_query: 'statement accent chair with visual impact architectural form bold but refined designed to complement a neutral room without dominating'
+(ONLY 1 field. "statement", "overwhelming", "neutral" are vibes — NOT ai_scale or ai_visual_weight filters)
 
 Return ONLY this JSON (no markdown, no backticks):
 {
@@ -768,8 +781,34 @@ export async function searchPipeline(query, options = {}) {
 
   if (hasFieldFilters) {
     // ── Step 2: Direct field matching ──
-    const candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
+    let candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
     console.log("Field match candidates:", candidates.length);
+
+    // ── Auto-relax: if too few results and multiple filters, drop restrictive filters ──
+    if (candidates.length < 10) {
+      const relaxOrder = ["ai_finish", "ai_primary_color", "ai_distinctive_features", "ai_texture_description",
+        "ai_visual_weight", "ai_scale", "ai_ideal_client", "ai_durability_assessment",
+        "ai_mood", "ai_formality", "ai_cushions", "ai_era_influence", "ai_primary_material"];
+      const activeFields = Object.keys(haiku.search_fields).filter(k =>
+        haiku.search_fields[k] && Array.isArray(haiku.search_fields[k]) && haiku.search_fields[k].length > 0
+      );
+      if (activeFields.length > 2) {
+        const relaxed = { ...haiku.search_fields };
+        for (const dropField of relaxOrder) {
+          if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
+            console.log(`[auto-relax] Dropping ${dropField} (had ${candidates.length} results)`);
+            relaxed[dropField] = null;
+            candidates = fieldMatch(relaxed, haiku.exclude_fields, excludeIds);
+            console.log(`[auto-relax] After dropping ${dropField}: ${candidates.length} candidates`);
+            if (candidates.length >= 10) break;
+            const remaining = Object.keys(relaxed).filter(k =>
+              relaxed[k] && Array.isArray(relaxed[k]) && relaxed[k].length > 0
+            );
+            if (remaining.length <= 1) break;
+          }
+        }
+      }
+    }
 
     // ── Step 3: MiniLM ranking within candidates ──
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
