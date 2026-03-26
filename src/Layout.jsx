@@ -205,7 +205,7 @@ function AppFooter() {
           {/* Right — social icons */}
           <div className="flex items-center gap-3">
             <a
-              href="https://linkedin.com"
+              href="https://linkedin.com/company/spekd"
               target="_blank"
               rel="noopener noreferrer"
               className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
@@ -216,7 +216,7 @@ function AppFooter() {
               </svg>
             </a>
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/spekd.ai"
               target="_blank"
               rel="noopener noreferrer"
               className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"

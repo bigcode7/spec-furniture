@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup"); // "signup" | "login"
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     checkAppState();
@@ -67,11 +68,18 @@ export const AuthProvider = ({ children }) => {
     setShowAuthModal(true);
   }, []);
 
-  const onAuthSuccess = useCallback((userData) => {
+  const onAuthSuccess = useCallback((userData, isNewUser = false) => {
     setUser(userData);
     setIsAuthenticated(true);
     setShowAuthModal(false);
     syncFromServer().catch(() => {});
+    if (isNewUser) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const completeOnboarding = useCallback(() => {
+    setShowOnboarding(false);
   }, []);
 
   return (
@@ -90,6 +98,8 @@ export const AuthProvider = ({ children }) => {
       authModalMode,
       setAuthModalMode,
       onAuthSuccess,
+      showOnboarding,
+      completeOnboarding,
     }}>
       {children}
     </AuthContext.Provider>

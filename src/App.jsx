@@ -6,8 +6,10 @@ import { Suspense } from 'react'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { GuestGateProvider } from '@/lib/GuestGate';
 import { TradePricingProvider } from '@/lib/TradePricingContext';
 import AuthModal from '@/components/AuthModal';
+import OnboardingFlow from '@/components/OnboardingFlow';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -18,8 +20,10 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
+  const { showOnboarding, completeOnboarding } = useAuth();
   return (
     <TradePricingProvider>
+      <OnboardingFlow show={showOnboarding} onComplete={completeOnboarding} />
       <Routes>
         {/* No-layout pages (e.g. Admin) */}
         {Object.entries(NO_LAYOUT_PAGES).map(([path, { component: Comp }]) => (
@@ -58,13 +62,15 @@ const AuthenticatedApp = () => {
 function App() {
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <AuthenticatedApp />
-          <AuthModal />
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
+      <GuestGateProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <AuthenticatedApp />
+            <AuthModal />
+          </Router>
+          <Toaster />
+        </QueryClientProvider>
+      </GuestGateProvider>
     </AuthProvider>
   )
 }
