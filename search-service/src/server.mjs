@@ -247,17 +247,22 @@ async function runHeavyInit() {
   // Build catalog index for Haiku system prompt
   buildCatalogIndex(getAllProducts());
 
-  // Initialize vector store (gracefully degrades if @xenova/transformers missing)
-  await initVectorStore().catch((err) => {
-    console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
-  });
+  // Initialize vector store — skip heavy embedding on Railway to avoid OOM
+  const isRailway = !!process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (isRailway) {
+    console.log(`[server] Railway detected — skipping vector embedding (AI tag search is primary)`);
+  } else {
+    await initVectorStore().catch((err) => {
+      console.warn(`[server] Vector store init failed (non-fatal): ${err.message}`);
+    });
 
-  // Index vectors (loads from disk, only embeds new/missing products)
-  vectorIndexAll(getAllProducts(), { reindex: false }).then((stats) => {
-    if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
-  }).catch((err) => {
-    console.error(`[server] Vector indexing failed: ${err.message}`);
-  });
+    // Index vectors (loads from disk, only embeds new/missing products)
+    vectorIndexAll(getAllProducts(), { reindex: false }).then((stats) => {
+      if (stats.total > 0) console.log(`[server] Vector indexing complete: ${stats.total} total, ${stats.new} new, ${(stats.timeMs / 1000).toFixed(1)}s`);
+    }).catch((err) => {
+      console.error(`[server] Vector indexing failed: ${err.message}`);
+    });
+  }
 
   // Initialize search enhancer
   {

@@ -1043,13 +1043,14 @@ export function findSimilar(productId, limit = 20) {
   const candidateIds = new Set(topCandidates.map(c => c.product.id));
   const vectorResults = vectorFindSimilar(productId, limit * 4, (id) => candidateIds.has(id));
   const vectorScoreMap = new Map(vectorResults.map(r => [r.id, r.score]));
+  const hasVectors = vectorScoreMap.size > 0;
 
-  // Combine: 60% tag score (normalized), 40% vector similarity
+  // Combine: 60% tag + 40% vector when vectors available, 100% tag otherwise
   const maxTagScore = topCandidates.length > 0 ? topCandidates[0].tagScore : 1;
   const combined = topCandidates.map(c => {
     const tagNorm = c.tagScore / maxTagScore;
     const vecScore = vectorScoreMap.get(c.product.id) || 0;
-    const finalScore = tagNorm * 0.6 + vecScore * 0.4;
+    const finalScore = hasVectors ? (tagNorm * 0.6 + vecScore * 0.4) : tagNorm;
     return { product: c.product, finalScore, tagScore: c.tagScore, vecScore };
   });
 
