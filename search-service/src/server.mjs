@@ -132,10 +132,12 @@ let serviceReady = false;
 // ── Initialize catalog database ──
 await initCatalogDB();
 console.log(`[startup] After initCatalogDB: ${getProductCount()} products in memory`);
-await initUserDataStore();
+// initUserDataStore() deferred to runHeavyInit to avoid blocking server.listen
 
 // ── Deferred heavy init — runs AFTER server.listen so Railway sees the port immediately ──
 async function runHeavyInit() {
+  // Initialize user data store (PostgreSQL tables)
+  await initUserDataStore();
   console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
 
   // Skip catalog mutations on Railway — protect the volume file
@@ -471,21 +473,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Rate limiting on search endpoints
+    // Rate limiting on search endpoints (fast path — no DB lookup)
     const reqIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
     if (req.method === "POST" && (req.url === "/search" || req.url === "/smart-search" || req.url === "/conversational-search" || req.url === "/list-search")) {
-      // Check auth to determine limit (Pro = 60/min, Guest = 30/min)
+      // Determine limit: if user has a real auth token (not guest "g." token), give Pro limits
       const authHeader = req.headers["authorization"];
       const authToken = extractToken(authHeader);
-      let isProUser = false;
-      if (authToken && !authToken.startsWith("g.")) {
-        const authResult = await getUserFromToken(authToken);
-        if (authResult.ok) {
-          const status = isAdminEmail(authResult.user.email) ? "active" : getUserStatus(authResult.user.id);
-          isProUser = status === "active";
-        }
-      }
-      const maxReqs = isProUser ? 60 : 30;
+      const maxReqs = (authToken && !authToken.startsWith("g.")) ? 60 : 30;
       const rateCheck = checkRateLimit(reqIp, maxReqs);
       if (!rateCheck.allowed) {
         return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rateCheck.retryAfter });
