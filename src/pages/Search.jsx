@@ -911,25 +911,25 @@ export default function SearchPage() {
         Breathing
         gradientColors={["#080c18", "#0f1e3d", "#1a2f5e", "#8b6914", "#b8860b"]}
         gradientStops={[0, 30, 55, 80, 100]}
+        breathingRange={8}
+        animationSpeed={0.015}
       />
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="flex flex-col items-center justify-center min-h-[75vh] px-4">
-          <div className="w-full max-w-2xl">
-            {/* Hero */}
-            <div className="text-center mb-8">
-              <h1 className="font-display text-4xl md:text-5xl text-white" style={{ textShadow: "0 0 40px rgba(79,107,255,0.15)" }}>
-                Start sourcing <span className="text-gold">now</span>
-              </h1>
+        <div className="flex flex-col items-center justify-center min-h-screen px-4" style={{ marginTop: "-3vh" }}>
+          <div className="w-full max-w-xl">
+            <div className="text-center mb-10">
+              <div className="inline-block mb-6"><div className="spec-diamond" style={{ width: 10, height: 10, opacity: 0.4 }} /></div>
+              <p className="text-[13px] tracking-[0.25em] uppercase text-white/25 font-light">
+                Describe it. We'll find it.
+              </p>
             </div>
 
-            {/* Search input */}
             <form onSubmit={handleSubmit}>
               <div className="relative">
-                <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20">
+                <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]">
                   <div className="flex items-start">
-                    <div className="ml-5 mt-5 shrink-0"><div className="spec-diamond" /></div>
                     <textarea
                       ref={inputRef}
                       value={inputValue}
@@ -946,8 +946,8 @@ export default function SearchPage() {
                       }}
                       onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={'Try "walnut credenza" or paste a sourcing list...'}
-                      className="min-h-[64px] w-full bg-transparent px-4 py-5 text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
+                      placeholder={'Search 42,000+ trade products...'}
+                      className="min-h-[60px] w-full bg-transparent pl-6 pr-4 py-5 text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
                       rows={1}
                       autoFocus
                     />
