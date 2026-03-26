@@ -347,16 +347,19 @@ export default function SearchPage() {
         window.history.replaceState({}, "", "/Search");
         window.location.reload();
       }
-      if (params.get("upgrade") === "true") {
-        // Opened from "Start Free Trial" button — auto-open paywall
-        window.history.replaceState({}, "", "/Search");
-        setPaywallMode("upgrade");
-        setShowPaywall(true);
-      }
     }
     initSubscription();
     ensureGuestToken();
   }, []);
+
+  // React to ?upgrade=true — works even when already on /Search
+  useEffect(() => {
+    if (searchParams.get("upgrade") === "true") {
+      setSearchParams({}, { replace: true });
+      setPaywallMode("upgrade");
+      setShowPaywall(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (chatEndRef.current && loading) {

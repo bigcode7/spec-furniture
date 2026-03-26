@@ -139,6 +139,11 @@ console.log(`[startup] After initCatalogDB: ${getProductCount()} products in mem
 async function runHeavyInit() {
   // Initialize user data store (PostgreSQL tables)
   await initUserDataStore();
+
+  // Initialize Stripe
+  const stripeOk = await initStripe();
+  console.log(`[startup] Stripe: ${stripeOk ? "initialized" : "NOT configured (STRIPE_SECRET_KEY missing)"}`);
+
   console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
 
   // Skip catalog mutations on Railway — protect the volume file
@@ -494,7 +499,25 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && req.url === "/health") {
       const vs = getVectorStoreStats();
-      return json(res, 200, { ok: true, ready: serviceReady, catalog_size: getProductCount(), vectors: vs.total_vectors, uptime: Math.floor(process.uptime()) });
+      const stripeKeySet = !!process.env.STRIPE_SECRET_KEY;
+      const stripePriceMonthly = !!process.env.STRIPE_PRO_MONTHLY_PRICE_ID;
+      const stripePriceAnnual = !!process.env.STRIPE_PRO_ANNUAL_PRICE_ID;
+      const webhookSet = !!process.env.STRIPE_WEBHOOK_SECRET;
+      const appUrl = process.env.APP_URL || "(not set)";
+      return json(res, 200, {
+        ok: true,
+        ready: serviceReady,
+        catalog_size: getProductCount(),
+        vectors: vs.total_vectors,
+        uptime: Math.floor(process.uptime()),
+        stripe: {
+          secret_key: stripeKeySet ? "set" : "MISSING",
+          webhook_secret: webhookSet ? "set" : "MISSING",
+          pro_monthly_price: stripePriceMonthly ? "set" : "MISSING",
+          pro_annual_price: stripePriceAnnual ? "set" : "MISSING",
+          app_url: appUrl,
+        },
+      });
     }
 
     // ── RELOAD CATALOG (emergency) ──
