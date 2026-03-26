@@ -361,6 +361,10 @@ async function resolveLFSPointer() {
 let catalogDownloadedFromURL = false;
 
 async function downloadCatalogIfMissing() {
+  console.log(`[catalog-db] DATA_DIR=${DATA_DIR}`);
+  console.log(`[catalog-db] DB_PATH=${DB_PATH}`);
+  console.log(`[catalog-db] CATALOG_URL set: ${!!process.env.CATALOG_URL}`);
+
   // Clean up any stale .tmp files
   const tmpPath = DB_PATH + ".tmp";
   if (fs.existsSync(tmpPath)) {
@@ -417,11 +421,14 @@ async function downloadCatalogIfMissing() {
 
     const merged = { ...baseData, products: mergedProducts };
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(DB_PATH, JSON.stringify(merged));
+    const json = JSON.stringify(merged);
+    fs.writeFileSync(DB_PATH, json);
+    const writtenSize = fs.statSync(DB_PATH).size;
     catalogDownloadedFromURL = true;
-    console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products`);
+    console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products, written ${(writtenSize / 1024 / 1024).toFixed(1)}MB to ${DB_PATH}`);
   } catch (err) {
     console.error(`[catalog-db] Catalog download failed: ${err.message}`);
+    console.error(err.stack);
   }
 }
 
