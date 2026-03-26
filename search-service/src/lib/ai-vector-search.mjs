@@ -285,6 +285,8 @@ You understand furniture deeply. You know:
 - 'track arm' is an arm style — use ai_arm_style
 - 'eight way hand tied' is construction — use ai_construction_details
 - 'spring down' or 'down cushions' — use ai_cushions
+- WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
+- 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
 - Price requests like 'under $3000' or 'budget friendly' should set price_max
 - Negations like 'not rustic' or 'hates brown' mean EXCLUDE those values via exclude_fields
