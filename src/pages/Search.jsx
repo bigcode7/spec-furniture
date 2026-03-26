@@ -916,18 +916,15 @@ export default function SearchPage() {
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
         <div className="flex flex-col items-center justify-center min-h-[75vh] px-4">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full max-w-2xl">
+          <div className="w-full max-w-2xl">
             {/* Hero */}
-            <div className="text-center mb-10">
-              <h1 className="font-display text-5xl md:text-6xl text-white mb-4" style={{ textShadow: "0 0 40px rgba(79,107,255,0.15)" }}>
-                Find the perfect <span className="text-gold">piece</span>
+            <div className="text-center mb-8">
+              <h1 className="font-display text-4xl md:text-5xl text-white" style={{ textShadow: "0 0 40px rgba(79,107,255,0.15)" }}>
+                Start sourcing <span className="text-gold">now</span>
               </h1>
-              <p className="text-sm max-w-md mx-auto" style={{ color: "var(--warm-gray)" }}>
-                Search like you'd describe it to a colleague. Paste a sourcing list and we'll find every item.
-              </p>
             </div>
 
-            {/* Search input — textarea that auto-grows for multi-line lists */}
+            {/* Search input */}
             <form onSubmit={handleSubmit}>
               <div className="relative">
                 <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20">
@@ -938,12 +935,10 @@ export default function SearchPage() {
                       value={inputValue}
                       onChange={(e) => {
                         handleInputChange(e.target.value);
-                        // Auto-resize
                         e.target.style.height = "auto";
                         e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
                       }}
                       onKeyDown={(e) => {
-                        // Submit on Enter (without Shift) only if single-line
                         if (e.key === "Enter" && !e.shiftKey && !inputValue.includes("\n")) {
                           e.preventDefault();
                           handleSubmit(e);
@@ -977,53 +972,7 @@ export default function SearchPage() {
                 <SmartAutocomplete show={showAutocomplete} results={autocompleteResults} onSelect={handleAutocompleteSelect} />
               </div>
             </form>
-
-            {/* Suggested searches */}
-            <div className="mt-6 flex gap-x-4 gap-y-2 overflow-x-auto sm:flex-wrap sm:justify-center px-2 scrollbar-hide">
-              {EXAMPLE_SEARCHES.map((example, i) => (
-                <span key={example} className="flex items-center gap-2">
-                  {i > 0 && <span className="text-gold/30 text-xs">·</span>}
-                  <button onClick={() => runSearch(example)} className="text-sm transition-colors hover:text-gold/70" style={{ color: "var(--warm-gray)" }}>
-                    {example}
-                  </button>
-                </span>
-              ))}
-            </div>
-
-            {/* Recently viewed products only — no search history */}
-            {recentlyViewed.length > 0 && (
-              <div className="mt-10">
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <div className="h-px flex-1 max-w-[40px] bg-gradient-to-r from-transparent to-white/[0.06]" />
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/20 flex items-center gap-1.5">
-                    <Eye className="h-3 w-3" /> Recently Viewed
-                  </span>
-                  <div className="h-px flex-1 max-w-[40px] bg-gradient-to-l from-transparent to-white/[0.06]" />
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 justify-center">
-                  {recentlyViewed.slice(0, 10).map((p) => (
-                    <button key={p.id} onClick={() => openPreview(p)}
-                      className="shrink-0 w-[100px] group">
-                      <div className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/20 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
-                        {p.image_url ? (
-                          <ProxyImg src={p.image_url} productId={p.id} className="h-full w-full" style={{ objectFit: "contain", padding: "4px" }} />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
-                            {(p.manufacturer_name || "?")[0]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-white/30 truncate group-hover:text-white/50 transition-colors">{p.product_name}</div>
-                      <div className="text-[9px] text-white/15 truncate">{p.manufacturer_name}</div>
-                      {p.retail_price > 0 && (
-                        <div className="text-[10px] text-white/40 font-medium">${p.retail_price.toLocaleString()}</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
+          </div>
         </div>
       )}
 
