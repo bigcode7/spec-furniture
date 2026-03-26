@@ -400,6 +400,21 @@ export const priorityVendors = [
       api_scraper: "surya-scraper.mjs",
     },
   },
+  {
+    id: "verellen",
+    name: "Verellen",
+    domain: "verellen.biz",
+    profile: {
+      asset_hosts: ["verellen.biz", "magento.verellen.biz"],
+      title_suffixes: ["| Verellen"],
+      product_path_tokens: ["product", "products"],
+      reject_path_tokens: ["search", "collections", "materials-finishes"],
+      image_path_hints: ["/media/catalog/product/"],
+    },
+    discovery: {
+      graphql_endpoint: "https://magento.verellen.biz/graphql",
+    },
+  },
   // ── TIER 2 ──
   {
     id: "arteriors",

@@ -51,6 +51,7 @@ import { importRowe, getRoweStatus, stopRowe } from "./importers/rowe-importer.m
 import { importBaker, getBakerStatus, stopBaker } from "./importers/baker-importer.mjs";
 import { importHancockMoore, getHancockMooreStatus, stopHancockMoore } from "./importers/hancock-moore-importer.mjs";
 import { importCRLaine, getCRLaineStatus, stopCRLaine } from "./importers/crlaine-importer.mjs";
+import { importVerellen, getVerellenStatus, stopVerellen } from "./importers/verellen-importer.mjs";
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores, vectorSearch } from "./lib/vector-store.mjs";
@@ -3491,6 +3492,24 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     if (req.method === "POST" && req.url === "/admin/rowe/stop") {
       stopRowe();
       return json(res, 200, { ok: true, message: "Rowe import stop requested." });
+    }
+
+    // ── Verellen Import ──
+    if (req.method === "POST" && (req.url === "/admin/verellen/start" || req.url === "/admin/import/verellen")) {
+      importVerellen(catalogDBInterface).then(() => {
+        clearSearchCache();
+        console.log("[verellen] Search cache cleared after import");
+      }).catch(err => console.error("[verellen] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Verellen import started.", status_url: "/admin/verellen/status" });
+    }
+
+    if (req.method === "GET" && (req.url === "/admin/verellen/status" || req.url === "/admin/import/verellen/status")) {
+      return json(res, 200, getVerellenStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/verellen/stop") {
+      stopVerellen();
+      return json(res, 200, { ok: true, message: "Verellen import stop requested." });
     }
 
     if (req.method === "POST" && req.url === "/admin/baker/start") {

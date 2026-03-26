@@ -32,6 +32,7 @@ export const tradeVendors = [
   { id: "miles-talbott", name: "Miles Talbott", domain: "themtcompany.com", tier: 1, categories: ["seating", "tables", "accents"] },
   { id: "norwalk", name: "Norwalk Furniture", domain: "norwalkfurniture.com", tier: 1, categories: ["seating", "tables", "bedroom"] },
   { id: "rowe", name: "Rowe Furniture", domain: "rowefurniture.com", tier: 1, categories: ["seating", "tables", "accents"] },
+  { id: "verellen", name: "Verellen", domain: "verellen.biz", tier: 2, categories: ["seating", "tables", "accents", "lighting", "bedroom"] },
 
   // ── TIER 2 — HIGH PRIORITY ─────────────────────────────
   { id: "arteriors", name: "Arteriors", domain: "arteriorshome.com", tier: 2, categories: ["lighting", "tables", "accents", "mirrors", "storage"] },
