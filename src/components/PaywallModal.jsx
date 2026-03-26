@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, Users, Shield, Headphones, Building2, Crown, X, Loader2, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, X, Loader2, Check, Sparkles } from "lucide-react";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
@@ -21,12 +21,13 @@ const PRO_FEATURES = [
  * PaywallModal — Trial signup flow.
  *
  * Props:
- *   show       — boolean, whether to render
+ *   show       — boolean
+ *   onClose    — called when user dismisses the modal
  *   onAuthSuccess(user) — called after successful signup+checkout redirect
- *   mode       — "trial_required" (3 free searches used) | "upgrade" (expired user) | "feature" (Pro feature gate)
- *   upgradeMessage — optional custom message for upgrade mode
+ *   mode       — "trial_required" | "upgrade" | "feature"
+ *   upgradeMessage — optional custom message
  */
-export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = "trial_required", upgradeMessage }) {
+export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initialMode = "trial_required", upgradeMessage }) {
   // Detect if user is already logged in
   const existingToken = typeof window !== "undefined" ? localStorage.getItem("spec_auth_token") : null;
   const existingUser = (() => {
@@ -56,6 +57,10 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
   const goldBtnStyle = {
     background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
     boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
+  };
+
+  const handleDismiss = () => {
+    if (onClose) onClose();
   };
 
   // Direct checkout for logged-in users — skip signup form
@@ -131,7 +136,6 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
         localStorage.setItem("spec_auth_token", data.token);
       }
 
-      // Admin bypass — no Stripe needed, just activate
       if (data.admin_bypass) {
         localStorage.setItem("spec_sub_status", "active");
         if (onAuthSuccess) onAuthSuccess({ email: email.trim() });
@@ -203,7 +207,7 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }}
-      // NOT dismissable by clicking outside
+      onClick={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -216,330 +220,161 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
         }}
       >
-        {/* ── INTRO: Trial pitch ── */}
-        {step === "intro" && (
-          <div>
-            <div className="flex justify-center mb-5">
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
-              >
-                <Zap className="h-6 w-6" style={{ color: GOLD }} />
-              </div>
-            </div>
+        {/* Close button — always visible */}
+        <button
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 text-white/20 hover:text-white/50 transition-colors z-10"
+        >
+          <X className="h-5 w-5" />
+        </button>
 
-            {isUpgrade ? (
-              <>
-                <h2 className="text-xl font-semibold text-white text-center mb-2">
-                  {upgradeMessage ? "Upgrade to Pro" : "Welcome back!"}
-                </h2>
-                <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                  {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-semibold text-white text-center mb-2">
-                  Try SPEKD Pro free for 7 days
-                </h2>
-                <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                  You've used your 3 free searches. Start a trial to get unlimited AI-powered sourcing across 40,000+ trade products — no charge for 7 days.
-                </p>
-              </>
-            )}
-
-            {/* Billing toggle */}
-            <div className="flex items-center justify-center gap-3 mb-5">
-              <button
-                onClick={() => setBilling("monthly")}
-                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
-                style={{
-                  background: billing === "monthly" ? "rgba(201,169,110,0.08)" : "transparent",
-                  border: `1px solid ${billing === "monthly" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
-                  color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
-                }}
-              >
-                $99/mo
-              </button>
-              <button
-                onClick={() => setBilling("annual")}
-                className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
-                style={{
-                  background: billing === "annual" ? "rgba(201,169,110,0.08)" : "transparent",
-                  border: `1px solid ${billing === "annual" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
-                  color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
-                }}
-              >
-                $990/yr
-                <span
-                  className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
+        <AnimatePresence mode="wait">
+          {/* ── INTRO: Trial pitch ── */}
+          {step === "intro" && (
+            <motion.div key="intro" initial={{ opacity: 0, x: 0 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <div className="flex justify-center mb-5">
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-full"
+                  style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
                 >
-                  Save $198
-                </span>
-              </button>
-            </div>
-
-            {/* Feature list */}
-            <div className="space-y-2 mb-6">
-              {PRO_FEATURES.map((f, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
-                  <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+                  <Sparkles className="h-6 w-6" style={{ color: GOLD }} />
                 </div>
-              ))}
-            </div>
-
-            {error && (
-              <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 mb-4">
-                {error}
               </div>
-            )}
 
-            {isLoggedIn ? (
-              <>
+              {isLoggedIn ? (
+                <>
+                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                    {isUpgrade ? "Upgrade to Pro" : "Unlock unlimited sourcing"}
+                  </h2>
+                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                    {isUpgrade
+                      ? (upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off.")
+                      : "You've seen what SPEKD can do. Start your free trial to search without limits."}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                    Try SPEKD Pro free for 7 days
+                  </h2>
+                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                    You've used your 3 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days.
+                  </p>
+                </>
+              )}
+
+              {/* Billing toggle */}
+              <div className="flex items-center justify-center gap-3 mb-5">
                 <button
-                  onClick={handleDirectCheckout}
-                  disabled={loading}
-                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={goldBtnStyle}
+                  onClick={() => setBilling("monthly")}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
+                  style={{
+                    background: billing === "monthly" ? "rgba(201,169,110,0.08)" : "transparent",
+                    border: `1px solid ${billing === "monthly" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
+                  }}
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
+                  $99/mo
                 </button>
-                <p className="text-[11px] text-white/30 text-center mt-2">
-                  Signed in as {existingUser?.email || ""}. You won't be charged for 7 days. Cancel anytime.
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-3">
+                <button
+                  onClick={() => setBilling("annual")}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
+                  style={{
+                    background: billing === "annual" ? "rgba(201,169,110,0.08)" : "transparent",
+                    border: `1px solid ${billing === "annual" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
+                  }}
+                >
+                  $990/yr
+                  <span
+                    className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
+                  >
+                    Save $198
+                  </span>
+                </button>
+              </div>
+
+              {/* Feature list */}
+              <div className="space-y-2 mb-6">
+                {PRO_FEATURES.map((f, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
+                    <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {error && (
+                <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 mb-4">
+                  {error}
+                </div>
+              )}
+
+              {isLoggedIn ? (
+                <>
                   <button
-                    onClick={() => setStep("signup")}
-                    className="flex-1 py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                    onClick={handleDirectCheckout}
+                    disabled={loading}
+                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                     style={goldBtnStyle}
                   >
-                    {isUpgrade ? `Reactivate — ${priceLabel}` : "Create Account"}
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
                   </button>
-                  <button
-                    onClick={() => { setError(""); setStep("login"); }}
-                    className="flex-1 py-3.5 rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "rgba(255,255,255,0.7)",
-                    }}
-                  >
-                    Sign In
-                  </button>
-                </div>
-                {!isUpgrade && (
+                  <p className="text-[11px] text-white/30 text-center mt-2">
+                    Signed in as {existingUser?.email || ""}. You won't be charged for 7 days.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setError(""); setStep("signup"); }}
+                      className="flex-1 py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                      style={goldBtnStyle}
+                    >
+                      Create Account
+                    </button>
+                    <button
+                      onClick={() => { setError(""); setStep("login"); }}
+                      className="flex-1 py-3.5 rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                      style={{
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        color: "rgba(255,255,255,0.7)",
+                      }}
+                    >
+                      Sign In
+                    </button>
+                  </div>
                   <p className="text-[11px] text-white/30 text-center mt-2">
                     You won't be charged for 7 days. Cancel anytime.
                   </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ── SIGNUP: Email, password, name, company → Stripe ── */}
-        {step === "signup" && (
-          <div>
-            <button
-              onClick={() => setStep("intro")}
-              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
-            <p className="text-xs text-white/40 mb-1">
-              {isUpgrade ? `Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
-            </p>
-            <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
-
-            <form onSubmit={handleCheckout} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClass}
-                    placeholder="you@studio.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Password</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={inputClass}
-                    placeholder="Min. 8 characters"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Full name</label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Jane Smith"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Company</label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Optional"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
-                  {error}
-                </div>
+                </>
               )}
 
+              {/* Dismiss link */}
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={goldBtnStyle}
+                onClick={handleDismiss}
+                className="block mx-auto mt-4 text-[11px] text-white/20 hover:text-white/40 transition-colors"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loading ? "Creating account..." : isUpgrade ? `Continue to Payment — ${priceLabel}` : "Continue to Payment"}
+                Maybe later
               </button>
-            </form>
+            </motion.div>
+          )}
 
-            {!isUpgrade && (
-              <p className="text-[11px] text-white/30 text-center mt-2">
-                Card required but not charged during your 7-day trial
+          {/* ── SIGNUP ── */}
+          {step === "signup" && (
+            <motion.div key="signup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
+              <p className="text-xs text-white/40 mb-1">
+                {isUpgrade ? `Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
               </p>
-            )}
+              <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
 
-            <p className="text-center mt-4">
-              <button
-                onClick={() => { setError(""); setStep("login"); }}
-                className="text-xs text-white/30 hover:text-white/50 transition-colors"
-              >
-                Already have an account? <span className="underline">Sign in</span>
-              </button>
-            </p>
-          </div>
-        )}
-
-        {/* ── LOGIN ── */}
-        {step === "login" && (
-          <div>
-            <button
-              onClick={() => setStep("intro")}
-              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h2 className="text-lg font-semibold text-white mb-1">Welcome back</h2>
-            <p className="text-xs text-white/40 mb-6">Sign in to your SPEKD account</p>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 mb-1.5">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
-              {error && (
-                <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={goldBtnStyle}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loading ? "Signing in..." : "Sign In"}
-              </button>
-            </form>
-
-            <div className="text-center mt-4 space-y-2">
-              <button
-                onClick={() => { setError(""); setForgotSuccess(false); setStep("forgot"); }}
-                className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
-              >
-                Forgot password?
-              </button>
-              <button
-                onClick={() => setStep("intro")}
-                className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
-              >
-                Don't have an account? <span className="underline">Start free trial</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── FORGOT PASSWORD ── */}
-        {step === "forgot" && (
-          <div>
-            <button
-              onClick={() => setStep("login")}
-              className="absolute top-4 right-4 text-white/30 hover:text-white/60"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h2 className="text-lg font-semibold text-white mb-1">Reset your password</h2>
-            <p className="text-xs text-white/40 mb-6">Enter your email and we'll send a reset link</p>
-
-            {forgotSuccess ? (
-              <div>
-                <div className="text-sm text-white/70 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
-                  If an account exists with that email, a reset link has been sent.
-                </div>
-                <button
-                  onClick={() => { setForgotSuccess(false); setError(""); setStep("login"); }}
-                  className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
-                >
-                  Back to login
-                </button>
-              </div>
-            ) : (
-              <>
-                <form onSubmit={handleForgotPassword} className="space-y-4">
+              <form onSubmit={handleCheckout} className="space-y-3.5">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-white/40 mb-1.5">Email</label>
                     <input
@@ -549,38 +384,204 @@ export default function PaywallModal({ show, onAuthSuccess, mode: initialMode = 
                       onChange={(e) => setEmail(e.target.value)}
                       className={inputClass}
                       placeholder="you@studio.com"
+                      autoFocus
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={inputClass}
+                      placeholder="Min. 8 characters"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Full name</label>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className={inputClass}
+                      placeholder="Jane Smith"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/40 mb-1.5">Company <span className="text-white/20">(optional)</span></label>
+                    <input
+                      type="text"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      className={inputClass}
+                      placeholder="Studio name"
+                    />
+                  </div>
+                </div>
 
-                  {error && (
-                    <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
-                      {error}
-                    </div>
-                  )}
+                {error && (
+                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                    {error}
+                  </div>
+                )}
 
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={goldBtnStyle}
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {loading ? "Creating account..." : "Continue to Payment"}
+                </button>
+              </form>
+
+              <p className="text-[11px] text-white/30 text-center mt-2">
+                Card required but not charged during your 7-day trial
+              </p>
+
+              <div className="flex items-center justify-center gap-4 mt-4">
+                <button
+                  onClick={() => { setError(""); setStep("login"); }}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                >
+                  Already have an account? <span className="underline">Sign in</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── LOGIN ── */}
+          {step === "login" && (
+            <motion.div key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <h2 className="text-lg font-semibold text-white mb-1">Welcome back</h2>
+              <p className="text-xs text-white/40 mb-6">Sign in to your SPEKD account</p>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+
+                {error && (
+                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={goldBtnStyle}
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <button
+                  onClick={() => { setError(""); setForgotSuccess(false); setStep("forgot"); }}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                >
+                  Forgot password?
+                </button>
+                <span className="text-white/10">|</span>
+                <button
+                  onClick={() => { setError(""); setStep("signup"); }}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                >
+                  Create account
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── FORGOT PASSWORD ── */}
+          {step === "forgot" && (
+            <motion.div key="forgot" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <h2 className="text-lg font-semibold text-white mb-1">Reset your password</h2>
+              <p className="text-xs text-white/40 mb-6">Enter your email and we'll send a reset link</p>
+
+              {forgotSuccess ? (
+                <div>
+                  <div className="text-sm text-white/70 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
+                    If an account exists with that email, a reset link has been sent.
+                  </div>
                   <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                    style={goldBtnStyle}
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {loading ? "Sending..." : "Send Reset Link"}
-                  </button>
-                </form>
-
-                <p className="text-center mt-4">
-                  <button
-                    onClick={() => { setError(""); setStep("login"); }}
-                    className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                    onClick={() => { setForgotSuccess(false); setError(""); setStep("login"); }}
+                    className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
                   >
                     Back to login
                   </button>
-                </p>
-              </>
-            )}
-          </div>
-        )}
+                </div>
+              ) : (
+                <>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={inputClass}
+                        placeholder="you@studio.com"
+                        autoFocus
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={goldBtnStyle}
+                    >
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {loading ? "Sending..." : "Send Reset Link"}
+                    </button>
+                  </form>
+
+                  <button
+                    onClick={() => { setError(""); setStep("login"); }}
+                    className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto mt-4"
+                  >
+                    Back to login
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

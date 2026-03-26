@@ -1606,6 +1606,7 @@ export default function SearchPage() {
       <PaywallModal
         show={showPaywall}
         mode={paywallMode}
+        onClose={() => setShowPaywall(false)}
         onAuthSuccess={(user) => {
           setShowPaywall(false);
           setSubscriptionStatus("active");

@@ -108,55 +108,7 @@ export function GuestGateProvider({ children }) {
     }}>
       {children}
 
-      {/* Soft signup banner — shows after 10 searches */}
-      <AnimatePresence>
-        {showBanner && isGuest && (
-          <motion.div
-            initial={{ y: -60, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -60, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-16 left-0 right-0 z-50 mx-auto max-w-3xl px-4"
-          >
-            <div
-              className="flex items-center gap-4 rounded-xl px-5 py-3.5"
-              style={{
-                background: "linear-gradient(135deg, rgba(79,107,255,0.12), rgba(201,169,110,0.12))",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(201,169,110,0.2)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-white/90 font-medium">
-                  You've been sourcing like a pro.
-                </p>
-                <p className="text-xs text-white/50 mt-0.5">
-                  Create a free account to save searches, build quotes, and organize projects.
-                </p>
-              </div>
-              <button
-                onClick={handleSignup}
-                className="flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all hover:brightness-110"
-                style={{
-                  background: "linear-gradient(135deg, #C9A96E, #B8944F)",
-                  color: "#0A0B10",
-                }}
-              >
-                Create Free Account
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={dismissBanner}
-                className="text-white/30 hover:text-white/60 transition-colors p-1"
-                title="Maybe Later"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Soft signup banner disabled — paywall handles conversion at 3 searches */}
 
     </GuestGateContext.Provider>
   );
