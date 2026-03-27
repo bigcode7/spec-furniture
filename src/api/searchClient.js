@@ -3,6 +3,26 @@ import { getAuthHeaders } from "@/lib/fingerprint";
 
 const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai";
 
+// ── Search result cache — 5 min TTL ──
+const _searchCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
+
+function getCached(key) {
+  const entry = _searchCache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+  if (entry) _searchCache.delete(key);
+  return null;
+}
+
+function setCache(key, data) {
+  _searchCache.set(key, { data, ts: Date.now() });
+  // Evict old entries if cache gets large
+  if (_searchCache.size > 50) {
+    const oldest = _searchCache.keys().next().value;
+    _searchCache.delete(oldest);
+  }
+}
+
 function timedFetch(url, options = {}, timeoutMs = 30000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -33,6 +53,16 @@ function handle429(response) {
 
 export async function smartSearch(conversation) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
+
+  // Cache single-message smart searches (initial queries)
+  const lastMsg = conversation[conversation.length - 1]?.content || "";
+  const isSimple = conversation.length === 1;
+  const cacheKey = isSimple ? `smart:${lastMsg.toLowerCase().trim()}` : null;
+  if (cacheKey) {
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+  }
+
   const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
     method: "POST",
     headers: { "content-type": "application/json", ...getAuthHeaders() },
@@ -43,14 +73,21 @@ export async function smartSearch(conversation) {
   if (paywall) return paywall;
   if (!response.ok) throw new Error(`smart search error: ${response.status}`);
   const data = await response.json();
-  return {
+  const result = {
     ...data,
     products: Array.isArray(data.products) ? data.products.map(normalizeStandaloneResult) : [],
   };
+  if (cacheKey) setCache(cacheKey, result);
+  return result;
 }
 
 export async function searchProducts(query, options = {}) {
   if (externalSearchServiceUrl) {
+    // Check cache for identical queries (no filters/pagination)
+    const cacheKey = `search:${query.toLowerCase().trim()}:${JSON.stringify(options.filters || {})}:${options.page || 1}`;
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
+
     const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
       method: "POST",
       headers: { "content-type": "application/json", ...getAuthHeaders() },
@@ -76,14 +113,23 @@ export async function searchProducts(query, options = {}) {
     }
 
     const data = await response.json();
-    return {
+    const result = {
       ...data,
       products: Array.isArray(data.products) ? data.products.map(normalizeStandaloneResult) : [],
     };
+    setCache(cacheKey, result);
+    return result;
   }
 
   const response = await base44.functions.invoke("aiSearchProducts", { query });
   return response.data;
+}
+
+// Prefetch a search query in the background (for hover prefetching)
+export function prefetchSearch(query) {
+  const cacheKey = `search:${query.toLowerCase().trim()}:{}:1`;
+  if (getCached(cacheKey)) return; // Already cached
+  searchProducts(query).catch(() => {}); // Fire and forget
 }
 
 function normalizeStandaloneResult(item) {

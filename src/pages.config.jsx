@@ -4,17 +4,21 @@
  * Three core pages: Landing (marketing), Search (app), Quotes (quote builder).
  * Plus static pages: About, Privacy, Terms.
  * All old routes redirect to Search.
+ *
+ * Only Landing is eagerly loaded. All other pages are lazy-loaded
+ * for faster initial bundle and Time to Interactive.
  */
 import Landing from './pages/Landing';
-import Search from './pages/Search';
-import Quotes from './pages/Quotes';
-import Account from './pages/Account';
-import About from './pages/About';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
 import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 import __Layout from './Layout.jsx';
+
+const Search = lazy(() => import('./pages/Search'));
+const Quotes = lazy(() => import('./pages/Quotes'));
+const Account = lazy(() => import('./pages/Account'));
+const About = lazy(() => import('./pages/About'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
 
 const ToSearch = () => <Navigate to="/Search" replace />;
 

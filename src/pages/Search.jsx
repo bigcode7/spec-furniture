@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
@@ -54,7 +54,7 @@ function proxyUrl(url, productId) {
 }
 
 // Image component: always uses server-side proxy to bypass vendor hotlink protection
-function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, eager, ...rest }) {
+function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, eager, fetchPriority, ...rest }) {
   const [failed, setFailed] = useState(false);
   const finalSrc = src ? proxyUrl(src, productId) : "";
 
@@ -75,6 +75,7 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
       referrerPolicy="no-referrer"
       loading={eager ? "eager" : "lazy"}
       decoding="async"
+      fetchpriority={fetchPriority}
       onError={(e) => {
         setFailed(true);
         externalOnError?.(e);
@@ -1102,6 +1103,8 @@ export default function SearchPage() {
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
+                  onMouseEnter={() => { clearTimeout(window._prefetchTimer); window._prefetchTimer = setTimeout(() => prefetchSearch(suggestion), 300); }}
+                  onMouseLeave={() => clearTimeout(window._prefetchTimer)}
                   className="px-3 py-2 sm:py-1.5 sm:px-3.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[12px] sm:text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
                 >
                   {suggestion}
@@ -1197,23 +1200,34 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Loading */}
+            {/* Loading — skeleton product cards */}
             {loading && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-3 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5" style={{ background: "rgba(79,107,255,0.1)", border: "1px solid rgba(79,107,255,0.15)" }}>
-                  <div className="loading-emblem" style={{ width: 10, height: 10 }} />
-                </div>
-                <div className="pt-1">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                    <span className="text-[11px] text-white/25">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</span>
+              <div className="pt-4">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="flex gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
+                  <span className="text-[11px] text-white/25">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</span>
                 </div>
-              </motion.div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+                  {Array.from({ length: IS_MOBILE ? 8 : 15 }, (_, i) => (
+                    <div key={i} className="product-card overflow-hidden" style={{ contain: "layout style paint" }}>
+                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }}>
+                        <div className="absolute inset-0 animate-pulse" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
+                      </div>
+                      <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
+                      <div className="p-3 sm:p-4 space-y-2">
+                        <div className="h-2.5 w-16 rounded bg-white/[0.06]" />
+                        <div className="h-3 w-full rounded bg-white/[0.04]" />
+                        <div className="h-3 w-2/3 rounded bg-white/[0.03]" />
+                        <div className="h-3 w-10 rounded bg-white/[0.06]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {error && (
@@ -1843,7 +1857,7 @@ function PricingToggle() {
 }
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
-function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
+const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -1859,6 +1873,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="product-card group cursor-pointer"
+      style={{ contain: "layout style paint" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
         if (e.target.closest("[data-action]")) return;
@@ -1877,6 +1892,8 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
               className={`h-full w-full transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
               style={{ objectFit: "contain", padding: "12px" }}
+              eager={index < 5}
+              fetchPriority={index < 5 ? "high" : undefined}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
         ) : (
@@ -1940,7 +1957,7 @@ function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, on
       </div>
     </div>
   );
-}
+});
 
 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
