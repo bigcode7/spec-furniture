@@ -248,6 +248,21 @@ async function runHeavyInit() {
     console.log(`[startup] Skipping catalog cleanup (catalog from URL — protecting data)`);
   }
 
+  // Vendor pricing removals — runs on every startup (including Railway)
+  // Hooker Furniture removed public retail pricing from their website
+  {
+    let hookerPriceStripped = 0;
+    for (const product of getAllProducts()) {
+      if (product.vendor_id === "hooker" && product.retail_price) {
+        product.retail_price = null;
+        hookerPriceStripped++;
+      }
+    }
+    if (hookerPriceStripped > 0) {
+      console.log(`[startup] Stripped retail pricing from ${hookerPriceStripped} Hooker Furniture products (vendor removed public pricing)`);
+    }
+  }
+
   // Initialize project store
   initProjectStore();
 
