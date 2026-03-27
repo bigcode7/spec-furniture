@@ -271,6 +271,7 @@ export default function SearchPage() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [visualSearchLoading, setVisualSearchLoading] = useState(false);
   const autocompleteTimer = useRef(null);
+  const searchFormRef = useRef(null);
 
   // Conversation
   const [messages, setMessages] = useState([]);
@@ -335,6 +336,18 @@ export default function SearchPage() {
   const hasMoreServer = allResults.length < MAX_RESULTS;
   const facets = allResults.length > 0 ? extractFacets(allResults) : null;
   const activeFilterCount = Object.values(clientFilters).reduce((n, arr) => n + (arr?.length || 0), 0);
+
+  // Close autocomplete on outside click
+  useEffect(() => {
+    if (!showAutocomplete) return;
+    const handler = (e) => {
+      // Keep open if clicking inside any search form
+      if (e.target.closest("form")) return;
+      setShowAutocomplete(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAutocomplete]);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -590,6 +603,8 @@ export default function SearchPage() {
     setSortKey("relevance");
     setVisibleCount(INITIAL_PAGE_SIZE);
     setPreviewProduct(null);
+    setShowAutocomplete(false);
+    setAutocompleteResults([]);
 
     shownProductIds.current = new Set();
     pageRef.current = 1;
@@ -697,6 +712,7 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
       setLoadingStep(0);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -787,8 +803,9 @@ export default function SearchPage() {
   const handleInputChange = (value) => {
     setInputValue(value);
     clearTimeout(autocompleteTimer.current);
-    if (value.trim().length >= 2) {
+    if (value.trim().length >= 2 && !loading) {
       autocompleteTimer.current = setTimeout(async () => {
+        if (loading) return; // double-check — search may have started during debounce
         try {
           const data = await getAutocomplete(value.trim());
           const details = data.details || [];
@@ -1025,7 +1042,7 @@ export default function SearchPage() {
             </div>
 
             {/* Search bar */}
-            <form onSubmit={handleSubmit}>
+            <form ref={searchFormRef} onSubmit={handleSubmit}>
               <div className="relative">
                 <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]">
                   <div className="flex items-start">
@@ -1043,7 +1060,7 @@ export default function SearchPage() {
                           handleSubmit(e);
                         }
                       }}
-                      onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
+                      onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder={'Search 42,000+ trade products...'}
                       className="min-h-[56px] sm:min-h-[60px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-5 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
@@ -1545,7 +1562,7 @@ export default function SearchPage() {
                   <div className="flex items-center">
                     <div className="ml-3.5 shrink-0"><div className="spec-diamond" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
-                      onFocus={() => setShowAutocomplete(autocompleteResults.length > 0)}
+                      onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
