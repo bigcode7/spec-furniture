@@ -455,11 +455,7 @@ export default function SearchPage() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (chatEndRef.current && loading) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, loading]);
+  // Removed: auto-scroll to chat end was pushing page to bottom on every search
 
   // Infinite scroll observer
   useEffect(() => {
