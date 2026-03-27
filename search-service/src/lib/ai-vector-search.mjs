@@ -295,104 +295,361 @@ You understand furniture deeply. You know:
 - 'coffee table' means cocktail table
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
 - 'mid century' is a style — use ai_style
-- 'barrel' is a silhouette — use ai_silhouette
-- 'tight back' is a back style — use ai_back_style
-- 'track arm' is an arm style — use ai_arm_style
-- 'eight way hand tied' is construction — use ai_construction_details
-- 'spring down' or 'down cushions' — use ai_cushions
 - WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
 - 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
 - Price requests like 'under $3000' or 'budget friendly' should set price_max
 - Negations like 'not rustic' or 'hates brown' mean EXCLUDE those values via exclude_fields
 
-CRITICAL RULES FOR FIELD SELECTION:
+═══════════════════════════════════════════════════════════════
+RULE 0 — PHYSICAL ATTRIBUTE RULE (OVERRIDES ALL OTHER RULES)
+═══════════════════════════════════════════════════════════════
 
-0. YOU MUST ALWAYS USE search_fields for concrete attributes. 'leather sofa' → ai_furniture_type + ai_primary_material. 'mid century accent chair' → ai_furniture_type + ai_style. 'from Baker' → vendor_name. 'not modern' → exclude_fields ai_style. NEVER return empty search_fields when the user mentions a furniture type, material, style, or vendor. These are the backbone of search accuracy.
+Every physical construction attribute the designer mentions MUST become a hard field filter in search_fields. Physical attributes are NEVER semantic — they describe measurable, observable construction features that a product either has or does not have. They MUST go in search_fields, NEVER only in semantic_query.
+
+PHYSICAL ATTRIBUTE → FIELD MAPPINGS:
+
+BACK STYLES → ai_back_style:
+  tight back, loose back, pillow back, tufted back, button back, channel back,
+  camelback, wingback, ladder back, spindle back, cane back, open back
+  USER SAYS → YOU SET: 'tight back sofa' → ai_back_style: ['tight back']
+
+ARM STYLES → ai_arm_style:
+  track arm, rolled arm, slope arm, flared arm, english arm, pad arm,
+  tuxedo arm, shelter arm, set-back arm, curved arm, scooped arm,
+  recessed arm, armless
+  USER SAYS → YOU SET: 'track arm sofa' → ai_arm_style: ['track']
+
+LEG STYLES → ai_leg_style:
+  tapered leg, turned leg, cabriole leg, saber leg, straight leg,
+  block leg, hairpin leg, metal leg, pedestal, trestle, sled base,
+  splayed leg, bun foot
+  USER SAYS → YOU SET: 'tapered leg chair' → ai_leg_style: ['tapered']
+
+CUSHION TYPES → ai_cushions:
+  spring down, down blend, foam, high-resilience foam, down wrapped,
+  sinuous spring, eight-way hand-tied, bench cushion
+  USER SAYS → YOU SET: 'spring down sofa' → ai_cushions: ['spring down']
+
+SILHOUETTE → ai_silhouette:
+  barrel, boxy, camelback, chesterfield, lawson, bridgewater,
+  tuxedo, shelter, mid-century, slipper, parsons, waterfall
+  USER SAYS → YOU SET: 'barrel chair' → ai_silhouette: ['barrel']
+
+CONSTRUCTION DETAILS → ai_construction_details or ai_distinctive_features:
+  eight-way hand-tied, sinuous spring, kiln-dried hardwood, mortise and tenon,
+  dovetail, hand-carved, bench-made, channel tufting, button tufting,
+  nailhead trim, welt detail
+  USER SAYS → YOU SET: 'eight way hand tied sofa' → ai_construction_details: ['eight-way hand-tied']
+  USER SAYS → YOU SET: 'nailhead dining chair' → ai_distinctive_features: ['nailhead']
+
+SCALE → ai_scale:
+  small, compact, apartment, oversized, large, petite
+  USER SAYS → YOU SET: 'apartment size sofa' → ai_scale: ['small', 'compact', 'apartment']
+
+FORMALITY → ai_formality:
+  formal, casual, transitional
+  USER SAYS → YOU SET: 'formal dining chair' → ai_formality: ['formal']
+
+FINISH → ai_finish:
+  Use ONLY when the designer explicitly names a finish: 'distressed', 'lacquered', 'cerused', 'wire-brushed', 'hand-rubbed'
+  USER SAYS → YOU SET: 'cerused oak table' → ai_finish: ['cerused'], ai_primary_material: ['oak']
+
+RULE 0 ENFORCEMENT: If a query contains ANY of the terms above, the corresponding field MUST appear in search_fields. Putting a physical attribute only in semantic_query is a CRITICAL ERROR. Physical attributes are hard AND filters — the product must literally have that construction feature.
+
+═══════════════════════════════════════════════════════════════
+
+CRITICAL RULES FOR FIELD SELECTION:
 
 1. ONLY populate fields the user EXPLICITLY mentioned or directly implied. If the user says 'leather sofa' you populate ai_furniture_type and ai_primary_material. You do NOT add ai_formality, ai_back_style, ai_cushions, or any other field the user didn't mention.
 
 2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting', 'glamorous', 'dramatic', 'fresh', 'airy', 'statement', 'bold', 'sophisticated' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering.
 
-3. When in doubt between 2 or 3 fields, use fewer. It's better to return 200 results than 0. But ALWAYS use at least 1 field for furniture type when mentioned. ZERO RESULTS IS THE WORST OUTCOME.
+3. When in doubt between abstract vibes vs physical attributes, Rule 0 wins. 'Track arm' is physical → search_fields. 'Comfortable' is abstract → semantic_query. NEVER confuse the two.
 
-4. HARD LIMIT: Maximum of 3 search_fields per query unless the user explicitly named 4+ concrete filterable attributes. Room descriptions ('Hollywood Regency living room') count as 1 style field, not multiple fields. 'velvet gold dramatic' is 1 material field (velvet) — gold and dramatic go in semantic_query.
+4. The 3-field limit applies ONLY to non-physical fields (style, color, mood, material). Physical construction attributes (arm style, back style, leg style, cushions, silhouette, construction details, formality, scale) do NOT count toward this limit. A query like 'tight back track arm tapered leg sofa' should use ALL of: ai_furniture_type + ai_back_style + ai_arm_style + ai_leg_style — that's 4 fields and it's correct.
 
-5. Negations and exclusions the user explicitly states go in exclude_fields. 'Not modern' means exclude modern. 'Buttonless' means exclude button tufted. Only exclude what the user specifically rejected. IMPORTANT: Use SHORT exclude terms for maximum coverage — 'mid-century' not 'mid-century modern', 'glass' not 'glass top', 'marble' not 'marble top'. Short terms catch more variants via substring matching.
+5. Negations and exclusions go in exclude_fields. 'Not modern' → exclude_fields.ai_style: ['modern']. 'No tufting' → exclude_fields.ai_distinctive_features: ['tufted', 'tufting']. 'Without nailheads' → exclude_fields.ai_distinctive_features: ['nailhead']. 'Armless' is NOT a negation — it IS an arm style, use ai_arm_style: ['armless']. IMPORTANT: Use SHORT exclude terms — 'mid-century' not 'mid-century modern', 'glass' not 'glass top'. Short terms catch more via substring matching.
 
 6. Use values that EXIST in the lists above. Use substring terms that would match via contains.
-7. For ai_distinctive_features, use short terms like "nailhead", "channel back", "tufted" — they will match via contains against feature strings.
-8. You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields). More AND fields = exponentially fewer results.
-9. DO NOT set ai_primary_color, ai_arm_style, ai_back_style, ai_formality, ai_cushions, ai_finish, ai_texture_description, ai_construction_details, ai_durability_assessment, ai_visual_weight, ai_ideal_client, ai_scale unless the designer EXPLICITLY used those exact concepts. These fields are for semantic_query ranking, not hard filtering. ai_finish is especially restrictive — put finish descriptors in semantic_query.
-10. For ai_scale, use short individual terms like ["small"], ["medium"], ["compact"] — NOT compound phrases like "statement piece". "Statement" is a vibe word for semantic_query.
+
+7. For ai_distinctive_features, use short terms like "nailhead", "channel", "tufted" — they match via contains against feature strings.
+
+8. You can provide MULTIPLE values per field — any match counts (OR logic within a field). ALL non-null fields must match (AND logic between fields).
+
+9. COMBINATION QUERIES: When a designer specifies multiple physical attributes, ALL become hard filters. 'Track arm tight back sofa' → ai_furniture_type: ['sofa'] + ai_arm_style: ['track'] + ai_back_style: ['tight back']. Every physical attribute is an AND filter. Products must match ALL of them.
+
+10. For ai_scale, use short individual terms like ["small"], ["compact"] — NOT compound phrases. "Statement" is a vibe word for semantic_query.
+
 11. IMPORTANT: Most products lack price and dimension data. Use price_min/price_max and width/height/depth constraints sparingly.
-12. NEVER combine ai_style + ai_primary_material + ai_primary_color + ai_finish in the same query. Pick the 1-2 most important and put the rest in semantic_query. Each additional AND field dramatically reduces results.
 
-13. BRAND + TYPE QUERIES: When the user specifies a vendor/brand AND a specific furniture type like 'Hooker sofas' or 'Baker dining chairs' or 'Bernhardt beds', return ONLY the exact furniture type they asked for. Do NOT expand to other types. 'Hooker sofas' means ai_furniture_type: ['sofa'] + vendor_name: ['Hooker Furniture'], NOT a mix of living room furniture. The user wants that specific type from that brand. NEVER interpret a brand+type query as a room or collection query.
+12. NEVER combine ai_style + ai_primary_material + ai_primary_color + ai_finish all in the same query. Pick the 1-2 most important and put the rest in semantic_query. But physical attribute fields are EXEMPT from this rule.
 
-14. PLURAL FORMS: 'sofas' means sofa, 'chairs' means chair, 'tables' means table, 'beds' means bed. Use the singular form in ai_furniture_type since our catalog uses singular: 'sofa' not 'sofas'.
+13. BRAND + TYPE QUERIES: 'Hooker sofas' → ai_furniture_type: ['sofa'] + vendor_name: ['Hooker Furniture']. Return ONLY the exact furniture type, do NOT expand to other types. NEVER interpret a brand+type query as a room or collection query.
+
+14. PLURAL FORMS: 'sofas' → sofa, 'chairs' → chair, 'tables' → table. Use singular in ai_furniture_type.
+
+15. YOU MUST ALWAYS USE search_fields for concrete attributes. NEVER return empty search_fields when the user mentions a furniture type, material, style, vendor, or physical attribute. These are the backbone of search accuracy.
+
+SEMANTIC_QUERY ONLY — these concepts NEVER go in search_fields:
+comfortable, luxury, cozy, inviting, statement, bold, dramatic, glamorous,
+airy, fresh, sophisticated, quiet luxury, kid friendly, family friendly,
+mountain house, coastal, beachy, resort, boutique hotel, magazine-worthy
 
 EXAMPLES:
+
+── Physical Attribute Examples (Rule 0) ──
+
+User: 'track arm sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_arm_style: ['track'] }
+exclude_fields: {}
+semantic_query: 'track arm sofa clean lines modern upholstered seating'
+(track arm is PHYSICAL → ai_arm_style hard filter)
+
+User: 'tight back leather sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_back_style: ['tight back'], ai_primary_material: ['leather'] }
+exclude_fields: {}
+semantic_query: 'tight back leather sofa tailored structured upholstery'
+(tight back is PHYSICAL → ai_back_style, leather → ai_primary_material)
+
+User: 'pillow back sectional'
+search_fields: { ai_furniture_type: ['sectional'], ai_back_style: ['pillow back'] }
+exclude_fields: {}
+semantic_query: 'pillow back sectional comfortable plush generous cushioning'
+(pillow back is PHYSICAL → ai_back_style)
+
+User: 'barrel accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_silhouette: ['barrel'] }
+exclude_fields: {}
+semantic_query: 'barrel silhouette accent chair curved enveloping form'
+(barrel is PHYSICAL silhouette → ai_silhouette)
+
+User: 'chesterfield sofa leather'
+search_fields: { ai_furniture_type: ['sofa'], ai_silhouette: ['chesterfield'], ai_primary_material: ['leather'] }
+exclude_fields: {}
+semantic_query: 'chesterfield sofa leather tufted classic traditional'
+(chesterfield is PHYSICAL silhouette → ai_silhouette)
+
+User: 'tapered leg dining chair'
+search_fields: { ai_furniture_type: ['dining chair'], ai_leg_style: ['tapered'] }
+exclude_fields: {}
+semantic_query: 'dining chair with tapered legs refined elegant'
+(tapered leg is PHYSICAL → ai_leg_style)
+
+User: 'cabriole leg accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_leg_style: ['cabriole'] }
+exclude_fields: {}
+semantic_query: 'accent chair with cabriole legs traditional carved graceful'
+(cabriole is PHYSICAL → ai_leg_style)
+
+User: 'spring down cushion sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['spring down'] }
+exclude_fields: {}
+semantic_query: 'sofa with spring down cushions comfortable supportive premium'
+(spring down is PHYSICAL → ai_cushions)
+
+User: 'down blend sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['down blend', 'down'] }
+exclude_fields: {}
+semantic_query: 'sofa with down blend cushions soft plush sink-in comfort'
+(down blend is PHYSICAL → ai_cushions)
+
+User: 'eight way hand tied sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_construction_details: ['eight-way hand-tied'] }
+exclude_fields: {}
+semantic_query: 'eight way hand tied sofa premium construction heirloom quality'
+(eight way hand tied is PHYSICAL construction → ai_construction_details)
+
+User: 'nailhead dining chair'
+search_fields: { ai_furniture_type: ['dining chair'], ai_distinctive_features: ['nailhead'] }
+exclude_fields: {}
+semantic_query: 'dining chair with nailhead trim detail traditional craftsmanship'
+(nailhead is PHYSICAL feature → ai_distinctive_features)
+
+User: 'channel tufted accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_distinctive_features: ['channel'] }
+exclude_fields: {}
+semantic_query: 'channel tufted accent chair glamorous vertical stitching'
+(channel tufting is PHYSICAL feature → ai_distinctive_features)
+
+User: 'button tufted sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_distinctive_features: ['button tufted', 'tufted'] }
+exclude_fields: {}
+semantic_query: 'button tufted sofa classic traditional deep tufting'
+(button tufting is PHYSICAL feature → ai_distinctive_features)
+
+User: 'formal dining chair'
+search_fields: { ai_furniture_type: ['dining chair'], ai_formality: ['formal'] }
+exclude_fields: {}
+semantic_query: 'formal dining chair elegant refined traditional dining room'
+(formal is PHYSICAL attribute → ai_formality)
+
+User: 'casual sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_formality: ['casual'] }
+exclude_fields: {}
+semantic_query: 'casual relaxed sofa comfortable laid-back living room'
+(casual is PHYSICAL attribute → ai_formality)
+
+User: 'apartment size sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_scale: ['small', 'compact', 'apartment'] }
+exclude_fields: {}
+semantic_query: 'apartment size compact sofa small space living room'
+(apartment size is PHYSICAL scale → ai_scale)
+
+User: 'oversized sectional'
+search_fields: { ai_furniture_type: ['sectional'], ai_scale: ['oversized', 'large'] }
+exclude_fields: {}
+semantic_query: 'oversized large sectional generous deep seating family room'
+(oversized is PHYSICAL scale → ai_scale)
+
+User: 'slipper chair velvet'
+search_fields: { ai_furniture_type: ['accent chair', 'slipper chair'], ai_silhouette: ['slipper'], ai_primary_material: ['velvet'] }
+exclude_fields: {}
+semantic_query: 'slipper chair velvet armless low profile elegant'
+(slipper is PHYSICAL silhouette → ai_silhouette)
+
+User: 'parsons dining chair'
+search_fields: { ai_furniture_type: ['dining chair'], ai_silhouette: ['parsons'] }
+exclude_fields: {}
+semantic_query: 'parsons dining chair fully upholstered clean simple lines'
+(parsons is PHYSICAL silhouette → ai_silhouette)
+
+User: 'lawson sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_silhouette: ['lawson'] }
+exclude_fields: {}
+semantic_query: 'lawson sofa classic comfortable loose back set-back arm'
+(lawson is PHYSICAL silhouette → ai_silhouette)
+
+User: 'cerused oak dining table'
+search_fields: { ai_furniture_type: ['dining table'], ai_finish: ['cerused'], ai_primary_material: ['oak'] }
+exclude_fields: {}
+semantic_query: 'cerused oak dining table textured whitewashed grain visible'
+(cerused is PHYSICAL finish → ai_finish)
+
+── Combination Physical Attribute Examples ──
+
+User: 'track arm tight back sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_arm_style: ['track'], ai_back_style: ['tight back'] }
+exclude_fields: {}
+semantic_query: 'track arm tight back sofa clean modern tailored structured'
+(BOTH physical attributes are hard AND filters)
+
+User: 'rolled arm pillow back sofa performance fabric'
+search_fields: { ai_furniture_type: ['sofa'], ai_arm_style: ['rolled'], ai_back_style: ['pillow back'], ai_primary_material: ['performance fabric'] }
+exclude_fields: {}
+semantic_query: 'rolled arm pillow back sofa performance fabric comfortable traditional'
+(4 fields — all explicitly mentioned, physical attributes exempt from 3-field limit)
+
+User: 'tight back tapered leg accent chair leather'
+search_fields: { ai_furniture_type: ['accent chair'], ai_back_style: ['tight back'], ai_leg_style: ['tapered'], ai_primary_material: ['leather'] }
+exclude_fields: {}
+semantic_query: 'tight back leather accent chair tapered legs refined modern'
+(4 fields all explicitly named — correct)
+
+User: 'barrel chair with hairpin legs velvet'
+search_fields: { ai_furniture_type: ['accent chair'], ai_silhouette: ['barrel'], ai_leg_style: ['hairpin'], ai_primary_material: ['velvet'] }
+exclude_fields: {}
+semantic_query: 'barrel chair hairpin legs velvet mid-century modern retro'
+(4 fields — barrel=silhouette, hairpin=leg, velvet=material)
+
+User: 'mid century track arm leather sofa tapered legs'
+search_fields: { ai_furniture_type: ['sofa'], ai_style: ['mid-century'], ai_arm_style: ['track'], ai_primary_material: ['leather'], ai_leg_style: ['tapered'] }
+exclude_fields: {}
+semantic_query: 'mid century modern track arm leather sofa tapered legs retro'
+(5 fields — all explicitly named by the designer)
+
+User: 'formal tufted wingback chair with cabriole legs'
+search_fields: { ai_furniture_type: ['accent chair', 'wing chair'], ai_formality: ['formal'], ai_distinctive_features: ['tufted'], ai_back_style: ['wingback'], ai_leg_style: ['cabriole'] }
+exclude_fields: {}
+semantic_query: 'formal tufted wingback chair cabriole legs traditional elegant'
+(5 fields — every physical attribute the designer specified)
+
+── Negation Examples ──
+
+User: 'sofa not modern no tufting'
+search_fields: { ai_furniture_type: ['sofa'] }
+exclude_fields: { ai_style: ['modern', 'contemporary'], ai_distinctive_features: ['tufted', 'tufting'] }
+semantic_query: 'sofa classic traditional clean untufted'
+(not modern → exclude style, no tufting → exclude features)
+
+User: 'accent chair without nailheads not traditional'
+search_fields: { ai_furniture_type: ['accent chair'] }
+exclude_fields: { ai_distinctive_features: ['nailhead'], ai_style: ['traditional'] }
+semantic_query: 'accent chair modern clean lines no nailhead trim'
+(without nailheads → exclude, not traditional → exclude)
+
+User: 'leather sofa no rolled arms'
+search_fields: { ai_furniture_type: ['sofa'], ai_primary_material: ['leather'] }
+exclude_fields: { ai_arm_style: ['rolled'] }
+semantic_query: 'leather sofa modern arms clean structured'
+(no rolled arms → exclude ai_arm_style)
+
+User: 'dining table avoid glass not modern'
+search_fields: { ai_furniture_type: ['dining table'] }
+exclude_fields: { ai_primary_material: ['glass'], ai_style: ['modern', 'contemporary'] }
+semantic_query: 'dining table solid wood or stone traditional transitional'
+(avoid glass → exclude material, not modern → exclude style)
+
+User: 'sectional no loose back cushions'
+search_fields: { ai_furniture_type: ['sectional'] }
+exclude_fields: { ai_back_style: ['loose back', 'pillow back'] }
+semantic_query: 'sectional with structured tight back clean tailored'
+(no loose back → exclude ai_back_style)
+
+── Standard Examples ──
 
 User: 'hooker sofas'
 search_fields: { ai_furniture_type: ['sofa'], vendor_name: ['Hooker Furniture'] }
 exclude_fields: {}
 semantic_query: 'Hooker Furniture sofa high quality upholstered seating'
-(ONLY sofa — do NOT expand to other living room types. vendor_name must use exact name from catalog)
+(ONLY sofa — do NOT expand to other types)
 
 User: 'baker dining chairs'
 search_fields: { ai_furniture_type: ['dining chair'], vendor_name: ['Baker Furniture'] }
 exclude_fields: {}
 semantic_query: 'Baker Furniture dining chair formal elegant craftsmanship'
-(ONLY dining chair from Baker — do NOT add other types)
-
-User: 'bernhardt beds'
-search_fields: { ai_furniture_type: ['bed'], vendor_name: ['Bernhardt'] }
-exclude_fields: {}
-semantic_query: 'Bernhardt bed bedroom furniture premium quality'
-(ONLY bed from Bernhardt)
+(ONLY dining chair from Baker)
 
 User: 'comfortable leather sofa'
 search_fields: { ai_furniture_type: ['sofa'], ai_primary_material: ['leather'] }
 exclude_fields: {}
 semantic_query: 'comfortable inviting leather sofa with generous proportions and soft cushions'
-(comfortable goes in semantic_query NOT in search_fields)
+(comfortable is ABSTRACT → semantic_query only)
 
 User: 'quiet luxury accent chair'
 search_fields: { ai_furniture_type: ['accent chair'] }
 exclude_fields: {}
 semantic_query: 'quiet luxury refined sophisticated accent chair premium quality understated elegance'
-(quiet luxury is a vibe — goes in semantic_query)
+(quiet luxury is ABSTRACT → semantic_query only)
 
 User: 'kid friendly sectional performance fabric not modern'
 search_fields: { ai_furniture_type: ['sectional'], ai_primary_material: ['performance fabric'] }
 exclude_fields: { ai_style: ['modern', 'contemporary'] }
-semantic_query: 'durable family friendly sectional in performance fabric high traffic suitable'
-(kid friendly goes in semantic_query, not modern goes in exclude)
+semantic_query: 'durable family friendly sectional in performance fabric'
+(kid friendly is ABSTRACT → semantic_query)
 
 User: 'traditional walnut dining table seats 8'
-search_fields: { ai_furniture_type: ['dining table'], ai_style: ['traditional'], ai_finish: ['walnut'] }
+search_fields: { ai_furniture_type: ['dining table'], ai_style: ['traditional'], ai_primary_material: ['walnut'] }
 exclude_fields: {}
 semantic_query: 'traditional walnut dining table large seats eight formal dining room'
-(all 3 fields explicitly mentioned, dimensions go in semantic_query)
+(walnut is wood material → ai_primary_material, NOT color)
 
 User: 'something like the RH cloud sofa but not RH'
 search_fields: { ai_furniture_type: ['sofa'] }
 exclude_fields: { vendor_name: ['Restoration Hardware'] }
 semantic_query: 'deep plush oversized sofa with loose pillow back and down cushions cloud-like comfort'
-(1 field + exclude, ALL descriptive characteristics in semantic_query)
 
-User: 'glamorous Hollywood Regency living room, velvet, gold, dramatic'
+User: 'glamorous Hollywood Regency living room'
 search_fields: { ai_furniture_type: ['sofa', 'accent chair', 'cocktail table', 'side table'], ai_style: ['hollywood regency'] }
 exclude_fields: {}
 semantic_query: 'glamorous hollywood regency velvet gold dramatic luxe jewel tones brass accents opulent'
-(ONLY expand to multiple types when user asks for a ROOM, not when they name a specific type)
+(ONLY expand to multiple types when user asks for a ROOM)
 
-User: 'accent chair that makes a statement without overwhelming a neutral room'
+User: 'accent chair that makes a statement'
 search_fields: { ai_furniture_type: ['accent chair'] }
 exclude_fields: {}
-semantic_query: 'statement accent chair with visual impact architectural form bold but refined designed to complement a neutral room without dominating'
-(ONLY 1 field. "statement", "overwhelming", "neutral" are vibes — NOT ai_scale or ai_visual_weight filters)
+semantic_query: 'statement accent chair with visual impact architectural form bold but refined'
+(statement is ABSTRACT → semantic_query only, NOT ai_scale or ai_visual_weight)
 
 Return ONLY this JSON (no markdown, no backticks):
 {
@@ -431,6 +688,12 @@ Return ONLY this JSON (no markdown, no backticks):
     "ai_style": ["rustic"] or null,
     "ai_primary_color": ["brown", "espresso"] or null,
     "ai_primary_material": ["velvet"] or null,
+    "ai_arm_style": ["rolled"] or null,
+    "ai_back_style": ["loose back"] or null,
+    "ai_leg_style": ["turned"] or null,
+    "ai_distinctive_features": ["tufted", "nailhead"] or null,
+    "ai_cushions": ["down"] or null,
+    "ai_formality": ["formal"] or null,
     "vendor_name": ["Restoration Hardware"] or null
   },
   "semantic_query": "natural language description of the ideal product for ranking",
@@ -866,10 +1129,16 @@ export async function searchPipeline(query, options = {}) {
 
     // ── Auto-relax: if too few results and multiple filters, drop restrictive filters ──
     if (candidates.length < 10) {
-      const relaxOrder = ["ai_finish", "ai_primary_color", "ai_distinctive_features", "ai_texture_description",
-        "ai_visual_weight", "ai_scale", "ai_ideal_client", "ai_durability_assessment",
-        "ai_mood", "ai_formality", "ai_cushions", "ai_era_influence", "ai_primary_material",
-        "ai_style", "ai_silhouette", "ai_arm_style", "ai_back_style", "ai_leg_style"];
+      // Physical construction fields (arm_style, back_style, leg_style, cushions, silhouette,
+      // construction_details, formality) are PROTECTED from auto-relax — they are hard filters.
+      // Only drop non-physical fields first. Physical fields are dropped LAST as a final resort.
+      const relaxOrder = ["ai_finish", "ai_primary_color", "ai_texture_description",
+        "ai_visual_weight", "ai_ideal_client", "ai_durability_assessment",
+        "ai_mood", "ai_era_influence", "ai_primary_material",
+        "ai_style", "ai_distinctive_features",
+        // Physical construction fields — protected, only dropped as last resort
+        "ai_scale", "ai_formality", "ai_cushions", "ai_silhouette",
+        "ai_arm_style", "ai_back_style", "ai_leg_style", "ai_construction_details"];
       const activeFields = Object.keys(haiku.search_fields).filter(k =>
         haiku.search_fields[k] && Array.isArray(haiku.search_fields[k]) && haiku.search_fields[k].length > 0
       );
