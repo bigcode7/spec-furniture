@@ -1035,7 +1035,7 @@ export default function SearchPage() {
           <div className="w-full max-w-xl">
             {/* Copy */}
             <div className="text-center mb-10">
-              <div className="inline-block mb-5"><div className="spec-diamond" style={{ width: 10, height: 10, opacity: 0.4 }} /></div>
+              <div className="inline-block mb-5"><img src="/logo.png" alt="" className="h-6 w-6 object-contain opacity-40" /></div>
               <p className="text-[13px] tracking-[0.25em] uppercase text-white/30 font-light">
                 Describe it. We&apos;ll find it.
               </p>
@@ -1128,7 +1128,7 @@ export default function SearchPage() {
           <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E] sm:bg-[#08090E]/95 sm:backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
-                <div className={`spec-diamond${loading ? " animate-pulse" : ""}`} />
+                <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
                 <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70 hidden sm:inline">Results</span>
               </div>
               {/* Inline compact search input */}
@@ -1185,7 +1185,7 @@ export default function SearchPage() {
                     ) : (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                         className="inline-flex items-center gap-1.5 text-[11px] text-white/20">
-                        <span className="spec-diamond" style={{ width: 4, height: 4 }} />
+                        <img src="/logo.png" alt="" className="h-3 w-3 object-contain" />
                         {(msg.content || "").length > 60 ? msg.content.slice(0, 60) + "…" : msg.content}
                         <span className="text-white/10 mx-1">→</span>
                       </motion.span>
@@ -1200,7 +1200,7 @@ export default function SearchPage() {
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="py-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5" style={{ background: "rgba(79,107,255,0.1)", border: "1px solid rgba(79,107,255,0.15)" }}>
-                    <div className="spec-diamond" />
+                    <img src="/logo.png" alt="" className="h-4 w-4 object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm leading-relaxed" style={{ color: "var(--warm-white)" }}>
@@ -1560,7 +1560,7 @@ export default function SearchPage() {
               <form onSubmit={handleSubmit} className="relative">
                 <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(79,107,255,0.08)]">
                   <div className="flex items-center">
-                    <div className="ml-3.5 shrink-0"><div className="spec-diamond" /></div>
+                    <div className="ml-3.5 shrink-0"><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}

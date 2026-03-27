@@ -95,7 +95,7 @@ function IntentDecoder() {
       <div className="p-6">
         {/* Input */}
         <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <div className="spec-diamond" />
+          <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
           <span className="text-sm text-white/50 italic">"{inputPhrase}"</span>
         </div>
 
@@ -180,8 +180,8 @@ function MockAIChatUI({ chatData }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <div className="w-6 h-6 rounded-full bg-gold/10 flex items-center justify-center shrink-0 mt-0.5">
-            <div className="spec-diamond" style={{ width: 4, height: 4 }} />
+          <div className="w-6 h-6 rounded-full bg-white/[0.03] flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+            <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
           </div>
           <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-md bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 leading-relaxed">
             {p ? (
@@ -481,7 +481,7 @@ export default function Landing() {
               />
               <div className="search-bar-glow relative flex h-14 sm:h-16 md:h-[68px] items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-4 sm:px-6 group">
                 <div className="relative mr-3 sm:mr-4 hidden sm:block">
-                  <div className="spec-diamond" />
+                  <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
                 </div>
                 <input
                   type="text"
@@ -765,7 +765,7 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <span className="spec-diamond mr-1" />
+                <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain" />
                 <span className="font-brand text-lg tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
               <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">

@@ -120,7 +120,7 @@ function MessageBubble({ message, onSuggestedClick }) {
       >
         {!isUser && (
           <div className="mb-1 flex items-center gap-1.5">
-            <span className="spec-diamond h-3 w-3 text-gold" />
+            <img src="/logo.png" alt="" className="h-4 w-4 object-contain" />
             <span className="font-brand text-[10px] font-semibold uppercase tracking-widest text-gold/70">
               Spekd AI
             </span>
@@ -273,7 +273,7 @@ export default function SpecChat() {
             }}
             aria-label="Open chat"
           >
-            <span className="spec-diamond text-lg" />
+            <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -293,7 +293,7 @@ export default function SpecChat() {
             <div className="flex items-center justify-between border-b border-gold/10 px-5 py-3.5">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gold/10">
-                  <span className="spec-diamond text-gold" />
+                  <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
                 </div>
                 <div>
                   <h3 className="font-brand text-sm font-semibold uppercase tracking-widest text-gold">Spekd AI</h3>

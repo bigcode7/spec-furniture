@@ -69,7 +69,7 @@ export default function CommandPalette({ open, onOpenChange }) {
               <Command className="bg-transparent">
                 {/* Search input with gold diamond icon */}
                 <div className="flex items-center border-b border-white/[0.06] px-4 py-1">
-                  <span className="spec-diamond mr-3 text-gold/60 text-sm">◆</span>
+                  <img src="/logo.png" alt="" className="h-4 w-4 object-contain mr-3" />
                   <CommandInput
                     placeholder="Search pages, actions, or recent queries..."
                     className="text-white placeholder:text-white/25 border-0 border-none focus:ring-1 focus:ring-gold/30"

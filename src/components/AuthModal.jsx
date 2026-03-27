@@ -163,7 +163,7 @@ export default function AuthModal() {
               </button>
 
               <div className="flex items-center gap-2 mb-1">
-                <span className="spec-diamond mr-0.5" />
+                <img src="/logo.png" alt="SPEKD" className="h-7 w-7 object-contain" />
                 <span className="font-brand text-base tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
 

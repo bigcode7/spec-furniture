@@ -1042,11 +1042,7 @@ function QuoteItemRow({
                     )}
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setEditingPrice(true)}
-                    className="group/price flex items-center gap-1"
-                    title="Click to set custom price"
-                  >
+                  <div className="flex items-center gap-2">
                     {price ? (
                       <span className={`text-xs ${priceInfo.isCustom ? "text-gold/70" : priceInfo.isTrade ? "text-emerald-400/70" : "text-white/50"}`}>
                         {priceInfo.isCustom && <span className="text-[9px] mr-0.5 opacity-70">Custom </span>}
@@ -1058,13 +1054,16 @@ function QuoteItemRow({
                           </span>
                         )}
                       </span>
-                    ) : (
-                      <span className="text-[10px] text-white/20 group-hover/price:text-gold/50 transition-colors">
-                        + Add price
-                      </span>
-                    )}
-                    <Edit3 className="h-2.5 w-2.5 text-white/0 group-hover/price:text-white/25 transition-colors" />
-                  </button>
+                    ) : null}
+                    <button
+                      onClick={() => setEditingPrice(true)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-white/[0.08] hover:border-gold/25 text-white/30 hover:text-gold/60 transition-colors"
+                      title="Set custom price"
+                    >
+                      <Edit3 className="h-2.5 w-2.5" />
+                      {price ? "Edit" : "Set price"}
+                    </button>
+                  </div>
                 )}
               </>
             )}
