@@ -954,16 +954,35 @@ function fieldContains(productValue, searchTerms) {
   // Product MUST have the field to match — missing field = no match
   if (!productValue) return false;
 
+  // Combine all search terms into one string for word-level matching
+  const allTermsJoined = searchTerms.map(t => t.toLowerCase()).join(" ");
+
   if (Array.isArray(productValue)) {
     if (productValue.length === 0) return false;
     const joined = productValue.join(" ").toLowerCase();
-    return searchTerms.some(term => joined.includes(term.toLowerCase()));
+    // Direct substring match against any individual term (OR)
+    if (searchTerms.some(term => {
+      const t = term.toLowerCase();
+      return joined.includes(t) || t.includes(joined);
+    })) return true;
+    // Word-level fallback: every significant word in product value appears somewhere in search terms
+    const productWords = joined.split(/\s+/).filter(w => w.length >= 3);
+    if (productWords.length > 0 && productWords.every(w => allTermsJoined.includes(w))) return true;
+    return false;
   }
 
   if (typeof productValue === "string") {
     if (productValue.trim() === "") return false;
     const valLower = productValue.toLowerCase();
-    return searchTerms.some(term => valLower.includes(term.toLowerCase()));
+    // Direct substring match against any individual term (OR)
+    if (searchTerms.some(term => {
+      const t = term.toLowerCase();
+      return valLower.includes(t) || t.includes(valLower);
+    })) return true;
+    // Word-level fallback: every significant word in product value appears somewhere in search terms
+    const productWords = valLower.split(/\s+/).filter(w => w.length >= 3);
+    if (productWords.length > 0 && productWords.every(w => allTermsJoined.includes(w))) return true;
+    return false;
   }
 
   return false;
@@ -1148,12 +1167,60 @@ export async function searchPipeline(query, options = {}) {
   const vectorStats = getVectorStoreStats();
 
   if (hasFieldFilters) {
-    // ── Step 2: Direct field matching — strict, no relaxation ──
-    // Every field filter Haiku returns is enforced as a hard AND gate.
-    // If a user searches "sectionals with nailhead" and there are 5 exact matches,
-    // we show those 5. We NEVER drop filters to pad results — that dilutes accuracy.
+    // ── Step 2: Direct field matching ──
     let candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
     console.log("Field match candidates:", candidates.length);
+
+    // ── Targeted relax: ONLY drop inferred vibe fields, NEVER user intent fields ──
+    // If zero results, Haiku may have over-specified with mood/style/ideal_client etc.
+    // We drop ONLY soft "vibe" fields that Haiku inferred, never the user's core intent:
+    //   PROTECTED (never drop): ai_furniture_type, ai_distinctive_features, ai_primary_material,
+    //     ai_arm_style, ai_back_style, ai_leg_style, ai_cushions, ai_construction_details,
+    //     vendor_name, price/dimension filters
+    //   RELAXABLE (drop in order): vibe & style fields Haiku may have added
+    if (candidates.length < 5) {
+      const vibeRelaxOrder = [
+        "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
+        "ai_durability_assessment", "ai_texture_description", "ai_finish",
+        "ai_primary_color", "ai_scale", "ai_formality", "ai_silhouette", "ai_style",
+        "ai_leg_style", "ai_primary_material",
+      ];
+      const relaxed = { ...haiku.search_fields };
+      for (const dropField of vibeRelaxOrder) {
+        if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
+          console.log(`[vibe-relax] Dropping ${dropField} (0 results)`);
+          relaxed[dropField] = null;
+          candidates = fieldMatch(relaxed, haiku.exclude_fields, excludeIds);
+          console.log(`[vibe-relax] After dropping ${dropField}: ${candidates.length} candidates`);
+          if (candidates.length >= 5) break;
+        }
+      }
+    }
+
+    // ── Last resort: field match + vibe-relax still 0 → vector fallback with furniture type filter ──
+    if (candidates.length === 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
+      console.log("[last-resort] Field match exhausted, falling back to vector search with furniture type filter");
+      const ftFilter = haiku.search_fields?.ai_furniture_type;
+      const searchText = haiku.semantic_query;
+      const rawResults = await vectorSearch(searchText, { limit: 500 });
+      for (const { id, score } of rawResults) {
+        const product = getProduct(id);
+        if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
+          if (SAMPLE_KEYWORDS.test(product.product_name || "") || isFabricSwatch(product)) continue;
+          if (ftFilter && ftFilter.length > 0) {
+            const ft = (product.ai_furniture_type || "").toLowerCase();
+            const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
+            const combined = `${ft} ${cat}`;
+            if (!ftFilter.some(term => combined.includes(term.toLowerCase()))) continue;
+          }
+          product.relevance_score = score;
+          product._vector_score = score;
+          candidates.push(product);
+        }
+        if (candidates.length >= 80) break;
+      }
+      console.log(`[last-resort] Vector fallback: ${candidates.length} results`);
+    }
 
     // ── Step 3: MiniLM ranking within candidates ──
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
