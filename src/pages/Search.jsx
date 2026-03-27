@@ -1062,7 +1062,7 @@ export default function SearchPage() {
                       }}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={'Search 42,000+ trade products...'}
+                      placeholder={'Search 40,000+ trade products...'}
                       className="min-h-[56px] sm:min-h-[60px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-5 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
                       rows={1}
                     />

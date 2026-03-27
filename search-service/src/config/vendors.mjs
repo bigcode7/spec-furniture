@@ -815,4 +815,40 @@ export const priorityVendors = [
       image_path_hints: ["/products/", "/images/", "/media/"],
     },
   },
+  {
+    id: "wesley-hall",
+    name: "Wesley Hall",
+    domain: "wesleyhall.com",
+    profile: {
+      asset_hosts: ["wesleyhall.com"],
+      title_suffixes: ["| Wesley Hall"],
+      product_path_tokens: ["product", "products"],
+      reject_path_tokens: ["search", "collections"],
+      image_path_hints: ["/products/", "/images/", "/media/"],
+    },
+  },
+  {
+    id: "highland-house",
+    name: "Highland House",
+    domain: "highlandhousefurniture.com",
+    profile: {
+      asset_hosts: ["highlandhousefurniture.com"],
+      title_suffixes: ["| Highland House"],
+      product_path_tokens: ["product", "products"],
+      reject_path_tokens: ["search", "collections"],
+      image_path_hints: ["/products/", "/images/", "/media/"],
+    },
+  },
+  {
+    id: "rowe",
+    name: "Rowe Furniture",
+    domain: "rowefurniture.com",
+    profile: {
+      asset_hosts: ["rowefurniture.com"],
+      title_suffixes: ["| Rowe Furniture", "| Rowe"],
+      product_path_tokens: ["product", "products"],
+      reject_path_tokens: ["search", "collections"],
+      image_path_hints: ["/products/", "/images/", "/media/"],
+    },
+  },
 ];

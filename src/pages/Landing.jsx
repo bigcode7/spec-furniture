@@ -684,7 +684,7 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              "Search across 40,000+ products from 18+ trade vendors in seconds — no more browsing vendor sites one by one.",
+              "Search across 40,000+ products from 20 trade vendors in seconds — no more browsing vendor sites one by one.",
               "AI that understands design language. Say 'warm transitional accent chair' and get exactly what you mean.",
               "Quote builder with polished PDF export — organize specs and pricing, ready for client review.",
             ].map((text, i) => (
