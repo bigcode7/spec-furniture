@@ -28,19 +28,11 @@ function searchProducts(query, maxVendors = 20, perVendor = 5) {
 }
 
 // ── Reusable scroll reveal ──
-function Reveal({ children, className = "", delay = 0, y = 30 }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -10px 0px" });
+function Reveal({ children, className = "" }) {
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: EASE }}
-      className={className}
-    >
+    <div className={className}>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -276,20 +268,13 @@ function MockProjectUI() {
   );
 }
 
-// ── Feature section ──
+// ── Feature section — no scroll-triggered opacity, always visible once rendered ──
 function FeatureSection({ kicker, title, description, mockUI, reverse = false, icon: Icon }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -10px 0px" });
   return (
-    <div ref={ref} className="py-24 md:py-32">
+    <div className="py-24 md:py-32">
       <div className="page-wrap">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-          <motion.div
-            className={reverse ? "lg:order-2" : ""}
-            initial={{ opacity: 0, x: reverse ? 30 : -30 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7, ease: EASE }}
-          >
+          <div className={reverse ? "lg:order-2" : ""}>
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/15 flex items-center justify-center">
                 <Icon className="w-5 h-5 text-gold/70" />
@@ -302,15 +287,10 @@ function FeatureSection({ kicker, title, description, mockUI, reverse = false, i
             <p className="text-base leading-7 max-w-lg" style={{ color: "var(--warm-gray)" }}>
               {description}
             </p>
-          </motion.div>
-          <motion.div
-            className={reverse ? "lg:order-1" : ""}
-            initial={{ opacity: 0, x: reverse ? -30 : 30, scale: 0.96 }}
-            animate={inView ? { opacity: 1, x: 0, scale: 1 } : {}}
-            transition={{ duration: 0.8, delay: 0.15, ease: EASE }}
-          >
+          </div>
+          <div className={reverse ? "lg:order-1" : ""}>
             {mockUI}
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
