@@ -300,7 +300,7 @@ You understand furniture deeply. You know:
 - 'club chair' is a specific type — use ai_furniture_type: ['club chair', 'accent chair'] to catch both specific and general tags
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
 - 'mid century' is a style — use ai_style
-- 'outdoor' is a QUALIFIER — ALWAYS include BOTH the qualified and base furniture type: ai_furniture_type: ['outdoor dining table', 'outdoor table', 'dining table']. The base type (e.g., 'dining table', 'chair', 'sofa') MUST always be included because many outdoor products are tagged with just the base type. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
+- 'outdoor' is a QUALIFIER — use ai_furniture_type with ONLY outdoor-qualified terms: ai_furniture_type: ['outdoor sofa', 'outdoor sectional']. Do NOT include the bare base type (e.g., 'sofa') because that will flood results with indoor products. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
 - WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
 - 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
@@ -1020,6 +1020,11 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     }
   }
 
+  // Detect "outdoor" qualifier — if any furniture type term contains "outdoor",
+  // products must have "outdoor" somewhere in their data to prevent indoor leakage
+  const ftVals = searchFields.ai_furniture_type || [];
+  const requireOutdoor = ftVals.some(v => v.toLowerCase().includes("outdoor"));
+
   // Build list of exclude filters
   const excludeFilters = [];
   if (excludeFields) {
@@ -1041,6 +1046,12 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     // Exclude samples, swatches, catalogs by product name
     const pName = product.product_name || "";
     if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
+
+    // Outdoor qualifier enforcement — product must mention "outdoor" somewhere
+    if (requireOutdoor) {
+      const searchText = `${pName} ${product.ai_furniture_type || ""} ${product.category || ""} ${product.description || ""}`.toLowerCase();
+      if (!searchText.includes("outdoor")) continue;
+    }
 
     // Price filters
     if (priceMin && product.retail_price && product.retail_price < priceMin) continue;
