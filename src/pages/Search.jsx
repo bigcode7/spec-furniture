@@ -86,9 +86,11 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
 }
 
 const EXAMPLE_SEARCHES = [
-  "walnut dining table for 8, mid-century modern",
-  "blue velvet sectional, luxury brand",
-  "boucle accent chair, cozy neutral colors",
+  "modern swivel chair under $2k",
+  "blue velvet sectional",
+  "walnut mid-century credenza",
+  "boucle accent chair",
+  "marble dining table contemporary",
   "track arm sofa, performance fabric",
 ];
 
@@ -1091,11 +1093,11 @@ export default function SearchPage() {
             {/* Search suggestions */}
             <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-1.5 sm:gap-2">
               {[
-                "leather sofas",
-                "swivel chairs",
-                "round dining tables",
-                "sofa with nailhead",
-                "modern credenzas",
+                "modern swivel chair under $2k",
+                "blue velvet sectional",
+                "walnut mid-century credenza",
+                "boucle accent chair",
+                "marble dining table contemporary",
               ].map((suggestion) => (
                 <button
                   key={suggestion}

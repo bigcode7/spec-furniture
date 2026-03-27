@@ -30,7 +30,7 @@ function searchProducts(query, maxVendors = 20, perVendor = 5) {
 // ── Reusable scroll reveal ──
 function Reveal({ children, className = "", delay = 0, y = 30 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const inView = useInView(ref, { once: true, margin: "0px 0px -10px 0px" });
   return (
     <motion.div
       ref={ref}
@@ -76,21 +76,21 @@ function Atmosphere() {
 
 // ── Design Intent Decoder — shows how AI parses natural language ──
 function IntentDecoder() {
-  const inputPhrase = "comfortable boucle swivel chair, modern, under $2k";
+  const inputPhrase = "modern high back swivel chair";
   const decoded = [
     { label: "Category", value: "Accent Chair", color: "text-gold" },
-    { label: "Material", value: "Bouclé", color: "text-emerald-400" },
+    { label: "Back Style", value: "High Back", color: "text-emerald-400" },
     { label: "Feature", value: "Swivel Base", color: "text-purple-400" },
     { label: "Style", value: "Modern / Contemporary", color: "text-gold" },
-    { label: "Budget", value: "Under $2,000", color: "text-emerald-400" },
-    { label: "Intent", value: "Comfort-first seating", color: "text-purple-400" },
+    { label: "Silhouette", value: "Upright, Structured", color: "text-emerald-400" },
+    { label: "Intent", value: "Statement seating with support", color: "text-purple-400" },
   ];
 
   return (
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/understand</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai</div>
       </div>
       <div className="p-6">
         {/* Input */}
@@ -126,7 +126,7 @@ function IntentDecoder() {
         {/* Bottom insight */}
         <div className="mt-4 px-3 py-2.5 rounded-lg bg-gold/[0.04] border border-gold/[0.08]">
           <div className="text-[10px] text-white/30 leading-relaxed">
-            <span className="text-gold/60 font-semibold">→</span> Expands to 14 search variants across 20 vendors, weighted by material match and style relevance
+            <span className="text-gold/60 font-semibold">→</span> Matches back style, base type, and silhouette as hard filters across 20 vendors — returns only chairs that are high back + swivel + modern
           </div>
         </div>
       </div>
@@ -141,7 +141,7 @@ function MockVendorUI({ vendors }) {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/vendors</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai/vendors</div>
       </div>
       <div className="p-5 space-y-3">
         {topVendors.map((v) => (
@@ -164,47 +164,71 @@ function MockVendorUI({ vendors }) {
   );
 }
 
-// ── Mock AI Chat UI — REAL PRODUCT ──
-function MockAIChatUI({ chatData }) {
-  const p = chatData?.product;
+// ── Mock Search UI — REAL PRODUCTS from catalog ──
+function MockSearchUI({ demoProducts }) {
+  const demoQuery = "my client is furnishing a beach house, show me coastal pieces";
+  const products = demoProducts || [];
+
   return (
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/chat</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai</div>
       </div>
-      <div className="p-5 space-y-4">
-        <div className="flex justify-end">
-          <div className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-br-md bg-gold/10 border border-gold/20 text-xs text-white/60">
-            {chatData?.query || "Find me a boucle accent chair, modern style, under $1,500"}
-          </div>
+      <div className="p-4">
+        {/* Search bar */}
+        <div className="flex items-center gap-3 rounded-full bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 mb-4">
+          <img src="/logo.png" alt="" className="h-4 w-4 object-contain shrink-0" />
+          <span className="text-[12px] text-white/50 truncate flex-1">{demoQuery}</span>
+          <div className="h-7 px-3 rounded-full bg-gold/20 text-gold text-[10px] font-semibold flex items-center shrink-0">Search</div>
         </div>
-        <div className="flex gap-2">
-          <div className="w-6 h-6 rounded-full bg-white/[0.03] flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
-            <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
-          </div>
-          <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-bl-md bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 leading-relaxed">
-            {p ? (
-              <>
-                I found {chatData.total} results matching your criteria across {chatData.vendorCount} vendors.
-                The top pick is the <span className="text-gold/70">{p.product_name}</span> by {p.vendor_name}
-                {p.retail_price ? ` at $${p.retail_price.toLocaleString()}` : ""}
-                {p.style ? ` — ${p.style} style` : ""}.
-              </>
-            ) : (
-              "Searching across all vendors..."
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 overflow-hidden">
-          {(chatData?.topImages || []).slice(0, 3).map((url, i) => (
-            <div key={i} className="w-16 h-16 rounded-xl bg-white/[0.03] border border-white/[0.04] shrink-0 overflow-hidden">
-              <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+
+        {/* Product cards grid — mirrors real Search.jsx ProductCard */}
+        <div className="grid grid-cols-3 gap-2.5">
+          {products.length > 0 ? products.map((item, i) => (
+            <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "rgba(15,17,25,0.7)" }}>
+              {/* Image */}
+              <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
+                {item.image_url ? (
+                  <img
+                    src={`${SEARCH_URL}/images/${encodeURIComponent(item.id)}`}
+                    alt={item.product_name}
+                    className="h-full w-full"
+                    style={{ objectFit: "contain", padding: "8px" }}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-white/10">
+                    <div className="text-xl font-display">{(item.manufacturer_name || "?")[0]}</div>
+                  </div>
+                )}
+              </div>
+              {/* Gold hairline */}
+              <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+              {/* Meta */}
+              <div className="p-2.5">
+                <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-0.5 truncate">{item.manufacturer_name}</div>
+                <div className="text-[11px] text-white/90 line-clamp-2 mb-1 leading-tight">{item.product_name}</div>
+                {item.retail_price && (
+                  <div className="text-[11px] font-semibold text-gold/80">${Number(item.retail_price).toLocaleString()}</div>
+                )}
+              </div>
             </div>
-          ))}
-          {(!chatData?.topImages || chatData.topImages.length === 0) && [1, 2, 3].map((i) => (
-            <div key={i} className="w-16 h-16 rounded-xl bg-white/[0.03] border border-white/[0.04] shrink-0" />
-          ))}
+          )) : (
+            /* Loading skeleton */
+            [0, 1, 2].map((i) => (
+              <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "rgba(15,17,25,0.7)" }}>
+                <div style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }} />
+                <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
+                <div className="p-2.5 space-y-1.5">
+                  <div className="h-2 w-12 rounded bg-white/[0.06]" />
+                  <div className="h-3 w-full rounded bg-white/[0.04]" />
+                  <div className="h-3 w-8 rounded bg-white/[0.06]" />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -222,7 +246,7 @@ function MockProjectUI() {
     <div className="mock-ui">
       <div className="mock-titlebar">
         <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.design/projects</div>
+        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai/projects</div>
       </div>
       <div className="p-5">
         <div className="flex items-center gap-2 mb-4">
@@ -255,7 +279,7 @@ function MockProjectUI() {
 // ── Feature section ──
 function FeatureSection({ kicker, title, description, mockUI, reverse = false, icon: Icon }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-100px" });
+  const inView = useInView(ref, { once: true, margin: "0px 0px -10px 0px" });
   return (
     <div ref={ref} className="py-24 md:py-32">
       <div className="page-wrap">
@@ -303,14 +327,14 @@ export default function Landing() {
   const { user, navigateToLogin } = useAuth();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 0.95]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0.97]);
 
   // ── Live data state ──
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [vendorNames, setVendorNames] = useState([]);
-  const [chatMockup, setChatMockup] = useState(null);
+  const [demoProducts, setDemoProducts] = useState(null);
 
   // ── Fetch all real data on mount ──
   useEffect(() => {
@@ -330,24 +354,17 @@ export default function Landing() {
       })
       .catch(() => {});
 
-    // 3. Chat mockup — search for accent chairs to find a real product (cached in sessionStorage)
-    const cachedChat = sessionStorage.getItem("spekd_chat_mockup");
-    if (cachedChat) {
-      try { setChatMockup(JSON.parse(cachedChat)); } catch {}
+    // 3. Demo search — real coastal products for landing page demo widget
+    const cachedDemo = sessionStorage.getItem("spekd_demo_products");
+    if (cachedDemo) {
+      try { setDemoProducts(JSON.parse(cachedDemo)); } catch {}
     } else {
-      searchProducts("boucle accent chair", 10, 3).then((data) => {
+      searchProducts("my client is furnishing a beach house, show me coastal pieces", 20, 3).then((data) => {
         const products = (data.products || []).filter((p) => p.image_url);
-        const vendorSet = new Set(products.map((p) => p.vendor_name));
-        if (products.length > 0) {
-          const mockup = {
-            query: "Find me a boucle accent chair, modern style, under $1,500",
-            total: data.total || data.total_available || products.length,
-            vendorCount: vendorSet.size,
-            product: products[0],
-            topImages: products.slice(0, 3).map((p) => p.image_url),
-          };
-          setChatMockup(mockup);
-          sessionStorage.setItem("spekd_chat_mockup", JSON.stringify(mockup));
+        const top3 = products.slice(0, 3);
+        if (top3.length > 0) {
+          setDemoProducts(top3);
+          sessionStorage.setItem("spekd_demo_products", JSON.stringify(top3));
         }
       }).catch(() => {});
     }
@@ -626,11 +643,11 @@ export default function Landing() {
       </div>
 
       <FeatureSection
-        kicker="Conversational Search"
-        title={<>Source with<br /><span className="text-gold">AI that understands</span></>}
-        description="Go beyond keywords. Spekd's AI understands materials, styles, dimensions, and design intent. Ask follow-up questions, refine results, and get curated recommendations in real time."
-        mockUI={<MockAIChatUI chatData={chatMockup} />}
-        icon={Brain}
+        kicker="Natural Language Search"
+        title={<>Describe the vision,<br /><span className="text-gold">we find the pieces</span></>}
+        description="Search the way you'd describe a project to a colleague. Spekd's AI understands design intent, materials, styles, and budgets — then surfaces exactly the right products from every vendor at once."
+        mockUI={<MockSearchUI demoProducts={demoProducts} />}
+        icon={Search}
       />
 
       {/* ═══════════ STATS — LIVE FROM CATALOG ═══════════ */}
