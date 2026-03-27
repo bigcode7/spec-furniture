@@ -102,6 +102,15 @@ const SKIP_VALUES = new Set([
 // Product names containing these terms are samples/swatches/catalogs — exclude from search results
 const SAMPLE_KEYWORDS = /\b(sample|swatch|catalog|colour\s*card|color\s*card|fabric\s*card|finish\s*sample|material\s*sample|memo\s*sample)\b/i;
 
+// Fabric swatch detection — products that are just fabric/finish names, not real furniture
+function isFabricSwatch(product) {
+  const cat = (product.category || "").toLowerCase();
+  if (cat === "decorative-objects" && !product.description) return true;
+  // "Endure Velvet Midnight" pattern — fabric brand + color with no furniture term
+  if (/^endure\s+velvet\s+\w+$/i.test(product.product_name || "")) return true;
+  return false;
+}
+
 /**
  * Build catalog field index from all products.
  * Collects unique values with counts for every searchable AI field.
@@ -125,7 +134,7 @@ export function buildCatalogIndex(products) {
 
   for (const p of productArray) {
     // Skip samples/swatches from catalog index
-    if (SAMPLE_KEYWORDS.test(p.product_name || "")) continue;
+    if (SAMPLE_KEYWORDS.test(p.product_name || "") || isFabricSwatch(p)) continue;
 
     if (p.ai_visual_analysis) totalTagged++;
     else totalUntagged++;
@@ -739,7 +748,7 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
 
     // Exclude samples, swatches, catalogs by product name
     const pName = product.product_name || "";
-    if (SAMPLE_KEYWORDS.test(pName)) continue;
+    if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
 
     // Price filters
     if (priceMin && product.retail_price && product.retail_price < priceMin) continue;
@@ -898,7 +907,7 @@ export async function searchPipeline(query, options = {}) {
             for (const product of allProducts) {
               if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
               const pName = product.product_name || "";
-              if (SAMPLE_KEYWORDS.test(pName)) continue;
+              if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
               const ft = (product.ai_furniture_type || "").toLowerCase();
               const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
               const name = pName.toLowerCase();
@@ -953,7 +962,7 @@ export async function searchPipeline(query, options = {}) {
         const product = getProduct(id);
         if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
           // Skip samples/swatches/catalogs
-          if (SAMPLE_KEYWORDS.test(product.product_name || "")) continue;
+          if (SAMPLE_KEYWORDS.test(product.product_name || "") || isFabricSwatch(product)) continue;
           product.relevance_score = score;
           product._vector_score = score;
           results.push(product);
@@ -1050,7 +1059,7 @@ export function findSimilar(productId, limit = 20) {
   for (const p of allProducts) {
     if (p.id === productId) continue;
     if (p.vendor_id === srcVendor) continue; // Different vendor only
-    if (SAMPLE_KEYWORDS.test(p.product_name || "")) continue; // Skip samples
+    if (SAMPLE_KEYWORDS.test(p.product_name || "") || isFabricSwatch(p)) continue; // Skip samples
 
     const pType = (p.ai_furniture_type || "").toLowerCase().trim();
     // Must be same furniture type
