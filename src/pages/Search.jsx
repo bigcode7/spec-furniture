@@ -1793,8 +1793,9 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
           <button onClick={onClear} className="text-[10px] text-white/30 hover:text-white/50 transition-colors">Clear all</button>
         )}
 
-        {/* Right side: sort + count */}
+        {/* Right side: pricing toggle + sort + count */}
         <div className="ml-auto flex items-center gap-3">
+          <PricingToggle />
           <span className="text-[10px] text-white/20 tabular-nums">
             {resultCount === totalCount ? `${totalCount} results` : `${resultCount} of ${totalCount}`}
           </span>
@@ -1834,6 +1835,25 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
   );
 }
 
+
+// ─── PRICING TOGGLE ────────────────────────────────────────
+function PricingToggle() {
+  const { showPricing, toggleShowPricing } = useTradePricing();
+  return (
+    <button
+      onClick={toggleShowPricing}
+      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] border transition-all ${
+        showPricing
+          ? "border-gold/25 bg-gold/10 text-gold/80"
+          : "border-white/[0.06] bg-white/[0.02] text-white/30 hover:text-white/50"
+      }`}
+      title={showPricing ? "Hide pricing" : "Show pricing"}
+    >
+      <span className="text-[11px] font-semibold">$</span>
+      <span className="hidden sm:inline">{showPricing ? "Pricing on" : "Pricing off"}</span>
+    </button>
+  );
+}
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
 function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {

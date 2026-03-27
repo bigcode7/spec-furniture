@@ -12,6 +12,25 @@
 const STORAGE_KEY = "spec_trade_discounts";
 const PRICING_MODE_KEY = "spec_pricing_mode"; // "retail" | "trade" (session only)
 const MARKUP_KEY = "spec_client_markup";
+const SHOW_PRICING_KEY = "spec_show_pricing";
+
+// ── Show/Hide Pricing Toggle ──
+
+export function getShowPricing() {
+  try {
+    const val = localStorage.getItem(SHOW_PRICING_KEY);
+    return val === null ? true : val === "true";
+  } catch {
+    return true;
+  }
+}
+
+export function setShowPricing(show) {
+  try {
+    localStorage.setItem(SHOW_PRICING_KEY, String(show));
+    window.dispatchEvent(new CustomEvent("spec-show-pricing-change", { detail: show }));
+  } catch {}
+}
 
 // ── Read / Write ──
 

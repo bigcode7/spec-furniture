@@ -7,6 +7,7 @@ import {
   hasAnyDiscounts,
   getDisplayPrice, calcTradePrice, formatPrice,
   getClientMarkup, setClientMarkup as storeClientMarkup,
+  getShowPricing, setShowPricing as storeShowPricing,
 } from "@/lib/trade-pricing";
 
 const TradePricingContext = createContext(null);
@@ -15,16 +16,20 @@ export function TradePricingProvider({ children }) {
   const [mode, setMode] = useState(getPricingMode); // "retail" | "trade"
   const [discounts, setDiscounts] = useState(getTradeDiscounts);
   const [clientMarkup, setClientMarkup] = useState(getClientMarkup);
+  const [showPricing, setShowPricingState] = useState(getShowPricing);
 
   // Listen for external changes (other tabs, etc.)
   useEffect(() => {
     const onTradeChange = () => setDiscounts(getTradeDiscounts());
     const onModeChange = (e) => setMode(e.detail || getPricingMode());
+    const onShowChange = (e) => setShowPricingState(e.detail ?? getShowPricing());
     window.addEventListener("spec-trade-change", onTradeChange);
     window.addEventListener("spec-pricing-mode-change", onModeChange);
+    window.addEventListener("spec-show-pricing-change", onShowChange);
     return () => {
       window.removeEventListener("spec-trade-change", onTradeChange);
       window.removeEventListener("spec-pricing-mode-change", onModeChange);
+      window.removeEventListener("spec-show-pricing-change", onShowChange);
     };
   }, []);
 
@@ -51,10 +56,17 @@ export function TradePricingProvider({ children }) {
 
   const hasDiscounts = useMemo(() => hasAnyDiscounts(), [discounts]);
 
+  const toggleShowPricing = useCallback(() => {
+    const next = !showPricing;
+    storeShowPricing(next);
+    setShowPricingState(next);
+  }, [showPricing]);
+
   // Helper: get price info for a product in current mode
   const getPrice = useCallback((product) => {
+    if (!showPricing) return { price: null, label: "", isTrade: false };
     return getDisplayPrice(product, mode);
-  }, [mode]);
+  }, [mode, showPricing]);
 
   // Helper: format a price number
   const fmtPrice = useCallback((price) => {
@@ -74,7 +86,9 @@ export function TradePricingProvider({ children }) {
     fmtPrice,
     calcTradePrice,
     getVendorDiscount,
-  }), [mode, toggleMode, discounts, hasDiscounts, clientMarkup, updateClientMarkup, setVendorDiscount, setDefaultDiscount, getPrice, fmtPrice]);
+    showPricing,
+    toggleShowPricing,
+  }), [mode, toggleMode, discounts, hasDiscounts, clientMarkup, updateClientMarkup, setVendorDiscount, setDefaultDiscount, getPrice, fmtPrice, showPricing, toggleShowPricing]);
 
   return (
     <TradePricingContext.Provider value={value}>
