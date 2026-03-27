@@ -443,11 +443,10 @@ export default function AuthModal() {
                   <div className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-3">Free account includes</div>
                   <div className="space-y-2">
                     {[
-                      "Unlimited product searches across 40,000+ products",
-                      "Quote builder with PDF export",
-                      "Project organization & room planning",
-                      "Trade pricing calculator with per-vendor discounts",
-                      "Saved searches, favorites & compare",
+                      "3 free AI-powered searches across 40,000+ products",
+                      "7-day free Pro trial — no credit card required",
+                      "Save favorites & compare products",
+                      "Access to 20 premium trade vendors",
                     ].map((feature) => (
                       <div key={feature} className="flex items-start gap-2">
                         <Check className="h-3 w-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
