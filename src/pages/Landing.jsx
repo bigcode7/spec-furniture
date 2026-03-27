@@ -11,11 +11,11 @@ const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spek
 const EASE = [0.22, 1, 0.36, 1];
 
 const EXAMPLE_SEARCHES = [
-  "modern swivel chair under $2k",
-  "blue velvet sectional",
-  "walnut mid-century credenza",
-  "boucle accent chair",
-  "marble dining table contemporary",
+  "swivel chairs",
+  "outdoor sofas",
+  "accent pieces",
+  "dining tables",
+  "bar stools",
 ];
 
 // ── Helper: fetch search results ──

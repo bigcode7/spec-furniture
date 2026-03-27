@@ -87,12 +87,11 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
 }
 
 const EXAMPLE_SEARCHES = [
-  "modern swivel chair under $2k",
-  "blue velvet sectional",
-  "walnut mid-century credenza",
-  "boucle accent chair",
-  "marble dining table contemporary",
-  "track arm sofa, performance fabric",
+  "swivel chairs",
+  "outdoor sofas",
+  "accent pieces",
+  "dining tables",
+  "bar stools",
 ];
 
 const REFINEMENT_CHIPS = [
@@ -1041,13 +1040,7 @@ export default function SearchPage() {
 
             {/* Search suggestions */}
             <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-1.5 sm:gap-2">
-              {[
-                "modern swivel chair under $2k",
-                "blue velvet sectional",
-                "walnut mid-century credenza",
-                "boucle accent chair",
-                "marble dining table contemporary",
-              ].map((suggestion) => (
+              {EXAMPLE_SEARCHES.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
