@@ -162,8 +162,8 @@ export default function AuthModal() {
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="flex items-center gap-2.5 mb-1">
-                <img src="/favicon.svg" alt="" className="h-6 w-6" />
+              <div className="flex items-center gap-2 mb-1">
+                <span className="spec-diamond mr-0.5" />
                 <span className="font-brand text-base tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
 

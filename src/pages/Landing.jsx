@@ -764,8 +764,8 @@ export default function Landing() {
         <div className="page-wrap py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2.5 mb-4">
-                <img src="/favicon.svg" alt="" className="h-7 w-7" />
+              <div className="flex items-center gap-2 mb-4">
+                <span className="spec-diamond mr-1" />
                 <span className="font-brand text-lg tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
               <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">

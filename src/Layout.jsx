@@ -282,8 +282,8 @@ export default function Layout({ children, currentPageName }) {
         <div className="page-wrap">
           <div className="flex h-14 items-center justify-between gap-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5">
-              <img src="/favicon.svg" alt="" className="h-7 w-7" />
+            <Link to="/" className="flex items-center gap-2">
+              <span className="spec-diamond mr-1" />
               <span className="font-brand text-lg tracking-[0.2em] text-white/90 font-medium">
                 SPEKD
               </span>
