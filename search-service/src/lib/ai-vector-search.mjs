@@ -1148,81 +1148,12 @@ export async function searchPipeline(query, options = {}) {
   const vectorStats = getVectorStoreStats();
 
   if (hasFieldFilters) {
-    // ── Step 2: Direct field matching ──
+    // ── Step 2: Direct field matching — strict, no relaxation ──
+    // Every field filter Haiku returns is enforced as a hard AND gate.
+    // If a user searches "sectionals with nailhead" and there are 5 exact matches,
+    // we show those 5. We NEVER drop filters to pad results — that dilutes accuracy.
     let candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
     console.log("Field match candidates:", candidates.length);
-
-    // ── Auto-relax: if too few results and multiple filters, drop restrictive filters ──
-    if (candidates.length < 10) {
-      // Physical construction fields (arm_style, back_style, leg_style, cushions, silhouette,
-      // construction_details, formality) are PROTECTED from auto-relax — they are hard filters.
-      // Only drop non-physical fields first. Physical fields are dropped LAST as a final resort.
-      // ai_furniture_type is NEVER in this list — it must always be enforced.
-      // Without it, results leak across categories (recliners, casegoods, wall art).
-      const relaxOrder = ["ai_finish", "ai_primary_color", "ai_texture_description",
-        "ai_visual_weight", "ai_ideal_client", "ai_durability_assessment",
-        "ai_mood", "ai_era_influence", "ai_primary_material",
-        "ai_style", "ai_distinctive_features",
-        // Physical construction fields — protected, only dropped as last resort
-        "ai_scale", "ai_formality", "ai_cushions", "ai_silhouette",
-        "ai_arm_style", "ai_back_style", "ai_leg_style", "ai_construction_details"];
-      const activeFields = Object.keys(haiku.search_fields).filter(k =>
-        haiku.search_fields[k] && Array.isArray(haiku.search_fields[k]) && haiku.search_fields[k].length > 0
-      );
-      if (activeFields.length >= 2) {
-        const relaxed = { ...haiku.search_fields };
-        for (const dropField of relaxOrder) {
-          if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
-            console.log(`[auto-relax] Dropping ${dropField} (had ${candidates.length} results)`);
-            relaxed[dropField] = null;
-            candidates = fieldMatch(relaxed, haiku.exclude_fields, excludeIds);
-            console.log(`[auto-relax] After dropping ${dropField}: ${candidates.length} candidates`);
-            if (candidates.length >= 10) break;
-            const remaining = Object.keys(relaxed).filter(k =>
-              relaxed[k] && Array.isArray(relaxed[k]) && relaxed[k].length > 0
-            );
-            if (remaining.length <= 1) break;
-          }
-        }
-      }
-
-      // ── Final broadening: if still < 10 and only ai_furniture_type remains, split into word-level OR matching ──
-      if (candidates.length < 10) {
-        const ftVals = haiku.search_fields.ai_furniture_type;
-        if (ftVals && Array.isArray(ftVals) && ftVals.length > 0) {
-          const words = new Set();
-          for (const v of ftVals) {
-            for (const w of v.toLowerCase().split(/\s+/)) {
-              if (w.length > 2) words.add(w);
-            }
-          }
-          if (words.size > 0) {
-            console.log(`[auto-relax] Broadening furniture_type to word-level OR: ${[...words].join(", ")}`);
-            const broadened = [];
-            const allProducts = getAllProducts();
-            for (const product of allProducts) {
-              if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
-              const pName = product.product_name || "";
-              if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
-              // Only match against ai_furniture_type and category — NOT product_name
-              // product_name causes false positives (e.g., "Sofa Table" matching "sofa")
-              const ft = (product.ai_furniture_type || "").toLowerCase();
-              const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
-              const combined = `${ft} ${cat}`;
-              let matchesAny = false;
-              for (const w of words) {
-                if (combined.includes(w)) { matchesAny = true; break; }
-              }
-              if (matchesAny) broadened.push(product);
-            }
-            if (broadened.length > candidates.length) {
-              console.log(`[auto-relax] Broadened from ${candidates.length} to ${broadened.length} candidates`);
-              candidates = broadened;
-            }
-          }
-        }
-      }
-    }
 
     // ── Step 3: MiniLM ranking within candidates ──
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
