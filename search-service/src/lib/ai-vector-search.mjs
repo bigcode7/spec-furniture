@@ -104,7 +104,7 @@ const SKIP_VALUES = new Set([
 ]);
 
 // Product names containing these terms are samples/swatches/catalogs — exclude from search results
-const SAMPLE_KEYWORDS = /\b(sample|swatch|catalog|colour\s*card|color\s*card|fabric\s*card|finish\s*sample|material\s*sample|memo\s*sample)\b/i;
+const SAMPLE_KEYWORDS = /\b(sample|swatch|catalog|catalogue|colour\s*card|color\s*card|fabric\s*card|finish\s*sample|material\s*sample|memo\s*sample|program\s*guide|ship\s*program|price\s*list|brochure|lookbook)\b/i;
 
 // Fabric swatch detection — products that are just fabric/finish names, not real furniture
 function isFabricSwatch(product) {
@@ -296,10 +296,11 @@ For conversational follow-ups, full history is provided. Combine context from al
 
 You understand furniture deeply. You know:
 - 'couch' means sofa
-- 'coffee table' means cocktail table
+- 'coffee table' means cocktail table — ALWAYS include BOTH: ai_furniture_type: ['coffee table', 'cocktail table']
+- 'club chair' is a specific type — use ai_furniture_type: ['club chair', 'accent chair'] to catch both specific and general tags
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
 - 'mid century' is a style — use ai_style
-- 'outdoor' is a QUALIFIER — include it in ai_furniture_type alongside the base type: ai_furniture_type: ['outdoor swivel', 'outdoor chair']. Use MULTIPLE short terms that will substring-match product names containing 'outdoor'. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
+- 'outdoor' is a QUALIFIER — ALWAYS include BOTH the qualified and base furniture type: ai_furniture_type: ['outdoor dining table', 'outdoor table', 'dining table']. The base type (e.g., 'dining table', 'chair', 'sofa') MUST always be included because many outdoor products are tagged with just the base type. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
 - WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
 - 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
@@ -394,7 +395,9 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 14. PLURAL FORMS: 'sofas' → sofa, 'chairs' → chair, 'tables' → table. Use singular in ai_furniture_type.
 
-15. YOU MUST ALWAYS USE search_fields for concrete attributes. NEVER return empty search_fields when the user mentions a furniture type, material, style, vendor, or physical attribute. These are the backbone of search accuracy.
+15. YOU MUST ALWAYS USE search_fields for concrete attributes. NEVER return empty search_fields when the user mentions a furniture type, material, style, vendor, or physical attribute. These are the backbone of search accuracy. Returning empty search_fields is a CRITICAL ERROR that causes completely irrelevant results.
+
+16. SYNONYM COVERAGE: Always include BOTH the user's term AND common catalog synonyms in ai_furniture_type. Examples: 'coffee table' → ['coffee table', 'cocktail table']. 'couch' → ['sofa', 'couch']. 'sectional with chaise' → ['sectional'] (NOT 'chaise lounge' separately — a chaise is a component, not the product type).
 
 SEMANTIC_QUERY ONLY — these concepts NEVER go in search_fields:
 comfortable, luxury, cozy, inviting, statement, bold, dramatic, glamorous,
@@ -954,35 +957,17 @@ function fieldContains(productValue, searchTerms) {
   // Product MUST have the field to match — missing field = no match
   if (!productValue) return false;
 
-  // Combine all search terms into one string for word-level matching
-  const allTermsJoined = searchTerms.map(t => t.toLowerCase()).join(" ");
-
   if (Array.isArray(productValue)) {
     if (productValue.length === 0) return false;
     const joined = productValue.join(" ").toLowerCase();
-    // Direct substring match against any individual term (OR)
-    if (searchTerms.some(term => {
-      const t = term.toLowerCase();
-      return joined.includes(t) || t.includes(joined);
-    })) return true;
-    // Word-level fallback: every significant word in product value appears somewhere in search terms
-    const productWords = joined.split(/\s+/).filter(w => w.length >= 3);
-    if (productWords.length > 0 && productWords.every(w => allTermsJoined.includes(w))) return true;
-    return false;
+    // Strict substring match — product value must contain one of the search terms
+    return searchTerms.some(term => joined.includes(term.toLowerCase()));
   }
 
   if (typeof productValue === "string") {
     if (productValue.trim() === "") return false;
     const valLower = productValue.toLowerCase();
-    // Direct substring match against any individual term (OR)
-    if (searchTerms.some(term => {
-      const t = term.toLowerCase();
-      return valLower.includes(t) || t.includes(valLower);
-    })) return true;
-    // Word-level fallback: every significant word in product value appears somewhere in search terms
-    const productWords = valLower.split(/\s+/).filter(w => w.length >= 3);
-    if (productWords.length > 0 && productWords.every(w => allTermsJoined.includes(w))) return true;
-    return false;
+    return searchTerms.some(term => valLower.includes(term.toLowerCase()));
   }
 
   return false;
@@ -1171,19 +1156,16 @@ export async function searchPipeline(query, options = {}) {
     let candidates = fieldMatch(haiku.search_fields, haiku.exclude_fields, excludeIds);
     console.log("Field match candidates:", candidates.length);
 
-    // ── Targeted relax: ONLY drop inferred vibe fields, NEVER user intent fields ──
-    // If zero results, Haiku may have over-specified with mood/style/ideal_client etc.
-    // We drop ONLY soft "vibe" fields that Haiku inferred, never the user's core intent:
-    //   PROTECTED (never drop): ai_furniture_type, ai_distinctive_features, ai_primary_material,
-    //     ai_arm_style, ai_back_style, ai_leg_style, ai_cushions, ai_construction_details,
-    //     vendor_name, price/dimension filters
-    //   RELAXABLE (drop in order): vibe & style fields Haiku may have added
-    if (candidates.length < 5) {
+    // ── Targeted relax: ONLY drop inferred vibe fields, NEVER core intent fields ──
+    // PROTECTED (never drop): ai_furniture_type, ai_distinctive_features, ai_primary_material,
+    //   ai_arm_style, ai_back_style, ai_leg_style, ai_cushions, ai_construction_details,
+    //   vendor_name, price/dimension filters
+    // RELAXABLE: only soft vibe fields Haiku may have inferred beyond what the user asked
+    if (candidates.length === 0) {
       const vibeRelaxOrder = [
         "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
         "ai_durability_assessment", "ai_texture_description", "ai_finish",
         "ai_primary_color", "ai_scale", "ai_formality", "ai_silhouette", "ai_style",
-        "ai_leg_style", "ai_primary_material",
       ];
       const relaxed = { ...haiku.search_fields };
       for (const dropField of vibeRelaxOrder) {
@@ -1192,34 +1174,9 @@ export async function searchPipeline(query, options = {}) {
           relaxed[dropField] = null;
           candidates = fieldMatch(relaxed, haiku.exclude_fields, excludeIds);
           console.log(`[vibe-relax] After dropping ${dropField}: ${candidates.length} candidates`);
-          if (candidates.length >= 5) break;
+          if (candidates.length > 0) break;
         }
       }
-    }
-
-    // ── Last resort: field match + vibe-relax still 0 → vector fallback with furniture type filter ──
-    if (candidates.length === 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
-      console.log("[last-resort] Field match exhausted, falling back to vector search with furniture type filter");
-      const ftFilter = haiku.search_fields?.ai_furniture_type;
-      const searchText = haiku.semantic_query;
-      const rawResults = await vectorSearch(searchText, { limit: 500 });
-      for (const { id, score } of rawResults) {
-        const product = getProduct(id);
-        if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
-          if (SAMPLE_KEYWORDS.test(product.product_name || "") || isFabricSwatch(product)) continue;
-          if (ftFilter && ftFilter.length > 0) {
-            const ft = (product.ai_furniture_type || "").toLowerCase();
-            const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
-            const combined = `${ft} ${cat}`;
-            if (!ftFilter.some(term => combined.includes(term.toLowerCase()))) continue;
-          }
-          product.relevance_score = score;
-          product._vector_score = score;
-          candidates.push(product);
-        }
-        if (candidates.length >= 80) break;
-      }
-      console.log(`[last-resort] Vector fallback: ${candidates.length} results`);
     }
 
     // ── Step 3: MiniLM ranking within candidates ──
@@ -1247,38 +1204,45 @@ export async function searchPipeline(query, options = {}) {
     results = applyVendorDiversity(candidates);
     console.log("After vendor diversity:", results.length);
   } else {
-    // ── Safety net: no field filters (Haiku failed or vibe search) ──
-    // Fall back to pure vector search, but still enforce furniture type if available
-    console.log("NO FIELD FILTERS — falling back to pure vector search");
-    const ftFilter = haiku.search_fields?.ai_furniture_type;
-    if (ftFilter && ftFilter.length > 0) {
-      console.log("Enforcing furniture type filter on vector fallback:", ftFilter);
-    }
-    if (vectorStats.ready && vectorStats.total_vectors > 0) {
-      const searchText = haiku.semantic_query || query;
-      const rawResults = await vectorSearch(searchText, { limit: 500 });
-      for (const { id, score } of rawResults) {
-        const product = getProduct(id);
-        if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
-          // Skip samples/swatches/catalogs
-          if (SAMPLE_KEYWORDS.test(product.product_name || "") || isFabricSwatch(product)) continue;
-          // Even in fallback mode, enforce furniture type to prevent category leakage
-          if (ftFilter && ftFilter.length > 0) {
-            const ft = (product.ai_furniture_type || "").toLowerCase();
-            const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
-            const combined = `${ft} ${cat}`;
-            const matchesFt = ftFilter.some(term => combined.includes(term.toLowerCase()));
-            if (!matchesFt) continue;
-          }
-          product.relevance_score = score;
-          product._vector_score = score;
-          results.push(product);
+    // ── Haiku returned no field filters — extract furniture type from query and do field match ──
+    console.log("NO FIELD FILTERS from Haiku — extracting from query");
+    const COMMON_TYPES = [
+      "sectional", "sofa", "couch", "loveseat", "accent chair", "dining chair",
+      "office chair", "swivel chair", "lounge chair", "bar stool", "counter stool",
+      "stool", "ottoman", "bench", "chaise", "recliner",
+      "coffee table", "cocktail table", "dining table", "side table", "end table",
+      "console table", "console", "nightstand", "desk", "credenza", "bookcase",
+      "bookshelf", "dresser", "chest", "cabinet", "buffet", "sideboard",
+      "bed frame", "bed", "headboard", "mirror", "rug", "floor lamp",
+      "table lamp", "lamp", "chandelier", "pendant", "sconce", "chair",
+    ];
+    const qLower = query.toLowerCase();
+    const extracted = COMMON_TYPES.filter(t => qLower.includes(t));
+    if (extracted.length > 0) {
+      // Use longest match to avoid "chair" matching when "accent chair" is present
+      extracted.sort((a, b) => b.length - a.length);
+      const ftFilter = [extracted[0]];
+      console.log("[safety-net] Extracted furniture type from query:", ftFilter);
+      // Build minimal search fields and do proper field matching
+      const safetyFields = { ai_furniture_type: ftFilter };
+      let candidates = fieldMatch(safetyFields, {}, excludeIds);
+      console.log("[safety-net] Field match:", candidates.length, "candidates");
+      // Rank by vector if available
+      if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0) {
+        const searchText = haiku.semantic_query || query;
+        const candidateIds = new Set(candidates.map(p => p.id));
+        const ranked = await vectorSearch(searchText, { limit: candidates.length, candidateIds });
+        const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+        for (const product of candidates) {
+          product.relevance_score = rankedMap.get(product.id) || 0;
+          product._vector_score = product.relevance_score;
         }
-        if (results.length >= 200) break;
+        candidates.sort((a, b) => b.relevance_score - a.relevance_score);
       }
-      console.log("Fallback vector search:", results.length, "results");
+      results = applyVendorDiversity(candidates);
+    } else {
+      console.log("[safety-net] Could not extract furniture type from query — returning empty");
     }
-    results = applyVendorDiversity(results);
   }
   console.log("Final result count:", results.length);
   console.log("Haiku response:", (haiku.response || "").slice(0, 200));

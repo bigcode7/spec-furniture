@@ -199,33 +199,6 @@ function extractFacets(products) {
   };
 }
 
-function applyClientFilters(products, clientFilters) {
-  if (!clientFilters || Object.keys(clientFilters).length === 0) return products;
-  return products.filter(p => {
-    if (clientFilters.vendors?.length) {
-      const v = p.manufacturer_name || p.vendor_name || "";
-      if (!clientFilters.vendors.includes(v)) return false;
-    }
-    if (clientFilters.categories?.length) {
-      const cat = (p.product_type || p.category || "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      if (!clientFilters.categories.includes(cat)) return false;
-    }
-    if (clientFilters.materials?.length) {
-      const mat = (p.material || "").toLowerCase();
-      const tags = (p.ai_visual_tags || "").toLowerCase();
-      if (!clientFilters.materials.some(m => mat.includes(m.toLowerCase()) || tags.includes(m.toLowerCase()))) return false;
-    }
-    if (clientFilters.styles?.length) {
-      if (!clientFilters.styles.includes(p.style)) return false;
-    }
-    if (clientFilters.colors?.length) {
-      const colText = `${p.color || ""} ${p.ai_visual_tags || ""}`.toLowerCase();
-      if (!clientFilters.colors.some(c => colText.includes(c.toLowerCase()))) return false;
-    }
-    return true;
-  });
-}
-
 function sortProducts(products, sortKey) {
   const sorted = [...products];
   switch (sortKey) {
@@ -258,8 +231,8 @@ export default function SearchPage() {
   const [zeroResultGuidance, setZeroResultGuidance] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
 
-  // Client-side filters, sort, pagination
-  const [clientFilters, setClientFilters] = useState({});
+  // Sort, pagination
+
   const [sortKey, setSortKey] = useState("relevance");
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -331,14 +304,12 @@ export default function SearchPage() {
 
   const hasConversation = messages.length > 0;
 
-  // Derived: filtered + sorted + paginated results
-  const filtered = applyClientFilters(allResults, clientFilters);
-  const sorted = sortProducts(filtered, sortKey);
+  // Derived: sorted + paginated results
+  const sorted = sortProducts(allResults, sortKey);
   const visibleProducts = sorted.slice(0, visibleCount);
   const hasMoreLocal = visibleCount < sorted.length;
   const hasMoreServer = allResults.length < MAX_RESULTS;
   const facets = allResults.length > 0 ? extractFacets(allResults) : null;
-  const activeFilterCount = Object.values(clientFilters).reduce((n, arr) => n + (arr?.length || 0), 0);
 
   // Close autocomplete on outside click
   useEffect(() => {
@@ -598,7 +569,7 @@ export default function SearchPage() {
     setLoading(true);
     setError(null);
     setLoadingStep(0);
-    setClientFilters({});
+
     setSortKey("relevance");
     setVisibleCount(INITIAL_PAGE_SIZE);
     setPreviewProduct(null);
@@ -788,7 +759,7 @@ export default function SearchPage() {
     setListResults(null);
     setError(null);
     setInputValue("");
-    setClientFilters({});
+
     setSortKey("relevance");
     setVisibleCount(INITIAL_PAGE_SIZE);
     setPreviewProduct(null);
@@ -854,25 +825,6 @@ export default function SearchPage() {
     setShowAutocomplete(false);
     const text = typeof item === "string" ? item : item.text;
     runSearch(text);
-  };
-
-  const toggleClientFilter = (dimension, value) => {
-    const current = clientFilters[dimension] || [];
-    const updated = current.includes(value)
-      ? current.filter(v => v !== value)
-      : [...current, value];
-    const next = { ...clientFilters, [dimension]: updated.length > 0 ? updated : undefined };
-    // Remove empty arrays
-    for (const k of Object.keys(next)) {
-      if (!next[k]?.length) delete next[k];
-    }
-    setClientFilters(next);
-    setVisibleCount(INITIAL_PAGE_SIZE);
-  };
-
-  const clearClientFilters = () => {
-    setClientFilters({});
-    setVisibleCount(INITIAL_PAGE_SIZE);
   };
 
   const handleToggleFavorite = (product) => {
@@ -1233,16 +1185,12 @@ export default function SearchPage() {
               </motion.div>
             )}
 
-            {/* ── FILTER BAR + SORT ── */}
+            {/* ── RESULTS SUMMARY + SORT ── */}
             {!loading && allResults.length > 0 && (
-              <ClientFilterBar
-                facets={facets}
-                filters={clientFilters}
-                onToggle={toggleClientFilter}
-                onClear={clearClientFilters}
-                activeCount={activeFilterCount}
-                resultCount={sorted.length}
+              <ResultsSummaryBar
+                query={lastQueryRef.current}
                 totalCount={allResults.length}
+                vendorCount={facets ? facets.vendors.length : 0}
                 sortKey={sortKey}
                 setSortKey={setSortKey}
                 showSortMenu={showSortMenu}
@@ -1708,94 +1656,17 @@ export default function SearchPage() {
 
 
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
-function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resultCount, totalCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
-  const [expanded, setExpanded] = useState(null); // which filter group is open
-
-  if (!facets) return null;
-
-  const filterGroups = [
-    { key: "vendors", label: "Vendor", items: facets.vendors },
-    { key: "categories", label: "Category", items: facets.categories },
-    { key: "materials", label: "Material", items: facets.materials },
-    { key: "styles", label: "Style", items: facets.styles },
-    { key: "colors", label: "Color", items: facets.colors },
-  ].filter(g => g.items.length > 1);
-
+function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
   return (
     <div className="pb-3 border-b border-white/[0.04] mb-4">
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap">
-        {/* Filter chips for each dimension */}
-        {filterGroups.map((group) => (
-          <div key={group.key} className="relative shrink-0">
-            <button
-              onClick={() => setExpanded(expanded === group.key ? null : group.key)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 sm:py-1.5 text-[12px] sm:text-[11px] transition-all border whitespace-nowrap ${
-                (filters[group.key]?.length > 0)
-                  ? "border-gold/30 bg-gold/10 text-gold"
-                  : "border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-white/60 hover:border-white/10"
-              }`}
-            >
-              {group.label}
-              {filters[group.key]?.length > 0 && (
-                <span className="rounded-full bg-gold/20 px-1.5 text-[10px] text-gold/80">{filters[group.key].length}</span>
-              )}
-              <ChevronDown className={`h-2.5 w-2.5 transition-transform ${expanded === group.key ? "rotate-180" : ""}`} />
-            </button>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] text-white/40">
+          <span className="text-white/60">"{query}"</span>
+          {" "}&mdash; {totalCount} result{totalCount !== 1 ? "s" : ""} across {vendorCount} vendor{vendorCount !== 1 ? "s" : ""}
+        </p>
 
-            {/* Dropdown */}
-            <AnimatePresence>
-              {expanded === group.key && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full mt-1.5 left-0 z-50 w-56 max-h-64 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#111118] shadow-2xl p-2"
-                >
-                  {group.items.slice(0, 20).map((item) => {
-                    const isActive = (filters[group.key] || []).includes(item.value);
-                    return (
-                      <button key={item.value}
-                        onClick={() => onToggle(group.key, item.value)}
-                        className={`flex items-center justify-between w-full rounded-lg px-2.5 py-1.5 text-[11px] transition-all ${
-                          isActive ? "bg-gold/10 text-gold" : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
-                        }`}>
-                        <span className="truncate">{item.value}</span>
-                        <span className={`text-[10px] ml-2 flex-shrink-0 tabular-nums ${isActive ? "text-gold/70" : "text-white/20"}`}>
-                          {item.count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        ))}
-
-        {/* Active filter pills */}
-        <AnimatePresence>
-          {Object.entries(filters).map(([key, values]) =>
-            (values || []).map(value => (
-              <motion.button key={`${key}:${value}`} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                onClick={() => onToggle(key, value)}
-                className="flex items-center gap-1 rounded-full border border-gold/20 bg-gold/5 px-2 py-1 text-[10px] text-gold hover:bg-gold/10 transition-all">
-                <span className="truncate max-w-[100px]">{value}</span>
-                <X className="h-2.5 w-2.5 flex-shrink-0" />
-              </motion.button>
-            ))
-          )}
-        </AnimatePresence>
-
-        {activeCount > 0 && (
-          <button onClick={onClear} className="text-[10px] text-white/30 hover:text-white/50 transition-colors">Clear all</button>
-        )}
-
-        {/* Right side: pricing toggle + sort + count */}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <PricingToggle />
-          <span className="text-[10px] text-white/20 tabular-nums">
-            {resultCount === totalCount ? `${totalCount} results` : `${resultCount} of ${totalCount}`}
-          </span>
 
           {/* Sort dropdown */}
           <div className="relative">
@@ -1824,9 +1695,8 @@ function ClientFilterBar({ facets, filters, onToggle, onClear, activeCount, resu
         </div>
       </div>
 
-      {/* Click outside to close dropdowns */}
-      {(expanded || showSortMenu) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setExpanded(null); setShowSortMenu(false); }} />
+      {showSortMenu && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
       )}
     </div>
   );
