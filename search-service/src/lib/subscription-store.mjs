@@ -21,9 +21,13 @@ const FREE_QUOTE_LIMIT = 1;
 const FREE_QUOTE_ITEM_LIMIT = 5;
 
 // Admin/founder emails — permanent full Pro, no paywall, no Stripe required
-const ADMIN_EMAILS = new Set([
-  "tyler@spekd.ai",
-]);
+// Override via ADMIN_EMAILS env var (comma-separated), defaults to tyler@spekd.ai
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS || "tyler@spekd.ai")
+    .split(",")
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 function isAdminEmail(email) {
   return !!email && ADMIN_EMAILS.has(email.toLowerCase().trim());

@@ -29,7 +29,7 @@ import { buildQueryVariants, buildSearchIntent } from "./lib/query-intelligence.
 import { aiParseAndExpand, aiDiscoverProducts, aiRankResults, aiGenerateSummary, aiCompareProducts, aiGenerateQuoteNarratives, aiGeneratePresentation, aiVendorIntelligence, aiAnalyzeProject, aiTrendAnalysis, aiExtractProduct, aiChat, aiVisualSearch, aiRoomPlan, aiDesignBrief, aiAutocomplete, aiWeeklyDigest, aiConversationalSearch, getApiCallStats } from "./lib/ai-search.mjs";
 import { crawlAllVendors, crawlVendor, searchTradeCatalog, getTradeCatalogStats, readTradeCatalog } from "./lib/catalog-crawler.mjs";
 import { tradeVendors } from "./config/trade-vendors.mjs";
-import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets, downloadCatalogIfMissing, isCatalogFromURL } from "./db/catalog-db.mjs";
+import { initCatalogDB, searchCatalogDB, insertProducts as dbInsertProducts, getCatalogDBStats, getProductCount, clearSearchCache, getVendorCrawlMeta, setVendorCrawlMeta, getProductsByVendor, getProduct, findSimilarProducts, getAllProducts, updateProductDirect, deleteProduct, forceDeleteProduct, getProductsByVendorGrouped, renormalizeAllCategories, recomputeAllQualityScores, computeFacets, downloadCatalogIfMissing, isCatalogFromURL } from "./db/catalog-db.mjs";
 import { diversifyResults, getVendorDiversityStats } from "./lib/vendor-diversity.mjs";
 import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl-scheduler.mjs";
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
@@ -45,6 +45,7 @@ import { runImageFixer, getImageFixerStatus, stopImageFixer } from "./jobs/image
 import { runDeepEnrichment, getDeepEnrichmentStatus, stopDeepEnrichment } from "./jobs/deep-enrichment-job.mjs";
 import { importBernhardt, getBernhardtStatus, stopBernhardt } from "./importers/bernhardt-importer.mjs";
 import { runCatalogCleanup, getCatalogCleanupStatus, stopCatalogCleanup } from "./jobs/catalog-cleanup-job.mjs";
+import { BLOCKED_VENDOR_IDS, isVendorBlocked } from "./config/vendor-blocklist.mjs";
 import { importMissingVendors, getMissingVendorsStatus, stopMissingVendors } from "./importers/missing-vendors-importer.mjs";
 import { importTheodoreAlexander, getTheodoreAlexanderStatus, stopTheodoreAlexander } from "./importers/theodore-alexander-importer.mjs";
 import { importRowe, getRoweStatus, stopRowe } from "./importers/rowe-importer.mjs";
@@ -125,7 +126,7 @@ function getCorsOrigin(req) {
   if (origin.endsWith(".up.railway.app")) return origin;
   return null; // blocked
 }
-const liveWarmVendorIds = priorityVendors.slice(0, 8).map((vendor) => vendor.id);
+const liveWarmVendorIds = priorityVendors.filter(v => !isVendorBlocked(v.id)).slice(0, 8).map((vendor) => vendor.id);
 
 // ── Health flag — set true after heavy init completes ──
 let serviceReady = false;
@@ -205,6 +206,25 @@ async function runHeavyInit() {
       }
       if (removedCount > 0) {
         console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
+      }
+
+      // Purge blocked vendors on every startup
+      {
+        let blockedCount = 0;
+        const blockedByVendor = {};
+        for (const product of getAllProducts()) {
+          if (isVendorBlocked(product.vendor_id)) {
+            forceDeleteProduct(product.id);
+            blockedByVendor[product.vendor_id] = (blockedByVendor[product.vendor_id] || 0) + 1;
+            blockedCount++;
+          }
+        }
+        if (blockedCount > 0) {
+          console.log(`[startup] Purged ${blockedCount} products from blocked vendors:`);
+          for (const [vid, count] of Object.entries(blockedByVendor)) {
+            console.log(`[startup]   ${vid}: ${count} products removed`);
+          }
+        }
       }
 
       let setteeFixCount = 0;
@@ -964,6 +984,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
       try {
         const event = verifyWebhook(rawBody, signature);
+        if (!event) return json(res, { received: true, skipped: true }, 200);
 
         switch (event.type) {
           case "checkout.session.completed": {
@@ -1265,7 +1286,13 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         const vn = (p.vendor_name || p.manufacturer_name || "").toLowerCase();
         vendorCounts[vn] = (vendorCounts[vn] || 0) + 1;
       }
+      const seenIds = new Set();
       const enriched = priorityVendors
+        .filter(v => {
+          if (seenIds.has(v.id)) return false;
+          seenIds.add(v.id);
+          return true;
+        })
         .map(v => ({
           ...v,
           product_count: vendorCounts[v.name.toLowerCase()] || 0,
@@ -3584,6 +3611,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const options = {
         checkImageUrls: body?.checkImageUrls ?? true,
         httpCheckSample: body?.httpCheckSample ?? 2000,
+        brokenImageVendors: body?.brokenImageVendors || [],
       };
       runCatalogCleanup(catalogDBInterface, options).catch(err =>
         console.error("[catalog-cleanup] Error:", err)

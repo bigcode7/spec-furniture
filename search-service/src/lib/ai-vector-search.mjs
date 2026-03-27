@@ -99,6 +99,9 @@ const SKIP_VALUES = new Set([
   "unable to determine from line drawing", "unable to determine from image",
 ]);
 
+// Product names containing these terms are samples/swatches/catalogs — exclude from search results
+const SAMPLE_KEYWORDS = /\b(sample|swatch|catalog|colour\s*card|color\s*card|fabric\s*card|finish\s*sample|material\s*sample|memo\s*sample)\b/i;
+
 /**
  * Build catalog field index from all products.
  * Collects unique values with counts for every searchable AI field.
@@ -121,6 +124,9 @@ export function buildCatalogIndex(products) {
   const featureTerms = {};
 
   for (const p of productArray) {
+    // Skip samples/swatches from catalog index
+    if (SAMPLE_KEYWORDS.test(p.product_name || "")) continue;
+
     if (p.ai_visual_analysis) totalTagged++;
     else totalUntagged++;
 
@@ -419,8 +425,33 @@ Return ONLY this JSON (no markdown, no backticks):
     "vendor_name": ["Restoration Hardware"] or null
   },
   "semantic_query": "natural language description of the ideal product for ranking",
-  "response": "2-3 sentence expert designer response about what you are showing them"
-}`;
+  "response": "Your expert commentary (see EXPERT RESPONSE RULES below)"
+}
+
+EXPERT RESPONSE RULES:
+Your response should sound like a veteran interior design trade rep who knows every vendor deeply. Be specific, be useful, be concise. Maximum 3 sentences. Always add at least one piece of proactive expert knowledge the designer might not have thought to ask.
+
+Proactive knowledge triggers — mention these when relevant:
+- White or light upholstery → mention performance fabric options for client satisfaction
+- Leather query → mention top-grain vs full-grain durability differences
+- Family with kids mentioned → surface durability info, mention fabric rub counts
+- Dining chairs → mention 18 inch seat height to 30 inch table standard, flag chairs that run tall or short
+- Outdoor → mention UV resistance and truly outdoor-rated vs outdoor-inspired
+- Custom order vendors (Hickory Chair, CR Laine, Vanguard, Norwalk) → mention 12-16 week lead times for project planning
+- Small space → mention how pieces read in person vs photography, scale matters
+- High gloss or lacquer → mention fingerprint and maintenance considerations
+- Boucle or textured fabric → mention wear patterns, consider client lifestyle
+- Sectional → mention most can be configured multiple ways, check with vendor
+- Baker, Hickory Chair, Theodore Alexander, Hancock & Moore → heritage brands, briefly mention craftsmanship when relevant
+- Wesley Hall → mention they are the nailhead specialists in the trade
+- Bernhardt → mention strong value proposition in the premium tier
+
+NEVER in the response field:
+- Say "Great choice!" or any hollow affirmation
+- Repeat back what the designer searched for
+- Give generic advice that applies to any category
+- Use more than 3 sentences
+- Sound like a chatbot or search engine confirmation`;
 }
 
 function getListSystemPrompt() {
@@ -442,7 +473,7 @@ Return ONLY this JSON (no markdown, no backticks):
       "label": "Sectional - performance fabric neutral"
     }
   ],
-  "response": "2-3 sentence overview of what you found and sourcing advice"
+  "response": "Expert trade rep commentary — max 3 sentences, specific and useful, no hollow affirmations"
 }`;
 }
 
@@ -706,6 +737,10 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     // Exclude by ID
     if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
 
+    // Exclude samples, swatches, catalogs by product name
+    const pName = product.product_name || "";
+    if (SAMPLE_KEYWORDS.test(pName)) continue;
+
     // Price filters
     if (priceMin && product.retail_price && product.retail_price < priceMin) continue;
     if (priceMax && product.retail_price && product.retail_price > priceMax) continue;
@@ -824,11 +859,12 @@ export async function searchPipeline(query, options = {}) {
     if (candidates.length < 10) {
       const relaxOrder = ["ai_finish", "ai_primary_color", "ai_distinctive_features", "ai_texture_description",
         "ai_visual_weight", "ai_scale", "ai_ideal_client", "ai_durability_assessment",
-        "ai_mood", "ai_formality", "ai_cushions", "ai_era_influence", "ai_primary_material"];
+        "ai_mood", "ai_formality", "ai_cushions", "ai_era_influence", "ai_primary_material",
+        "ai_style", "ai_silhouette", "ai_arm_style", "ai_back_style", "ai_leg_style"];
       const activeFields = Object.keys(haiku.search_fields).filter(k =>
         haiku.search_fields[k] && Array.isArray(haiku.search_fields[k]) && haiku.search_fields[k].length > 0
       );
-      if (activeFields.length > 2) {
+      if (activeFields.length >= 2) {
         const relaxed = { ...haiku.search_fields };
         for (const dropField of relaxOrder) {
           if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
@@ -841,6 +877,42 @@ export async function searchPipeline(query, options = {}) {
               relaxed[k] && Array.isArray(relaxed[k]) && relaxed[k].length > 0
             );
             if (remaining.length <= 1) break;
+          }
+        }
+      }
+
+      // ── Final broadening: if still < 10 and only ai_furniture_type remains, split into word-level OR matching ──
+      if (candidates.length < 10) {
+        const ftVals = haiku.search_fields.ai_furniture_type;
+        if (ftVals && Array.isArray(ftVals) && ftVals.length > 0) {
+          const words = new Set();
+          for (const v of ftVals) {
+            for (const w of v.toLowerCase().split(/\s+/)) {
+              if (w.length > 2) words.add(w);
+            }
+          }
+          if (words.size > 0) {
+            console.log(`[auto-relax] Broadening furniture_type to word-level OR: ${[...words].join(", ")}`);
+            const broadened = [];
+            const allProducts = getAllProducts();
+            for (const product of allProducts) {
+              if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
+              const pName = product.product_name || "";
+              if (SAMPLE_KEYWORDS.test(pName)) continue;
+              const ft = (product.ai_furniture_type || "").toLowerCase();
+              const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
+              const name = pName.toLowerCase();
+              const combined = `${ft} ${cat} ${name}`;
+              let matchesAny = false;
+              for (const w of words) {
+                if (combined.includes(w)) { matchesAny = true; break; }
+              }
+              if (matchesAny) broadened.push(product);
+            }
+            if (broadened.length > candidates.length) {
+              console.log(`[auto-relax] Broadened from ${candidates.length} to ${broadened.length} candidates`);
+              candidates = broadened;
+            }
           }
         }
       }
@@ -880,6 +952,8 @@ export async function searchPipeline(query, options = {}) {
       for (const { id, score } of rawResults) {
         const product = getProduct(id);
         if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
+          // Skip samples/swatches/catalogs
+          if (SAMPLE_KEYWORDS.test(product.product_name || "")) continue;
           product.relevance_score = score;
           product._vector_score = score;
           results.push(product);
@@ -976,6 +1050,7 @@ export function findSimilar(productId, limit = 20) {
   for (const p of allProducts) {
     if (p.id === productId) continue;
     if (p.vendor_id === srcVendor) continue; // Different vendor only
+    if (SAMPLE_KEYWORDS.test(p.product_name || "")) continue; // Skip samples
 
     const pType = (p.ai_furniture_type || "").toLowerCase().trim();
     // Must be same furniture type

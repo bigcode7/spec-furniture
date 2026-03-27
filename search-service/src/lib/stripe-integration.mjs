@@ -155,9 +155,15 @@ async function createTeamSeatCheckout(stripeCustomerId, quantity, successUrl, ca
  * @param {string} signature - Stripe-Signature header
  */
 function verifyWebhook(body, signature) {
-  if (!stripe) throw new Error("Stripe not configured");
+  if (!stripe) {
+    console.warn("[stripe] Webhook received but Stripe not configured — ignoring");
+    return null;
+  }
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET not configured");
+  if (!webhookSecret) {
+    console.warn("[stripe] Webhook received but STRIPE_WEBHOOK_SECRET not set — ignoring");
+    return null;
+  }
   return stripe.webhooks.constructEvent(body, signature, webhookSecret);
 }
 

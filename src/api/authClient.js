@@ -44,9 +44,20 @@ async function authFetch(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const resp = await fetch(`${baseUrl}${path}`, { ...options, headers });
-  const data = await resp.json();
-  return { status: resp.status, data };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const resp = await fetch(`${baseUrl}${path}`, { ...options, headers, signal: controller.signal });
+    const data = await resp.json();
+    // If we get a 401 on a non-login/register path, the token has expired
+    if (resp.status === 401 && token && !["/auth/login", "/auth/register"].includes(path)) {
+      clearAuth();
+      window.dispatchEvent(new CustomEvent("auth:session-expired"));
+    }
+    return { status: resp.status, data };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function register({ email, password, full_name, business_name }) {

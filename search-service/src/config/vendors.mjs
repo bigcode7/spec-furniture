@@ -178,24 +178,7 @@ export const priorityVendors = [
       search_paths: ["/catalogsearch/result/?q={query}"],
     },
   },
-  {
-    id: "fourhands",
-    name: "Four Hands",
-    domain: "fourhands.com",
-    shopify_domain: "fourhands.com",
-    shopify_collections: ["seating", "chairs", "living", "bedroom", "storage", "dining"],
-    profile: {
-      asset_hosts: ["fourhands.com", "cdn.shopify.com", "assets.fourhands.com"],
-      title_suffixes: ["| Four Hands", "| Shop Four Hands"],
-      product_path_tokens: ["product", "products", "shop"],
-      reject_path_tokens: ["search", "collections", "trade-program", "designers"],
-      image_path_hints: ["/files/", "/products/", "/images/", "/cdn/shop/"],
-      listing_path_tokens: ["products", "shop", "search"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}", "/shop?q={query}"],
-    },
-  },
+  // Four Hands — REMOVED (blocklisted, see vendor-blocklist.mjs)
   {
     id: "caracole",
     name: "Caracole",
@@ -289,37 +272,7 @@ export const priorityVendors = [
       search_paths: ["/search?q={query}"],
     },
   },
-  {
-    id: "lee-industries",
-    name: "Lee Industries",
-    domain: "www.leeindustries.com",
-    profile: {
-      asset_hosts: ["leeindustries.com", "cdn.leeindustries.com"],
-      title_suffixes: ["| Lee Industries"],
-      product_path_tokens: ["Detail", "Product", "product", "products", "item"],
-      reject_path_tokens: ["search", "collections"],
-      image_path_hints: ["/products/", "/images/", "/media/", "/Product/", "/Content/"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}"],
-      category_urls: [
-        "/Product/Category/SOFA-LOVESEAT",
-        "/Product/Category/SECTIONAL",
-        "/Product/Category/CHAIR",
-        "/Product/Category/SWIVEL-CHAIR",
-        "/Product/Category/DESK-CHAIR",
-        "/Product/Category/RELAXOR",
-        "/Product/Category/SLEEPER",
-        "/Product/Category/OTTOMAN-BENCH",
-        "/Product/Category/CHAISE",
-        "/Product/Category/BED",
-        "/Product/Category/OUTDOOR",
-        "/Product/Category/DINING",
-        "/Product/Category/BAR-STOOL",
-        "/Product/Category/MCALPINE",
-      ],
-    },
-  },
+  // Lee Industries — REMOVED (blocklisted, see vendor-blocklist.mjs)
   {
     id: "sherrill",
     name: "Sherrill Furniture",
@@ -432,51 +385,9 @@ export const priorityVendors = [
       search_paths: ["/search?q={query}"],
     },
   },
-  {
-    id: "visual-comfort",
-    name: "Visual Comfort",
-    domain: "visualcomfort.com",
-    profile: {
-      asset_hosts: ["visualcomfort.com", "cdn.visualcomfort.com"],
-      title_suffixes: ["| Visual Comfort"],
-      product_path_tokens: ["product", "products"],
-      reject_path_tokens: ["search", "collections"],
-      image_path_hints: ["/products/", "/images/", "/media/"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}"],
-    },
-  },
-  {
-    id: "surya",
-    name: "Surya",
-    domain: "surya.com",
-    profile: {
-      asset_hosts: ["surya.com", "cdn.surya.com"],
-      title_suffixes: ["| Surya"],
-      product_path_tokens: ["product", "products"],
-      reject_path_tokens: ["search", "collections"],
-      image_path_hints: ["/products/", "/images/", "/media/"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}"],
-    },
-  },
-  {
-    id: "loloi",
-    name: "Loloi Rugs",
-    domain: "loloirugs.com",
-    profile: {
-      asset_hosts: ["loloirugs.com", "cdn.loloirugs.com"],
-      title_suffixes: ["| Loloi Rugs", "| Loloi"],
-      product_path_tokens: ["product", "products"],
-      reject_path_tokens: ["search", "collections"],
-      image_path_hints: ["/products/", "/images/", "/media/"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}"],
-    },
-  },
+  // Visual Comfort — REMOVED (blocklisted, see vendor-blocklist.mjs)
+  // Surya duplicate removed — already defined above (line ~388)
+  // Loloi Rugs — REMOVED (blocklisted, see vendor-blocklist.mjs)
   {
     id: "made-goods",
     name: "Made Goods",
@@ -675,21 +586,7 @@ export const priorityVendors = [
       search_paths: ["/search?query={query}"],
     },
   },
-  {
-    id: "holly-hunt",
-    name: "Holly Hunt",
-    domain: "hollyhunt.com",
-    profile: {
-      asset_hosts: ["hollyhunt.com", "cdn.hollyhunt.com"],
-      title_suffixes: ["| Holly Hunt"],
-      product_path_tokens: ["product", "products"],
-      reject_path_tokens: ["search", "collections"],
-      image_path_hints: ["/products/", "/images/", "/media/"],
-    },
-    discovery: {
-      search_paths: ["/search?q={query}"],
-    },
-  },
+  // Holly Hunt — REMOVED (blocklisted, see vendor-blocklist.mjs)
   {
     id: "kravet",
     name: "Kravet Furniture",

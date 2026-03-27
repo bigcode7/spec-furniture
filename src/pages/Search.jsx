@@ -55,8 +55,34 @@ function proxyUrl(url, productId) {
 
 // Image component: always uses server-side proxy to bypass vendor hotlink protection
 function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad, onError: externalOnError, eager, ...rest }) {
+  const [failed, setFailed] = useState(false);
   const finalSrc = src ? proxyUrl(src, productId) : "";
-  return <img src={finalSrc} alt={alt} className={className} style={style} referrerPolicy="no-referrer" loading={eager ? "eager" : "lazy"} decoding="async" onError={externalOnError} onLoad={onLoad} {...rest} />;
+
+  if (failed || !finalSrc) {
+    return (
+      <div className={className} style={{ ...style, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f0", color: "#999" }} {...rest}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={finalSrc}
+      alt={alt}
+      className={className}
+      style={style}
+      referrerPolicy="no-referrer"
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      onError={(e) => {
+        setFailed(true);
+        externalOnError?.(e);
+      }}
+      onLoad={onLoad}
+      {...rest}
+    />
+  );
 }
 
 const EXAMPLE_SEARCHES = [
@@ -78,7 +104,7 @@ const REFINEMENT_CHIPS = [
 const LOADING_STEPS = [
   { label: "Understanding your request...", duration: 0.4 },
   { label: "Searching 40,000+ products...", duration: 0.6 },
-  { label: "Matching across 18 vendors...", duration: 1.0 },
+  { label: "Matching across 20 vendors...", duration: 1.0 },
   { label: "Ranking results...", duration: 0.5 },
 ];
 
@@ -651,7 +677,6 @@ export default function SearchPage() {
       }
     } catch (err) {
       if (err.status === 402 || err.message === "subscription_required") {
-        // Determine paywall mode based on error
         const errData = err.data || {};
         if (errData.error === "trial_required") {
           setPaywallMode("trial_required");
@@ -659,6 +684,12 @@ export default function SearchPage() {
           setPaywallMode("upgrade");
         }
         setShowPaywall(true);
+        setLoading(false);
+        return;
+      }
+      if (err.status === 429 || err.message === "rate_limited") {
+        const seconds = err.retryAfter || 10;
+        setError(`You're searching too fast. Please wait ${seconds} seconds.`);
         setLoading(false);
         return;
       }
@@ -687,7 +718,9 @@ export default function SearchPage() {
         setAllResults(prev => [...prev, ...products]);
         setVisibleCount(v => v + products.length);
       }
-    } catch { /* silent */ } finally {
+    } catch {
+      setError("Couldn't load more results. Tap to retry.");
+    } finally {
       setLoadingMore(false);
     }
   };
@@ -1219,6 +1252,18 @@ export default function SearchPage() {
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Empty search fallback (no results, no server guidance) ── */}
+            {!loading && !listMode && messages.length > 0 && allResults.length === 0 && !zeroResultGuidance && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+                <div className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+                  <Search className="h-4 w-4 text-white/30 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] text-white/50 leading-relaxed">No results found. Try broadening your search — use fewer keywords, a different product type, or remove brand names.</p>
                   </div>
                 </div>
               </motion.div>

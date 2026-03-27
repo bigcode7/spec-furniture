@@ -22,6 +22,7 @@ import { extractTags } from "../lib/product-tagger.mjs";
 import { normalizeToMasterCategory } from "../lib/category-normalizer.mjs";
 import { computeQualityScore } from "../lib/quality-scorer.mjs";
 import { inferCategoryFromName, detectQueryCategory } from "../lib/query-category-filter.mjs";
+import { isVendorBlocked } from "../config/vendor-blocklist.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +60,48 @@ let cacheHits = 0;
 let cacheMisses = 0;
 
 // Synonyms now powered by furniture-dictionary.mjs (imported above)
+
+// ── Image Deduplication (at ingest time) ─────────────────────
+
+const MAX_IMAGES_PER_PRODUCT = 6;
+
+/**
+ * Deduplicate an images array: remove exact URL dupes, same-filename dupes, cap at 6.
+ */
+function dedupeImages(images) {
+  if (!Array.isArray(images) || images.length <= 1) return images;
+
+  const seenNorm = new Set();
+  const seenFnames = new Set();
+  const unique = [];
+
+  for (const img of images) {
+    const url = typeof img === "string" ? img : img?.url;
+    if (!url || typeof url !== "string") continue;
+
+    // Normalize: strip query params and size suffixes for comparison
+    let norm;
+    try {
+      const u = new URL(url);
+      let p = u.pathname.replace(/\/+$/, "").toLowerCase();
+      p = p.replace(/_\d+x\d+/g, "").replace(/_(large|medium|small|thumb|thumbnail|compact|grande|master|original)/g, "");
+      norm = `${u.hostname}${p}`;
+    } catch {
+      norm = url.toLowerCase().split("?")[0];
+    }
+    if (seenNorm.has(norm)) continue;
+    seenNorm.add(norm);
+
+    // Check filename match
+    const fname = url.split("/").pop().split("?")[0].toLowerCase();
+    if (fname && fname.length > 5 && seenFnames.has(fname)) continue;
+    if (fname && fname.length > 5) seenFnames.add(fname);
+
+    unique.push(img);
+  }
+
+  return unique.slice(0, MAX_IMAGES_PER_PRODUCT);
+}
 
 // ── Tokenization ─────────────────────────────────────────────
 
@@ -206,7 +249,7 @@ function normalizeProduct(raw, source = "manual") {
     style: raw.style || null,
     color: color,
     image_url: raw.image_url || null,
-    images: Array.isArray(raw.images) ? raw.images : (raw.image_url ? [raw.image_url] : []),
+    images: dedupeImages(Array.isArray(raw.images) ? raw.images : (raw.image_url ? [raw.image_url] : [])),
     product_url: raw.product_url || null,
     description: raw.description ? String(raw.description).slice(0, 300) : null,
     retail_price: typeof raw.retail_price === "number" ? raw.retail_price : null,
@@ -934,6 +977,9 @@ export async function initCatalogDB() {
  * @returns {object} The normalized product
  */
 export function insertProduct(raw) {
+  // Reject products from blocked vendors
+  if (isVendorBlocked(raw.vendor_id)) return null;
+
   const product = normalizeProduct(raw, raw.ingestion_source || "manual");
 
   // Remove old index entry if updating
@@ -968,6 +1014,9 @@ export function insertProducts(rawProducts) {
   let updated = 0;
 
   for (const raw of rawProducts) {
+    // Skip products from blocked vendors
+    if (isVendorBlocked(raw.vendor_id)) continue;
+
     const product = normalizeProduct(raw, raw.ingestion_source || "manual");
 
     const existing = products.get(product.id);

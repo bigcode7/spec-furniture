@@ -1,4 +1,5 @@
 import { priorityVendors } from "../config/vendors.mjs";
+import { isVendorBlocked } from "../config/vendor-blocklist.mjs";
 import { normalizeText } from "./normalize.mjs";
 import { extractVendorProductDocument, extractVendorProductLinks, looksProductLike, normalizeVendorUrl } from "./vendor-product.mjs";
 import { aiExtractProduct } from "./ai-search.mjs";
@@ -7,8 +8,8 @@ const USER_AGENT = "Mozilla/5.0 (compatible; SpekdSearchBot/1.0; +https://spekd.
 
 export async function discoverLiveVendorProducts(query, { vendorIds = [], maxVendors = 8, perVendor = 2, intent = null } = {}) {
   const vendors = (vendorIds.length
-    ? priorityVendors.filter((vendor) => vendorIds.includes(vendor.id))
-    : priorityVendors
+    ? priorityVendors.filter((vendor) => vendorIds.includes(vendor.id) && !isVendorBlocked(vendor.id))
+    : priorityVendors.filter((vendor) => !isVendorBlocked(vendor.id))
   ).slice(0, maxVendors);
 
   const vendorResults = await Promise.allSettled(

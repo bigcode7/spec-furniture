@@ -3,6 +3,12 @@ import { getAuthHeaders } from "@/lib/fingerprint";
 
 const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai";
 
+function timedFetch(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timeout));
+}
+
 function handle402(response) {
   if (response.status === 402) {
     return response.json().then(data => {
@@ -15,13 +21,24 @@ function handle402(response) {
   return null;
 }
 
+function handle429(response) {
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("retry-after") || "10", 10);
+    const err = new Error("rate_limited");
+    err.status = 429;
+    err.retryAfter = retryAfter;
+    throw err;
+  }
+}
+
 export async function smartSearch(conversation) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
     method: "POST",
     headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ conversation }),
   });
+  handle429(response);
   const paywall = handle402(response);
   if (paywall) return paywall;
   if (!response.ok) throw new Error(`smart search error: ${response.status}`);
@@ -34,7 +51,7 @@ export async function smartSearch(conversation) {
 
 export async function searchProducts(query, options = {}) {
   if (externalSearchServiceUrl) {
-    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
+    const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/search`, {
       method: "POST",
       headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
@@ -50,6 +67,7 @@ export async function searchProducts(query, options = {}) {
       }),
     });
 
+    handle429(response);
     const paywall = handle402(response);
     if (paywall) return paywall;
 
@@ -139,7 +157,7 @@ function normalizeStandaloneResult(item) {
 
 export async function listSearch(items) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/list-search`, {
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/list-search`, {
     method: "POST",
     headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ items }),
@@ -159,7 +177,7 @@ export async function listSearch(items) {
 
 export async function visualSearch(imageBase64) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/visual-search`, {
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/visual-search`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ image: imageBase64 }),
@@ -170,7 +188,7 @@ export async function visualSearch(imageBase64) {
 
 export async function getAutocomplete(partial) {
   if (!externalSearchServiceUrl) return { suggestions: [] };
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/autocomplete`, {
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/autocomplete`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ partial }),
@@ -184,7 +202,7 @@ export async function conversationalSearch(conversation, previousResults, sessio
     throw new Error("Search service not configured");
   }
   try {
-    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/conversational-search`, {
+    const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/conversational-search`, {
       method: "POST",
       headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
@@ -211,7 +229,7 @@ export async function conversationalSearch(conversation, previousResults, sessio
 
 export async function findSimilarProducts(productId, limit = 20) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/similar`, {
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/similar`, {
     method: "POST",
     headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ product_id: productId, limit }),
@@ -228,7 +246,7 @@ export async function findSimilarProducts(productId, limit = 20) {
 
 export async function getProduct(productId) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/product/${encodeURIComponent(productId)}`);
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/product/${encodeURIComponent(productId)}`);
   if (!response.ok) throw new Error(`get product error: ${response.status}`);
   const data = await response.json();
   return data.product ? normalizeStandaloneResult(data.product) : null;
@@ -236,7 +254,7 @@ export async function getProduct(productId) {
 
 export async function getCatalogStats() {
   if (!externalSearchServiceUrl) return null;
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/catalog/stats`);
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/catalog/stats`);
   if (!response.ok) return null;
   return response.json();
 }
@@ -261,14 +279,14 @@ export async function trackProductCompare(productId) {
 
 export async function getAnalytics() {
   if (!externalSearchServiceUrl) return null;
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/analytics`);
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/analytics`);
   if (!response.ok) return null;
   return response.json();
 }
 
 export async function getJobStatus() {
   if (!externalSearchServiceUrl) return null;
-  const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/jobs/status`);
+  const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/jobs/status`);
   if (!response.ok) return null;
   return response.json();
 }
@@ -280,7 +298,7 @@ export async function getJobStatus() {
 export async function crossMatchProducts(selectedIds, candidateIds) {
   if (!externalSearchServiceUrl) return {};
   try {
-    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/cross-match`, {
+    const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/cross-match`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ selected_ids: selectedIds, candidate_ids: candidateIds }),
@@ -297,7 +315,7 @@ export async function crossMatchProducts(selectedIds, candidateIds) {
 
 export async function fetchServerFavorites() {
   try {
-    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
+    const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
       headers: { ...getAuthHeaders() },
     });
     if (!response.ok) return null;
@@ -309,13 +327,13 @@ export async function fetchServerFavorites() {
 export async function syncFavoriteToServer(product, add) {
   try {
     if (add) {
-      await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
+      await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites`, {
         method: "POST",
         headers: { "content-type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ product }),
       });
     } else {
-      await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites/${encodeURIComponent(product.id)}`, {
+      await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/favorites/${encodeURIComponent(product.id)}`, {
         method: "DELETE",
         headers: { ...getAuthHeaders() },
       });
@@ -325,7 +343,7 @@ export async function syncFavoriteToServer(product, add) {
 
 export async function fetchServerQuote() {
   try {
-    const response = await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
+    const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
       headers: { ...getAuthHeaders() },
     });
     if (!response.ok) return null;
@@ -336,7 +354,7 @@ export async function fetchServerQuote() {
 
 export async function syncQuoteToServer(quote) {
   try {
-    await fetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
+    await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/user/quote`, {
       method: "PUT",
       headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ quote }),

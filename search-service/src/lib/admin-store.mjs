@@ -9,6 +9,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isVendorBlocked } from "../config/vendor-blocklist.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -211,10 +212,11 @@ function clearOldAlerts() {
 async function runCatalogHealthCheck(getAllProductsFn) {
   const products = await getAllProductsFn();
 
-  // Group by vendor_id
+  // Group by vendor_id (skip blocked vendors)
   const byVendor = {};
   for (const p of products) {
     const vid = p.vendor_id || "unknown";
+    if (isVendorBlocked(vid)) continue;
     if (!byVendor[vid]) byVendor[vid] = [];
     byVendor[vid].push(p);
   }
@@ -294,6 +296,14 @@ async function runCatalogHealthCheck(getAllProductsFn) {
 // Vendor health summary
 // ---------------------------------------------------------------------------
 function getVendorHealthSummary() {
+  // Purge blocked vendors from stored health data
+  for (const vid of Object.keys(store.healthChecks)) {
+    if (isVendorBlocked(vid)) {
+      delete store.healthChecks[vid];
+      delete store.vendorSnapshots[vid];
+    }
+  }
+
   const checks = store.healthChecks;
   const vendorIds = Object.keys(checks);
 

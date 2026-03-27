@@ -18,6 +18,18 @@ export const AuthProvider = ({ children }) => {
     checkAppState();
   }, []);
 
+  // Listen for session expiry (401 on an authenticated request)
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setIsAuthenticated(false);
+      setAuthModalMode("login");
+      setShowAuthModal(true);
+    };
+    window.addEventListener("auth:session-expired", handler);
+    return () => window.removeEventListener("auth:session-expired", handler);
+  }, []);
+
   const checkAppState = async () => {
     setIsLoadingAuth(true);
     if (isLoggedIn()) {

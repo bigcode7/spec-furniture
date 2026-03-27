@@ -11,6 +11,7 @@
  */
 
 import { tradeVendors } from "../config/trade-vendors.mjs";
+import { BLOCKED_VENDOR_IDS, isVendorBlocked } from "../config/vendor-blocklist.mjs";
 
 // ── Module state ──────────────────────────────────────────────
 
@@ -587,6 +588,88 @@ function isNonFurnitureProduct(product) {
   return false;
 }
 
+// ── Within-product image deduplication ────────────────────────
+
+const MAX_IMAGES_PER_PRODUCT = 6;
+
+/**
+ * Normalize an image URL for dedup comparison — strips CDN transforms, query params,
+ * size suffixes, and normalizes to hostname + clean path.
+ */
+function normalizeImageUrlForDedup(url) {
+  if (!url || typeof url !== "string") return "";
+  try {
+    const u = new URL(typeof url === "object" ? url.url : url);
+    // Remove common CDN transform params
+    for (const key of ["w", "h", "width", "height", "fit", "q", "quality", "format", "fm",
+                        "auto", "dpr", "crop", "cs", "fl", "blur", "sharp", "sat",
+                        "bg", "trim", "pad", "border", "rect", "or", "rot",
+                        "wid", "hei", "op_sharpen", "resMode", "op_usm",
+                        "$", "sw", "sh", "sm", "sfrm", "bgcolor"]) {
+      u.searchParams.delete(key);
+    }
+    let path = u.pathname.replace(/\/+$/, "").toLowerCase();
+    // Remove size suffixes like _800x800, _large, _1024x1024
+    path = path.replace(/_\d+x\d+/g, "");
+    path = path.replace(/_(large|medium|small|thumb|thumbnail|compact|grande|master|original|pico|icon)/g, "");
+    return `${u.hostname}${path}${u.searchParams.toString() ? "?" + u.searchParams.toString() : ""}`;
+  } catch {
+    return (typeof url === "object" ? url.url : url).toLowerCase().split("?")[0].replace(/\/+$/, "");
+  }
+}
+
+/**
+ * Extract just the filename from a URL for secondary dedup check.
+ */
+function extractImageFilename(url) {
+  const raw = typeof url === "string" ? url : url?.url || "";
+  if (!raw) return "";
+  try {
+    return new URL(raw).pathname.split("/").pop().split("?")[0].toLowerCase();
+  } catch {
+    return raw.split("/").pop().split("?")[0].toLowerCase();
+  }
+}
+
+/**
+ * Deduplicate images within a single product's images array.
+ * Returns { deduped: Array, removed: number }
+ */
+function dedupeWithinProduct(images) {
+  if (!Array.isArray(images) || images.length <= 1) {
+    return { deduped: images || [], removed: 0 };
+  }
+
+  const seenNorm = new Map();   // normalizedUrl → first url
+  const seenFnames = new Map(); // filename → first url
+  const unique = [];
+
+  for (const img of images) {
+    const url = typeof img === "string" ? img : img?.url;
+    if (!url || typeof url !== "string") continue;
+
+    // Pass 1: exact normalized URL match
+    const norm = normalizeImageUrlForDedup(url);
+    if (seenNorm.has(norm)) continue;
+
+    // Pass 2: same filename (vendors upload same photo with different path)
+    const fname = extractImageFilename(url);
+    if (fname && fname.length > 5 && seenFnames.has(fname)) continue;
+
+    seenNorm.set(norm, url);
+    if (fname && fname.length > 5) seenFnames.set(fname, url);
+    unique.push(img);
+  }
+
+  // Cap at MAX_IMAGES_PER_PRODUCT
+  const capped = unique.slice(0, MAX_IMAGES_PER_PRODUCT);
+
+  return {
+    deduped: capped,
+    removed: images.length - capped.length,
+  };
+}
+
 // ── Main cleanup ──────────────────────────────────────────────
 
 export async function runCatalogCleanup(catalogDB, options = {}) {
@@ -659,6 +742,139 @@ export async function runCatalogCleanup(catalogDB, options = {}) {
       console.log(`[catalog-cleanup] Sample deletions:`);
       for (const s of status.sample_non_furniture.slice(0, 10)) {
         console.log(`[catalog-cleanup]   ${s.vendor}: "${s.name}"`);
+      }
+    }
+
+    // ── PHASE 0b: Blocked vendor purge ─────────────────────
+    if (!stopRequested && BLOCKED_VENDOR_IDS.size > 0) {
+      status.phase = "blocked_vendor_purge";
+      console.log(`[catalog-cleanup] Phase 0b: Purging blocked vendors: ${[...BLOCKED_VENDOR_IDS].join(", ")}`);
+
+      if (!status.totals.blocked_vendors_purged) status.totals.blocked_vendors_purged = {};
+      if (!status.totals.total_blocked_removed) status.totals.total_blocked_removed = 0;
+
+      const blockedToDelete = [];
+      for (const product of catalogDB.getAllProducts()) {
+        if (isVendorBlocked(product.vendor_id)) {
+          blockedToDelete.push(product.id);
+          const vid = product.vendor_id;
+          status.totals.blocked_vendors_purged[vid] = (status.totals.blocked_vendors_purged[vid] || 0) + 1;
+          status.totals.total_blocked_removed++;
+        }
+      }
+
+      for (const id of blockedToDelete) {
+        catalogDB.deleteProduct(id);
+      }
+      // Also remove from our local array
+      for (let i = allProducts.length - 1; i >= 0; i--) {
+        if (isVendorBlocked(allProducts[i].vendor_id)) {
+          allProducts.splice(i, 1);
+        }
+      }
+
+      console.log(`[catalog-cleanup] Purged ${status.totals.total_blocked_removed} products from blocked vendors`);
+      for (const [vid, count] of Object.entries(status.totals.blocked_vendors_purged)) {
+        console.log(`[catalog-cleanup]   ${vid}: ${count} products removed`);
+      }
+    }
+
+    // ── PHASE 0c: Within-product image deduplication ───────
+    if (!stopRequested) {
+      status.phase = "image_dedup";
+      console.log(`[catalog-cleanup] Phase 0c: Within-product image deduplication (cap: ${MAX_IMAGES_PER_PRODUCT})`);
+
+      if (!status.totals.image_dedup_products) status.totals.image_dedup_products = 0;
+      if (!status.totals.image_dedup_total_removed) status.totals.image_dedup_total_removed = 0;
+      if (!status.totals.image_dedup_by_vendor) status.totals.image_dedup_by_vendor = {};
+      if (!status.totals.image_count_distribution) status.totals.image_count_distribution = {};
+
+      for (let i = 0; i < allProducts.length; i++) {
+        if (stopRequested) break;
+        const product = allProducts[i];
+        const images = product.images || [];
+
+        if (images.length > 1) {
+          const { deduped, removed } = dedupeWithinProduct(images);
+
+          if (removed > 0) {
+            status.totals.image_dedup_products++;
+            status.totals.image_dedup_total_removed += removed;
+
+            const vid = product.vendor_id || "unknown";
+            if (!status.totals.image_dedup_by_vendor[vid]) {
+              status.totals.image_dedup_by_vendor[vid] = { products_affected: 0, images_removed: 0 };
+            }
+            status.totals.image_dedup_by_vendor[vid].products_affected++;
+            status.totals.image_dedup_by_vendor[vid].images_removed += removed;
+
+            catalogDB.updateProductDirect(product.id, {
+              images: deduped,
+              image_url: (typeof deduped[0] === "string" ? deduped[0] : deduped[0]?.url) || product.image_url,
+            });
+            product.images = deduped; // Update local copy
+          }
+        }
+
+        if (i % 5000 === 0) {
+          status.progress = `${i}/${allProducts.length} image dedup`;
+        }
+      }
+
+      // Compute image count distribution
+      for (const product of allProducts) {
+        const imgCount = (product.images || []).length || (product.image_url ? 1 : 0);
+        const key = String(Math.min(imgCount, MAX_IMAGES_PER_PRODUCT));
+        status.totals.image_count_distribution[key] = (status.totals.image_count_distribution[key] || 0) + 1;
+      }
+
+      console.log(`[catalog-cleanup] Image dedup: ${status.totals.image_dedup_products} products affected, ${status.totals.image_dedup_total_removed} images removed`);
+      // Show worst vendors
+      const sortedVendors = Object.entries(status.totals.image_dedup_by_vendor)
+        .sort((a, b) => b[1].images_removed - a[1].images_removed);
+      if (sortedVendors.length > 0) {
+        console.log(`[catalog-cleanup] Worst vendors for image duplication:`);
+        for (const [vid, s] of sortedVendors.slice(0, 10)) {
+          console.log(`[catalog-cleanup]   ${vid}: ${s.products_affected} products, ${s.images_removed} images removed`);
+        }
+      }
+      console.log(`[catalog-cleanup] Image count distribution:`, JSON.stringify(status.totals.image_count_distribution));
+    }
+
+    // ── PHASE 0d: Broken image vendor cleanup ──────────────
+    if (!stopRequested && options.brokenImageVendors && options.brokenImageVendors.length > 0) {
+      status.phase = "broken_image_cleanup";
+      const vendorSet = new Set(options.brokenImageVendors.map(v => v.toLowerCase()));
+      console.log(`[catalog-cleanup] Phase 0d: Broken image cleanup for vendors: ${[...vendorSet].join(", ")}`);
+
+      if (!status.totals.broken_image_removed) status.totals.broken_image_removed = 0;
+      if (!status.totals.broken_image_by_vendor) status.totals.broken_image_by_vendor = {};
+
+      const brokenToDelete = [];
+      for (const product of allProducts) {
+        if (!vendorSet.has((product.vendor_id || "").toLowerCase())) continue;
+        if (product.image_verified === false || product.image_quality === "broken" || product.bad_image === true) {
+          brokenToDelete.push(product.id);
+          const vid = product.vendor_id;
+          status.totals.broken_image_by_vendor[vid] = (status.totals.broken_image_by_vendor[vid] || 0) + 1;
+          status.totals.broken_image_removed++;
+        }
+      }
+
+      for (const id of brokenToDelete) {
+        catalogDB.deleteProduct(id);
+      }
+      // Remove from local array
+      const brokenSet = new Set(brokenToDelete);
+      for (let i = allProducts.length - 1; i >= 0; i--) {
+        if (brokenSet.has(allProducts[i].id)) {
+          allProducts.splice(i, 1);
+        }
+      }
+
+      console.log(`[catalog-cleanup] Removed ${status.totals.broken_image_removed} products with broken images`);
+      for (const [vid, count] of Object.entries(status.totals.broken_image_by_vendor)) {
+        console.log(`[catalog-cleanup]   ${vid}: ${count} broken-image products removed`);
       }
     }
 

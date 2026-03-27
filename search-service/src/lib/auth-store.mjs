@@ -156,6 +156,9 @@ function saveUsersToFile() {
 const SECRET_FILE = path.join(DATA_DIR, ".auth-secret");
 function getOrCreateSecret() {
   if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET environment variable is required in production. Set a stable random string to prevent token invalidation on redeploy.");
+  }
   try {
     if (fs.existsSync(SECRET_FILE)) {
       const saved = fs.readFileSync(SECRET_FILE, "utf8").trim();
