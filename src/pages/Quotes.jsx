@@ -91,7 +91,6 @@ export default function Quotes() {
   });
 
   const [editingRoomId, setEditingRoomId] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
   const [showMarkup, setShowMarkup] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
@@ -487,15 +486,6 @@ export default function Quotes() {
                     {showPricing ? "Pricing on" : "Pricing off"}
                   </button>
 
-                  {/* Settings toggle */}
-                  <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
-                    title="Designer info & logo"
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    Settings
-                  </button>
                 </div>
               </div>
 
@@ -526,94 +516,80 @@ export default function Quotes() {
               </div>
             </div>
 
-            {/* Settings panel (collapsible) */}
-            <AnimatePresence>
-              {showSettings && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden border-b border-white/[0.06]"
-                >
-                  <div className="px-6 py-5 space-y-3">
-                    <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">
-                      Designer Info (saved for all quotes)
-                    </div>
-                    <input
-                      value={settings.business_name}
-                      onChange={(e) => handleSaveSettings({ business_name: e.target.value })}
-                      placeholder="Business name"
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                    />
-                    <input
-                      value={settings.designer_name}
-                      onChange={(e) => handleSaveSettings({ designer_name: e.target.value })}
-                      placeholder="Designer name"
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        value={settings.email}
-                        onChange={(e) => handleSaveSettings({ email: e.target.value })}
-                        placeholder="Email"
-                        className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                      />
-                      <input
-                        value={settings.phone}
-                        onChange={(e) => handleSaveSettings({ phone: e.target.value })}
-                        placeholder="Phone"
-                        className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30"
-                      />
-                    </div>
+            {/* Designer Info — always visible */}
+            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(201,169,110,0.02)" }}>
+              <div className="text-[9px] uppercase tracking-[0.2em] text-gold/40 font-semibold mb-3">
+                Your Info (appears on PDF)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  value={settings.business_name}
+                  onChange={(e) => handleSaveSettings({ business_name: e.target.value })}
+                  placeholder="Business name"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30 transition-colors"
+                />
+                <input
+                  value={settings.designer_name}
+                  onChange={(e) => handleSaveSettings({ designer_name: e.target.value })}
+                  placeholder="Designer name"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30 transition-colors"
+                />
+                <input
+                  value={settings.email}
+                  onChange={(e) => handleSaveSettings({ email: e.target.value })}
+                  placeholder="Email"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30 transition-colors"
+                />
+                <input
+                  value={settings.phone}
+                  onChange={(e) => handleSaveSettings({ phone: e.target.value })}
+                  placeholder="Phone"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-gold/30 transition-colors"
+                />
+              </div>
 
-                    {/* Logo upload */}
-                    <div className="pt-2 border-t border-white/[0.06]">
-                      <div className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-2">
-                        Your Logo (appears on PDF cover)
-                      </div>
-                      {settings.logo_data_url ? (
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-24 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center overflow-hidden p-1">
-                            <img src={settings.logo_data_url} alt="Logo" className="max-h-full max-w-full object-contain" />
-                          </div>
-                          <button
-                            onClick={() => handleSaveSettings({ logo_data_url: "" })}
-                            className="flex items-center gap-1 text-[10px] text-white/25 hover:text-red-400/60 transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-white/[0.1] hover:border-gold/30 text-[11px] text-white/30 hover:text-white/50 transition-colors">
-                          <ImagePlus className="h-4 w-4" />
-                          Upload logo (PNG, JPG)
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/svg+xml"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (file.size > 500_000) {
-                                alert("Logo must be under 500KB");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                handleSaveSettings({ logo_data_url: reader.result });
-                              };
-                              reader.readAsDataURL(file);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                      )}
+              {/* Logo upload — always visible */}
+              <div className="mt-3 flex items-center gap-3">
+                {settings.logo_data_url ? (
+                  <>
+                    <div className="h-10 w-20 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center overflow-hidden p-1">
+                      <img src={settings.logo_data_url} alt="Logo" className="max-h-full max-w-full object-contain" />
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <button
+                      onClick={() => handleSaveSettings({ logo_data_url: "" })}
+                      className="flex items-center gap-1 text-[10px] text-white/25 hover:text-red-400/60 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dashed border-white/[0.08] hover:border-gold/30 text-[10px] text-white/25 hover:text-white/40 transition-colors">
+                    <ImagePlus className="h-3.5 w-3.5" />
+                    Upload your logo (appears on PDF cover)
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 500_000) {
+                          alert("Logo must be under 500KB");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          handleSaveSettings({ logo_data_url: reader.result });
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
           </motion.div>
 
           {/* Rooms + Items */}
