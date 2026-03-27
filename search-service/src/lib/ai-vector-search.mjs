@@ -301,7 +301,7 @@ You understand furniture deeply. You know:
 - 'coffee table' means cocktail table
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
 - 'mid century' is a style — use ai_style
-- 'outdoor' is a QUALIFIER on furniture type — use ai_furniture_type: ['outdoor swivel chair'] or ['outdoor sofa']. The word 'outdoor' MUST appear in ai_furniture_type so only outdoor products match. Similarly 'indoor' means do NOT include 'outdoor' in the type. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction.
+- 'outdoor' is a QUALIFIER — include it in ai_furniture_type alongside the base type: ai_furniture_type: ['outdoor swivel', 'outdoor chair']. Use MULTIPLE short terms that will substring-match product names containing 'outdoor'. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
 - WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
 - 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
@@ -606,21 +606,22 @@ semantic_query: 'sectional with structured tight back clean tailored'
 ── Outdoor/Indoor Qualifier Examples ──
 
 User: 'outdoor swivel chairs'
-search_fields: { ai_furniture_type: ['outdoor swivel chair'] }
+search_fields: { ai_furniture_type: ['outdoor swivel', 'outdoor chair'] }
 exclude_fields: {}
 semantic_query: 'outdoor swivel chair patio weather resistant UV rated'
-(outdoor MUST be in ai_furniture_type — it is a hard physical qualifier, NOT a vibe)
+(outdoor MUST be in ai_furniture_type as multiple short terms for max coverage — matches "Outdoor Swivel Chair", "Outdoor Swivel Chaise", etc.)
 
 User: 'outdoor dining table teak'
-search_fields: { ai_furniture_type: ['outdoor dining table'], ai_primary_material: ['teak'] }
+search_fields: { ai_furniture_type: ['outdoor dining', 'outdoor table'], ai_primary_material: ['teak'] }
 exclude_fields: {}
 semantic_query: 'outdoor teak dining table weather resistant patio garden'
-(outdoor in furniture type, teak in material)
+(multiple short outdoor terms for broad matching)
 
-User: 'outdoor sofa performance fabric'
-search_fields: { ai_furniture_type: ['outdoor sofa'], ai_primary_material: ['performance fabric'] }
+User: 'outdoor sofa'
+search_fields: { ai_furniture_type: ['outdoor sofa', 'outdoor loveseat', 'outdoor sectional'] }
 exclude_fields: {}
-semantic_query: 'outdoor sofa performance fabric weather resistant patio seating'
+semantic_query: 'outdoor sofa patio weather resistant seating'
+(include related outdoor seating types for coverage)
 
 ── Standard Examples ──
 

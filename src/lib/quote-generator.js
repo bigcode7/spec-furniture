@@ -196,30 +196,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
     }
   }
 
-  // ── Project Intro Page (if AI narrative available) ────────
   let pageNum = 2;
-  if (narrativesData?.project_intro) {
-    doc.addPage();
-    doc.setFillColor(...COLORS.black);
-    doc.rect(0, 0, pageWidth, pageHeight, "F");
-
-    doc.setFillColor(...COLORS.gold);
-    doc.rect(margin, 30, 30, 0.8, "F");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...COLORS.gold);
-    doc.text("PROJECT OVERVIEW", margin, 26);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(13);
-    doc.setTextColor(...COLORS.white);
-    const introLines = doc.splitTextToSize(narrativesData.project_intro, contentWidth - 10);
-    doc.text(introLines, margin, 48);
-
-    drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
-    pageNum++;
-  }
 
   // ── Product Pages ──────────────────────────────────────────
   const rooms = new Map();

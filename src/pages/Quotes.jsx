@@ -37,7 +37,7 @@ function formatUsd(n) {
 export default function Quotes() {
   const navigate = useNavigate();
   const { user, navigateToLogin } = useAuth();
-  const { mode, getPrice, fmtPrice, hasDiscounts } = useTradePricing();
+  const { mode, getPrice, fmtPrice, hasDiscounts, showPricing, toggleShowPricing } = useTradePricing();
 
   // Gate: must be logged in to access quotes
   if (!user) {
@@ -112,6 +112,8 @@ export default function Quotes() {
 
   /* price helpers */
   const getItemPrice = (item) => {
+    // Custom price overrides everything
+    if (item.custom_price && item.custom_price > 0) return item.custom_price;
     const priceInfo = getPrice(item);
     const base = priceInfo.price;
     if (!base) return null;
@@ -119,7 +121,12 @@ export default function Quotes() {
     return markup > 0 ? base * (1 + markup / 100) : base;
   };
 
-  const getItemPriceInfo = (item) => getPrice(item);
+  const getItemPriceInfo = (item) => {
+    if (item.custom_price && item.custom_price > 0) {
+      return { price: item.custom_price, label: "Custom", isTrade: false, isCustom: true };
+    }
+    return getPrice(item);
+  };
 
   const getRoomTotal = (room) =>
     room.items.reduce((sum, item) => {
@@ -149,6 +156,11 @@ export default function Quotes() {
 
   const handleNotes = (productId, notes) => {
     updateQuoteItem(productId, { notes });
+    refreshQuote();
+  };
+
+  const handleCustomPrice = (productId, price) => {
+    updateQuoteItem(productId, { custom_price: price });
     refreshQuote();
   };
 
@@ -379,17 +391,19 @@ export default function Quotes() {
                       </p>
                       <p className="text-[10px] text-gold/60 truncate">{fav.manufacturer_name}</p>
 
-                      {/* Price — always visible */}
-                      <div className="text-xs">
-                        {priceInfo.price ? (
-                          <span className={priceInfo.isTrade ? "text-emerald-400" : "text-white/60"}>
-                            {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-60">Trade </span>}
-                            {formatUsd(priceInfo.price)}
-                          </span>
-                        ) : (
-                          <span className="text-white/20 text-[10px]">Price on request</span>
-                        )}
-                      </div>
+                      {/* Price */}
+                      {showPricing && (
+                        <div className="text-xs">
+                          {priceInfo.price ? (
+                            <span className={priceInfo.isTrade ? "text-emerald-400" : "text-white/60"}>
+                              {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-60">Trade </span>}
+                              {formatUsd(priceInfo.price)}
+                            </span>
+                          ) : (
+                            <span className="text-white/20 text-[10px]">Price on request</span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <div className="flex items-center gap-1.5 pt-1">
@@ -458,15 +472,31 @@ export default function Quotes() {
                 <div className="text-[10px] text-white/20">
                   {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
-                {/* Settings toggle */}
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
-                  title="Designer info & logo"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  Settings
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Pricing toggle */}
+                  <button
+                    onClick={toggleShowPricing}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] transition-colors ${
+                      showPricing
+                        ? "text-gold/60 hover:text-gold/80 bg-gold/[0.06] border border-gold/15"
+                        : "text-white/25 hover:text-white/40 hover:bg-white/[0.04] border border-transparent"
+                    }`}
+                    title={showPricing ? "Hide pricing" : "Show pricing"}
+                  >
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {showPricing ? "Pricing on" : "Pricing off"}
+                  </button>
+
+                  {/* Settings toggle */}
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+                    title="Designer info & logo"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    Settings
+                  </button>
+                </div>
               </div>
 
               {/* Project name — always visible input */}
@@ -653,7 +683,7 @@ export default function Quotes() {
                       {room.items.length} {room.items.length === 1 ? "item" : "items"}
                     </span>
 
-                    {getRoomTotal(room) > 0 && (
+                    {showPricing && getRoomTotal(room) > 0 && (
                       <span className="text-[10px] text-gold/60 font-medium">
                         {formatUsd(getRoomTotal(room))}
                       </span>
@@ -688,10 +718,12 @@ export default function Quotes() {
                             onRemove={() => handleRemove(item.id)}
                             onQuantity={(d) => handleQuantity(item.id, d)}
                             onNotes={(n) => handleNotes(item.id, n)}
+                            onCustomPrice={(p) => handleCustomPrice(item.id, p)}
                             onMoveToRoom={(rid) => handleMoveToRoom(item.id, rid)}
                             onSwap={() => handleSwap(item)}
                             getItemPrice={() => getItemPrice(item)}
                             getItemPriceInfo={() => getItemPriceInfo(item)}
+                            showPricing={showPricing}
                           />
                         ))}
                       </motion.div>
@@ -795,33 +827,35 @@ export default function Quotes() {
                 </AnimatePresence>
 
                 {/* Room subtotals + grand total */}
-                <div className="space-y-1.5">
-                  {quote.rooms
-                    .filter((r) => r.items.length > 0)
-                    .map((room) => (
-                      <div key={room.id} className="flex justify-between text-xs">
-                        <span className="text-white/30">{room.name}</span>
-                        <span className="text-white/50">
-                          {getRoomTotal(room) > 0
-                            ? formatUsd(getRoomTotal(room))
-                            : "Price on request"}
-                        </span>
-                      </div>
-                    ))}
+                {showPricing && (
+                  <div className="space-y-1.5">
+                    {quote.rooms
+                      .filter((r) => r.items.length > 0)
+                      .map((room) => (
+                        <div key={room.id} className="flex justify-between text-xs">
+                          <span className="text-white/30">{room.name}</span>
+                          <span className="text-white/50">
+                            {getRoomTotal(room) > 0
+                              ? formatUsd(getRoomTotal(room))
+                              : "Price on request"}
+                          </span>
+                        </div>
+                      ))}
 
-                  <div className="flex justify-between text-sm font-semibold pt-2 border-t border-white/[0.06]">
-                    <span className="text-white/60">Total</span>
-                    <span className="text-white">
-                      {grandTotal > 0 ? formatUsd(grandTotal) : "Prices on request"}
-                    </span>
-                  </div>
-                  {itemsWithoutPrice.length > 0 && (
-                    <div className="text-[10px] text-white/20">
-                      {itemsWithoutPrice.length}{" "}
-                      {itemsWithoutPrice.length === 1 ? "item" : "items"} pending pricing
+                    <div className="flex justify-between text-sm font-semibold pt-2 border-t border-white/[0.06]">
+                      <span className="text-white/60">Total</span>
+                      <span className="text-white">
+                        {grandTotal > 0 ? formatUsd(grandTotal) : "Prices on request"}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    {itemsWithoutPrice.length > 0 && (
+                      <div className="text-[10px] text-white/20">
+                        {itemsWithoutPrice.length}{" "}
+                        {itemsWithoutPrice.length === 1 ? "item" : "items"} pending pricing
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Trade mode indicator */}
                 {mode === "trade" && hasDiscounts && (
@@ -913,13 +947,16 @@ function QuoteItemRow({
   onRemove,
   onQuantity,
   onNotes,
+  onCustomPrice,
   onMoveToRoom,
   onSwap,
   getItemPrice,
   getItemPriceInfo,
+  showPricing,
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [editingPrice, setEditingPrice] = useState(false);
 
   const price = getItemPrice();
   const priceInfo = getItemPriceInfo?.() || { isTrade: false };
@@ -950,8 +987,8 @@ function QuoteItemRow({
           {item.sku && <div className="text-[10px] text-white/20 mt-0.5">SKU: {item.sku}</div>}
           {dims && <div className="text-[10px] text-white/20">{dims}</div>}
 
-          {/* Price & Quantity */}
-          <div className="flex items-center gap-4 mt-2">
+          {/* Quantity & Price */}
+          <div className="flex items-center gap-4 mt-2 flex-wrap">
             <div className="flex items-center gap-0.5 border border-white/[0.08] rounded-md">
               <button
                 onClick={() => onQuantity(-1)}
@@ -968,21 +1005,68 @@ function QuoteItemRow({
               </button>
             </div>
 
-            {price ? (
-              <span className={`text-xs ${priceInfo.isTrade ? "text-emerald-400/70" : "text-white/50"}`}>
-                {priceInfo.isTrade && (
-                  <span className="text-[9px] mr-0.5 opacity-70">Est. Trade </span>
+            {showPricing && (
+              <>
+                {editingPrice ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-white/30">$</span>
+                    <input
+                      autoFocus
+                      type="number"
+                      min="0"
+                      step="1"
+                      defaultValue={item.custom_price || price || ""}
+                      placeholder="Enter price"
+                      className="w-24 bg-white/[0.04] border border-gold/30 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        onCustomPrice(val);
+                        setEditingPrice(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = parseFloat(e.target.value) || 0;
+                          onCustomPrice(val);
+                          setEditingPrice(false);
+                        }
+                        if (e.key === "Escape") setEditingPrice(false);
+                      }}
+                    />
+                    {item.custom_price > 0 && (
+                      <button
+                        onClick={() => { onCustomPrice(0); setEditingPrice(false); }}
+                        className="text-[9px] text-white/20 hover:text-red-400/60 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditingPrice(true)}
+                    className="group/price flex items-center gap-1"
+                    title="Click to set custom price"
+                  >
+                    {price ? (
+                      <span className={`text-xs ${priceInfo.isCustom ? "text-gold/70" : priceInfo.isTrade ? "text-emerald-400/70" : "text-white/50"}`}>
+                        {priceInfo.isCustom && <span className="text-[9px] mr-0.5 opacity-70">Custom </span>}
+                        {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-70">Est. Trade </span>}
+                        {formatUsd(price)}
+                        {(item.quantity || 1) > 1 && (
+                          <span className={priceInfo.isCustom ? "text-gold/30" : priceInfo.isTrade ? "text-emerald-400/30" : "text-white/25"}>
+                            {" "}x{item.quantity} = {formatUsd(price * (item.quantity || 1))}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-white/20 group-hover/price:text-gold/50 transition-colors">
+                        + Add price
+                      </span>
+                    )}
+                    <Edit3 className="h-2.5 w-2.5 text-white/0 group-hover/price:text-white/25 transition-colors" />
+                  </button>
                 )}
-                {formatUsd(price)}
-                {(item.quantity || 1) > 1 && (
-                  <span className={priceInfo.isTrade ? "text-emerald-400/30" : "text-white/25"}>
-                    {" "}
-                    x{item.quantity} = {formatUsd(price * (item.quantity || 1))}
-                  </span>
-                )}
-              </span>
-            ) : (
-              <span className="text-[10px] text-white/20">Price on request</span>
+              </>
             )}
           </div>
         </div>
