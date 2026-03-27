@@ -1197,21 +1197,6 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Latest AI response — Pro only */}
-            {isPro && !loading && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="py-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5" style={{ background: "rgba(79,107,255,0.1)", border: "1px solid rgba(79,107,255,0.15)" }}>
-                    <img src="/logo.png" alt="" className="h-4 w-4 object-contain" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm leading-relaxed" style={{ color: "var(--warm-white)" }}>
-                      {messages[messages.length - 1].content}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
             {/* Loading */}
             {loading && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-3 py-4">

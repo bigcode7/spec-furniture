@@ -25,10 +25,10 @@ let catalogIndexPromptText = "";
 // When the primary AI field is null/undefined, try basic metadata instead.
 const FIELD_FALLBACKS = {
   ai_furniture_type: p => {
-    const parts = [];
-    if (p.category) parts.push(p.category.replace(/-/g, " "));
-    if (p.product_name) parts.push(p.product_name.toLowerCase());
-    return parts.length > 0 ? parts.join(" ") : null;
+    // Only use category as fallback — NOT product_name, which causes false positives
+    // (e.g., "Sofa Table" matching a search for "sofa")
+    if (p.category) return p.category.replace(/-/g, " ");
+    return null;
   },
   ai_primary_material: p => {
     // Only use raw material field, NOT description — description is too noisy
@@ -42,13 +42,11 @@ const FIELD_FALLBACKS = {
 
 // Field accessors — maps search_fields keys to how to read them from a product
 const FIELD_ACCESSORS = {
-  // Include product_name in furniture type matching so qualifiers like "outdoor"
-  // can match against names like "Santa Monica Outdoor Swivel Chair"
-  ai_furniture_type: p => {
-    const parts = [p.ai_furniture_type];
-    if (p.product_name) parts.push(p.product_name.toLowerCase());
-    return parts.filter(Boolean).join(" | ") || null;
-  },
+  // Match against ai_furniture_type tag only — NOT product_name.
+  // product_name causes false positives (e.g., "Sofa Table" casegood matching "sofa",
+  // or "Reclining Sofa" recliner matching "sofa").
+  // Qualifiers like "outdoor" are handled by Haiku sending them as ai_furniture_type values.
+  ai_furniture_type: p => p.ai_furniture_type || null,
   ai_primary_material: p => p.ai_primary_material,
   ai_distinctive_features: p => p.ai_distinctive_features, // array
   ai_style: p => p.ai_style,
@@ -1159,6 +1157,8 @@ export async function searchPipeline(query, options = {}) {
       // Physical construction fields (arm_style, back_style, leg_style, cushions, silhouette,
       // construction_details, formality) are PROTECTED from auto-relax — they are hard filters.
       // Only drop non-physical fields first. Physical fields are dropped LAST as a final resort.
+      // ai_furniture_type is NEVER in this list — it must always be enforced.
+      // Without it, results leak across categories (recliners, casegoods, wall art).
       const relaxOrder = ["ai_finish", "ai_primary_color", "ai_texture_description",
         "ai_visual_weight", "ai_ideal_client", "ai_durability_assessment",
         "ai_mood", "ai_era_influence", "ai_primary_material",
@@ -1204,10 +1204,11 @@ export async function searchPipeline(query, options = {}) {
               if (excludeIds && excludeIds.size > 0 && excludeIds.has(product.id)) continue;
               const pName = product.product_name || "";
               if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
+              // Only match against ai_furniture_type and category — NOT product_name
+              // product_name causes false positives (e.g., "Sofa Table" matching "sofa")
               const ft = (product.ai_furniture_type || "").toLowerCase();
               const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
-              const name = pName.toLowerCase();
-              const combined = `${ft} ${cat} ${name}`;
+              const combined = `${ft} ${cat}`;
               let matchesAny = false;
               for (const w of words) {
                 if (combined.includes(w)) { matchesAny = true; break; }
@@ -1249,20 +1250,33 @@ export async function searchPipeline(query, options = {}) {
     console.log("After vendor diversity:", results.length);
   } else {
     // ── Safety net: no field filters (Haiku failed or vibe search) ──
-    // Fall back to pure vector search
+    // Fall back to pure vector search, but still enforce furniture type if available
     console.log("NO FIELD FILTERS — falling back to pure vector search");
+    const ftFilter = haiku.search_fields?.ai_furniture_type;
+    if (ftFilter && ftFilter.length > 0) {
+      console.log("Enforcing furniture type filter on vector fallback:", ftFilter);
+    }
     if (vectorStats.ready && vectorStats.total_vectors > 0) {
       const searchText = haiku.semantic_query || query;
-      const rawResults = await vectorSearch(searchText, { limit: 200 });
+      const rawResults = await vectorSearch(searchText, { limit: 500 });
       for (const { id, score } of rawResults) {
         const product = getProduct(id);
         if (product && !(excludeIds.size > 0 && excludeIds.has(id))) {
           // Skip samples/swatches/catalogs
           if (SAMPLE_KEYWORDS.test(product.product_name || "") || isFabricSwatch(product)) continue;
+          // Even in fallback mode, enforce furniture type to prevent category leakage
+          if (ftFilter && ftFilter.length > 0) {
+            const ft = (product.ai_furniture_type || "").toLowerCase();
+            const cat = (product.category || "").toLowerCase().replace(/-/g, " ");
+            const combined = `${ft} ${cat}`;
+            const matchesFt = ftFilter.some(term => combined.includes(term.toLowerCase()));
+            if (!matchesFt) continue;
+          }
           product.relevance_score = score;
           product._vector_score = score;
           results.push(product);
         }
+        if (results.length >= 200) break;
       }
       console.log("Fallback vector search:", results.length, "results");
     }
