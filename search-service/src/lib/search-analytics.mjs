@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import http from "node:http";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,47 @@ let vendorCTR = new Map();
 
 /** @type {Array<string>} Queries that returned 0 results */
 let zeroResultQueries = [];
+
+/** @type {Map<string, { city: string, region: string, country: string, lat: number, lon: number, ts: number }>} */
+const geoCache = new Map();
+const GEO_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+
+/**
+ * Look up city/region/country for an IP using ip-api.com (free, no key, HTTP only).
+ * Returns cached result if available. Non-blocking — returns null on failure.
+ */
+function geoLookup(ip) {
+  if (!ip || ip === "127.0.0.1" || ip === "::1") return Promise.resolve(null);
+  const clean = ip.replace("::ffff:", "");
+  const cached = geoCache.get(clean);
+  if (cached && Date.now() - cached.ts < GEO_CACHE_TTL) {
+    const { ts, ...loc } = cached;
+    return Promise.resolve(loc);
+  }
+  return new Promise((resolve) => {
+    const req = http.get(`http://ip-api.com/json/${clean}?fields=status,city,regionName,country,lat,lon`, { timeout: 2000 }, (res) => {
+      let data = "";
+      res.on("data", (c) => data += c);
+      res.on("end", () => {
+        try {
+          const j = JSON.parse(data);
+          if (j.status === "success") {
+            const loc = { city: j.city, region: j.regionName, country: j.country, lat: j.lat, lon: j.lon };
+            geoCache.set(clean, { ...loc, ts: Date.now() });
+            // Keep cache bounded
+            if (geoCache.size > 5000) {
+              const oldest = [...geoCache.entries()].sort((a, b) => a[1].ts - b[1].ts).slice(0, 1000);
+              for (const [k] of oldest) geoCache.delete(k);
+            }
+            resolve(loc);
+          } else resolve(null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+  });
+}
 
 let saveTimer = null;
 const SAVE_INTERVAL = 60_000; // Flush every minute
@@ -129,8 +171,17 @@ export function trackSearch(event) {
     tier: event.tier || 1,
     cache_hit: event.cacheHit || false,
     timestamp: Date.now(),
+    ip: event.ip || null,
+    location: null,
   };
   searchLog.push(entry);
+
+  // Async geo-lookup — updates entry in-place after resolution
+  if (event.ip) {
+    geoLookup(event.ip).then((loc) => {
+      if (loc) entry.location = loc;
+    }).catch(() => {});
+  }
 
   // Keep searchLog bounded
   if (searchLog.length > 10000) {
@@ -330,8 +381,38 @@ export function getRecentSearches(limit = 10) {
       result_count: entry.result_count,
       tier: entry.tier,
       timestamp: entry.timestamp,
+      location: entry.location || null,
       ...(entry.user ? { user: entry.user } : {}),
     }));
+}
+
+/**
+ * Get a summary of where searches are coming from.
+ * Groups by city+region and returns top locations.
+ */
+export function getSearchLocations(days = 7) {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const locationCounts = new Map();
+  let withLocation = 0;
+
+  for (const entry of searchLog) {
+    if (entry.timestamp < cutoff) continue;
+    if (!entry.location) continue;
+    withLocation++;
+    const key = `${entry.location.city}, ${entry.location.region}`;
+    const existing = locationCounts.get(key) || { city: entry.location.city, region: entry.location.region, country: entry.location.country, lat: entry.location.lat, lon: entry.location.lon, count: 0 };
+    existing.count++;
+    locationCounts.set(key, existing);
+  }
+
+  const topLocations = [...locationCounts.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 30);
+
+  return {
+    total_with_location: withLocation,
+    locations: topLocations,
+  };
 }
 
 /**

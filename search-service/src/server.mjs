@@ -35,7 +35,7 @@ import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
 import { importFromCsv } from "./importers/csv-importer.mjs";
 import { buildAutocompleteIndex, autocompleteSearch, smartAutocomplete, recordSearch } from "./lib/autocomplete-index.mjs";
-import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData, getSearchesByDay, getRecentSearches } from "./lib/search-analytics.mjs";
+import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData, getSearchesByDay, getRecentSearches, getSearchLocations } from "./lib/search-analytics.mjs";
 import { runImageVerification, getImageVerificationStatus, stopImageVerification } from "./jobs/image-verifier.mjs";
 import { runDeduplication, getDedupStatus } from "./jobs/dedup-job.mjs";
 import { runPhotoAnalysis, getPhotoAnalysisStatus, stopPhotoAnalysis } from "./jobs/photo-analyzer.mjs";
@@ -2002,6 +2002,14 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, getActiveVisitors(minutes));
     }
 
+    // GET /admin/search-locations — where searches come from
+    if (req.method === "GET" && (req.url === "/admin/search-locations" || req.url.startsWith("/admin/search-locations?"))) {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const days = parseInt(url.searchParams.get("days")) || 7;
+      return json(res, 200, getSearchLocations(days));
+    }
+
     // GET /admin/funnel — trial funnel metrics
     if (req.method === "GET" && req.url === "/admin/funnel") {
       if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
@@ -2471,6 +2479,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
         tier: 1,
         cacheHit: result.cache_hit || false,
+        ip,
       });
       recordSearch(query);
 
@@ -2886,6 +2895,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         vendorIds: [...new Set(responseProducts.map(p => p.vendor_id))],
         tier,
         cacheHit: false,
+        ip,
       });
       recordSearch(query);
 

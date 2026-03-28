@@ -393,6 +393,65 @@ function LiveVisitorsPanel() {
   );
 }
 
+function SearchLocationsPanel() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+
+  useEffect(() => {
+    setLoading(true);
+    adminFetch(`/admin/search-locations?days=${days}`)
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return <div className="bg-gray-800 rounded-lg p-5 animate-pulse h-48" />;
+  if (!data || !data.locations?.length) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-5">
+        <h3 className="text-sm font-medium text-gray-400 mb-2">Search Locations</h3>
+        <p className="text-xs text-gray-600">No location data yet. Locations are tracked on new searches.</p>
+      </div>
+    );
+  }
+
+  const maxCount = data.locations[0]?.count || 1;
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-medium text-gray-400">Where Searches Come From</h3>
+        <div className="flex gap-1">
+          {[7, 14, 30].map((d) => (
+            <button key={d} onClick={() => setDays(d)}
+              className={`text-xs px-2 py-1 rounded ${days === d ? "bg-gray-600 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {data.locations.map((loc, i) => (
+          <div key={i} className="flex items-center gap-3 text-sm">
+            <div className="w-40 text-gray-300 truncate">{loc.city}, {loc.region}</div>
+            <div className="flex-1">
+              <div className="h-5 bg-gray-900 rounded overflow-hidden">
+                <div className="h-full bg-amber-500/30 rounded flex items-center px-2"
+                  style={{ width: `${Math.max(8, (loc.count / maxCount) * 100)}%` }}>
+                  <span className="text-xs text-amber-400 font-medium">{loc.count}</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-gray-600 w-12 text-right">{loc.country === "United States" ? "US" : loc.country}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 text-[10px] text-gray-600">{data.total_with_location} searches with location data in last {days} days</div>
+    </div>
+  );
+}
+
 function OverviewTab({ data, loading, error }) {
   if (loading) return <Loading />;
   if (error) return <ErrorBox msg={error} />;
@@ -413,6 +472,9 @@ function OverviewTab({ data, loading, error }) {
     <div className="space-y-6">
       {/* Live Visitors */}
       <LiveVisitorsPanel />
+
+      {/* Search Locations */}
+      <SearchLocationsPanel />
 
       {/* Revenue Row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -519,6 +581,7 @@ function OverviewTab({ data, loading, error }) {
                 <tr className="text-gray-500 text-xs">
                   <th className="py-2 pr-3">Query</th>
                   <th className="py-2 pr-3">Results</th>
+                  <th className="py-2 pr-3">Location</th>
                   <th className="py-2 pr-3">Tier</th>
                   <th className="py-2">Time</th>
                 </tr>
@@ -528,6 +591,9 @@ function OverviewTab({ data, loading, error }) {
                   <tr key={i} className="text-gray-300 hover:bg-gray-700/50">
                     <td className="py-2 pr-3">{s.query || s.term || "\u2014"}</td>
                     <td className="py-2 pr-3">{fmt(s.result_count ?? s.results)}</td>
+                    <td className="py-2 pr-3 text-xs text-gray-500">
+                      {s.location ? `${s.location.city}, ${s.location.region}` : "\u2014"}
+                    </td>
                     <td className="py-2 pr-3">
                       <Badge color={s.tier === 1 ? "amber" : "gray"}>
                         {s.tier === 1 ? "Pro" : "Free"}
@@ -537,7 +603,7 @@ function OverviewTab({ data, loading, error }) {
                   </tr>
                 ))}
                 {recentSearches.length === 0 && (
-                  <tr><td colSpan={4} className="py-4 text-center text-gray-500">No recent searches.</td></tr>
+                  <tr><td colSpan={5} className="py-4 text-center text-gray-500">No recent searches.</td></tr>
                 )}
               </tbody>
             </table>
