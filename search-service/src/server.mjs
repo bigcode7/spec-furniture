@@ -67,7 +67,7 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers, initDatabase } from "./lib/auth-store.mjs";
-import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getActiveVisitors, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
@@ -1992,6 +1992,14 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const result = await getUserFromToken(token);
       if (!result.ok) return false;
       return result.user.email === "tyler@spekd.ai";
+    }
+
+    // GET /admin/active-visitors — who's on the site right now
+    if (req.method === "GET" && (req.url === "/admin/active-visitors" || req.url.startsWith("/admin/active-visitors?"))) {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const minutes = parseInt(url.searchParams.get("minutes")) || 5;
+      return json(res, 200, getActiveVisitors(minutes));
     }
 
     // GET /admin/funnel — trial funnel metrics

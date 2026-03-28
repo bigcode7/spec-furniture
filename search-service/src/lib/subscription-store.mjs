@@ -668,6 +668,47 @@ function getTeamMembers(teamId) {
 
 // ─── FUNNEL METRICS ───
 
+/**
+ * Get active visitors — guests seen within the last N minutes, plus the most recent anonymous visit.
+ */
+function getActiveVisitors(activeMinutes = 5) {
+  const now = Date.now();
+  const cutoff = now - activeMinutes * 60 * 1000;
+  const allGuests = Object.values(guests);
+
+  const active = allGuests.filter(g => g.last_seen && new Date(g.last_seen).getTime() > cutoff);
+
+  // Sort all guests by last_seen descending to find the most recent
+  const sorted = allGuests
+    .filter(g => g.last_seen)
+    .sort((a, b) => new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime());
+
+  const lastVisitor = sorted[0] || null;
+
+  // Visitors in last 24h for trend
+  const dayAgo = now - 24 * 60 * 60 * 1000;
+  const last24h = allGuests.filter(g => g.last_seen && new Date(g.last_seen).getTime() > dayAgo).length;
+
+  return {
+    active_now: active.length,
+    active_minutes: activeMinutes,
+    last_24h: last24h,
+    total_anonymous: allGuests.length,
+    last_visitor: lastVisitor ? {
+      fingerprint: lastVisitor.fingerprint?.slice(0, 8) + "…",
+      last_seen: lastVisitor.last_seen,
+      search_count: lastVisitor.search_count || 0,
+      ip: lastVisitor.ip || null,
+    } : null,
+    active_visitors: active.map(g => ({
+      fingerprint: g.fingerprint?.slice(0, 8) + "…",
+      last_seen: g.last_seen,
+      search_count: g.search_count || 0,
+      ip: g.ip || null,
+    })).sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen)),
+  };
+}
+
 function getFunnelMetrics() {
   const allGuests = Object.values(guests);
   const allSubs = Object.values(subscriptions);
@@ -746,6 +787,7 @@ export {
   removeMember,
   addSeat,
   getTeamMembers,
+  getActiveVisitors,
   getFunnelMetrics,
   FREE_SEARCH_LIMIT,
   FREE_QUOTE_LIMIT,

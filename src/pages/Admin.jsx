@@ -316,6 +316,83 @@ function AdminSearchBar({ onNavigate }) {
 
 // ── Overview Tab ──
 
+function LiveVisitorsPanel() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(() => {
+    adminFetch("/admin/active-visitors?minutes=5")
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, 15000); // refresh every 15s
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  if (loading || !data) return null;
+
+  function timeAgo(iso) {
+    if (!iso) return "\u2014";
+    const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-5 ring-1 ring-gray-700">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-medium text-gray-400">Live Activity</h3>
+        <button onClick={refresh} className="text-xs text-gray-500 hover:text-gray-300">Refresh</button>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={`inline-block w-2 h-2 rounded-full ${data.active_now > 0 ? "bg-emerald-400 animate-pulse" : "bg-gray-600"}`} />
+            <span className="text-2xl font-bold text-white">{data.active_now}</span>
+          </div>
+          <div className="text-sm text-gray-400">On Site Now</div>
+          <div className="text-[10px] text-gray-600">Last 5 minutes</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold text-white">{data.last_24h}</div>
+          <div className="text-sm text-gray-400">Last 24h</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold text-white">{data.total_anonymous}</div>
+          <div className="text-sm text-gray-400">All-Time Visitors</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold text-white">{data.last_visitor ? timeAgo(data.last_visitor.last_seen) : "\u2014"}</div>
+          <div className="text-sm text-gray-400">Last Visit</div>
+          {data.last_visitor && (
+            <div className="text-[10px] text-gray-600">{data.last_visitor.search_count} searches</div>
+          )}
+        </div>
+      </div>
+      {data.active_visitors?.length > 0 && (
+        <div>
+          <div className="text-xs text-gray-500 mb-2">Active Visitors</div>
+          <div className="space-y-1">
+            {data.active_visitors.map((v, i) => (
+              <div key={i} className="flex items-center justify-between text-xs text-gray-400 bg-gray-900/50 rounded px-3 py-1.5">
+                <span className="font-mono">{v.fingerprint}</span>
+                <span>{v.search_count} searches</span>
+                <span>{timeAgo(v.last_seen)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ data, loading, error }) {
   if (loading) return <Loading />;
   if (error) return <ErrorBox msg={error} />;
@@ -334,6 +411,9 @@ function OverviewTab({ data, loading, error }) {
 
   return (
     <div className="space-y-6">
+      {/* Live Visitors */}
+      <LiveVisitorsPanel />
+
       {/* Revenue Row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-gray-800 rounded-lg p-5 ring-1 ring-amber-500/20">
