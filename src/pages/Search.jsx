@@ -229,6 +229,7 @@ export default function SearchPage() {
   const [error, setError] = useState(null);
   const [zeroResultGuidance, setZeroResultGuidance] = useState(null);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [displayQuery, setDisplayQuery] = useState("");
 
   // Sort, pagination
 
@@ -578,6 +579,7 @@ export default function SearchPage() {
     shownProductIds.current = new Set();
     pageRef.current = 1;
     lastQueryRef.current = trimmed;
+    setDisplayQuery(trimmed);
 
     const userMsg = { role: "user", content: trimmed, timestamp: Date.now() };
     const updatedMessages = hasConversation ? [...messages, userMsg] : [userMsg];
@@ -765,6 +767,7 @@ export default function SearchPage() {
     shownProductIds.current = new Set();
     pageRef.current = 1;
     lastQueryRef.current = "";
+    setDisplayQuery("");
     window.history.replaceState({}, "", "/Search");
     inputRef.current?.focus();
   };
@@ -1437,10 +1440,10 @@ export default function SearchPage() {
             {!loading && !listMode && visibleProducts.length > 0 && (
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {/* Search query header */}
-                {lastQueryRef.current && (
+                {displayQuery && (
                   <div className="mb-4 flex items-baseline justify-between">
                     <h2 className="text-base sm:text-lg font-medium text-white/80 truncate">
-                      {lastQueryRef.current}
+                      {displayQuery}
                     </h2>
                     <span className="text-xs text-white/30 ml-3 whitespace-nowrap shrink-0">
                       {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
