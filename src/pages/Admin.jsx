@@ -620,6 +620,46 @@ function OverviewTab({ data, loading, error }) {
 
 // ── Users Tab ──
 
+function UserSearchHistory({ userId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminFetch(`/admin/users/${userId}`)
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  if (loading) return <div className="px-3 py-4 text-xs text-gray-500">Loading search history...</div>;
+  if (!data) return <div className="px-3 py-4 text-xs text-gray-500">Failed to load.</div>;
+
+  const history = data.search_history || [];
+  const savedCount = data.saved_products_count || 0;
+
+  return (
+    <div className="px-3 py-4 bg-gray-900/50">
+      <div className="flex gap-4 mb-3 text-xs text-gray-500">
+        <span>{history.length} searches recorded</span>
+        <span>{savedCount} saved products</span>
+      </div>
+      {history.length === 0 ? (
+        <div className="text-xs text-gray-600">No search history yet.</div>
+      ) : (
+        <div className="space-y-1 max-h-64 overflow-y-auto">
+          {history.map((s, i) => (
+            <div key={i} className="flex items-center justify-between text-xs bg-gray-800/50 rounded px-3 py-1.5">
+              <span className="text-gray-300 flex-1 truncate">{s.query}</span>
+              <span className="text-gray-600 ml-3">{s.result_count} results</span>
+              <span className="text-gray-600 ml-3 whitespace-nowrap">{fmtTime(s.searched_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UsersTab({ data, loading, error, onRefresh }) {
   const [compEmail, setCompEmail] = useState("");
   const [compDays, setCompDays] = useState("30");
@@ -629,6 +669,7 @@ function UsersTab({ data, loading, error, onRefresh }) {
   const [userSearch, setUserSearch] = useState("");
   const [userFilter, setUserFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
+  const [expandedUser, setExpandedUser] = useState(null);
 
   const handleCompSubmit = async (e) => {
     e.preventDefault();
@@ -859,48 +900,62 @@ function UsersTab({ data, loading, error, onRefresh }) {
                 else if (isComped) planColor = "purple";
                 else if (isDeactivated) planColor = "red";
 
+                const isExpanded = expandedUser === uid;
                 return (
-                  <tr key={uid + "-" + i} className="text-gray-300 hover:bg-gray-700/50">
-                    <td className="py-2 px-3">{u.full_name || u.name || "\u2014"}</td>
-                    <td className="py-2 px-3 text-xs font-mono">{u.email}</td>
-                    <td className="py-2 px-3">{u.business_name || u.company || "\u2014"}</td>
-                    <td className="py-2 px-3"><Badge color={planColor}>{planLabel}</Badge></td>
-                    <td className="py-2 px-3 text-xs">{fmtDate(u.created_at || u.signup_date)}</td>
-                    <td className="py-2 px-3">
-                      <span className={`text-xs ${isDeactivated ? "text-red-400" : "text-emerald-400"}`}>
-                        {isDeactivated ? "Deactivated" : "Active"}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">
-                      <div className="flex items-center gap-1.5">
-                        {isDeactivated ? (
+                  <React.Fragment key={uid + "-" + i}>
+                    <tr className={`text-gray-300 hover:bg-gray-700/50 cursor-pointer ${isExpanded ? "bg-gray-700/30" : ""}`}
+                        onClick={() => setExpandedUser(isExpanded ? null : uid)}>
+                      <td className="py-2 px-3">
+                        <span className="mr-1.5 text-gray-600 text-xs">{isExpanded ? "\u25BC" : "\u25B6"}</span>
+                        {u.full_name || u.name || "\u2014"}
+                      </td>
+                      <td className="py-2 px-3 text-xs font-mono">{u.email}</td>
+                      <td className="py-2 px-3">{u.business_name || u.company || "\u2014"}</td>
+                      <td className="py-2 px-3"><Badge color={planColor}>{planLabel}</Badge></td>
+                      <td className="py-2 px-3 text-xs">{fmtDate(u.created_at || u.signup_date)}</td>
+                      <td className="py-2 px-3">
+                        <span className={`text-xs ${isDeactivated ? "text-red-400" : "text-emerald-400"}`}>
+                          {isDeactivated ? "Deactivated" : "Active"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          {isDeactivated ? (
+                            <button
+                              onClick={() => handleReactivate(uid)}
+                              disabled={actionLoading[uid] === "reactivate"}
+                              className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                            >
+                              {actionLoading[uid] === "reactivate" ? "..." : "Reactivate"}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDeactivate(uid)}
+                              disabled={actionLoading[uid] === "deactivate"}
+                              className="bg-red-700 hover:bg-red-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                            >
+                              {actionLoading[uid] === "deactivate" ? "..." : "Deactivate"}
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleReactivate(uid)}
-                            disabled={actionLoading[uid] === "reactivate"}
-                            className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                            onClick={() => handleDeleteUser(uid, u.email)}
+                            disabled={!!actionLoading[uid]}
+                            className="bg-gray-700 hover:bg-red-800 text-gray-400 hover:text-red-300 text-xs px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            title="Permanently delete"
                           >
-                            {actionLoading[uid] === "reactivate" ? "..." : "Reactivate"}
+                            {actionLoading[uid] === "delete" ? "..." : "Delete"}
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDeactivate(uid)}
-                            disabled={actionLoading[uid] === "deactivate"}
-                            className="bg-red-700 hover:bg-red-600 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
-                          >
-                            {actionLoading[uid] === "deactivate" ? "..." : "Deactivate"}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteUser(uid, u.email)}
-                          disabled={!!actionLoading[uid]}
-                          className="bg-gray-700 hover:bg-red-800 text-gray-400 hover:text-red-300 text-xs px-2 py-1 rounded disabled:opacity-50 transition-colors"
-                          title="Permanently delete"
-                        >
-                          {actionLoading[uid] === "delete" ? "..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={7} className="p-0">
+                          <UserSearchHistory userId={uid} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

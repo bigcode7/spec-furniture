@@ -2120,7 +2120,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       if (!user) return json(res, 404, { error: "User not found" });
 
       const sub = getSubscription(userId);
-      return json(res, 200, { user, subscription: sub });
+      const searchHistory = await getSearchHistory(userId);
+      const savedProducts = await getSavedProducts(userId);
+      return json(res, 200, { user, subscription: sub, search_history: searchHistory, saved_products_count: savedProducts.length });
     }
 
     // 4. POST /admin/comp — comp free Pro access
