@@ -461,6 +461,8 @@ function OverviewTab({ data, loading, error }) {
   const recentSignups = overview.recent_signups || [];
   const recentSearches = overview.recent_searches || [];
   const revenue = overview.revenue_summary || {};
+  const aiCosts = overview.ai_costs || {};
+  const costPerSearch = overview.cost_per_search || 0;
   const mrr = overview.mrr || 0;
   const arr = mrr * 12;
   const proUsers = overview.active_pro || 0;
@@ -499,9 +501,11 @@ function OverviewTab({ data, loading, error }) {
           <div className="text-[10px] text-gray-600 mt-1">Users → Pro</div>
         </div>
         <div className="bg-gray-800 rounded-lg p-5">
-          <div className="text-2xl font-bold text-white">${overview.api_cost_estimate != null ? overview.api_cost_estimate.toFixed(2) : "\u2014"}</div>
-          <div className="text-sm text-gray-400">AI Cost (est.)</div>
-          <div className="text-[10px] text-gray-600 mt-1">Haiku + embeddings</div>
+          <div className="text-2xl font-bold text-white">${aiCosts.today ? aiCosts.today.cost.toFixed(4) : overview.api_cost_estimate?.toFixed(2) || "\u2014"}</div>
+          <div className="text-sm text-gray-400">AI Cost Today</div>
+          <div className="text-[10px] text-gray-600 mt-1">
+            {costPerSearch > 0 ? `$${costPerSearch.toFixed(4)}/search` : "Haiku 4.5"} · {aiCosts.today?.calls || 0} calls
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,52 @@ import { getAllProducts, getProduct, getProductCount } from "../db/catalog-db.mj
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-haiku-4-5-20251001";
 
+// Haiku 4.5 pricing (per token)
+const HAIKU_INPUT_COST  = 0.80 / 1_000_000;  // $0.80 per 1M input tokens
+const HAIKU_OUTPUT_COST = 4.00 / 1_000_000;   // $4.00 per 1M output tokens
+
+// ── Token usage tracking ──
+let tokenUsage = { total_input: 0, total_output: 0, total_calls: 0, today_input: 0, today_output: 0, today_calls: 0, today_date: new Date().toISOString().slice(0, 10) };
+
+function trackTokenUsage(input, output) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (tokenUsage.today_date !== today) {
+    tokenUsage.today_input = 0;
+    tokenUsage.today_output = 0;
+    tokenUsage.today_calls = 0;
+    tokenUsage.today_date = today;
+  }
+  tokenUsage.total_input += input;
+  tokenUsage.total_output += output;
+  tokenUsage.total_calls++;
+  tokenUsage.today_input += input;
+  tokenUsage.today_output += output;
+  tokenUsage.today_calls++;
+}
+
+export function getAICostStats() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (tokenUsage.today_date !== today) {
+    tokenUsage.today_input = 0;
+    tokenUsage.today_output = 0;
+    tokenUsage.today_calls = 0;
+    tokenUsage.today_date = today;
+  }
+  const todayCost = (tokenUsage.today_input * HAIKU_INPUT_COST) + (tokenUsage.today_output * HAIKU_OUTPUT_COST);
+  const totalCost = (tokenUsage.total_input * HAIKU_INPUT_COST) + (tokenUsage.total_output * HAIKU_OUTPUT_COST);
+  const avgInputPerCall = tokenUsage.total_calls > 0 ? Math.round(tokenUsage.total_input / tokenUsage.total_calls) : 0;
+  const avgOutputPerCall = tokenUsage.total_calls > 0 ? Math.round(tokenUsage.total_output / tokenUsage.total_calls) : 0;
+  const costPerSearch = tokenUsage.total_calls > 0 ? totalCost / tokenUsage.total_calls : 0;
+
+  return {
+    today: { calls: tokenUsage.today_calls, input_tokens: tokenUsage.today_input, output_tokens: tokenUsage.today_output, cost: todayCost },
+    total: { calls: tokenUsage.total_calls, input_tokens: tokenUsage.total_input, output_tokens: tokenUsage.total_output, cost: totalCost },
+    per_search: { avg_input_tokens: avgInputPerCall, avg_output_tokens: avgOutputPerCall, avg_cost: costPerSearch },
+    model: MODEL,
+    pricing: { input_per_1m: 0.80, output_per_1m: 4.00 },
+  };
+}
+
 // ── Catalog Field Index ──
 let catalogFieldIndex = {};
 let catalogIndexPromptText = "";
@@ -861,7 +907,13 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
       return { search_fields: {}, exclude_fields: {}, semantic_query: query, response: "Searching catalog..." };
     }
 
-    console.log(`[ai-vector-search] Haiku responded in ${Date.now() - callStart}ms`);
+    // Track actual token usage for cost monitoring
+    const usage = data.usage || {};
+    if (usage.input_tokens) {
+      trackTokenUsage(usage.input_tokens, usage.output_tokens || 0);
+    }
+
+    console.log(`[ai-vector-search] Haiku responded in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
     const parsed = JSON.parse(jsonMatch[0]);
     return {
       search_fields: parsed.search_fields || {},
@@ -926,6 +978,9 @@ export async function translateListWithHaiku(items) {
 
     const data = await resp.json();
     const text = data.content?.[0]?.text || "";
+    const usage = data.usage || {};
+    if (usage.input_tokens) trackTokenUsage(usage.input_tokens, usage.output_tokens || 0);
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return {

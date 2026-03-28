@@ -56,7 +56,7 @@ import { importVerellen, getVerellenStatus, stopVerellen } from "./importers/ver
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores, vectorSearch } from "./lib/vector-store.mjs";
-import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache } from "./lib/ai-vector-search.mjs";
+import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache, getAICostStats } from "./lib/ai-vector-search.mjs";
 import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
 import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
 import { parseDimensions, batchParseDimensions, checkProductFit, checkArrangement, calculateFitScore, checkDeliveryFeasibility, suggestProportions, recommendRoomSize, getSpatialRules } from "./lib/spatial-engine.mjs";
@@ -2010,6 +2010,12 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, getActiveVisitors(minutes));
     }
 
+    // GET /admin/ai-costs — real token usage and cost breakdown
+    if (req.method === "GET" && req.url === "/admin/ai-costs") {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+      return json(res, 200, getAICostStats());
+    }
+
     // GET /admin/search-locations — where searches come from
     if (req.method === "GET" && (req.url === "/admin/search-locations" || req.url.startsWith("/admin/search-locations?"))) {
       if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
@@ -2050,9 +2056,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       // Searches
       const searchesToday = analytics.overview?.searches_today || 0;
       const searchesThisMonth = searchesByDay.reduce((sum, d) => sum + d.count, 0);
-      // API cost: only Pro searches cost money. Estimate from tier-1 searches.
-      const proSearchesThisMonth = Math.round(searchesThisMonth * (activePro / Math.max(1, totalUsers)));
-      const apiCostEstimate = proSearchesThisMonth * 0.008;
+      // Real AI cost from actual token usage tracking
+      const aiCosts = getAICostStats();
+      const apiCostEstimate = aiCosts.today.cost; // today's actual cost
 
       // Recent signups (10 most recent)
       const recentSignups = [...allUsers]
@@ -2078,6 +2084,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         searches_this_month: searchesThisMonth,
         pro_searches_this_month: proSearchesThisMonth,
         api_cost_estimate: apiCostEstimate,
+        ai_costs: aiCosts,
+        cost_per_search: aiCosts.per_search.avg_cost,
         searches_by_day: searchesByDay,
         recent_signups: recentSignups,
         recent_searches: recentSearches,
