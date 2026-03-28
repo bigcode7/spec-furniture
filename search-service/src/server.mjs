@@ -2495,7 +2495,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
           tier: 1,
           cacheHit: result.cache_hit || false,
-          ip,
+          ip: reqIp,
         });
         recordSearch(query);
       }
@@ -2913,7 +2913,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
           vendorIds: [...new Set(responseProducts.map(p => p.vendor_id))],
           tier,
           cacheHit: false,
-          ip,
+          ip: reqIp,
         });
         recordSearch(query);
       }
