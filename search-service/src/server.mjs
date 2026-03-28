@@ -108,6 +108,14 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+// ── Bot detection ──
+const BOT_UA_PATTERN = /bot|crawl|spider|slurp|googlebot|bingbot|yandex|baidu|duckduck|facebookexternalhit|twitterbot|linkedinbot|embedly|quora|pinterest|redditbot|applebot|semrush|ahrefs|mj12bot|dotbot|petalbot|bytespider|gptbot|claude|anthropic/i;
+
+function isBot(req) {
+  const ua = req.headers["user-agent"] || "";
+  return BOT_UA_PATTERN.test(ua);
+}
+
 // ── CORS allowed origins ──
 const ALLOWED_ORIGINS = new Set([
   "https://spekd.ai",
@@ -2472,16 +2480,18 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         products: finalProducts,
       };
 
-      // Track analytics
-      trackSearch({
-        query,
-        resultCount: finalProducts.length,
-        vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
-        tier: 1,
-        cacheHit: result.cache_hit || false,
-        ip,
-      });
-      recordSearch(query);
+      // Track analytics (skip bots)
+      if (!isBot(req)) {
+        trackSearch({
+          query,
+          resultCount: finalProducts.length,
+          vendorIds: [...new Set(finalProducts.map(p => p.vendor_id))],
+          tier: 1,
+          cacheHit: result.cache_hit || false,
+          ip,
+        });
+        recordSearch(query);
+      }
 
       // Increment free search counter for anonymous users (free_hook)
       if (searchTier === "free_hook") {
@@ -2888,16 +2898,18 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         products: responseProducts,
       };
 
-      // Track analytics
-      trackSearch({
-        query,
-        resultCount: responseProducts.length,
-        vendorIds: [...new Set(responseProducts.map(p => p.vendor_id))],
-        tier,
-        cacheHit: false,
-        ip,
-      });
-      recordSearch(query);
+      // Track analytics (skip bots)
+      if (!isBot(req)) {
+        trackSearch({
+          query,
+          resultCount: responseProducts.length,
+          vendorIds: [...new Set(responseProducts.map(p => p.vendor_id))],
+          tier,
+          cacheHit: false,
+          ip,
+        });
+        recordSearch(query);
+      }
 
       // Cache for 2 hours
       setCache(cacheKey, response, 2 * 60 * 60 * 1000);
