@@ -1077,18 +1077,19 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
 
   // Detect "outdoor" qualifier — if any furniture type term contains "outdoor",
   // products must have "outdoor" somewhere in their data to prevent indoor leakage.
-  // Also expand type terms: "outdoor sofa" → also match "sofa" if product has outdoor indicators.
+  // Also add base types (e.g. "sofa" from "outdoor sofa") so we catch outdoor products
+  // whose ai_furniture_type was tagged as just "sofa" instead of "outdoor sofa".
   const ftVals = searchFields.ai_furniture_type || [];
   const requireOutdoor = ftVals.some(v => v.toLowerCase().includes("outdoor"));
-
-  // For outdoor queries, also accept the base type (e.g. "sofa") if outdoor indicators present
-  if (requireOutdoor && ftVals.length > 0) {
-    const baseTypes = ftVals
-      .map(v => v.toLowerCase().replace(/^outdoor\s+/, "").trim())
-      .filter(v => v && !ftVals.includes(v));
-    for (const bt of baseTypes) {
-      if (!ftVals.includes(bt)) ftVals.push(bt);
+  if (requireOutdoor) {
+    const baseTypes = [];
+    for (const v of ftVals) {
+      const base = v.toLowerCase().replace(/^outdoor\s+/, "").trim();
+      if (base && !ftVals.some(existing => existing.toLowerCase() === base)) {
+        baseTypes.push(base);
+      }
     }
+    ftVals.push(...baseTypes);
   }
 
   // Build list of exclude filters
@@ -1113,24 +1114,10 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     const pName = product.product_name || "";
     if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
 
-    // Outdoor qualifier enforcement — product must have outdoor indicators
+    // Outdoor qualifier enforcement — product must mention "outdoor" somewhere
     if (requireOutdoor) {
-      const searchText = `${pName} ${product.ai_furniture_type || ""} ${product.category || ""} ${product.description || ""} ${product.ai_primary_material || ""} ${product.ai_distinctive_features || ""} ${product.ai_durability_assessment || ""} ${product.ai_construction_details || ""}`.toLowerCase();
-      const hasOutdoorIndicator = searchText.includes("outdoor") ||
-        searchText.includes("weather") ||
-        searchText.includes("sunbrella") ||
-        searchText.includes("marine") ||
-        searchText.includes("uv resist") ||
-        searchText.includes("uv rated") ||
-        searchText.includes("all-weather") ||
-        searchText.includes("patio") ||
-        searchText.includes("rust-resistant") ||
-        searchText.includes("rust resistant") ||
-        searchText.includes("powder-coat") ||
-        searchText.includes("teak") ||
-        searchText.includes("resin wicker") ||
-        searchText.includes("performance fabric");
-      if (!hasOutdoorIndicator) continue;
+      const searchText = `${pName} ${product.ai_furniture_type || ""} ${product.category || ""} ${product.description || ""}`.toLowerCase();
+      if (!searchText.includes("outdoor")) continue;
     }
 
     // Price filters
