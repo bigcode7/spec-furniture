@@ -1436,6 +1436,17 @@ export default function SearchPage() {
             {/* ── Product grid (single search mode) ── */}
             {!loading && !listMode && visibleProducts.length > 0 && (
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
+                {/* Search query header */}
+                {lastQueryRef.current && (
+                  <div className="mb-4 flex items-baseline justify-between">
+                    <h2 className="text-base sm:text-lg font-medium text-white/80 truncate">
+                      {lastQueryRef.current}
+                    </h2>
+                    <span className="text-xs text-white/30 ml-3 whitespace-nowrap shrink-0">
+                      {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
+                    </span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {visibleProducts.map((item, idx) => (
                     <ProductCard
