@@ -79,10 +79,16 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   doc.setFillColor(...COLORS.black);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
 
-  // Designer logo (top-right)
+  // Designer logo (top-right) — fit proportionally in a max 50x25mm box
   if (settings.logo_data_url) {
     try {
-      doc.addImage(settings.logo_data_url, "PNG", pageWidth - margin - 40, 20, 40, 20, undefined, "FAST");
+      const maxLogoW = 50, maxLogoH = 25;
+      const img = new Image();
+      img.src = settings.logo_data_url;
+      const aspect = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 2;
+      let logoW = maxLogoW, logoH = logoW / aspect;
+      if (logoH > maxLogoH) { logoH = maxLogoH; logoW = logoH * aspect; }
+      doc.addImage(settings.logo_data_url, "PNG", pageWidth - margin - logoW, 18, logoW, logoH, undefined, "FAST");
     } catch {
       // Logo failed — skip silently
     }

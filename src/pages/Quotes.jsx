@@ -574,15 +574,27 @@ export default function Quotes() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        if (file.size > 500_000) {
-                          alert("Logo must be under 500KB");
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          handleSaveSettings({ logo_data_url: reader.result });
+                        // Resize logo client-side to fit cleanly on quotes
+                        const MAX_W = 400, MAX_H = 200;
+                        const img = new Image();
+                        img.onload = () => {
+                          const scale = Math.min(MAX_W / img.width, MAX_H / img.height, 1);
+                          const w = Math.round(img.width * scale);
+                          const h = Math.round(img.height * scale);
+                          const canvas = document.createElement("canvas");
+                          canvas.width = w;
+                          canvas.height = h;
+                          const ctx = canvas.getContext("2d");
+                          ctx.drawImage(img, 0, 0, w, h);
+                          const dataUrl = canvas.toDataURL("image/png", 0.9);
+                          handleSaveSettings({ logo_data_url: dataUrl });
+                          URL.revokeObjectURL(img.src);
                         };
-                        reader.readAsDataURL(file);
+                        img.onerror = () => {
+                          alert("Could not load image. Try a different file.");
+                          URL.revokeObjectURL(img.src);
+                        };
+                        img.src = URL.createObjectURL(file);
                         e.target.value = "";
                       }}
                     />
