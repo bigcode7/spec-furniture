@@ -22,7 +22,7 @@ import { extractTags } from "../lib/product-tagger.mjs";
 import { normalizeToMasterCategory } from "../lib/category-normalizer.mjs";
 import { computeQualityScore } from "../lib/quality-scorer.mjs";
 import { inferCategoryFromName, detectQueryCategory } from "../lib/query-category-filter.mjs";
-import { isVendorBlocked } from "../config/vendor-blocklist.mjs";
+import { isVendorBlocked, isProductBlocked } from "../config/vendor-blocklist.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -977,8 +977,8 @@ export async function initCatalogDB() {
  * @returns {object} The normalized product
  */
 export function insertProduct(raw) {
-  // Reject products from blocked vendors
-  if (isVendorBlocked(raw.vendor_id)) return null;
+  // Reject products from blocked vendors (check all name fields)
+  if (isVendorBlocked(raw.vendor_id) || isProductBlocked(raw)) return null;
 
   const product = normalizeProduct(raw, raw.ingestion_source || "manual");
 
@@ -1014,8 +1014,8 @@ export function insertProducts(rawProducts) {
   let updated = 0;
 
   for (const raw of rawProducts) {
-    // Skip products from blocked vendors
-    if (isVendorBlocked(raw.vendor_id)) continue;
+    // Skip products from blocked vendors (check all name fields)
+    if (isVendorBlocked(raw.vendor_id) || isProductBlocked(raw)) continue;
 
     const product = normalizeProduct(raw, raw.ingestion_source || "manual");
 

@@ -45,7 +45,7 @@ import { runImageFixer, getImageFixerStatus, stopImageFixer } from "./jobs/image
 import { runDeepEnrichment, getDeepEnrichmentStatus, stopDeepEnrichment } from "./jobs/deep-enrichment-job.mjs";
 import { importBernhardt, getBernhardtStatus, stopBernhardt } from "./importers/bernhardt-importer.mjs";
 import { runCatalogCleanup, getCatalogCleanupStatus, stopCatalogCleanup } from "./jobs/catalog-cleanup-job.mjs";
-import { BLOCKED_VENDOR_IDS, isVendorBlocked } from "./config/vendor-blocklist.mjs";
+import { BLOCKED_VENDOR_IDS, isVendorBlocked, isProductBlocked } from "./config/vendor-blocklist.mjs";
 import { importMissingVendors, getMissingVendorsStatus, stopMissingVendors } from "./importers/missing-vendors-importer.mjs";
 import { importTheodoreAlexander, getTheodoreAlexanderStatus, stopTheodoreAlexander } from "./importers/theodore-alexander-importer.mjs";
 import { importRowe, getRoweStatus, stopRowe } from "./importers/rowe-importer.mjs";
@@ -178,6 +178,8 @@ async function runHeavyInit() {
         /\bmembership\b/i,
         /\bsubscription\b/i,
         /testing page/i,
+        /\|\s*(holly hunt|lee industries|four hands|visual comfort|loloi)/i,  // category pages scraped as products
+        /^(sofas|chairs|tables|beds|lighting|rugs|accessories)\s*[&|]/i,     // generic category page titles
       ];
       const scrapedPagePattern = /\|/;
       const finishCodePattern = /^(oak|cherry|mahogany)\s+\d/i;
@@ -216,14 +218,15 @@ async function runHeavyInit() {
         console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
       }
 
-      // Purge blocked vendors on every startup
+      // Purge blocked vendors on every startup — checks vendor_id, vendor_name, AND manufacturer_name
       {
         let blockedCount = 0;
         const blockedByVendor = {};
         for (const product of getAllProducts()) {
-          if (isVendorBlocked(product.vendor_id)) {
+          if (isProductBlocked(product)) {
+            const label = product.vendor_id || product.manufacturer_name || product.vendor_name || "unknown";
             forceDeleteProduct(product.id);
-            blockedByVendor[product.vendor_id] = (blockedByVendor[product.vendor_id] || 0) + 1;
+            blockedByVendor[label] = (blockedByVendor[label] || 0) + 1;
             blockedCount++;
           }
         }

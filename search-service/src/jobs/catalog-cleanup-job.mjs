@@ -11,7 +11,7 @@
  */
 
 import { tradeVendors } from "../config/trade-vendors.mjs";
-import { BLOCKED_VENDOR_IDS, isVendorBlocked } from "../config/vendor-blocklist.mjs";
+import { BLOCKED_VENDOR_IDS, isVendorBlocked, isProductBlocked } from "../config/vendor-blocklist.mjs";
 
 // ── Module state ──────────────────────────────────────────────
 
@@ -755,9 +755,9 @@ export async function runCatalogCleanup(catalogDB, options = {}) {
 
       const blockedToDelete = [];
       for (const product of catalogDB.getAllProducts()) {
-        if (isVendorBlocked(product.vendor_id)) {
+        if (isProductBlocked(product)) {
           blockedToDelete.push(product.id);
-          const vid = product.vendor_id;
+          const vid = product.vendor_id || product.manufacturer_name || "unknown";
           status.totals.blocked_vendors_purged[vid] = (status.totals.blocked_vendors_purged[vid] || 0) + 1;
           status.totals.total_blocked_removed++;
         }
@@ -768,7 +768,7 @@ export async function runCatalogCleanup(catalogDB, options = {}) {
       }
       // Also remove from our local array
       for (let i = allProducts.length - 1; i >= 0; i--) {
-        if (isVendorBlocked(allProducts[i].vendor_id)) {
+        if (isProductBlocked(allProducts[i])) {
           allProducts.splice(i, 1);
         }
       }

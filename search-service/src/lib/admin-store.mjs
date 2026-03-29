@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isVendorBlocked } from "../config/vendor-blocklist.mjs";
+import { isVendorBlocked, isProductBlocked } from "../config/vendor-blocklist.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");
