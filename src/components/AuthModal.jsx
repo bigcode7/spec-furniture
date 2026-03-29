@@ -443,7 +443,7 @@ export default function AuthModal() {
                   <div className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-3">Free account includes</div>
                   <div className="space-y-2">
                     {[
-                      "3 free AI-powered searches across 40,000+ products",
+                      "5 free AI-powered searches across 42,000+ products",
                       "7-day free Pro trial — no credit card required",
                       "Save favorites & compare products",
                       "Access to 20 premium trade vendors",

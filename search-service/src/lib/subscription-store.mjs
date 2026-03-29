@@ -16,7 +16,7 @@ const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const EVENTS_FILE = path.join(DATA_DIR, "subscription-events.json");
 const TEAMS_FILE = path.join(DATA_DIR, "teams.json");
 
-const FREE_SEARCH_LIMIT = 3;
+const FREE_SEARCH_LIMIT = 5;
 const FREE_QUOTE_LIMIT = 1;
 const FREE_QUOTE_ITEM_LIMIT = 5;
 

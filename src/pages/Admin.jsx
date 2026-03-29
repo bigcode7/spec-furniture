@@ -1464,7 +1464,7 @@ function FunnelTab({ data, loading, error }) {
 
   const stages = [
     { label: "Anonymous Visitors", value: data.anonymous_visitors, color: "gray" },
-    { label: "Used All 3 Free Searches", value: data.used_all_free_searches, color: "blue" },
+    { label: "Used All 5 Free Searches", value: data.used_all_free_searches, color: "blue" },
     { label: "Trial Signups", value: data.trial_signups, color: "purple" },
     { label: "Trial Active", value: data.trial_active, color: "amber" },
     { label: "Converted to Pro", value: data.converted_to_pro, color: "emerald" },
