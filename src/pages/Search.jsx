@@ -984,7 +984,7 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] sm:min-h-screen px-3 sm:px-4" style={{ marginTop: "-5vh" }}>
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[60vh] sm:min-h-[75vh] px-3 sm:px-4">
           <div className="w-full max-w-xl">
             {/* Copy */}
             <div className="text-center mb-10">
@@ -1030,8 +1030,8 @@ export default function SearchPage() {
                         className="flex h-8 w-8 items-center justify-center rounded-xl text-white/20 hover:bg-white/5 hover:text-gold/50 transition-colors" title="Visual search">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim()} className="btn-gold flex h-10 w-10 items-center justify-center rounded-xl transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
-                        <ArrowRight className="h-4 w-4" />
+                      <button type="submit" disabled={!inputValue.trim()} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
+                        Go <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>

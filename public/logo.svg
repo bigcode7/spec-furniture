@@ -12,6 +12,8 @@
     </linearGradient>
   </defs>
 
+  <!-- Full-bleed background — prevents white corners in PNG -->
+  <rect width="800" height="800" fill="#242018"/>
   <!-- Background — rounded square, warm dark -->
   <rect width="800" height="800" rx="160" fill="url(#bgGrad)"/>
 

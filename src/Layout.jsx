@@ -283,7 +283,7 @@ export default function Layout({ children, currentPageName }) {
           <div className="flex h-14 items-center justify-between gap-4">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain" />
+              <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain rounded-lg" />
               <span className="font-brand text-lg tracking-[0.2em] text-white/90 font-medium">
                 SPEKD
               </span>
