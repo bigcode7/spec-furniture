@@ -193,18 +193,7 @@ export async function initVectorStore() {
   if (ready || initializing) return;
   initializing = true;
 
-  await initPipeline();
-
-  if (unavailable) {
-    // Model not available — vector store runs in degraded mode
-    vectors = new Float32Array(0);
-    vectorIds = [];
-    idToIndex = new Map();
-    ready = false;
-    initializing = false;
-    return;
-  }
-
+  // Always try to load cached vectors from disk first
   const loaded = loadVectors();
   if (!loaded) {
     vectors = new Float32Array(0);
@@ -212,9 +201,13 @@ export async function initVectorStore() {
     idToIndex = new Map();
   }
 
-  ready = true;
+  // Try to load embedding model (needed for new embeddings, not for cached vectors)
+  await initPipeline();
+
+  // Store is ready if we have cached vectors OR embedding model is available
+  ready = loaded || !unavailable;
   initializing = false;
-  console.log(`[vector-store] Ready — ${vectorIds.length} vectors loaded`);
+  console.log(`[vector-store] Ready — ${vectorIds.length} vectors loaded, embedding model ${unavailable ? "unavailable" : "available"}`);
 }
 
 /**
@@ -249,13 +242,20 @@ export function buildProductText(product) {
  * @param {Iterable<object>} products - All products from catalog DB
  * @param {object} options
  * @param {boolean} [options.reindex=false] - Force re-embed all products
+ * @param {boolean} [options.skipEmbed=false] - Skip embedding new products (use cached vectors only)
  * @returns {Promise<{ total: number, new: number, skipped: number, timeMs: number }>}
  */
 export async function indexAllProducts(products, options = {}) {
   if (!ready) await initVectorStore();
-  if (unavailable) return { total: 0, new: 0, skipped: 0, timeMs: 0 };
 
-  const { reindex = false } = options;
+  const { reindex = false, skipEmbed = false } = options;
+
+  // If skipEmbed mode (e.g. Railway), just report cached vector count
+  if (skipEmbed) {
+    return { total: vectorIds.length, new: 0, skipped: vectorIds.length, timeMs: 0 };
+  }
+
+  if (unavailable) return { total: 0, new: 0, skipped: 0, timeMs: 0 };
   const startMs = Date.now();
 
   // Collect products that need embedding
@@ -409,11 +409,12 @@ export function removeVector(productId) {
  * @returns {Promise<Array<{ id: string, score: number }>>}
  */
 export async function vectorSearch(queryText, options = {}) {
-  if (unavailable || !ready || vectorIds.length === 0) return [];
+  if (!ready || vectorIds.length === 0) return [];
 
   const { limit = 50, candidateIds = null, filter = null } = options;
 
   const queryVec = await embed(queryText);
+  if (!queryVec) return []; // Embedding model unavailable — can't search
 
   // Brute-force cosine similarity (fast enough for 55k @ 384 dims)
   const scores = [];
