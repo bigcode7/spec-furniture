@@ -1525,8 +1525,9 @@ export default function SearchPage() {
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gold/60" /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
-                        className="btn-gold flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
-                        <Send className="h-3.5 w-3.5" />
+                        className="flex h-8 items-center justify-center gap-1 rounded-lg px-3 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ background: "#c4a882", color: "#1c1917" }}>
+                        <Send className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
@@ -1565,7 +1566,7 @@ export default function SearchPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed z-[71] w-52 rounded-xl border border-white/[0.1] bg-[#111118] shadow-2xl overflow-hidden"
+              className="fixed z-[71] w-52 rounded-xl border border-white/[0.1] bg-[#2a251f] shadow-2xl overflow-hidden"
               style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left }}
             >
               <div className="px-3 py-2 border-b border-white/[0.06]">
@@ -1667,9 +1668,9 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
   return (
     <div className="pb-3 border-b border-white/[0.04] mb-4">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-white/40">
-          <span className="text-white/60">"{query}"</span>
-          {" "}&mdash; {totalCount} result{totalCount !== 1 ? "s" : ""} across {vendorCount} vendor{vendorCount !== 1 ? "s" : ""}
+        <p className="text-[12px]" style={{ color: "#a89880" }}>
+          <span style={{ color: "#c4a882" }}>"{query}"</span>
+          {" "}&mdash; {totalCount} result{totalCount !== 1 ? "s" : ""}
         </p>
 
         <div className="flex items-center gap-3">
@@ -1685,7 +1686,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             <AnimatePresence>
               {showSortMenu && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl border border-white/[0.08] bg-[#111118] shadow-2xl p-1.5">
+                  className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl border border-white/[0.08] bg-[#2a251f] shadow-2xl p-1.5">
                   {SORT_OPTIONS.map((opt) => (
                     <button key={opt.key}
                       onClick={() => { setSortKey(opt.key); setShowSortMenu(false); }}
@@ -2138,7 +2139,7 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
           initial={{ opacity: 0, y: position === "above" ? 4 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: position === "above" ? 4 : -4 }}
-          className={`absolute z-50 w-full rounded-xl border border-white/[0.08] bg-[#111118] shadow-2xl overflow-hidden ${
+          className={`absolute z-50 w-full rounded-xl border border-white/[0.08] bg-[#2a251f] shadow-2xl overflow-hidden ${
             position === "above" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
