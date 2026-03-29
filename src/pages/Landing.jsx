@@ -3,8 +3,7 @@ import { createPageUrl } from "@/utils";
 import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, FileText, Send } from "lucide-react";
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
-import ParticleField from "@/components/ParticleField";
-import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
+// Subtle texture background — replaces particle field
 import { useAuth } from "@/lib/AuthContext";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
@@ -377,12 +376,7 @@ export default function Landing() {
           Sign In
         </button>
       )}
-      <AnimatedGradientBackground
-        Breathing
-        gradientColors={["#080c18", "#0f1e3d", "#1a2f5e", "#8b6914", "#b8860b"]}
-        gradientStops={[0, 30, 55, 80, 100]}
-      />
-      <ParticleField className="z-0 fixed" />
+      <Atmosphere />
 
       {/* ═══════════ HERO ═══════════ */}
       <motion.section
@@ -391,7 +385,7 @@ export default function Landing() {
         className="relative min-h-screen flex items-center justify-center"
       >
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[700px] pointer-events-none z-0"
-          style={{ background: "radial-gradient(ellipse, rgba(79,107,255,0.07) 0%, transparent 65%)", filter: "blur(80px)" }}
+          style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.05) 0%, transparent 65%)", filter: "blur(80px)" }}
         />
 
         <div className="relative z-10 page-wrap w-full py-20 md:py-32">
@@ -411,7 +405,7 @@ export default function Landing() {
                 style={{ transformOrigin: "right" }}
               />
               <span className="font-brand text-[11px] font-semibold uppercase tracking-[0.22em] text-gold gold-glow-text">
-                AI-Native Furniture Intelligence
+                Trade Furniture Sourcing
               </span>
               <motion.div
                 initial={{ scaleX: 0 }}
@@ -441,12 +435,12 @@ export default function Landing() {
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
             >
-              The future of
+              Source
               <br />
-              <span style={{ background: "linear-gradient(135deg, #4F6BFF, #5BB8B0)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 40px rgba(79,107,255,0.3))" }}>
-                furniture
-              </span>{" "}
-              sourcing
+              <span className="text-gold">
+                smarter
+              </span>,{" "}
+              beautifully
             </motion.h1>
 
             {/* Subtitle — live numbers */}
@@ -462,7 +456,7 @@ export default function Landing() {
                 : "Search thousands of products across trade vendors."
               }
               <br className="hidden md:block" />
-              AI-powered sourcing that thinks the way you do.
+              Sourcing that understands the way you design.
             </motion.p>
 
             {/* Search Bar */}
@@ -474,7 +468,7 @@ export default function Landing() {
               transition={{ duration: 0.5, delay: 1.2, ease: EASE }}
             >
               <div className="absolute -inset-10 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse, rgba(79,107,255,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
+                style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
               />
               <div className="search-bar-glow relative flex h-14 sm:h-16 md:h-[68px] items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-4 sm:px-6 group">
                 <div className="relative mr-3 sm:mr-4 hidden sm:block">
@@ -527,13 +521,13 @@ export default function Landing() {
       </motion.section>
 
       {/* ═══════════ BRAND MARQUEE ═══════════ */}
-      <section className="relative py-14 border-y border-white/[0.04]" style={{ background: "rgba(10,10,14,0.5)" }}>
+      <section className="relative py-14 border-y border-white/[0.04]" style={{ background: "rgba(16,14,12,0.5)" }}>
         <Reveal className="text-center mb-8">
           <span className="label-caps text-gold/50 tracking-[0.25em]">Trusted by the Trade</span>
         </Reveal>
         <div className="relative overflow-hidden">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-r from-[#08090E] to-transparent" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#08090E] to-transparent" />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-r from-[#141210] to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#141210] to-transparent" />
           <div className="brand-marquee whitespace-nowrap">
             {[...marqueeNames, ...marqueeNames].map((name, i) => (
               <span key={`${name}-${i}`} className="inline-flex items-center mx-8 text-base font-display text-white/[0.12] tracking-wide">
@@ -552,7 +546,7 @@ export default function Landing() {
           </Reveal>
           <Reveal delay={0.1} className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-5xl text-white">
-              Three steps to <span className="text-gold">smarter sourcing</span>
+              Three steps to <span className="text-gold">finding the right piece</span>
             </h2>
           </Reveal>
 
@@ -600,7 +594,7 @@ export default function Landing() {
       <FeatureSection
         kicker="Design Intelligence"
         title={<>It understands what<br /><span className="text-gold">you actually mean</span></>}
-        description="Type the way you'd talk to a colleague. Spekd's AI decodes your intent — material, style, budget, function — then expands it into dozens of search variants across every vendor simultaneously."
+        description="Type the way you'd talk to a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
         mockUI={<IntentDecoder />}
         icon={Brain}
       />
@@ -612,7 +606,7 @@ export default function Landing() {
       <FeatureSection
         kicker="Vendor Intelligence"
         title={<>Every vendor,<br /><span className="text-gold">verified at source</span></>}
-        description={`${totalVendors || "20+"} trade-only manufacturer catalogs, continuously crawled and indexed. Every product links directly to the vendor page — real images, real pricing, real availability.`}
+        description={`${totalVendors || "20+"} trade-only manufacturer catalogs, curated and kept current. Every product links directly to the vendor — real images, real pricing, verified at source.`}
         mockUI={<MockVendorUI vendors={vendors} />}
         icon={Shield}
         reverse
@@ -625,7 +619,7 @@ export default function Landing() {
       <FeatureSection
         kicker="Natural Language Search"
         title={<>Describe the vision,<br /><span className="text-gold">we find the pieces</span></>}
-        description="Search the way you'd describe a project to a colleague. Spekd's AI understands design intent, materials, styles, and budgets — then surfaces exactly the right products from every vendor at once."
+        description="Search the way you'd describe a project to a colleague. Spekd understands design intent — materials, styles, and budgets — then surfaces exactly the right pieces from every vendor at once."
         mockUI={<MockSearchUI demoProducts={demoProducts} />}
         icon={Search}
       />
@@ -633,7 +627,7 @@ export default function Landing() {
       {/* ═══════════ STATS — LIVE FROM CATALOG ═══════════ */}
       <section className="relative py-28 md:py-36">
         <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(79,107,255,0.04) 0%, transparent 60%)", filter: "blur(80px)" }}
+          style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(200,169,126,0.04) 0%, transparent 60%)", filter: "blur(80px)" }}
         />
         <div className="page-wrap">
           <Reveal className="text-center mb-6">
@@ -641,7 +635,7 @@ export default function Landing() {
           </Reveal>
           <Reveal delay={0.1} className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-5xl text-white">
-              Scale that <span className="text-gold">matters</span>
+              The catalog at your <span className="text-gold">fingertips</span>
             </h2>
           </Reveal>
 
@@ -654,7 +648,7 @@ export default function Landing() {
               <Reveal key={stat.label} delay={i * 0.1} className="text-center">
                 <div className="stat-glow py-8">
                   <div className="font-display text-5xl md:text-6xl lg:text-7xl text-white mb-3"
-                    style={{ textShadow: "0 0 40px rgba(79,107,255,0.2)" }}
+                    style={{ textShadow: "0 0 40px rgba(200,169,126,0.2)" }}
                   >
                     <AnimatedCounter target={stat.value} suffix={stat.suffix} />
                   </div>
@@ -702,7 +696,7 @@ export default function Landing() {
       {/* ═══════════ BOTTOM CTA ═══════════ */}
       <section className="relative py-28 md:py-36">
         <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(79,107,255,0.06) 0%, transparent 55%)", filter: "blur(100px)" }}
+          style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(200,169,126,0.06) 0%, transparent 55%)", filter: "blur(100px)" }}
         />
         <div className="page-wrap text-center relative z-10">
           <Reveal>
@@ -725,7 +719,7 @@ export default function Landing() {
           <Reveal delay={0.2} className="mt-12">
             <form onSubmit={handleSearch} className="mx-auto max-w-xl relative">
               <div className="absolute -inset-8 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse, rgba(79,107,255,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
+                style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
               />
               <div className="search-bar-glow relative flex h-14 items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-5 group">
                 <Search className="w-4 h-4 text-white/20 mr-3 shrink-0" />
@@ -766,7 +760,7 @@ export default function Landing() {
                 <span className="font-brand text-lg tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
               </div>
               <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">
-                AI-native furniture intelligence for the trade.
+                Curated trade furniture sourcing for designers.
               </p>
               <div className="flex items-center gap-3 mt-4">
                 <a href="https://linkedin.com/company/spekd" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors" title="LinkedIn">

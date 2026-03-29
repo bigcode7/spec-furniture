@@ -1074,7 +1074,7 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#08090E] sm:bg-[#08090E]/95 sm:backdrop-blur-xl">
+          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#141210] sm:bg-[#141210]/95 sm:backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
@@ -1128,7 +1128,7 @@ export default function SearchPage() {
                     msg.role === "user" ? (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                         className="inline-flex items-center rounded-full px-3 py-1 text-[11px] border cursor-default"
-                        style={{ background: "rgba(79,107,255,0.06)", borderColor: "rgba(79,107,255,0.12)", color: "rgba(255,255,255,0.5)" }}>
+                        style={{ background: "rgba(200,169,126,0.06)", borderColor: "rgba(200,169,126,0.12)", color: "rgba(255,255,255,0.5)" }}>
                         {msg.content.length > 50 ? msg.content.slice(0, 50) + "…" : msg.content}
                       </motion.span>
                     ) : (
@@ -1505,12 +1505,12 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#08090E] sm:bg-[#08090E]/95 sm:backdrop-blur-xl"
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#141210] sm:bg-[#141210]/95 sm:backdrop-blur-xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="max-w-7xl mx-auto px-4 py-3">
               <form onSubmit={handleSubmit} className="relative">
-                <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(79,107,255,0.08)]">
+                <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(200,169,126,0.08)]">
                   <div className="flex items-center">
                     <div className="ml-3.5 shrink-0"><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}

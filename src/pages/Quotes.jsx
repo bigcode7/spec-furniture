@@ -42,7 +42,7 @@ export default function Quotes() {
   // Gate: must be logged in to access quotes
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#08090E] text-white">
+      <div className="min-h-screen bg-[#141210] text-white">
         <div className="max-w-lg mx-auto px-4 py-32 flex flex-col items-center text-center">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-2xl mb-6"
@@ -312,7 +312,7 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#08090E] text-white">
+    <div className="min-h-screen bg-[#141210] text-white">
       <div className="max-w-7xl mx-auto px-4 py-10 pb-48 sm:pb-10">
         {/* Page Title */}
         <motion.h1

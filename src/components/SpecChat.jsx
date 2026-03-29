@@ -268,8 +268,8 @@ export default function SpecChat() {
             style={{
               background: "rgba(15, 17, 25, 0.85)",
               backdropFilter: "blur(24px)",
-              border: "1px solid rgba(79,107,255,0.15)",
-              boxShadow: "0 0 20px rgba(79,107,255,0.12), 0 0 40px rgba(79,107,255,0.04), 0 4px 20px rgba(0,0,0,0.4)",
+              border: "1px solid rgba(200,169,126,0.15)",
+              boxShadow: "0 0 20px rgba(200,169,126,0.12), 0 0 40px rgba(200,169,126,0.04), 0 4px 20px rgba(0,0,0,0.4)",
             }}
             aria-label="Open chat"
           >
@@ -332,7 +332,7 @@ export default function SpecChat() {
               onSubmit={handleSubmit}
               className="border-t border-gold/10 p-3"
             >
-              <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 transition-colors focus-within:border-gold/30 focus-within:shadow-[0_0_12px_rgba(79,107,255,0.1)]">
+              <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 transition-colors focus-within:border-gold/30 focus-within:shadow-[0_0_12px_rgba(200,169,126,0.1)]">
                 <textarea
                   ref={inputRef}
                   value={input}

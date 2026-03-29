@@ -103,7 +103,7 @@ export default function ParticleField({ className = "" }) {
         // Use simple radial fill instead of creating gradient objects every frame
         // Outer glow
         ctx.globalAlpha = alpha * 0.2;
-        ctx.fillStyle = "rgb(79, 107, 255)";
+        ctx.fillStyle = "rgb(200, 169, 126)";
         ctx.beginPath();
         ctx.arc(drawX, drawY, glowR, 0, Math.PI * 2);
         ctx.fill();
@@ -116,7 +116,7 @@ export default function ParticleField({ className = "" }) {
 
         // Core dot
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = "rgb(140, 160, 255)";
+        ctx.fillStyle = "rgb(220, 200, 170)";
         ctx.beginPath();
         ctx.arc(drawX, drawY, p.r * 0.6, 0, Math.PI * 2);
         ctx.fill();

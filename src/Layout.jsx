@@ -58,9 +58,9 @@ function AccountDropdown({ user, logout }) {
         <div
           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white/80"
           style={{
-            background: "rgba(79,107,255,0.15)",
-            border: "1px solid rgba(79,107,255,0.25)",
-            boxShadow: "0 0 12px rgba(79,107,255,0.1)",
+            background: "rgba(200,169,126,0.15)",
+            border: "1px solid rgba(200,169,126,0.25)",
+            boxShadow: "0 0 12px rgba(200,169,126,0.1)",
           }}
         >
           {initial}
@@ -88,8 +88,8 @@ function AccountDropdown({ user, logout }) {
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white/80 shrink-0"
                   style={{
-                    background: "rgba(79,107,255,0.15)",
-                    border: "1px solid rgba(79,107,255,0.25)",
+                    background: "rgba(200,169,126,0.15)",
+                    border: "1px solid rgba(200,169,126,0.25)",
                   }}
                 >
                   {initial}
@@ -318,7 +318,7 @@ export default function Layout({ children, currentPageName }) {
                         className="absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full"
                         style={{
                           background: "var(--gold)",
-                          boxShadow: "0 2px 12px rgba(79,107,255,0.4)",
+                          boxShadow: "0 2px 12px rgba(200,169,126,0.4)",
                         }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
@@ -410,7 +410,7 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#08090E]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#141210]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-around h-14">
           <Link
             to={createPageUrl("Search")}

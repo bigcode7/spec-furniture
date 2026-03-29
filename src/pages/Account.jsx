@@ -193,9 +193,9 @@ function ProfileSection({ user, onSave, saving, toast }) {
         <div
           className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold text-white/80 shrink-0"
           style={{
-            background: "rgba(79,107,255,0.15)",
-            border: "1px solid rgba(79,107,255,0.25)",
-            boxShadow: "0 0 24px rgba(79,107,255,0.1)",
+            background: "rgba(200,169,126,0.15)",
+            border: "1px solid rgba(200,169,126,0.25)",
+            boxShadow: "0 0 24px rgba(200,169,126,0.1)",
           }}
         >
           {initial}
@@ -317,8 +317,8 @@ function TradeDiscountsSection({ toast }) {
       <div
         className="rounded-xl p-5"
         style={{
-          background: "rgba(79,107,255,0.06)",
-          border: "1px solid rgba(79,107,255,0.12)",
+          background: "rgba(200,169,126,0.06)",
+          border: "1px solid rgba(200,169,126,0.12)",
         }}
       >
         <div className="flex items-center justify-between gap-4">
