@@ -10,11 +10,11 @@ const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spek
 const EASE = [0.22, 1, 0.36, 1];
 
 const EXAMPLE_SEARCHES = [
-  "swivel chairs",
-  "outdoor sofas",
-  "accent pieces",
-  "dining tables",
-  "bar stools",
+  "warm transitional accent chairs",
+  "coastal dining tables",
+  "performance fabric sectionals",
+  "modern brass bar stools",
+  "mid-century credenzas",
 ];
 
 // ── Helper: fetch search results ──
@@ -93,7 +93,7 @@ function IntentDecoder() {
         {/* Decoded arrow */}
         <div className="flex items-center gap-2 mb-5 px-1">
           <div className="h-px flex-1 bg-gradient-to-r from-gold/20 to-transparent" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/40">AI understands</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/40">Spekd understands</span>
           <div className="h-px flex-1 bg-gradient-to-l from-gold/20 to-transparent" />
         </div>
 
@@ -177,7 +177,7 @@ function MockSearchUI({ demoProducts }) {
         {/* Product cards grid — mirrors real Search.jsx ProductCard */}
         <div className="grid grid-cols-3 gap-2.5">
           {products.length > 0 ? products.map((item, i) => (
-            <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "rgba(15,17,25,0.7)" }}>
+            <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
               {/* Image */}
               <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
                 {item.image_url ? (
@@ -209,7 +209,7 @@ function MockSearchUI({ demoProducts }) {
           )) : (
             /* Loading skeleton */
             [0, 1, 2].map((i) => (
-              <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "rgba(15,17,25,0.7)" }}>
+              <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
                 <div style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }} />
                 <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
                 <div className="p-2.5 space-y-1.5">
@@ -229,9 +229,9 @@ function MockSearchUI({ demoProducts }) {
 // ── Mock Project UI ──
 function MockProjectUI() {
   const items = [
-    { name: "Living Room Sofa", status: "Sourced", color: "text-emerald-400 bg-emerald-500/10" },
+    { name: "Living Room Sofa", status: "Sourced", color: "text-[#8b9e6e] bg-[#8b9e6e]/10" },
     { name: "Dining Table", status: "In Review", color: "text-amber-400 bg-amber-500/10" },
-    { name: "Accent Chair ×2", status: "Searching", color: "text-blue-400 bg-blue-500/10" },
+    { name: "Accent Chair ×2", status: "Searching", color: "text-[#c4a882] bg-[#c4a882]/10" },
   ];
   return (
     <div className="mock-ui">
@@ -526,8 +526,8 @@ export default function Landing() {
           <span className="label-caps text-gold/50 tracking-[0.25em]">Trusted by the Trade</span>
         </Reveal>
         <div className="relative overflow-hidden">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-r from-[#141210] to-transparent" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#141210] to-transparent" />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-r from-[#1c1917] to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#1c1917] to-transparent" />
           <div className="brand-marquee whitespace-nowrap">
             {[...marqueeNames, ...marqueeNames].map((name, i) => (
               <span key={`${name}-${i}`} className="inline-flex items-center mx-8 text-base font-display text-white/[0.12] tracking-wide">
@@ -556,7 +556,7 @@ export default function Landing() {
                 step: "01",
                 icon: Search,
                 title: "Search",
-                desc: "Describe what you need in plain language. Our AI searches across every vendor catalog simultaneously — materials, styles, budgets, and dimensions.",
+                desc: "Describe what you need in your own words. Spekd searches across every vendor catalog simultaneously — materials, styles, budgets, and dimensions.",
               },
               {
                 step: "02",
@@ -592,9 +592,9 @@ export default function Landing() {
 
       {/* ═══════════ FEATURE SECTIONS ═══════════ */}
       <FeatureSection
-        kicker="Design Intelligence"
-        title={<>It understands what<br /><span className="text-gold">you actually mean</span></>}
-        description="Type the way you'd talk to a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
+        kicker="Design Language"
+        title={<>Search the way<br /><span className="text-gold">you actually think</span></>}
+        description="Type the way you'd brief a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
         mockUI={<IntentDecoder />}
         icon={Brain}
       />
@@ -604,7 +604,7 @@ export default function Landing() {
       </div>
 
       <FeatureSection
-        kicker="Vendor Intelligence"
+        kicker="Vendor Network"
         title={<>Every vendor,<br /><span className="text-gold">verified at source</span></>}
         description={`${totalVendors || "20+"} trade-only manufacturer catalogs, curated and kept current. Every product links directly to the vendor — real images, real pricing, verified at source.`}
         mockUI={<MockVendorUI vendors={vendors} />}
@@ -617,7 +617,7 @@ export default function Landing() {
       </div>
 
       <FeatureSection
-        kicker="Natural Language Search"
+        kicker="Search Your Way"
         title={<>Describe the vision,<br /><span className="text-gold">we find the pieces</span></>}
         description="Search the way you'd describe a project to a colleague. Spekd understands design intent — materials, styles, and budgets — then surfaces exactly the right pieces from every vendor at once."
         mockUI={<MockSearchUI demoProducts={demoProducts} />}
@@ -676,7 +676,7 @@ export default function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
               "Search across 40,000+ products from 20 trade vendors in seconds — no more browsing vendor sites one by one.",
-              "AI that understands design language. Say 'warm transitional accent chair' and get exactly what you mean.",
+              "Understands design language. Say 'warm transitional accent chair' and get exactly what you mean.",
               "Quote builder with polished PDF export — organize specs and pricing, ready for client review.",
             ].map((text, i) => (
               <Reveal key={i} delay={i * 0.1}>
@@ -740,7 +740,7 @@ export default function Landing() {
           <Reveal delay={0.25} className="mt-8">
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Link to={createPageUrl("Search")} className="pill-button btn-gold gap-2 text-sm">
-                <Sparkles className="h-4 w-4" /> Explore AI Search
+                <Sparkles className="h-4 w-4" /> Start Searching
               </Link>
               <Link to={createPageUrl("Quotes")} className="pill-button btn-outline gap-2 text-sm">
                 Quote Builder <ArrowRight className="h-4 w-4" />
@@ -774,7 +774,7 @@ export default function Landing() {
             <div>
               <h4 className="label-caps text-white/40 mb-4 text-[10px]">Product</h4>
               <div className="space-y-2.5">
-                <Link to={createPageUrl("Search")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">AI Search</Link>
+                <Link to={createPageUrl("Search")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Search</Link>
                 <Link to={createPageUrl("Quotes")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Quote Builder</Link>
               </div>
             </div>

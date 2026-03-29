@@ -87,11 +87,11 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
 }
 
 const EXAMPLE_SEARCHES = [
-  "swivel chairs",
-  "outdoor sofas",
-  "accent pieces",
-  "dining tables",
-  "bar stools",
+  "warm transitional accent chairs",
+  "coastal dining tables",
+  "performance fabric sectionals",
+  "modern brass bar stools",
+  "mid-century credenzas",
 ];
 
 const REFINEMENT_CHIPS = [
@@ -104,10 +104,10 @@ const REFINEMENT_CHIPS = [
 ];
 
 const LOADING_STEPS = [
-  { label: "Understanding your request...", duration: 0.4 },
-  { label: "Searching 40,000+ products...", duration: 0.6 },
-  { label: "Matching across 20 vendors...", duration: 1.0 },
-  { label: "Ranking results...", duration: 0.5 },
+  { label: "Reading your brief...", duration: 0.4 },
+  { label: "Searching 42,000+ products...", duration: 0.6 },
+  { label: "Matching across 20+ vendors...", duration: 1.0 },
+  { label: "Curating results...", duration: 0.5 },
 ];
 
 const SORT_OPTIONS = [
@@ -1074,7 +1074,7 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#141210] sm:bg-[#141210]/95 sm:backdrop-blur-xl">
+          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#1c1917] sm:bg-[#1c1917]/95 sm:backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
@@ -1231,7 +1231,7 @@ export default function SearchPage() {
             {!loading && listMode && listResults?.items?.length > 0 && (
               <motion.div key="list-results" {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {listResults.items.map((item, itemIdx) => {
-                  const bucketColor = bucketColors[itemIdx] || "#C9A96E";
+                  const bucketColor = bucketColors[itemIdx] || "#c4a882";
                   const isExpanded = expandedBuckets.has(itemIdx);
                   const selectedProduct = bucketSelections.get(itemIdx);
                   const maxCollapsed = 6;
@@ -1352,7 +1352,7 @@ export default function SearchPage() {
                     <div className="flex flex-wrap gap-2 mb-3">
                       {listResults.items.map((item, idx) => {
                         const sel = bucketSelections.get(idx);
-                        const color = bucketColors[idx] || "#C9A96E";
+                        const color = bucketColors[idx] || "#c4a882";
                         return (
                           <div key={idx} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"
                             style={{ background: sel ? `${color}15` : "rgba(255,255,255,0.02)", border: `1px solid ${sel ? color + "40" : "rgba(255,255,255,0.06)"}` }}>
@@ -1505,7 +1505,7 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#141210] sm:bg-[#141210]/95 sm:backdrop-blur-xl"
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#1c1917] sm:bg-[#1c1917]/95 sm:backdrop-blur-xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="max-w-7xl mx-auto px-4 py-3">
@@ -1602,7 +1602,7 @@ export default function SearchPage() {
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl"
             style={{
               background: "rgba(12, 13, 20, 0.95)",
-              border: "1px solid rgba(201,169,110,0.25)",
+              border: "1px solid rgba(196,168,130,0.25)",
               backdropFilter: "blur(20px)",
             }}
           >
@@ -1622,7 +1622,7 @@ export default function SearchPage() {
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl"
             style={{
               background: "rgba(12, 13, 20, 0.95)",
-              border: "1px solid rgba(201,169,110,0.25)",
+              border: "1px solid rgba(196,168,130,0.25)",
               backdropFilter: "blur(20px)",
             }}
           >
@@ -1650,7 +1650,7 @@ export default function SearchPage() {
       {subscriptionStatus === "activating" && (
         <div
           className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-2 text-xs font-medium"
-          style={{ background: "rgba(201,169,110,0.15)", color: "#C9A96E", borderBottom: "1px solid rgba(201,169,110,0.2)" }}
+          style={{ background: "rgba(196,168,130,0.15)", color: "#c4a882", borderBottom: "1px solid rgba(196,168,130,0.2)" }}
         >
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Your subscription is activating — refreshing momentarily...

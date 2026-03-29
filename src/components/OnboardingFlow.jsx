@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Sparkles, Search, Layers, FileText, Heart, Zap } from "lucide-react";
 
-const GOLD = "#C9A96E";
+const GOLD = "#c4a882";
 
 const PROJECT_TYPES = [
   { id: "residential", label: "Residential", emoji: "🏠" },
@@ -64,7 +64,7 @@ export default function OnboardingFlow({ show, onComplete }) {
         transition={{ duration: 0.3 }}
         className="relative w-full h-[100dvh] sm:h-auto sm:max-w-lg sm:mx-4 sm:max-h-[90vh] overflow-y-auto sm:rounded-2xl rounded-t-2xl p-6 sm:p-8"
         style={{
-          background: "rgba(16,17,24,0.98)",
+          background: "rgba(42,37,31,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
           paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
@@ -91,7 +91,7 @@ export default function OnboardingFlow({ show, onComplete }) {
               <div className="flex justify-center mb-4">
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
+                  style={{ background: "rgba(196,168,130,0.1)", border: "1px solid rgba(196,168,130,0.2)" }}
                 >
                   <Sparkles className="h-7 w-7" style={{ color: GOLD }} />
                 </div>
@@ -122,7 +122,7 @@ export default function OnboardingFlow({ show, onComplete }) {
                 className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
                 style={{
                   background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
-                  boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
+                  boxShadow: "0 4px 20px rgba(196,168,130,0.3)",
                 }}
               >
                 Get Started <ArrowRight className="h-4 w-4" />
@@ -145,8 +145,8 @@ export default function OnboardingFlow({ show, onComplete }) {
                       onClick={() => toggleProjectType(id)}
                       className="py-4 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2"
                       style={{
-                        background: selected ? "rgba(201,169,110,0.1)" : "rgba(255,255,255,0.02)",
-                        border: `1px solid ${selected ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.06)"}`,
+                        background: selected ? "rgba(196,168,130,0.1)" : "rgba(255,255,255,0.02)",
+                        border: `1px solid ${selected ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.06)"}`,
                         color: selected ? GOLD : "rgba(255,255,255,0.5)",
                       }}
                     >
@@ -161,7 +161,7 @@ export default function OnboardingFlow({ show, onComplete }) {
                 className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
                 style={{
                   background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
-                  boxShadow: "0 4px 20px rgba(201,169,110,0.3)",
+                  boxShadow: "0 4px 20px rgba(196,168,130,0.3)",
                 }}
               >
                 <Zap className="h-4 w-4" />

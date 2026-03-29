@@ -1,6 +1,6 @@
 import { Sparkles } from "lucide-react";
 
-const GOLD = "#C9A96E";
+const GOLD = "#c4a882";
 
 /**
  * UsageCounter — inline pill, NOT fixed positioned.

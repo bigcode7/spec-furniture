@@ -521,9 +521,9 @@ export default function QuotePanel({ open, onClose, onCountChange }) {
                     disabled={generating}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                     style={{
-                      background: "linear-gradient(135deg, rgba(201,169,110,0.25), rgba(201,169,110,0.15))",
-                      border: "1px solid rgba(201,169,110,0.3)",
-                      color: "#C9A96E",
+                      background: "linear-gradient(135deg, rgba(196,168,130,0.25), rgba(196,168,130,0.15))",
+                      border: "1px solid rgba(196,168,130,0.3)",
+                      color: "#c4a882",
                     }}
                     title="Client-facing PDF with retail/marked-up prices"
                   >

@@ -194,7 +194,7 @@ export default function AuthModal() {
                       type="button"
                       onClick={() => { setForgotMode(false); setForgotSent(false); setError(""); }}
                       className="text-xs font-medium transition-colors hover:opacity-80"
-                      style={{ color: "#C9A96E" }}
+                      style={{ color: "#c4a882" }}
                     >
                       Back to Sign In
                     </button>
@@ -236,7 +236,7 @@ export default function AuthModal() {
                       disabled={loading}
                       className="w-full flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold transition-all disabled:opacity-60"
                       style={{
-                        background: "linear-gradient(135deg, #C9A96E, #B8944F)",
+                        background: "linear-gradient(135deg, #c4a882, #B8944F)",
                         color: "#0A0B10",
                       }}
                     >
@@ -254,7 +254,7 @@ export default function AuthModal() {
                       type="button"
                       onClick={() => { setForgotMode(false); setError(""); }}
                       className="text-xs font-medium transition-colors hover:opacity-80"
-                      style={{ color: "#C9A96E" }}
+                      style={{ color: "#c4a882" }}
                     >
                       Back to Sign In
                     </button>
@@ -349,7 +349,7 @@ export default function AuthModal() {
                         type="button"
                         onClick={() => { setForgotMode(true); setError(""); }}
                         className="text-[11px] transition-colors hover:opacity-80"
-                        style={{ color: "#C9A96E" }}
+                        style={{ color: "#c4a882" }}
                       >
                         Forgot password?
                       </button>
@@ -382,7 +382,7 @@ export default function AuthModal() {
                   style={{
                     background: success
                       ? "linear-gradient(135deg, rgba(110,180,140,0.3), rgba(110,180,140,0.2))"
-                      : "linear-gradient(135deg, #C9A96E, #B8944F)",
+                      : "linear-gradient(135deg, #c4a882, #B8944F)",
                     color: success ? "rgba(110,180,140,0.9)" : "#0A0B10",
                   }}
                 >
@@ -419,14 +419,14 @@ export default function AuthModal() {
                   {mode === "signup" ? (
                     <p className="text-xs text-white/30 text-center">
                       Already have an account?{" "}
-                      <button onClick={() => switchMode("login")} className="text-gold/70 hover:text-gold transition-colors font-medium" style={{ color: "#C9A96E" }}>
+                      <button onClick={() => switchMode("login")} className="text-gold/70 hover:text-gold transition-colors font-medium" style={{ color: "#c4a882" }}>
                         Sign in
                       </button>
                     </p>
                   ) : (
                     <p className="text-xs text-white/30 text-center">
                       Don't have an account?{" "}
-                      <button onClick={() => switchMode("signup")} className="text-gold/70 hover:text-gold transition-colors font-medium" style={{ color: "#C9A96E" }}>
+                      <button onClick={() => switchMode("signup")} className="text-gold/70 hover:text-gold transition-colors font-medium" style={{ color: "#c4a882" }}>
                         Create one free
                       </button>
                     </p>

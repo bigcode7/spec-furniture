@@ -4,8 +4,8 @@ import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, X, Loader2, Chec
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
-const GOLD = "#C9A96E";
-const GOLD_SHADOW = "rgba(201,169,110,0.3)";
+const GOLD = "#c4a882";
+const GOLD_SHADOW = "rgba(196,168,130,0.3)";
 
 const PRO_FEATURES = [
   { icon: Zap, text: "Unlimited AI-powered search across 40,000+ trade products" },
@@ -215,7 +215,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full h-[100dvh] sm:h-auto sm:mx-4 sm:max-h-[90vh] overflow-y-auto sm:rounded-2xl rounded-t-2xl p-6 sm:p-8 sm:max-w-lg"
         style={{
-          background: "rgba(16,17,24,0.98)",
+          background: "rgba(42,37,31,0.98)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
           paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
@@ -236,7 +236,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
               <div className="flex justify-center mb-5">
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
+                  style={{ background: "rgba(196,168,130,0.1)", border: "1px solid rgba(196,168,130,0.2)" }}
                 >
                   <Sparkles className="h-6 w-6" style={{ color: GOLD }} />
                 </div>
@@ -270,8 +270,8 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   onClick={() => setBilling("monthly")}
                   className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
                   style={{
-                    background: billing === "monthly" ? "rgba(201,169,110,0.08)" : "transparent",
-                    border: `1px solid ${billing === "monthly" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    background: billing === "monthly" ? "rgba(196,168,130,0.08)" : "transparent",
+                    border: `1px solid ${billing === "monthly" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
                     color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
                   }}
                 >
@@ -281,15 +281,15 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   onClick={() => setBilling("annual")}
                   className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
                   style={{
-                    background: billing === "annual" ? "rgba(201,169,110,0.08)" : "transparent",
-                    border: `1px solid ${billing === "annual" ? "rgba(201,169,110,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    background: billing === "annual" ? "rgba(196,168,130,0.08)" : "transparent",
+                    border: `1px solid ${billing === "annual" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
                     color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
                   }}
                 >
                   $990/yr
                   <span
                     className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                    style={{ background: "rgba(201,169,110,0.2)", color: GOLD }}
+                    style={{ background: "rgba(196,168,130,0.2)", color: GOLD }}
                   >
                     Save $198
                   </span>

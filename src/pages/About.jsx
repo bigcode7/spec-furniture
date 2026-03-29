@@ -34,9 +34,9 @@ export default function About() {
             to={createPageUrl("Search")}
             className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all hover:brightness-110"
             style={{
-              background: "linear-gradient(135deg, rgba(201,169,110,0.25), rgba(201,169,110,0.15))",
-              border: "1px solid rgba(201,169,110,0.3)",
-              color: "#C9A96E",
+              background: "linear-gradient(135deg, rgba(196,168,130,0.25), rgba(196,168,130,0.15))",
+              border: "1px solid rgba(196,168,130,0.3)",
+              color: "#c4a882",
             }}
           >
             Start Searching

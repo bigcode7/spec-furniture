@@ -42,13 +42,13 @@ export default function Quotes() {
   // Gate: must be logged in to access quotes
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#141210] text-white">
+      <div className="min-h-screen bg-[#1c1917] text-white">
         <div className="max-w-lg mx-auto px-4 py-32 flex flex-col items-center text-center">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-2xl mb-6"
-            style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.2)" }}
+            style={{ background: "rgba(196,168,130,0.1)", border: "1px solid rgba(196,168,130,0.2)" }}
           >
-            <Lock className="h-7 w-7 text-[#C9A96E]" />
+            <Lock className="h-7 w-7 text-[#c4a882]" />
           </div>
           <h2 className="text-xl font-semibold text-white/90 mb-2">Sign in to build quotes</h2>
           <p className="text-sm text-white/40 mb-6 max-w-sm">
@@ -59,7 +59,7 @@ export default function Quotes() {
               onClick={() => navigateToLogin("signup")}
               className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:brightness-110"
               style={{
-                background: "linear-gradient(135deg, #C9A96E, #B8944F)",
+                background: "linear-gradient(135deg, #c4a882, #B8944F)",
                 color: "#0A0B10",
               }}
             >
@@ -312,7 +312,7 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#141210] text-white">
+    <div className="min-h-screen bg-[#1c1917] text-white">
       <div className="max-w-7xl mx-auto px-4 py-10 pb-48 sm:pb-10">
         {/* Page Title */}
         <motion.h1
@@ -517,7 +517,7 @@ export default function Quotes() {
             </div>
 
             {/* Designer Info — always visible */}
-            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(201,169,110,0.02)" }}>
+            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(196,168,130,0.02)" }}>
               <div className="text-[9px] uppercase tracking-[0.2em] text-gold/40 font-semibold mb-3">
                 Your Info (appears on PDF)
               </div>
@@ -859,9 +859,9 @@ export default function Quotes() {
                     disabled={generating}
                     className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 sm:w-auto w-full"
                     style={{
-                      background: "linear-gradient(135deg, rgba(201,169,110,0.25), rgba(201,169,110,0.15))",
-                      border: "1px solid rgba(201,169,110,0.3)",
-                      color: "#C9A96E",
+                      background: "linear-gradient(135deg, rgba(196,168,130,0.25), rgba(196,168,130,0.15))",
+                      border: "1px solid rgba(196,168,130,0.3)",
+                      color: "#c4a882",
                     }}
                     title="Client-facing PDF with retail/marked-up prices"
                   >

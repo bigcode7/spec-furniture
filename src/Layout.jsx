@@ -77,7 +77,7 @@ function AccountDropdown({ user, logout }) {
             transition={{ duration: 0.15 }}
             className="absolute right-0 top-full mt-2 w-64 rounded-xl overflow-hidden shadow-2xl z-50"
             style={{
-              background: "rgba(16,17,24,0.97)",
+              background: "rgba(42,37,31,0.97)",
               border: "1px solid rgba(255,255,255,0.08)",
               backdropFilter: "blur(20px)",
             }}
@@ -307,7 +307,7 @@ export default function Layout({ children, currentPageName }) {
                     {item.path === "Quotes" && quoteCount > 0 && (
                       <span
                         className="flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1"
-                        style={{ background: "rgba(201,169,110,0.25)", color: "#C9A96E" }}
+                        style={{ background: "rgba(196,168,130,0.25)", color: "#c4a882" }}
                       >
                         {quoteCount}
                       </span>
@@ -335,9 +335,9 @@ export default function Layout({ children, currentPageName }) {
                 <div
                   className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium"
                   style={{
-                    background: "rgba(201,169,110,0.08)",
-                    border: "1px solid rgba(201,169,110,0.2)",
-                    color: "#C9A96E",
+                    background: "rgba(196,168,130,0.08)",
+                    border: "1px solid rgba(196,168,130,0.2)",
+                    color: "#c4a882",
                   }}
                 >
                   <Sparkles className="h-3 w-3" />
@@ -351,9 +351,9 @@ export default function Layout({ children, currentPageName }) {
                   to={createPageUrl("Search") + "?upgrade=true"}
                   className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-semibold transition-all hover:brightness-110"
                   style={{
-                    background: "linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.1))",
-                    border: "1px solid rgba(201,169,110,0.3)",
-                    color: "#C9A96E",
+                    background: "linear-gradient(135deg, rgba(196,168,130,0.2), rgba(196,168,130,0.1))",
+                    border: "1px solid rgba(196,168,130,0.3)",
+                    color: "#c4a882",
                   }}
                 >
                   <Sparkles className="h-3 w-3" />
@@ -368,9 +368,9 @@ export default function Layout({ children, currentPageName }) {
                   onClick={() => navigateToLogin("signup")}
                   className="flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:brightness-110"
                   style={{
-                    background: "linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.1))",
-                    border: "1px solid rgba(201,169,110,0.3)",
-                    color: "#C9A96E",
+                    background: "linear-gradient(135deg, rgba(196,168,130,0.2), rgba(196,168,130,0.1))",
+                    border: "1px solid rgba(196,168,130,0.3)",
+                    color: "#c4a882",
                   }}
                 >
                   <UserPlus className="h-3.5 w-3.5" />
@@ -410,7 +410,7 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#141210]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#1c1917]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-around h-14">
           <Link
             to={createPageUrl("Search")}
@@ -427,7 +427,7 @@ export default function Layout({ children, currentPageName }) {
               <FileText className="h-5 w-5" />
               <span className="text-[10px] font-medium">Quotes</span>
               {quoteCount > 0 && (
-                <span className="absolute -top-0.5 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-bold px-1" style={{ background: "rgba(201,169,110,0.25)", color: "#C9A96E" }}>{quoteCount}</span>
+                <span className="absolute -top-0.5 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[9px] font-bold px-1" style={{ background: "rgba(196,168,130,0.25)", color: "#c4a882" }}>{quoteCount}</span>
               )}
             </Link>
           )}

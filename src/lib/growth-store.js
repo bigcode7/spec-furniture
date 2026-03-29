@@ -479,7 +479,7 @@ export function getQuoteSettings() {
     business_name: "",
     email: "",
     phone: "",
-    accent_color: "#C9A96E",
+    accent_color: "#c4a882",
     logo_data_url: "",
   });
 }
