@@ -441,7 +441,7 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 14. PLURAL FORMS: 'sofas' → sofa, 'chairs' → chair, 'tables' → table. Use singular in ai_furniture_type.
 
-15. YOU MUST ALWAYS USE search_fields for concrete attributes. NEVER return empty search_fields when the user mentions a furniture type, material, style, vendor, or physical attribute. These are the backbone of search accuracy. Returning empty search_fields is a CRITICAL ERROR that causes completely irrelevant results.
+15. YOU MUST ALWAYS USE search_fields for concrete attributes. NEVER return empty search_fields when the user mentions a furniture type, material, style, vendor, physical attribute, OR a room name (living room, bedroom, dining room, office). These are the backbone of search accuracy. Returning empty search_fields is a CRITICAL ERROR that causes zero results. For room-based queries like "living room furniture" or "bedroom set", ALWAYS expand ai_furniture_type to include all relevant types for that room. NEVER ask a clarifying question instead of returning results — give the broadest reasonable interpretation.
 
 16. SYNONYM COVERAGE: Always include BOTH the user's term AND common catalog synonyms in ai_furniture_type. Examples: 'coffee table' → ['coffee table', 'cocktail table']. 'couch' → ['sofa', 'couch']. 'sectional with chaise' → ['sectional'] (NOT 'chaise lounge' separately — a chaise is a component, not the product type).
 
@@ -717,7 +717,28 @@ User: 'glamorous Hollywood Regency living room'
 search_fields: { ai_furniture_type: ['sofa', 'accent chair', 'cocktail table', 'side table'], ai_style: ['hollywood regency'] }
 exclude_fields: {}
 semantic_query: 'glamorous hollywood regency velvet gold dramatic luxe jewel tones brass accents opulent'
-(ONLY expand to multiple types when user asks for a ROOM)
+(ROOM query → expand to multiple types. NEVER return empty search_fields for a room query.)
+
+User: 'living room furniture'
+search_fields: { ai_furniture_type: ['sofa', 'sectional', 'accent chair', 'cocktail table', 'coffee table', 'side table', 'console table', 'ottoman'] }
+exclude_fields: {}
+semantic_query: 'living room furniture sofa accent chairs cocktail table console comfortable curated'
+(Broad room query → expand to all relevant types. NEVER ask a follow-up question instead of returning results.)
+
+User: 'bedroom furniture'
+search_fields: { ai_furniture_type: ['bed', 'headboard', 'nightstand', 'dresser', 'chest', 'bench'] }
+exclude_fields: {}
+semantic_query: 'bedroom furniture bed nightstand dresser complete bedroom suite'
+
+User: 'dining room furniture'
+search_fields: { ai_furniture_type: ['dining table', 'dining chair', 'buffet', 'sideboard', 'credenza', 'bar stool'] }
+exclude_fields: {}
+semantic_query: 'dining room furniture table chairs buffet sideboard formal casual dining'
+
+User: 'home office furniture'
+search_fields: { ai_furniture_type: ['desk', 'office chair', 'bookcase', 'credenza', 'filing cabinet'] }
+exclude_fields: {}
+semantic_query: 'home office furniture desk chair bookcase credenza workspace'
 
 User: 'accent chair that makes a statement'
 search_fields: { ai_furniture_type: ['accent chair'] }
@@ -1319,7 +1340,41 @@ export async function searchPipeline(query, options = {}) {
       }
       results = applyVendorDiversity(candidates);
     } else {
-      console.log("[safety-net] Could not extract furniture type from query — returning empty");
+      // Room-based query fallback — expand to relevant furniture types
+      const ROOM_TYPES = {
+        "living room": ["sofa", "sectional", "accent chair", "cocktail table", "coffee table", "side table", "console", "ottoman"],
+        "bedroom": ["bed", "headboard", "nightstand", "dresser", "chest", "bench"],
+        "dining room": ["dining table", "dining chair", "buffet", "sideboard", "credenza", "bar stool"],
+        "dining": ["dining table", "dining chair", "buffet", "sideboard", "credenza", "bar stool"],
+        "home office": ["desk", "office chair", "bookcase", "credenza"],
+        "office": ["desk", "office chair", "bookcase", "credenza"],
+        "entryway": ["console table", "mirror", "bench"],
+        "nursery": ["dresser", "accent chair", "bookcase", "rug"],
+      };
+      let roomTypes = null;
+      for (const [room, types] of Object.entries(ROOM_TYPES)) {
+        if (qLower.includes(room)) { roomTypes = types; break; }
+      }
+      if (roomTypes) {
+        console.log("[safety-net] Room query detected, expanding to types:", roomTypes);
+        const safetyFields = { ai_furniture_type: roomTypes };
+        let candidates = fieldMatch(safetyFields, {}, excludeIds);
+        if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0) {
+          const searchText = haiku.semantic_query || query;
+          const candidateIds = new Set(candidates.map(p => p.id));
+          const ranked = await vectorSearch(searchText, { limit: candidates.length, candidateIds });
+          const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+          for (const product of candidates) {
+            product.relevance_score = rankedMap.get(product.id) || 0;
+            product._vector_score = product.relevance_score;
+          }
+          candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+        }
+        results = applyVendorDiversity(candidates);
+        console.log("[safety-net] Room query results:", results.length);
+      } else {
+        console.log("[safety-net] Could not extract furniture type from query — returning empty");
+      }
     }
   }
   console.log("Final result count:", results.length);
