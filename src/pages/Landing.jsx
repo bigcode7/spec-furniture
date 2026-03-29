@@ -425,7 +425,7 @@ export default function Landing() {
             >
               <div className="relative">
                 <div className="absolute -inset-6 rounded-full pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(196,168,130,0.12) 0%, transparent 70%)", filter: "blur(20px)" }} />
-                <img src="/logo.png" alt="SPEKD" className="relative h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain" style={{ filter: "drop-shadow(0 0 30px rgba(196,168,130,0.3))" }} />
+                <img src="/logo.png" alt="SPEKD" className="relative h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain rounded-[20%]" style={{ boxShadow: "0 0 40px rgba(196,168,130,0.15), 0 8px 32px rgba(0,0,0,0.4)" }} />
               </div>
               <span className="font-brand text-2xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
                 SPEKD
