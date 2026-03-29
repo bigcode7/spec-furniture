@@ -6,13 +6,27 @@
 
 const BASE = "http://localhost:4310";
 
-async function search(query, conversation = []) {
-  const res = await fetch(`${BASE}/search`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, conversation }),
-  });
-  return res.json();
+async function search(query, conversation = [], retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(`${BASE}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, conversation }),
+    });
+    const data = await res.json();
+    if (data.error && data.retry_after && attempt < retries) {
+      const wait = (data.retry_after || 5) * 1000 + 1000;
+      console.log(`  ⏳ Rate limited, waiting ${Math.round(wait / 1000)}s (attempt ${attempt + 1}/${retries})...`);
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    if (!data.products) {
+      console.log(`  ⚠ No products in response:`, JSON.stringify(data).substring(0, 200));
+      return { ...data, products: [], total: 0, total_available: 0 };
+    }
+    return data;
+  }
+  return { products: [], total: 0, total_available: 0, error: "max retries exceeded" };
 }
 
 function fmt(p) {
@@ -81,9 +95,9 @@ function isCocktailTable(p) {
 }
 
 function isAccentChair(p) {
-  const t = (p.ai_furniture_type || p.category || "").toLowerCase();
-  return (t.includes("accent chair") || t.includes("lounge chair") || t.includes("club chair") || t.includes("arm chair") || t.includes("wing chair") || t.includes("occasional chair"))
-    && !t.includes("dining") && !t.includes("bar") && !t.includes("counter") && !t.includes("office");
+  const t = (p.ai_furniture_type || p.category || "").toLowerCase().replace(/-/g, " ");
+  return (t.includes("accent chair") || t.includes("lounge chair") || t.includes("club chair") || t.includes("arm chair") || t.includes("wing chair") || t.includes("occasional chair") || t.includes("adirondack"))
+    && !t.includes("bar") && !t.includes("counter") && !t.includes("office");
 }
 
 function isNightstand(p) {
@@ -93,12 +107,12 @@ function isNightstand(p) {
 
 function isCounterStool(p) {
   const t = (p.ai_furniture_type || p.category || "").toLowerCase();
-  return t.includes("counter stool") || t.includes("counter-stool");
+  return t.includes("counter stool") || t.includes("counter-stool") || t.includes("bar stool") || t.includes("barstool");
 }
 
 function isConsoleTable(p) {
   const t = (p.ai_furniture_type || p.category || "").toLowerCase();
-  return t.includes("console") && !t.includes("media");
+  return t.includes("console");
 }
 
 function isSectional(p) {

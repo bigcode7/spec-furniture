@@ -444,8 +444,8 @@ export default function Landing() {
               <br />
               <span className="text-gold">
                 smarter
-              </span>,{" "}
-              beautifully
+              </span>{" "}
+              instantly
             </motion.h1>
 
             {/* Subtitle — live numbers */}

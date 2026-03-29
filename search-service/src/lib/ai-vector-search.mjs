@@ -415,7 +415,11 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 1. ONLY populate fields the user EXPLICITLY mentioned or directly implied. If the user says 'leather sofa' you populate ai_furniture_type and ai_primary_material. You do NOT add ai_formality, ai_back_style, ai_cushions, or any other field the user didn't mention.
 
-2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting', 'glamorous', 'dramatic', 'fresh', 'airy', 'statement', 'bold', 'sophisticated' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering.
+2. Abstract concepts like 'comfortable', 'luxury', 'kid friendly', 'cozy', 'quiet luxury', 'mountain house', 'inviting', 'glamorous', 'dramatic', 'fresh', 'airy', 'statement', 'bold', 'sophisticated' should go into the semantic_query string for vector ranking — NOT into search_fields. These are vibe words that should influence ranking, not hard filtering. However, when a context word STRONGLY implies specific styles, you SHOULD set ai_style and/or ai_mood as filters:
+   - 'mountain house/lodge/cabin' → ai_style: ['rustic', 'lodge', 'arts and crafts', 'transitional'] and ai_mood: ['warm', 'cozy'] — exclude_fields.ai_style: ['coastal']
+   - 'beach house/coastal' → ai_style: ['coastal'] — exclude_fields.ai_style: ['rustic', 'lodge']
+   - 'penthouse/glamorous' → ai_style: ['contemporary', 'luxury modern', 'art deco']
+   These context-driven filters ensure results match the project aesthetic, not just the furniture type.
 
 3. When in doubt between abstract vibes vs physical attributes, Rule 0 wins. 'Track arm' is physical → search_fields. 'Comfortable' is abstract → semantic_query. NEVER confuse the two.
 
@@ -1233,6 +1237,322 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
   return candidates;
 }
 
+// ══════════════════════════════════════════════════════════
+// SPECIAL INTENT DETECTION — runs BEFORE Haiku (no AI cost)
+// Three additive intents: Collection, Exact Product, Similarity
+// If none detected or ambiguous → falls through to normal pipeline
+// ══════════════════════════════════════════════════════════
+
+const KNOWN_VENDORS = [
+  { id: "hooker", names: ["hooker", "hooker furniture"] },
+  { id: "bernhardt", names: ["bernhardt"] },
+  { id: "theodore-alexander", names: ["theodore alexander"] },
+  { id: "caracole", names: ["caracole"] },
+  { id: "century", names: ["century", "century furniture"] },
+  { id: "baker", names: ["baker", "baker furniture"] },
+  { id: "vanguard", names: ["vanguard", "vanguard furniture"] },
+  { id: "lexington", names: ["lexington", "lexington home brands"] },
+  { id: "stickley", names: ["stickley"] },
+  { id: "universal", names: ["universal", "universal furniture"] },
+  { id: "bassett", names: ["bassett", "bassett furniture"] },
+  { id: "hickory-chair", names: ["hickory chair"] },
+  { id: "maitland-smith", names: ["maitland smith", "maitland-smith"] },
+  { id: "rowe", names: ["rowe", "rowe furniture"] },
+  { id: "cr-laine", names: ["cr laine", "c.r. laine"] },
+  { id: "hancock-moore", names: ["hancock moore", "hancock & moore"] },
+  { id: "verellen", names: ["verellen"] },
+  { id: "norwalk", names: ["norwalk", "norwalk furniture"] },
+  { id: "surya", names: ["surya"] },
+];
+
+const SIMILARITY_TRIGGERS = [
+  /\b(?:sofas?|chairs?|tables?|pieces?|furniture|items?|products?)\s+like\b/i,
+  /\bsimilar\s+to\b/i,
+  /\bpieces?\s+like\b/i,
+  /\bsomething\s+like\s+(?:the|a)\b/i,
+  /\bin\s+the\s+style\s+of\s+(?:the|a)\b/i,
+  /\blooks?\s+like\b/i,
+];
+
+/**
+ * Detect if query matches one of the three special intents.
+ * Returns { type, vendor, remainder } or null.
+ */
+function detectSpecialIntent(query) {
+  const q = query.trim();
+  const qLower = q.toLowerCase();
+
+  // ── INTENT 3: Similarity search (check first — "sofas like the Bernhardt Germain") ──
+  for (const pattern of SIMILARITY_TRIGGERS) {
+    if (pattern.test(q)) {
+      // Extract the reference description after the trigger phrase
+      const match = q.match(pattern);
+      if (match) {
+        const afterTrigger = q.slice(match.index + match[0].length).trim();
+        if (afterTrigger.length > 2) {
+          return { type: "similarity", referenceDesc: afterTrigger, fullQuery: q };
+        }
+      }
+    }
+  }
+
+  // ── Detect vendor name in query ──
+  let matchedVendor = null;
+  let vendorMatchStr = "";
+  for (const v of KNOWN_VENDORS) {
+    for (const name of v.names) {
+      if (qLower.includes(name) && name.length > vendorMatchStr.length) {
+        matchedVendor = v;
+        vendorMatchStr = name;
+      }
+    }
+  }
+
+  if (!matchedVendor) return null; // No vendor detected — fall through
+
+  // Extract the part of the query that isn't the vendor name
+  const remainder = qLower
+    .replace(new RegExp(vendorMatchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "")
+    .replace(/\bcollection\b/gi, "")
+    .replace(/\bby\b/gi, "")
+    .trim();
+
+  if (!remainder) return null; // Just a vendor name alone — fall through to normal
+
+  // ── INTENT 1: Collection search — vendor + short non-furniture-type term ──
+  // Collections are typically 1-3 word proper names (e.g., "Margaritaville", "Vanuatu", "Thomas Pheasant")
+  const FURNITURE_TYPES = new Set([
+    "sofa", "sofas", "couch", "sectional", "sectionals", "chair", "chairs",
+    "table", "tables", "bed", "beds", "desk", "desks", "dresser", "dressers",
+    "ottoman", "ottomans", "bench", "benches", "stool", "stools", "cabinet",
+    "cabinets", "credenza", "credenzas", "bookcase", "bookcases", "nightstand",
+    "nightstands", "console", "mirror", "rug", "rugs", "lamp", "lamps",
+    "headboard", "headboards", "buffet", "sideboard", "loveseat", "chaise",
+    "recliner", "recliners", "accent chair", "dining chair", "bar stool",
+    "counter stool", "coffee table", "dining table", "side table", "end table",
+    "console table", "cocktail table", "office chair", "swivel chair",
+    "lounge chair", "floor lamp", "table lamp", "chandelier", "pendant", "sconce",
+  ]);
+  const remainderWords = remainder.split(/\s+/).filter(Boolean);
+  const hasFurnitureType = remainderWords.some(w => FURNITURE_TYPES.has(w)) ||
+    FURNITURE_TYPES.has(remainder);
+
+  // If remainder contains "collection" keyword (already stripped) or NO furniture type words,
+  // it's likely a collection name
+  const originalHasCollection = qLower.includes("collection");
+  if (originalHasCollection || (!hasFurnitureType && remainderWords.length <= 4)) {
+    return { type: "collection", vendor: matchedVendor, collectionName: remainder, fullQuery: q };
+  }
+
+  // ── INTENT 2: Exact product search — vendor + specific product name ──
+  // If remainder has furniture-type words mixed with other words, it's likely a product name
+  if (remainderWords.length >= 2) {
+    return { type: "exact_product", vendor: matchedVendor, productName: remainder, fullQuery: q };
+  }
+
+  // Ambiguous — fall through to normal pipeline
+  return null;
+}
+
+/**
+ * Execute a special intent, returning a full response or null to fall through.
+ */
+async function executeSpecialIntent(intent, query, excludeIds, filters) {
+  const vectorStats = getVectorStoreStats();
+  const allProducts = getAllProducts();
+
+  if (intent.type === "collection") {
+    // ── COLLECTION SEARCH: vendor + collection name ──
+    console.log(`\n=== SPECIAL INTENT: COLLECTION ===`);
+    console.log(`Vendor: ${intent.vendor.id}, Collection: "${intent.collectionName}"`);
+
+    const collectionLower = intent.collectionName.toLowerCase();
+    let candidates = [];
+    for (const p of allProducts) {
+      if (excludeIds.has(p.id)) continue;
+      const vid = (p.vendor_id || "").toLowerCase();
+      const vname = (p.vendor_name || "").toLowerCase();
+      if (vid !== intent.vendor.id && !intent.vendor.names.some(n => vname.includes(n))) continue;
+      // Match collection in collection field, product_name, or description
+      const collection = (p.collection || "").toLowerCase();
+      const name = (p.product_name || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      if (collection.includes(collectionLower) || name.includes(collectionLower) || desc.includes(collectionLower)) {
+        candidates.push(p);
+      }
+    }
+    console.log(`Collection candidates: ${candidates.length}`);
+
+    if (candidates.length === 0) return null; // Fall through to normal pipeline
+
+    // Vector rank within collection
+    if (vectorStats.ready && vectorStats.total_vectors > 0) {
+      const candidateIds = new Set(candidates.map(p => p.id));
+      const ranked = await vectorSearch(query, { limit: candidates.length, candidateIds });
+      const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+      for (const p of candidates) {
+        p.relevance_score = rankedMap.get(p.id) || 0;
+      }
+      candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+    }
+
+    const vendorDisplay = intent.vendor.names[intent.vendor.names.length - 1] || intent.vendor.id;
+    const collectionDisplay = intent.collectionName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const responseText = `Showing ${candidates.length} products from the ${vendorDisplay.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} ${collectionDisplay} collection.`;
+
+    candidates = applyFacetFilters(candidates, filters);
+    return buildIntentResponse(query, candidates, responseText, "collection-match");
+  }
+
+  if (intent.type === "exact_product") {
+    // ── EXACT PRODUCT SEARCH: vendor + product name ──
+    console.log(`\n=== SPECIAL INTENT: EXACT PRODUCT ===`);
+    console.log(`Vendor: ${intent.vendor.id}, Product: "${intent.productName}"`);
+
+    const nameLower = intent.productName.toLowerCase();
+    const nameWords = nameLower.split(/\s+/).filter(Boolean);
+    let exactMatches = [];
+    let vendorProducts = [];
+
+    for (const p of allProducts) {
+      if (excludeIds.has(p.id)) continue;
+      const vid = (p.vendor_id || "").toLowerCase();
+      const vname = (p.vendor_name || "").toLowerCase();
+      const isVendor = vid === intent.vendor.id || intent.vendor.names.some(n => vname.includes(n));
+      if (!isVendor) continue;
+      vendorProducts.push(p);
+      const pname = (p.product_name || "").toLowerCase();
+      // Score: how many of the search words appear in the product name
+      const matchCount = nameWords.filter(w => pname.includes(w)).length;
+      if (matchCount >= Math.max(1, nameWords.length - 1)) {
+        exactMatches.push({ ...p, _exactScore: matchCount / nameWords.length });
+      }
+    }
+
+    exactMatches.sort((a, b) => b._exactScore - a._exactScore);
+    console.log(`Exact matches: ${exactMatches.length}, Vendor products: ${vendorProducts.length}`);
+
+    if (exactMatches.length === 0) return null; // Fall through
+
+    // Build result: exact matches first, then similar from same vendor, then cross-vendor similar
+    const usedIds = new Set(exactMatches.map(p => p.id));
+    let results = [...exactMatches];
+
+    // Add similar from same vendor via vector search
+    if (vectorStats.ready && vectorStats.total_vectors > 0 && exactMatches.length > 0) {
+      const vendorCandidateIds = new Set(vendorProducts.filter(p => !usedIds.has(p.id)).map(p => p.id));
+      if (vendorCandidateIds.size > 0) {
+        const ranked = await vectorSearch(query, { limit: 20, candidateIds: vendorCandidateIds });
+        for (const r of ranked) {
+          if (!usedIds.has(r.id)) {
+            const full = getProduct(r.id);
+            if (full) {
+              full.relevance_score = r.score;
+              results.push(full);
+              usedIds.add(r.id);
+            }
+          }
+        }
+      }
+
+      // Add cross-vendor similar via vector search (wide net)
+      const allCandidateIds = new Set(allProducts.filter(p => !usedIds.has(p.id) && !excludeIds.has(p.id)).map(p => p.id));
+      const crossRanked = await vectorSearch(query, { limit: 30, candidateIds: allCandidateIds });
+      for (const r of crossRanked) {
+        if (!usedIds.has(r.id)) {
+          const full = getProduct(r.id);
+          if (full) {
+            full.relevance_score = r.score;
+            results.push(full);
+            usedIds.add(r.id);
+          }
+        }
+      }
+    }
+
+    // Set relevance scores for exact matches
+    for (let i = 0; i < exactMatches.length; i++) {
+      results[i].relevance_score = 1.0 - (i * 0.001); // Ensure exact matches rank highest
+    }
+
+    const topName = exactMatches[0]?.product_name || intent.productName;
+    const vendorDisplay = exactMatches[0]?.vendor_name || intent.vendor.id;
+    const responseText = `Showing the ${topName} by ${vendorDisplay}, plus similar pieces.`;
+
+    results = applyFacetFilters(results, filters);
+    return buildIntentResponse(query, results, responseText, "exact-product-match");
+  }
+
+  if (intent.type === "similarity") {
+    // ── SIMILARITY SEARCH: pure vector similarity, cross-vendor ──
+    console.log(`\n=== SPECIAL INTENT: SIMILARITY ===`);
+    console.log(`Reference: "${intent.referenceDesc}"`);
+
+    if (!vectorStats.ready || vectorStats.total_vectors === 0) return null;
+
+    // Pure vector search across entire catalog
+    const allIds = new Set(allProducts.filter(p => !excludeIds.has(p.id)).map(p => p.id));
+    const ranked = await vectorSearch(intent.referenceDesc, { limit: 80, candidateIds: allIds });
+
+    let results = [];
+    for (const r of ranked) {
+      const full = getProduct(r.id);
+      if (full) {
+        full.relevance_score = r.score;
+        results.push(full);
+      }
+    }
+
+    console.log(`Similarity results: ${results.length}`);
+    if (results.length === 0) return null;
+
+    results = applyVendorDiversity(results);
+    const responseText = `Showing ${results.length} pieces with a similar aesthetic to what you described.`;
+
+    results = applyFacetFilters(results, filters);
+    return buildIntentResponse(query, results, responseText, "similarity-match");
+  }
+
+  return null; // Unknown intent type — fall through
+}
+
+/**
+ * Build a standardized response object for special intents.
+ */
+function buildIntentResponse(query, results, responseText, mode) {
+  const MAX_PAGE = 500;
+  const pageResults = results.slice(0, MAX_PAGE);
+  return {
+    query,
+    intent: { summary: responseText, product_type: null },
+    ai_filter: null,
+    ai_summary: responseText,
+    assistant_message: responseText,
+    total: pageResults.length,
+    total_available: results.length,
+    has_more: results.length > MAX_PAGE,
+    page: 1,
+    result_mode: mode,
+    tier_used: 1,
+    ai_called: false,
+    cache_hit: false,
+    facets: computeSimpleFacets(results),
+    diagnostics: {
+      ai_filter_used: false,
+      total_catalog_size: getProductCount(),
+      vector_indexed: getVectorStoreStats().total_vectors,
+      tier_used: 1,
+      search_fields: {},
+      exclude_fields: {},
+      semantic_query: query,
+      field_match_count: results.length,
+      haiku_response: responseText,
+      special_intent: mode,
+    },
+    products: pageResults,
+  };
+}
+
 // ── Search Pipeline ──
 
 /**
@@ -1246,6 +1566,19 @@ export async function searchPipeline(query, options = {}) {
   if (excludeIds.size === 0 && conversation.length === 0) {
     const cached = getCached(cacheKey);
     if (cached) return { ...cached, cache_hit: true };
+  }
+
+  // ── Pre-pipeline intent detection (runs BEFORE Haiku, no AI cost) ──
+  const specialIntent = detectSpecialIntent(query);
+  if (specialIntent) {
+    const intentResult = await executeSpecialIntent(specialIntent, query, excludeIds, filters);
+    if (intentResult) {
+      if (excludeIds.size === 0 && conversation.length === 0) {
+        setQueryCache(cacheKey, intentResult);
+      }
+      return intentResult;
+    }
+    // If intent execution returned null, fall through to normal pipeline
   }
 
   // ── Step 1: Haiku translates query → search_fields + semantic_query ──
