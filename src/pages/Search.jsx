@@ -1666,7 +1666,7 @@ export default function SearchPage() {
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
 function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
   return (
-    <div className="pb-3 border-b border-white/[0.04] mb-4">
+    <div className="sticky top-[57px] z-20 -mx-4 px-4 pt-3 pb-3 border-b border-white/[0.04] mb-4 bg-[#1c1917]/95 backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "#a89880" }}>
           <span style={{ color: "#c4a882" }}>"{query}"</span>
