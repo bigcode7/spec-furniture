@@ -976,10 +976,10 @@ export default function SearchPage() {
     <div className="relative min-h-screen">
       <AnimatedGradientBackground
         Breathing
-        gradientColors={["#080c18", "#0f1e3d", "#1a2f5e", "#8b6914", "#b8860b"]}
-        gradientStops={[0, 30, 55, 80, 100]}
-        breathingRange={8}
-        animationSpeed={0.015}
+        gradientColors={["#1c1917", "#242018", "#2a251f", "#3d3730", "#c4a882"]}
+        gradientStops={[0, 25, 50, 80, 100]}
+        breathingRange={6}
+        animationSpeed={0.012}
       />
 
       {/* ── LANDING STATE ── */}

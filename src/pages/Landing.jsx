@@ -416,13 +416,17 @@ export default function Landing() {
               />
             </motion.div>
 
-            {/* Brand name */}
+            {/* Logo mark + brand name */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
-              className="mb-6"
+              className="mb-8 flex flex-col items-center gap-4"
             >
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-full pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(196,168,130,0.12) 0%, transparent 70%)", filter: "blur(20px)" }} />
+                <img src="/logo.png" alt="SPEKD" className="relative h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain" style={{ filter: "drop-shadow(0 0 30px rgba(196,168,130,0.3))" }} />
+              </div>
               <span className="font-brand text-2xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
                 SPEKD
               </span>
