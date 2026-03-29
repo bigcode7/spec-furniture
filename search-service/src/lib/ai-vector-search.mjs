@@ -445,6 +445,8 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 16. SYNONYM COVERAGE: Always include BOTH the user's term AND common catalog synonyms in ai_furniture_type. Examples: 'coffee table' → ['coffee table', 'cocktail table']. 'couch' → ['sofa', 'couch']. 'sectional with chaise' → ['sectional'] (NOT 'chaise lounge' separately — a chaise is a component, not the product type).
 
+17. TYPE FOCUS: Do NOT mix the primary product type with individual subtypes in ai_furniture_type. If the user wants a 'reclining sectional', use ['sectional', 'reclining sectional'] — do NOT add 'power recliner' or 'recliner' because those are individual chairs that will flood the results via OR logic. The modifier (reclining, sleeper, storage) should stay with the base type, not bring in a completely different category.
+
 SEMANTIC_QUERY ONLY — these concepts NEVER go in search_fields:
 comfortable, luxury, cozy, inviting, statement, bold, dramatic, glamorous,
 airy, fresh, sophisticated, quiet luxury, kid friendly, family friendly,
@@ -739,6 +741,18 @@ User: 'home office furniture'
 search_fields: { ai_furniture_type: ['desk', 'office chair', 'bookcase', 'credenza', 'filing cabinet'] }
 exclude_fields: {}
 semantic_query: 'home office furniture desk chair bookcase credenza workspace'
+
+User: 'reclining sectional'
+search_fields: { ai_furniture_type: ['sectional', 'reclining sectional'] }
+exclude_fields: {}
+semantic_query: 'reclining sectional power motion recliner mechanism modular seating'
+(The user wants a SECTIONAL that reclines. Do NOT include individual recliners — 'power recliner' would flood results with chairs. Keep ai_furniture_type focused on the primary product type: sectional.)
+
+User: 'sleeper sofa'
+search_fields: { ai_furniture_type: ['sleeper sofa', 'sleeper', 'pull out'] }
+exclude_fields: {}
+semantic_query: 'sleeper sofa pull out bed convertible guest room dual purpose'
+(Sleeper is a specific subtype — include terms that catch sofa beds and pull-out sleepers.)
 
 User: 'accent chair that makes a statement'
 search_fields: { ai_furniture_type: ['accent chair'] }
