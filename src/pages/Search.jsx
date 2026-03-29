@@ -87,11 +87,11 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
 }
 
 const EXAMPLE_SEARCHES = [
-  "warm transitional accent chairs",
-  "coastal dining tables",
-  "performance fabric sectionals",
-  "modern brass bar stools",
-  "mid-century credenzas",
+  "leather sofa transitional",
+  "coastal accent chair",
+  "walnut dining table",
+  "upholstered sectional",
+  "statement accent chair",
 ];
 
 const REFINEMENT_CHIPS = [

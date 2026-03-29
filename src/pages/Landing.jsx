@@ -10,11 +10,11 @@ const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spek
 const EASE = [0.22, 1, 0.36, 1];
 
 const EXAMPLE_SEARCHES = [
-  "warm transitional accent chairs",
-  "coastal dining tables",
-  "performance fabric sectionals",
-  "modern brass bar stools",
-  "mid-century credenzas",
+  "leather sofa transitional",
+  "coastal accent chair",
+  "walnut dining table",
+  "upholstered sectional",
+  "statement accent chair",
 ];
 
 // ── Helper: fetch search results ──
