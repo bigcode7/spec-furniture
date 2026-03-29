@@ -371,7 +371,8 @@ export default function Landing() {
       {!user && (
         <button
           onClick={() => navigateToLogin("login")}
-          className="fixed top-5 right-6 z-50 text-sm text-white/40 hover:text-white/70 transition-colors"
+          className="fixed top-5 right-6 z-50 text-sm font-medium px-5 py-2 rounded-full transition-all hover:bg-[#c4a882]/10"
+          style={{ color: "#c4a882", border: "1px solid rgba(196,168,130,0.4)" }}
         >
           Sign In
         </button>
@@ -459,7 +460,7 @@ export default function Landing() {
                 ? `Search ${totalProducts.toLocaleString()}+ products across ${totalVendors} trade vendors.`
                 : "Search thousands of products across trade vendors."
               }
-              <br className="hidden md:block" />
+              <br />
               Sourcing that understands the way you design.
             </motion.p>
 
@@ -493,23 +494,25 @@ export default function Landing() {
 
             {/* Suggested searches */}
             <motion.div
-              className="mt-6 flex flex-wrap justify-center gap-x-3 sm:gap-x-4 gap-y-2 px-4 sm:px-0"
+              className="mt-6 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 1.4, ease: EASE }}
             >
-              {EXAMPLE_SEARCHES.map((s, i) => (
-                <span key={s} className="flex items-center gap-2">
-                  {i > 0 && <span className="text-gold/30 text-xs">·</span>}
-                  <Link
-                    to={`${createPageUrl("Search")}?q=${encodeURIComponent(s)}`}
-                    className="text-sm transition-colors hover:text-gold/70 gold-hover-underline"
-                    style={{ color: "var(--warm-gray)" }}
-                  >
-                    {s}
-                  </Link>
-                </span>
-              ))}
+              <div className="flex items-center justify-start sm:justify-center gap-x-3 sm:gap-x-4 whitespace-nowrap">
+                {EXAMPLE_SEARCHES.map((s, i) => (
+                  <span key={s} className="flex items-center gap-2 shrink-0">
+                    {i > 0 && <span className="text-gold/30 text-xs">·</span>}
+                    <Link
+                      to={`${createPageUrl("Search")}?q=${encodeURIComponent(s)}`}
+                      className="text-sm transition-colors hover:text-gold/70 gold-hover-underline"
+                      style={{ color: "var(--warm-gray)" }}
+                    >
+                      {s}
+                    </Link>
+                  </span>
+                ))}
+              </div>
             </motion.div>
           </div>
         </div>
