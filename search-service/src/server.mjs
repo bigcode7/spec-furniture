@@ -219,19 +219,22 @@ async function runHeavyInit() {
       }
 
       // Purge blocked vendors on every startup — checks vendor_id, vendor_name, AND manufacturer_name
+      // Collect IDs first to avoid mutating the Map while iterating (which skips entries)
       {
-        let blockedCount = 0;
+        const blockedIds = [];
         const blockedByVendor = {};
         for (const product of getAllProducts()) {
           if (isProductBlocked(product)) {
             const label = product.vendor_id || product.manufacturer_name || product.vendor_name || "unknown";
-            forceDeleteProduct(product.id);
+            blockedIds.push(product.id);
             blockedByVendor[label] = (blockedByVendor[label] || 0) + 1;
-            blockedCount++;
           }
         }
-        if (blockedCount > 0) {
-          console.log(`[startup] Purged ${blockedCount} products from blocked vendors:`);
+        for (const id of blockedIds) {
+          forceDeleteProduct(id);
+        }
+        if (blockedIds.length > 0) {
+          console.log(`[startup] Purged ${blockedIds.length} products from blocked vendors:`);
           for (const [vid, count] of Object.entries(blockedByVendor)) {
             console.log(`[startup]   ${vid}: ${count} products removed`);
           }
