@@ -29,7 +29,9 @@ export function setShowPricing(show) {
   try {
     localStorage.setItem(SHOW_PRICING_KEY, String(show));
     window.dispatchEvent(new CustomEvent("spec-show-pricing-change", { detail: show }));
-  } catch {}
+  } catch (e) {
+    console.error("[trade-pricing] Error saving show pricing preference:", e.message);
+  }
 }
 
 // ── Read / Write ──
@@ -38,7 +40,9 @@ export function getTradeDiscounts() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch (e) {
+    console.error("[trade-pricing] Error reading trade discounts:", e.message);
+  }
   return { default_discount: 0, vendors: {} };
 }
 
@@ -46,7 +50,9 @@ export function saveTradeDiscounts(data) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent("spec-trade-change"));
-  } catch {}
+  } catch (e) {
+    console.error("[trade-pricing] Error saving trade discounts:", e.message);
+  }
 }
 
 export function getVendorDiscount(vendorId) {
@@ -87,7 +93,9 @@ export function setPricingMode(mode) {
   try {
     sessionStorage.setItem(PRICING_MODE_KEY, mode);
     window.dispatchEvent(new CustomEvent("spec-pricing-mode-change", { detail: mode }));
-  } catch {}
+  } catch (e) {
+    console.error("[trade-pricing] Error saving pricing mode:", e.message);
+  }
 }
 
 // ── Client Markup ──
@@ -104,7 +112,9 @@ export function getClientMarkup() {
 export function setClientMarkup(percent) {
   try {
     localStorage.setItem(MARKUP_KEY, String(percent));
-  } catch {}
+  } catch (e) {
+    console.error("[trade-pricing] Error saving client markup:", e.message);
+  }
 }
 
 // ── Price Calculation ──
