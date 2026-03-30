@@ -104,10 +104,10 @@ const REFINEMENT_CHIPS = [
 ];
 
 const LOADING_STEPS = [
-  { label: "Reading your brief...", duration: 0.4 },
-  { label: "Searching 42,000+ products...", duration: 0.6 },
-  { label: "Matching across 20+ vendors...", duration: 1.0 },
-  { label: "Curating results...", duration: 0.5 },
+  { label: "Reading your brief..." },
+  { label: "Searching 42,000+ products..." },
+  { label: "Matching across 20+ vendors..." },
+  { label: "Curating results..." },
 ];
 
 const SORT_OPTIONS = [
@@ -665,12 +665,14 @@ export default function SearchPage() {
 
     window.history.replaceState({}, "", `/Search?q=${encodeURIComponent(trimmed)}`);
 
-    try {
-      for (let i = 0; i < LOADING_STEPS.length - 1; i++) {
-        await new Promise((r) => setTimeout(r, LOADING_STEPS[i].duration * 1000));
-        setLoadingStep(i + 1);
-      }
+    // Cycle loading step labels on a fast interval while API call runs
+    let stepIdx = 0;
+    const stepTimer = setInterval(() => {
+      stepIdx = (stepIdx + 1) % LOADING_STEPS.length;
+      setLoadingStep(stepIdx);
+    }, 800);
 
+    try {
       // Build conversation for the AI brain — includes result summaries
       // so the AI knows what the designer is currently looking at
       const apiConvo = updatedMessages.map(msg => {
@@ -741,6 +743,7 @@ export default function SearchPage() {
       }
     } catch (err) {
       if (err.status === 402 || err.message === "subscription_required") {
+        clearInterval(stepTimer);
         const errData = err.data || {};
         if (errData.error === "trial_required") {
           setPaywallMode("trial_required");
@@ -752,6 +755,7 @@ export default function SearchPage() {
         return;
       }
       if (err.status === 429 || err.message === "rate_limited") {
+        clearInterval(stepTimer);
         const seconds = err.retryAfter || 10;
         setError(`You're searching too fast. Please wait ${seconds} seconds.`);
         setLoading(false);
@@ -759,6 +763,7 @@ export default function SearchPage() {
       }
       setError("Search failed. Please try again.");
     } finally {
+      clearInterval(stepTimer);
       setLoading(false);
       setLoadingStep(0);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1236,15 +1241,15 @@ export default function SearchPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {Array.from({ length: IS_MOBILE ? 8 : 15 }, (_, i) => (
                     <div key={i} className="product-card overflow-hidden" style={{ contain: "layout style paint" }}>
-                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }}>
-                        <div className="absolute inset-0 animate-pulse" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
+                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "rgba(196,168,130,0.03)" }}>
+                        <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(196,168,130,0.06) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s ease-in-out infinite" }} />
                       </div>
-                      <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
+                      <div className="h-px bg-gradient-to-r from-transparent via-gold/15 to-transparent" />
                       <div className="p-3 sm:p-4 space-y-2">
-                        <div className="h-2.5 w-16 rounded bg-white/[0.06]" />
-                        <div className="h-3 w-full rounded bg-white/[0.04]" />
-                        <div className="h-3 w-2/3 rounded bg-white/[0.03]" />
-                        <div className="h-3 w-10 rounded bg-white/[0.06]" />
+                        <div className="h-2.5 w-16 rounded" style={{ backgroundColor: "rgba(196,168,130,0.08)" }} />
+                        <div className="h-3 w-full rounded" style={{ backgroundColor: "rgba(196,168,130,0.04)" }} />
+                        <div className="h-3 w-2/3 rounded" style={{ backgroundColor: "rgba(196,168,130,0.03)" }} />
+                        <div className="h-3 w-10 rounded" style={{ backgroundColor: "rgba(196,168,130,0.06)" }} />
                       </div>
                     </div>
                   ))}

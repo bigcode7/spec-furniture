@@ -5,7 +5,7 @@ const externalSearchServiceUrl = import.meta.env.VITE_SEARCH_SERVICE_URL || "htt
 
 // ── Search result cache — 5 min TTL ──
 const _searchCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 10 * 60 * 1000;
 
 function getCached(key) {
   const entry = _searchCache.get(key);
