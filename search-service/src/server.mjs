@@ -292,7 +292,8 @@ async function runHeavyInit() {
       else if (p.category) hasCategoryOnly++;
       else untagged++;
     }
-    console.log(`[startup] Search-eligible products: ${tagged + hasCategoryOnly} (${tagged} AI-tagged + ${hasCategoryOnly} category-only) | ${untagged} excluded (no type/category)`);
+    const excluded = hasCategoryOnly + untagged;
+    console.log(`[startup] Search-eligible products: ${tagged} (ai_furniture_type required) | ${excluded} excluded (${hasCategoryOnly} category-only + ${untagged} no type at all)`);
   }
 
   // Build autocomplete index from catalog data
@@ -1510,11 +1511,26 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const crawlStatus = getCrawlStatus();
       const apiStats = getApiCallStats();
       const vectorStats = getVectorStoreStats();
+      // Compute search eligibility counts
+      let aiTagged = 0, categoryOnly = 0, untagged = 0;
+      for (const p of getAllProducts()) {
+        if (p.ai_furniture_type) aiTagged++;
+        else if (p.category) categoryOnly++;
+        else untagged++;
+      }
       return json(res, 200, {
         catalog: dbStats,
         vectors: vectorStats,
         crawl: crawlStatus,
         api_calls: apiStats,
+        search_eligibility: {
+          total: aiTagged + categoryOnly + untagged,
+          searchable: aiTagged,
+          ai_tagged: aiTagged,
+          category_only_excluded: categoryOnly,
+          no_type_excluded: untagged,
+          total_excluded: categoryOnly + untagged,
+        },
         cache: {
           size: resultCache.size,
           hits: cacheHits,
@@ -4577,6 +4593,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const allTerms = new Set([...colorSet, ...textureSet, ...vibeSet]);
 
       const fieldMatched = allProducts.filter(p => {
+        if (!p.ai_furniture_type) return false; // Tagged-only: require ai_furniture_type
         const pColor = (p.color || "").toLowerCase();
         const pMaterial = (p.material || "").toLowerCase();
         const pStyle = (p.style || "").toLowerCase();

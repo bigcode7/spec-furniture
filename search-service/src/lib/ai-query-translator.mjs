@@ -1275,9 +1275,9 @@ function strictAIFilter(products, filter) {
 
   if (aiFilters.length === 0) return null; // No AI filters to apply
 
-  // Only filter products that have AI tags — keep untagged out of strict results
-  const taggedProducts = products.filter(p => p.ai_visual_analysis);
-  const untaggedProducts = products.filter(p => !p.ai_visual_analysis);
+  // Tagged-only filter: strictly require ai_furniture_type on all search results
+  const taggedProducts = products.filter(p => p.ai_furniture_type);
+  const untaggedProducts = products.filter(p => !p.ai_furniture_type);
 
   // Apply ALL filters strictly (intersection)
   let strict = taggedProducts.filter(p => aiFilters.every(f => f.test(p)));

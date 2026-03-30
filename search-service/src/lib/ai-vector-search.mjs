@@ -1230,9 +1230,9 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     const pName = product.product_name || "";
     if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
 
-    // Tagged-only filter: exclude products without ai_furniture_type
-    // Untagged products cause wrong-type results and hurt search accuracy
-    if (!product.ai_furniture_type && !(product.category && product.category.length > 0)) continue;
+    // Tagged-only filter: STRICTLY require ai_furniture_type
+    // Products without ai_furniture_type are excluded from ALL search results until tagged
+    if (!product.ai_furniture_type) continue;
 
     // Outdoor qualifier enforcement — product must mention "outdoor" somewhere
     if (requireOutdoor) {
@@ -1475,6 +1475,7 @@ async function executeSpecialIntent(intent, query, excludeIds, filters) {
     let candidates = [];
     for (const p of allProducts) {
       if (excludeIds.has(p.id)) continue;
+      if (!p.ai_furniture_type) continue; // Tagged-only: require ai_furniture_type
       const vid = (p.vendor_id || "").toLowerCase();
       const vname = (p.vendor_name || "").toLowerCase();
       if (vid !== intent.vendor.id && !intent.vendor.names.some(n => vname.includes(n))) continue;
@@ -1561,7 +1562,7 @@ async function executeSpecialIntent(intent, query, excludeIds, filters) {
       }
 
       // Add cross-vendor similar via vector search (wide net)
-      const allCandidateIds = new Set(allProducts.filter(p => !usedIds.has(p.id) && !excludeIds.has(p.id)).map(p => p.id));
+      const allCandidateIds = new Set(allProducts.filter(p => p.ai_furniture_type && !usedIds.has(p.id) && !excludeIds.has(p.id)).map(p => p.id));
       const crossRanked = await vectorSearch(query, { limit: 30, candidateIds: allCandidateIds });
       for (const r of crossRanked) {
         if (!usedIds.has(r.id)) {
@@ -1596,7 +1597,7 @@ async function executeSpecialIntent(intent, query, excludeIds, filters) {
     if (!vectorStats.ready || vectorStats.total_vectors === 0) return null;
 
     // Pure vector search across entire catalog
-    const allIds = new Set(allProducts.filter(p => !excludeIds.has(p.id)).map(p => p.id));
+    const allIds = new Set(allProducts.filter(p => p.ai_furniture_type && !excludeIds.has(p.id)).map(p => p.id));
     const ranked = await vectorSearch(intent.referenceDesc, { limit: 80, candidateIds: allIds });
 
     let results = [];
@@ -1898,9 +1899,9 @@ export async function searchPipeline(query, options = {}) {
   const queriedTypes = haiku.search_fields.ai_furniture_type;
   if (queriedTypes && Array.isArray(queriedTypes) && queriedTypes.length > 0 && results.length > 0) {
     const TYPE_CATEGORY_MAP = {
-      "sofa": ["sofas", "sofa"],
-      "sectional": ["sectionals", "sectional"],
-      "loveseat": ["loveseats", "loveseat"],
+      "sofa": ["sofas", "sofa", "sectionals", "sectional"],
+      "sectional": ["sectionals", "sectional", "sofas", "sofa"],
+      "loveseat": ["loveseats", "loveseat", "sofas", "sofa"],
       "accent chair": ["accent-chairs", "accent chair", "accent chairs"],
       "dining chair": ["dining-chairs", "dining chair", "dining chairs"],
       "office chair": ["office-chairs", "office chair"],
@@ -1910,7 +1911,7 @@ export async function searchPipeline(query, options = {}) {
       "bench": ["benches", "bench"],
       "coffee table": ["coffee-tables", "coffee table", "cocktail table", "cocktail-tables"],
       "cocktail table": ["coffee-tables", "cocktail-tables", "coffee table", "cocktail table"],
-      "dining table": ["dining-tables", "dining table"],
+      "dining table": ["dining-tables", "dining table", "dining"],
       "side table": ["side-tables", "side table", "end table", "end-tables"],
       "end table": ["end-tables", "side-tables", "end table", "side table"],
       "console table": ["console-tables", "console table", "console"],
