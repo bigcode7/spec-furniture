@@ -548,6 +548,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ── Security headers (applied to every non-OPTIONS response) ──
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
     // Rate limiting on search endpoints (fast path — no DB lookup)
     const reqIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
     if (req.method === "POST" && (req.url === "/search" || req.url === "/smart-search" || req.url === "/conversational-search" || req.url === "/list-search")) {
