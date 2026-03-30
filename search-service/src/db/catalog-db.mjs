@@ -957,14 +957,18 @@ export async function initCatalogDB() {
 
   // SAFETY NET: If we have too few products and CATALOG_URL is available, force download
   if (products.size < 10000) {
-    console.log(`[catalog-db] SAFETY NET: Only ${products.size} products loaded but CATALOG_URL is set — forcing download`);
-    // Delete whatever bad file is on disk
+    console.log(`[catalog-db] SAFETY NET: Only ${products.size} products loaded — forcing re-download`);
     try { if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH); } catch {}
-    catalogDownloadedFromURL = false;
-    await downloadCatalogIfMissing();
     products = new Map();
     invertedIndex = new Map();
-    loaded = loadFromDisk();
+    vendorCrawlMeta = new Map();
+    catalogDownloadedFromURL = false;
+    await downloadCatalogIfMissing();
+    // downloadCatalogIfMissing now loads products directly into Map
+    // Only fall back to disk parse if download didn't populate the Map
+    if (products.size === 0) {
+      loadFromDisk();
+    }
     console.log(`[catalog-db] After forced re-download: ${products.size} products`);
   }
 
