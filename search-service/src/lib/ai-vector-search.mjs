@@ -1654,6 +1654,7 @@ export async function searchPipeline(query, options = {}) {
     //   ai_arm_style, ai_back_style, ai_leg_style, ai_cushions, ai_construction_details,
     //   vendor_name, price/dimension filters
     // RELAXABLE: only soft vibe fields Haiku may have inferred beyond what the user asked
+    let relaxedStyle = null; // Track if style was relaxed so we can add counter-exclusions
     if (candidates.length === 0) {
       const vibeRelaxOrder = [
         "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
@@ -1664,8 +1665,35 @@ export async function searchPipeline(query, options = {}) {
       for (const dropField of vibeRelaxOrder) {
         if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
           console.log(`[vibe-relax] Dropping ${dropField} (0 results)`);
+          if (dropField === "ai_style") {
+            relaxedStyle = relaxed[dropField]; // Save the style terms before dropping
+          }
           relaxed[dropField] = null;
-          candidates = fieldMatch(relaxed, haiku.exclude_fields, excludeIds);
+          // When style is relaxed, exclude products explicitly tagged with conflicting styles
+          const mergedExclude = { ...(haiku.exclude_fields || {}) };
+          if (dropField === "ai_style" && relaxedStyle) {
+            const STYLE_CONFLICTS = {
+              traditional: ["modern", "contemporary", "mid-century", "mid century", "industrial", "minimalist"],
+              modern: ["traditional", "rustic", "colonial", "victorian", "country", "farmhouse"],
+              contemporary: ["traditional", "rustic", "colonial", "victorian", "country", "farmhouse"],
+              "mid-century": ["traditional", "rustic", "victorian", "colonial", "farmhouse"],
+              "mid century": ["traditional", "rustic", "victorian", "colonial", "farmhouse"],
+              rustic: ["modern", "contemporary", "mid-century", "mid century", "minimalist", "glam"],
+              coastal: ["rustic", "industrial", "gothic", "lodge"],
+              transitional: [],
+            };
+            const conflicting = new Set();
+            for (const styleTerm of relaxedStyle) {
+              const conflicts = STYLE_CONFLICTS[styleTerm.toLowerCase()] || [];
+              conflicts.forEach(c => conflicting.add(c));
+            }
+            if (conflicting.size > 0) {
+              const existingExcludes = mergedExclude.ai_style || [];
+              mergedExclude.ai_style = [...new Set([...existingExcludes, ...conflicting])];
+              console.log(`[style-relax] Excluding conflicting styles: [${[...conflicting].join(", ")}]`);
+            }
+          }
+          candidates = fieldMatch(relaxed, mergedExclude, excludeIds);
           console.log(`[vibe-relax] After dropping ${dropField}: ${candidates.length} candidates`);
           if (candidates.length > 0) break;
         }
