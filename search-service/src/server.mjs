@@ -3221,6 +3221,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     }
 
     if (req.method === "POST" && req.url === "/chat") {
+      const rl = checkRateLimit(reqIp + ":chat", 20);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
       const messages = Array.isArray(body.messages) ? body.messages : [];
       if (messages.length === 0) return json(res, 400, { error: "messages required" });
@@ -3229,6 +3231,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     }
 
     if (req.method === "POST" && req.url === "/visual-search") {
+      const rl = checkRateLimit(reqIp + ":visual", 10);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
       if (!body.image) return json(res, 400, { error: "image (base64) required" });
       const result = await withTimeout(aiVisualSearch(body.image, body.mime_type || "image/jpeg"), 90000, null);
@@ -3236,12 +3240,16 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     }
 
     if (req.method === "POST" && req.url === "/room-plan") {
+      const rl = checkRateLimit(reqIp + ":room", 10);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
       const plan = await withTimeout(aiRoomPlan(body), 120000, null);
       return json(res, 200, { plan });
     }
 
     if (req.method === "POST" && req.url === "/design-brief") {
+      const rl = checkRateLimit(reqIp + ":brief", 15);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
       const brief = await withTimeout(aiDesignBrief(body), 45000, null);
       return json(res, 200, { brief });
@@ -3250,6 +3258,8 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // Old AI autocomplete replaced by local autocomplete (see /autocomplete handler below)
 
     if (req.method === "POST" && req.url === "/weekly-digest") {
+      const rl = checkRateLimit(reqIp + ":digest", 5);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
       let digest = await withTimeout(aiWeeklyDigest(body), 60000, null);
 
