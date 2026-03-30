@@ -989,10 +989,13 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
  * Call Haiku for paste list search.
  */
 export async function translateListWithHaiku(items) {
+  // Normalize items: accept strings or {description: "..."} objects
+  const normalized = items.map(item => typeof item === "string" ? item : (item.description || item.text || item.label || JSON.stringify(item)));
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return {
-      items: items.map(item => ({
+      items: normalized.map(item => ({
         search_fields: {},
         exclude_fields: {},
         semantic_query: item,
@@ -1002,7 +1005,7 @@ export async function translateListWithHaiku(items) {
     };
   }
 
-  const listText = items.map((item, i) => `${i + 1}. ${item}`).join("\n");
+  const listText = normalized.map((item, i) => `${i + 1}. ${item}`).join("\n");
 
   try {
     const controller = new AbortController();
@@ -1028,7 +1031,7 @@ export async function translateListWithHaiku(items) {
 
     if (!resp.ok) {
       return {
-        items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
+        items: normalized.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
         response: "Searching catalog for each item...",
       };
     }
@@ -1041,7 +1044,7 @@ export async function translateListWithHaiku(items) {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return {
-        items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
+        items: normalized.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
         response: "Searching catalog for each item...",
       };
     }
@@ -1050,7 +1053,7 @@ export async function translateListWithHaiku(items) {
   } catch (err) {
     console.error(`[ai-vector-search] List parse failed: ${err.message}`);
     return {
-      items: items.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
+      items: normalized.map(item => ({ search_fields: {}, exclude_fields: {}, semantic_query: item, label: item })),
       response: "Searching catalog for each item...",
     };
   }
