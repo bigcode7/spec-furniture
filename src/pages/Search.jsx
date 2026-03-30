@@ -148,6 +148,32 @@ function getInitialQuery() {
   return params.get("q") || "";
 }
 
+// ─── SESSION STATE CACHE ─────────────────────────────────────
+// Preserves search results + UI state across navigation (Search → Quotes → back)
+const SEARCH_CACHE_KEY = "spekd_search_cache";
+
+function saveSearchCache(data) {
+  try {
+    sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function loadSearchCache() {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Cache is only valid for 10 minutes
+    if (parsed && Date.now() - (parsed._ts || 0) < 10 * 60 * 1000) return parsed;
+    sessionStorage.removeItem(SEARCH_CACHE_KEY);
+  } catch {}
+  return null;
+}
+
+function clearSearchCache() {
+  try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch {}
+}
+
 // ─── CLIENT-SIDE FILTER HELPERS ────────────────────────────────
 function extractFacets(products) {
   const vendors = {}, categories = {}, materials = {}, styles = {}, colors = {};
@@ -323,6 +349,32 @@ export default function SearchPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showAutocomplete]);
 
+  // Keep a ref to cacheable state so unmount callback can access latest values
+  const cacheableState = useRef({});
+  useEffect(() => {
+    cacheableState.current = { allResults, messages, displayQuery, sortKey, visibleCount, totalAvailable };
+  }, [allResults, messages, displayQuery, sortKey, visibleCount, totalAvailable]);
+
+  // Save search state to sessionStorage on unmount so navigating back restores it
+  useEffect(() => {
+    return () => {
+      const query = lastQueryRef.current;
+      if (!query || !cacheableState.current.allResults?.length) return;
+      const { allResults: results, messages: msgs, displayQuery: dq, sortKey: sk, visibleCount: vc, totalAvailable: ta } = cacheableState.current;
+      saveSearchCache({
+        _ts: Date.now(),
+        query,
+        scrollY: window.scrollY || 0,
+        allResults: results,
+        messages: msgs,
+        displayQuery: dq,
+        sortKey: sk,
+        visibleCount: vc,
+        totalAvailable: ta,
+      });
+    };
+  }, []);
+
   useEffect(() => {
     setRecentSearches(getRecentSearches());
     setRecentlyViewed(getRecentlyViewed());
@@ -337,6 +389,28 @@ export default function SearchPage() {
       }
     } catch {}
     const initialQuery = getInitialQuery();
+
+    // Try restoring cached state first (e.g., returning from Quotes page)
+    const cached = loadSearchCache();
+    if (cached && initialQuery && cached.query === initialQuery && cached.allResults?.length > 0) {
+      setInputValue(initialQuery);
+      setAllResults(cached.allResults);
+      setMessages(cached.messages || []);
+      setDisplayQuery(cached.displayQuery || initialQuery);
+      setSortKey(cached.sortKey || "relevance");
+      setVisibleCount(cached.visibleCount || INITIAL_PAGE_SIZE);
+      setTotalAvailable(cached.totalAvailable || cached.allResults.length);
+      lastQueryRef.current = initialQuery;
+      // Restore scroll position after React renders
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          window.scrollTo(0, cached.scrollY || 0);
+        }, 50);
+      });
+      clearSearchCache();
+      return;
+    }
+
     if (initialQuery) {
       setInputValue(initialQuery);
       runSearch(initialQuery);
