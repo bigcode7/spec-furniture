@@ -17,13 +17,16 @@ const EXAMPLE_SEARCHES = [
   "statement accent chair",
 ];
 
-// ── Helper: fetch search results ──
+// ── Helper: fetch search results (landing page — no auth, skip paywall) ──
 function searchProducts(query, maxVendors = 20, perVendor = 5) {
   return fetch(`${SEARCH_URL}/search`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, max_vendors: maxVendors, per_vendor: perVendor }),
-  }).then((r) => r.json());
+    body: JSON.stringify({ query, max_vendors: maxVendors, per_vendor: perVendor, landing_demo: true }),
+  }).then((r) => {
+    if (!r.ok) return { products: [] };
+    return r.json();
+  });
 }
 
 // ── Reusable scroll reveal ──
@@ -336,8 +339,24 @@ export default function Landing() {
     // 3. Demo search — real coastal products for landing page demo widget
     const cachedDemo = sessionStorage.getItem("spekd_demo_products");
     if (cachedDemo) {
-      try { setDemoProducts(JSON.parse(cachedDemo)); } catch {}
+      try {
+        const parsed = JSON.parse(cachedDemo);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setDemoProducts(parsed);
+        } else {
+          // Clear bad cache and re-fetch
+          sessionStorage.removeItem("spekd_demo_products");
+          fetchDemoProducts();
+        }
+      } catch {
+        sessionStorage.removeItem("spekd_demo_products");
+        fetchDemoProducts();
+      }
     } else {
+      fetchDemoProducts();
+    }
+
+    function fetchDemoProducts() {
       searchProducts("my client is furnishing a beach house, show me coastal pieces", 20, 3).then((data) => {
         const products = (data.products || []).filter((p) => p.image_url);
         const top3 = products.slice(0, 3);
