@@ -116,6 +116,28 @@ const FIELD_ACCESSORS = {
   ai_visual_weight: p => p.ai_visual_analysis?.visual_weight,
   ai_ideal_client: p => p.ai_visual_analysis?.ideal_client,
   vendor_name: p => p.vendor_name,
+  // ── Advanced structured fields (from advanced retagger) ──
+  ai_cushion_config: p => p.ai_cushion_config || p.ai_visual_analysis?.cushion_configuration || null,
+  ai_tufting_pattern: p => p.ai_tufting_pattern || p.ai_visual_analysis?.tufting_pattern || null,
+  ai_skirt_style: p => p.ai_skirt_style || p.ai_visual_analysis?.skirt_style || null,
+  ai_has_nailhead: p => {
+    const v = p.ai_has_nailhead ?? p.ai_visual_analysis?.has_nailhead;
+    return v === true ? "true" : v === false ? "false" : null;
+  },
+  ai_edge_profile: p => p.ai_edge_profile || p.ai_visual_analysis?.edge_profile || null,
+  ai_base_type: p => p.ai_base_type || p.ai_visual_analysis?.base_type || null,
+  ai_wood_species: p => p.ai_wood_species || p.ai_visual_analysis?.wood_species_visible || null,
+  ai_indoor_outdoor: p => {
+    const v = p.ai_indoor_outdoor || p.ai_visual_analysis?.indoor_outdoor;
+    return v || null;
+  },
+  ai_COM_eligible: p => {
+    const v = p.ai_COM_eligible ?? p.ai_visual_analysis?.COM_eligible;
+    return v === true ? "true" : v === false ? "false" : null;
+  },
+  ai_seat_depth: p => p.ai_seat_depth || p.ai_visual_analysis?.seat_depth_category || null,
+  ai_adjustable: p => p.ai_adjustable || p.ai_visual_analysis?.adjustable || null,
+  ai_seat_height: p => p.ai_visual_analysis?.seat_height_category || null,
 };
 
 // How many top values to include in Haiku prompt per field
@@ -141,6 +163,19 @@ const FIELD_LIMITS = {
   ai_visual_weight: 20,
   ai_ideal_client: 40,
   vendor_name: 50,
+  // Advanced fields
+  ai_cushion_config: 30,
+  ai_tufting_pattern: 20,
+  ai_skirt_style: 15,
+  ai_has_nailhead: 5,
+  ai_edge_profile: 20,
+  ai_base_type: 30,
+  ai_wood_species: 30,
+  ai_indoor_outdoor: 5,
+  ai_COM_eligible: 5,
+  ai_seat_depth: 10,
+  ai_adjustable: 20,
+  ai_seat_height: 10,
 };
 
 // Values to filter out of catalog index
@@ -421,6 +456,61 @@ FORMALITY → ai_formality:
 FINISH → ai_finish:
   Use ONLY when the designer explicitly names a finish: 'distressed', 'lacquered', 'cerused', 'wire-brushed', 'hand-rubbed'
   USER SAYS → YOU SET: 'cerused oak table' → ai_finish: ['cerused'], ai_primary_material: ['oak']
+
+═══ ADVANCED STRUCTURED FIELDS (use when available) ═══
+
+CUSHION CONFIGURATION → ai_cushion_config:
+  "3 over 3", "2 over 2", "bench seat", "single cushion", "tight seat"
+  USER SAYS → YOU SET: '3 over 3 sofa' → ai_cushion_config: ['3 over 3'], ai_cushions: ['three seat']
+  USER SAYS → YOU SET: 'bench seat sofa' → ai_cushion_config: ['bench seat']
+
+TUFTING PATTERN → ai_tufting_pattern:
+  diamond tufted, biscuit tufted, channel tufted, button tufted, blind tufted
+  USER SAYS → YOU SET: 'channel tufted sofa' → ai_tufting_pattern: ['channel tufted']
+  USER SAYS → YOU SET: 'tufted accent chair' → ai_tufting_pattern: ['diamond tufted', 'button tufted', 'biscuit tufted', 'channel tufted']
+
+SKIRT STYLE → ai_skirt_style:
+  skirted, tailored skirt, bullion fringe, kick pleat skirt
+  USER SAYS → YOU SET: 'skirted sofa' → ai_skirt_style: ['skirted', 'tailored skirt']
+
+NAILHEAD → ai_has_nailhead:
+  "true" or "false"
+  USER SAYS → YOU SET: 'nailhead sofa' → ai_has_nailhead: ['true']
+  USER SAYS → YOU SET: 'no nailhead' → exclude_fields.ai_has_nailhead: ['true']
+
+EDGE PROFILE → ai_edge_profile:
+  waterfall, knife edge, boxed, bullnose, rolled, T-cushion
+  USER SAYS → YOU SET: 'waterfall edge coffee table' → ai_edge_profile: ['waterfall']
+  USER SAYS → YOU SET: 'knife edge cushion sofa' → ai_edge_profile: ['knife edge']
+
+BASE TYPE → ai_base_type:
+  pedestal, trestle, X-base, hairpin, sled, cantilever, four leg, double pedestal, plinth, waterfall
+  USER SAYS → YOU SET: 'pedestal dining table' → ai_base_type: ['pedestal']
+  USER SAYS → YOU SET: 'trestle table' → ai_base_type: ['trestle']
+  USER SAYS → YOU SET: 'X base table' → ai_base_type: ['X-base']
+
+WOOD SPECIES → ai_wood_species:
+  walnut, oak, mahogany, maple, ash, pine, cherry, birch, teak, cedar, elm
+  USER SAYS → YOU SET: 'walnut dining table' → ai_wood_species: ['walnut'], ai_primary_material: ['walnut']
+
+INDOOR/OUTDOOR → ai_indoor_outdoor:
+  "indoor", "outdoor", "indoor/outdoor"
+  USER SAYS → YOU SET: 'outdoor sofa' → ai_indoor_outdoor: ['outdoor']
+  USER SAYS → YOU SET: 'indoor dining chair' → ai_indoor_outdoor: ['indoor']
+
+COM ELIGIBLE → ai_COM_eligible:
+  "true" — Customer's Own Material eligibility
+  USER SAYS → YOU SET: 'COM eligible sofa' → ai_COM_eligible: ['true']
+  USER SAYS → YOU SET: "customer's own material" → ai_COM_eligible: ['true']
+
+SEAT DEPTH → ai_seat_depth:
+  deep seat, standard, shallow
+  USER SAYS → YOU SET: 'deep seat sofa' → ai_seat_depth: ['deep seat']
+
+ADJUSTABLE → ai_adjustable:
+  reclining, power reclining, swivel, height adjustable, power headrest, glider, rocker
+  USER SAYS → YOU SET: 'swivel accent chair' → ai_adjustable: ['swivel']
+  USER SAYS → YOU SET: 'power reclining sofa' → ai_adjustable: ['power reclining']
 
 RULE 0 ENFORCEMENT: If a query contains ANY of the terms above, the corresponding field MUST appear in search_fields. Putting a physical attribute only in semantic_query is a CRITICAL ERROR. Physical attributes are hard AND filters — the product must literally have that construction feature.
 
