@@ -88,6 +88,26 @@ function resolvePriceId(plan) {
  * @param {string} successUrl - redirect URL on success
  * @param {string} cancelUrl - redirect URL on cancel
  */
+// ── Redirect URL validation (phishing prevention) ──
+const ALLOWED_DOMAINS = ["spekd.ai", "www.spekd.ai", "localhost", "127.0.0.1"];
+
+function validateRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    const isAllowed = ALLOWED_DOMAINS.some(
+      (domain) => host === domain || host.endsWith("." + domain)
+    );
+    if (!isAllowed) {
+      console.warn(`[stripe] Blocked redirect to untrusted domain: ${host}`);
+      return "https://spekd.ai";
+    }
+    return url;
+  } catch {
+    return "https://spekd.ai";
+  }
+}
+
 async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl) {
   if (!await ensureStripe()) {
     throw new Error("Stripe not configured");
@@ -104,8 +124,8 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
     payment_method_types: ["card"],
     customer_email: email,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
+    success_url: validateRedirectUrl(successUrl),
+    cancel_url: validateRedirectUrl(cancelUrl),
     metadata: { user_id: userId, plan },
     subscription_data: {
       trial_period_days: 7,
@@ -138,8 +158,8 @@ async function createTeamSeatCheckout(stripeCustomerId, quantity, successUrl, ca
     payment_method_types: ["card"],
     customer: stripeCustomerId,
     line_items: [{ price: seatPriceId, quantity }],
-    success_url: successUrl,
-    cancel_url: cancelUrl,
+    success_url: validateRedirectUrl(successUrl),
+    cancel_url: validateRedirectUrl(cancelUrl),
     metadata: { plan: "team_seat_addon", seat_quantity: String(quantity) },
     subscription_data: {
       metadata: { plan: "team_seat_addon", seat_quantity: String(quantity) },
