@@ -218,29 +218,6 @@ async function runHeavyInit() {
         console.log(`[startup] Removed ${removedCount} non-furniture items (swatches, catalogs, books, finishes)`);
       }
 
-      // Purge blocked vendors on every startup — checks vendor_id, vendor_name, AND manufacturer_name
-      // Collect IDs first to avoid mutating the Map while iterating (which skips entries)
-      {
-        const blockedIds = [];
-        const blockedByVendor = {};
-        for (const product of getAllProducts()) {
-          if (isProductBlocked(product)) {
-            const label = product.vendor_id || product.manufacturer_name || product.vendor_name || "unknown";
-            blockedIds.push(product.id);
-            blockedByVendor[label] = (blockedByVendor[label] || 0) + 1;
-          }
-        }
-        for (const id of blockedIds) {
-          forceDeleteProduct(id);
-        }
-        if (blockedIds.length > 0) {
-          console.log(`[startup] Purged ${blockedIds.length} products from blocked vendors:`);
-          for (const [vid, count] of Object.entries(blockedByVendor)) {
-            console.log(`[startup]   ${vid}: ${count} products removed`);
-          }
-        }
-      }
-
       let setteeFixCount = 0;
       for (const product of getAllProducts()) {
         const name = (product.product_name || "").toLowerCase();
@@ -260,6 +237,29 @@ async function runHeavyInit() {
     }
   } else {
     console.log(`[startup] Skipping catalog cleanup (catalog from URL — protecting data)`);
+  }
+
+  // Purge blocked vendors on every startup (ALWAYS runs, even when catalog is from URL)
+  // Collect IDs first to avoid mutating the Map while iterating (which skips entries)
+  {
+    const blockedIds = [];
+    const blockedByVendor = {};
+    for (const product of getAllProducts()) {
+      if (isProductBlocked(product)) {
+        const label = product.vendor_id || product.manufacturer_name || product.vendor_name || "unknown";
+        blockedIds.push(product.id);
+        blockedByVendor[label] = (blockedByVendor[label] || 0) + 1;
+      }
+    }
+    for (const id of blockedIds) {
+      forceDeleteProduct(id);
+    }
+    if (blockedIds.length > 0) {
+      console.log(`[startup] Purged ${blockedIds.length} products from blocked vendors:`);
+      for (const [vid, count] of Object.entries(blockedByVendor)) {
+        console.log(`[startup]   ${vid}: ${count} products removed`);
+      }
+    }
   }
 
   // Vendor pricing removals — runs on every startup (including Railway)
