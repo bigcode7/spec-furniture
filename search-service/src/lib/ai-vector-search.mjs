@@ -1230,6 +1230,10 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
     const pName = product.product_name || "";
     if (SAMPLE_KEYWORDS.test(pName) || isFabricSwatch(product)) continue;
 
+    // Tagged-only filter: exclude products without ai_furniture_type
+    // Untagged products cause wrong-type results and hurt search accuracy
+    if (!product.ai_furniture_type && !(product.category && product.category.length > 0)) continue;
+
     // Outdoor qualifier enforcement — product must mention "outdoor" somewhere
     if (requireOutdoor) {
       const searchText = `${pName} ${product.ai_furniture_type || ""} ${product.category || ""} ${product.description || ""}`.toLowerCase();
@@ -1928,6 +1932,19 @@ export async function searchPipeline(query, options = {}) {
       "floor lamp": ["floor-lamps", "floor lamp"],
       "table lamp": ["table-lamps", "table lamp"],
       "sconce": ["sconces", "sconce"],
+      // Aliases — map variant names to their acceptable categories
+      "slipper chair": ["accent-chairs", "accent chair", "slipper"],
+      "club chair": ["accent-chairs", "accent chair", "club chair"],
+      "lounge chair": ["accent-chairs", "accent chair", "lounge chair"],
+      "swivel chair": ["accent-chairs", "accent chair", "swivel chair"],
+      "wing chair": ["accent-chairs", "accent chair", "wing chair"],
+      "wingback chair": ["accent-chairs", "accent chair", "wingback"],
+      "bergere": ["accent-chairs", "accent chair", "bergere"],
+      "chaise": ["chaises", "chaise"],
+      "settee": ["settees", "settee", "loveseats"],
+      "cabinet": ["cabinets", "cabinet"],
+      "armoire": ["armoires", "armoire"],
+      "etagere": ["etageres", "etagere", "bookcases"],
     };
     // Build set of all acceptable categories for the queried types
     const acceptableCategories = new Set();
@@ -1951,10 +1968,13 @@ export async function searchPipeline(query, options = {}) {
         }
         return false;
       });
-      // Only apply if it doesn't remove everything
-      if (typeFiltered.length > 0 && typeFiltered.length >= beforeCount * 0.3) {
+      // Always apply type filter — even if it removes most results.
+      // Only skip if it would remove EVERYTHING (fallback to unfiltered).
+      if (typeFiltered.length > 0) {
+        if (beforeCount !== typeFiltered.length) {
+          console.log(`[type-validation] Filtered ${beforeCount} → ${typeFiltered.length} (removed ${beforeCount - typeFiltered.length} wrong-type products)`);
+        }
         results = typeFiltered;
-        console.log(`[type-validation] Filtered ${beforeCount} → ${results.length} (removed ${beforeCount - results.length} wrong-type products)`);
       }
     }
   }

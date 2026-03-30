@@ -284,6 +284,17 @@ async function runHeavyInit() {
   renormalizeAllCategories();
   recomputeAllQualityScores();
 
+  // Report tagged vs untagged products for search eligibility
+  {
+    let tagged = 0, untagged = 0, hasCategoryOnly = 0;
+    for (const p of getAllProducts()) {
+      if (p.ai_furniture_type) tagged++;
+      else if (p.category) hasCategoryOnly++;
+      else untagged++;
+    }
+    console.log(`[startup] Search-eligible products: ${tagged + hasCategoryOnly} (${tagged} AI-tagged + ${hasCategoryOnly} category-only) | ${untagged} excluded (no type/category)`);
+  }
+
   // Build autocomplete index from catalog data
   buildAutocompleteIndex(getAllProducts());
 
