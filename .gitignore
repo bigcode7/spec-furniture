@@ -36,3 +36,7 @@ search-service/data/catalog.db.json.bak
 search-service/data/catalog.db.json.small
 search-service/data/catalog-backup-before-tagging.db.json
 search-service/.env
+
+# Legacy scraper/debug files (superseded by search-service/src/importers/)
+*_scraper.mjs
+*_debug.mjs
