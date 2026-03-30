@@ -346,7 +346,7 @@ You understand furniture deeply. You know:
 - 'club chair' is a specific type — use ai_furniture_type: ['club chair', 'accent chair'] to catch both specific and general tags
 - 'nailhead' means look in ai_distinctive_features for nailhead trim, brass nailheads
 - 'mid century' is a style — use ai_style
-- 'outdoor' is a QUALIFIER — use ai_furniture_type with ONLY outdoor-qualified terms: ai_furniture_type: ['outdoor sofa', 'outdoor sectional']. Do NOT include the bare base type (e.g., 'sofa') because that will flood results with indoor products. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe.
+- 'outdoor' is a QUALIFIER — use ai_furniture_type with ONLY outdoor-qualified terms: ai_furniture_type: ['outdoor sofa', 'outdoor sectional']. Do NOT include the bare base type (e.g., 'sofa') because that will flood results with indoor products. NEVER put 'outdoor' only in semantic_query — it is a hard physical distinction, not a vibe. CRITICAL: Do NOT over-broaden the type list. 'outdoor dining chairs' → ['outdoor dining chair', 'dining chair'] — NEVER add generic fallbacks like 'outdoor chair' or 'chair' because those match swivel chairs, lounge chairs, accent chairs, etc. Keep the base furniture type intact.
 - WOOD SPECIES are materials, NOT colors: 'walnut', 'oak', 'mahogany', 'teak', 'maple', 'cherry', 'birch', 'ash', 'pine', 'cedar', 'ebony', 'rosewood', 'elm' → use ai_primary_material or ai_finish, NEVER ai_primary_color. Example: 'walnut dining table' → ai_primary_material: ['walnut'] NOT ai_primary_color
 - 'art deco' is BOTH a style AND an era influence — use ai_style: ['art deco'] AND/OR ai_era_influence: ['art deco']
 - Dimension requests like 'seats 8' means width 96+ inches. 'apartment size' means the designer wants a compact sofa — use ai_scale with ["small", "compact", "apartment"] but do NOT set width constraints (most products lack dimension data)
@@ -442,6 +442,8 @@ CRITICAL RULES FOR FIELD SELECTION:
 12. NEVER combine ai_style + ai_primary_material + ai_primary_color + ai_finish all in the same query. Pick the 1-2 most important and put the rest in semantic_query. But physical attribute fields are EXEMPT from this rule.
 
 13. BRAND + TYPE QUERIES: 'Hooker sofas' → ai_furniture_type: ['sofa'] + vendor_name: ['Hooker Furniture']. Return ONLY the exact furniture type, do NOT expand to other types. NEVER interpret a brand+type query as a room or collection query.
+
+14. DO NOT OVER-BROADEN ai_furniture_type. Only include types that the user actually asked for. 'dining chairs' → ['dining chair'] — do NOT add 'chair', 'accent chair', 'side chair' as fallbacks. 'counter stools' → ['counter stool', 'bar stool'] — do NOT add 'stool'. The vector ranking handles relevance within the matched set; your job is to filter precisely. Adding overly generic types pollutes results with wrong furniture.
 
 14. PLURAL FORMS: 'sofas' → sofa, 'chairs' → chair, 'tables' → table. Use singular in ai_furniture_type.
 
@@ -1178,8 +1180,20 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
       if (val != null) {
         // Primary AI field has a value — use it directly
         if (!fieldContains(val, searchVals)) {
-          matchesAll = false;
-          break;
+          // For ai_furniture_type with outdoor qualifier: also accept products whose
+          // category matches, since many outdoor products are mistagged (e.g., outdoor
+          // dining arm chairs tagged "accent chair" but categorized "dining-chairs").
+          // Only use this category fallback for outdoor queries where mistagging is common.
+          if (fieldName === "ai_furniture_type" && requireOutdoor) {
+            const catVal = product.category ? product.category.replace(/-/g, " ") : null;
+            if (!catVal || !fieldContains(catVal, searchVals)) {
+              matchesAll = false;
+              break;
+            }
+          } else {
+            matchesAll = false;
+            break;
+          }
         }
       } else {
         // Primary AI field is null/undefined — try fallback ONLY for category-level fields.
@@ -1583,6 +1597,20 @@ export async function searchPipeline(query, options = {}) {
 
   // ── Step 1: Haiku translates query → search_fields + semantic_query ──
   const haiku = await translateQueryWithHaiku(query, conversation);
+
+  // ── Step 1b: Sanitize over-broad furniture types ──
+  // Haiku sometimes adds generic fallbacks like "chair" alongside "dining chair".
+  // Remove generic types when more specific types are present.
+  if (Array.isArray(haiku.search_fields.ai_furniture_type) && haiku.search_fields.ai_furniture_type.length > 1) {
+    const types = haiku.search_fields.ai_furniture_type;
+    const GENERIC_TYPES = new Set(["chair", "chairs", "table", "tables", "stool", "stools", "sofa", "sofas", "bed", "beds", "lamp", "lamps", "bench", "benches", "cabinet", "cabinets", "outdoor chair", "outdoor table"]);
+    const specific = types.filter(t => !GENERIC_TYPES.has(t.toLowerCase()));
+    if (specific.length > 0 && specific.length < types.length) {
+      console.log(`[sanitize] Removed generic furniture types: [${types.filter(t => GENERIC_TYPES.has(t.toLowerCase())).join(", ")}] — keeping: [${specific.join(", ")}]`);
+      haiku.search_fields.ai_furniture_type = specific;
+    }
+  }
+
   const hasFieldFilters = Object.values(haiku.search_fields).some(v =>
     v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && typeof v !== "number"
   );
