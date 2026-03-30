@@ -485,8 +485,10 @@ async function downloadCatalogIfMissing() {
 
     const merged = { ...baseData, products: mergedProducts };
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    const json = JSON.stringify(merged);
-    fs.writeFileSync(DB_PATH, json);
+    // Write directly without holding the JSON string in a variable to reduce peak memory
+    fs.writeFileSync(DB_PATH, JSON.stringify(merged));
+    // Release the merged object immediately
+    mergedProducts.length = 0;
     const writtenSize = fs.statSync(DB_PATH).size;
     catalogDownloadedFromURL = true;
     console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products, written ${(writtenSize / 1024 / 1024).toFixed(1)}MB to ${DB_PATH}`);
@@ -500,8 +502,16 @@ function loadFromDisk() {
   if (!fs.existsSync(DB_PATH)) return false;
 
   try {
-    const raw = fs.readFileSync(DB_PATH, "utf8");
-    const data = JSON.parse(raw);
+    // Parse JSON and immediately release the raw string to reduce peak memory
+    // (V8 keeps both raw + parsed in memory simultaneously during JSON.parse)
+    let data;
+    {
+      const raw = fs.readFileSync(DB_PATH, "utf8");
+      data = JSON.parse(raw);
+      // raw goes out of scope here, eligible for GC
+    }
+    // Encourage GC to reclaim the raw string before we allocate the Map
+    if (global.gc) global.gc();
 
     // Load products
     products = new Map();
@@ -509,6 +519,8 @@ function loadFromDisk() {
       for (const p of data.products) {
         if (p.id) products.set(p.id, p);
       }
+      // Release the array reference — products live in the Map now
+      data.products = null;
     }
 
     // Load vendor crawl metadata

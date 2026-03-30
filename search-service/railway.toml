@@ -2,4 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "node src/server.mjs"
+startCommand = "node --max-old-space-size=2048 --expose-gc src/server.mjs"
