@@ -259,7 +259,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     Try SPEKD Pro free for 7 days
                   </h2>
                   <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                    You've used your 5 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days.
+                    You've used your 7 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days.
                   </p>
                 </>
               )}

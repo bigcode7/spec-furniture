@@ -91,7 +91,7 @@ function AdminLogin({ onLogin }) {
     <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900">
       <div className="max-w-sm w-full">
         <div className="text-center mb-8">
-          <span className="text-amber-500 font-bold text-xl tracking-wide">SPEKD</span>
+          <img src="/logo.png" alt="Spekd" className="h-8 w-auto" />
           <span className="text-gray-500 text-sm ml-2">Admin</span>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1464,7 +1464,7 @@ function FunnelTab({ data, loading, error }) {
 
   const stages = [
     { label: "Anonymous Visitors", value: data.anonymous_visitors, color: "gray" },
-    { label: "Used All 5 Free Searches", value: data.used_all_free_searches, color: "blue" },
+    { label: "Used All 7 Free Searches", value: data.used_all_free_searches, color: "blue" },
     { label: "Trial Signups", value: data.trial_signups, color: "purple" },
     { label: "Trial Active", value: data.trial_active, color: "amber" },
     { label: "Converted to Pro", value: data.converted_to_pro, color: "emerald" },
@@ -1662,7 +1662,7 @@ export default function Admin() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
-              <span className="text-amber-500 font-bold text-lg tracking-wide">SPEKD</span>
+              <img src="/logo.png" alt="Spekd" className="h-7 w-auto" />
               <span className="text-gray-500 text-sm">Admin</span>
             </div>
             <AdminSearchBar onNavigate={setTab} />

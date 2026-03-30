@@ -112,7 +112,7 @@ export function GuestGateProvider({ children }) {
     }}>
       {children}
 
-      {/* Soft signup banner disabled — paywall handles conversion at 3 searches */}
+      {/* Soft signup banner disabled — paywall handles conversion at 7 searches */}
 
     </GuestGateContext.Provider>
   );

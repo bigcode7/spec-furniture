@@ -3,11 +3,11 @@ import React from 'react';
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -28,9 +28,24 @@ export class ErrorBoundary extends React.Component {
           fontFamily: 'system-ui, sans-serif',
         }}>
           <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Something went wrong</h1>
-          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>
             An unexpected error occurred.
           </p>
+          <pre style={{
+            color: '#f87171',
+            fontSize: '0.75rem',
+            maxWidth: '80vw',
+            overflow: 'auto',
+            padding: '1rem',
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>
+            {this.state.error?.message || 'Unknown error'}
+            {this.state.error?.stack ? '\n\n' + this.state.error.stack : ''}
+          </pre>
           <button
             onClick={() => window.location.reload()}
             style={{
