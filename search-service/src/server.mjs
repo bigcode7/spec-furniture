@@ -423,11 +423,23 @@ function notFound(res) {
   json(res, 404, { error: "Not found" });
 }
 
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB
+
 function collectBody(req, { raw: returnRaw = false } = {}) {
   return new Promise((resolve, reject) => {
     const chunks = [];
+    let totalBytes = 0;
+    let aborted = false;
     req.on("data", (chunk) => {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+      totalBytes += buf.length;
+      if (totalBytes > MAX_BODY_SIZE) {
+        aborted = true;
+        req.destroy();
+        reject(new Error("PAYLOAD_TOO_LARGE"));
+        return;
+      }
+      chunks.push(buf);
     });
     req.on("end", () => {
       const rawBuffer = Buffer.concat(chunks);
@@ -1696,7 +1708,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         });
       }
 
-      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
+      const conversation = Array.isArray(body.conversation) ? body.conversation.slice(-20) : [];
 
       if (conversation.length === 0) {
         return json(res, 400, { error: "conversation array required" });
@@ -2429,7 +2441,10 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const excludeIds = new Set(Array.isArray(body.exclude_ids) ? body.exclude_ids : []);
       const page = Math.max(1, Number(body.page) || 1);
       const requestFilters = body.filters || {};
-      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
+      const MAX_CONVERSATION_MESSAGES = 20;
+      const conversation = Array.isArray(body.conversation)
+        ? body.conversation.slice(-MAX_CONVERSATION_MESSAGES)
+        : [];
 
       // Pure AI vector pipeline
       const result = await searchPipeline(query, {
@@ -3355,7 +3370,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         }
       }
 
-      const conversation = Array.isArray(body.conversation) ? body.conversation : [];
+      const conversation = Array.isArray(body.conversation) ? body.conversation.slice(-20) : [];
       const sessionId = String(body.session_id || `cs-${Date.now()}`);
 
       if (conversation.length === 0) {
@@ -4674,6 +4689,9 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
 
     return notFound(res);
   } catch (error) {
+    if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
+      return json(res, 413, { error: "Payload too large. Maximum body size is 1MB." });
+    }
     return json(res, 500, { error: error instanceof Error ? error.message : String(error) });
   }
 });
