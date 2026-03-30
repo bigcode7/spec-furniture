@@ -747,14 +747,19 @@ function UsersTab({ data, loading, error, onRefresh }) {
     const plan = (sub.plan || u.plan || "free").toLowerCase();
     const isDeactivated = u.deactivated === true;
     const isComped = sub.comped === true || plan.includes("comp");
+    const isTrialing = sub.status === "trialing";
     const isPro = sub.status === "active" && !isComped;
     let matchesFilter = true;
     if (userFilter === "pro") matchesFilter = isPro;
-    else if (userFilter === "free") matchesFilter = !isPro && !isComped && !isDeactivated;
+    else if (userFilter === "trialing") matchesFilter = isTrialing;
+    else if (userFilter === "free") matchesFilter = !isPro && !isTrialing && !isComped && !isDeactivated;
     else if (userFilter === "comped") matchesFilter = isComped;
     else if (userFilter === "deactivated") matchesFilter = isDeactivated;
     return matchesSearch && matchesFilter;
   });
+
+  // Count trial signups
+  const trialCount = allUsers.filter((u) => (u.subscription || {}).status === "trialing").length;
 
   return (
     <div className="space-y-8">
@@ -868,6 +873,7 @@ function UsersTab({ data, loading, error, onRefresh }) {
           >
             <option value="all">All</option>
             <option value="pro">Pro</option>
+            <option value="trialing">Trialing ({trialCount})</option>
             <option value="free">Free</option>
             <option value="comped">Comped</option>
             <option value="deactivated">Deactivated</option>
@@ -893,12 +899,18 @@ function UsersTab({ data, loading, error, onRefresh }) {
                 const sub = u.subscription || {};
                 const isDeactivated = u.deactivated === true;
                 const isComped = sub.comped === true || (sub.plan || "").includes("comp");
+                const isTrialing = sub.status === "trialing";
                 const isPro = sub.status === "active" && !isComped;
-                const planLabel = isDeactivated ? "deactivated" : isComped ? "comp" : isPro ? "pro" : "free";
+                const planLabel = isDeactivated ? "deactivated" : isComped ? "comp" : isTrialing ? "trialing" : isPro ? "pro" : "free";
                 let planColor = "gray";
                 if (isPro) planColor = "amber";
+                else if (isTrialing) planColor = "blue";
                 else if (isComped) planColor = "purple";
                 else if (isDeactivated) planColor = "red";
+                // Calculate trial days remaining
+                const trialDaysLeft = isTrialing && sub.trial_end
+                  ? Math.max(0, Math.ceil((new Date(sub.trial_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : null;
 
                 const isExpanded = expandedUser === uid;
                 return (
@@ -911,7 +923,12 @@ function UsersTab({ data, loading, error, onRefresh }) {
                       </td>
                       <td className="py-2 px-3 text-xs font-mono">{u.email}</td>
                       <td className="py-2 px-3">{u.business_name || u.company || "\u2014"}</td>
-                      <td className="py-2 px-3"><Badge color={planColor}>{planLabel}</Badge></td>
+                      <td className="py-2 px-3">
+                        <Badge color={planColor}>{planLabel}</Badge>
+                        {trialDaysLeft != null && (
+                          <span className="ml-1.5 text-[10px] text-blue-400">{trialDaysLeft}d left</span>
+                        )}
+                      </td>
                       <td className="py-2 px-3 text-xs">{fmtDate(u.created_at || u.signup_date)}</td>
                       <td className="py-2 px-3">
                         <span className={`text-xs ${isDeactivated ? "text-red-400" : "text-emerald-400"}`}>

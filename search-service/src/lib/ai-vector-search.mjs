@@ -383,6 +383,21 @@ CUSHION TYPES → ai_cushions:
   sinuous spring, eight-way hand-tied, bench cushion
   USER SAYS → YOU SET: 'spring down sofa' → ai_cushions: ['spring down']
 
+  CUSHION COUNT PATTERNS (X over X):
+  The ai_cushions field contains free-form text like "three seat cushions with waterfall edge, loose pillow back cushions".
+  When a designer asks for a specific cushion count pattern like "3 over 3", "2 over 2", "3 over 2", etc.:
+  - The FIRST number = BACK cushions, the SECOND number = SEAT cushions (industry standard: "back over seat")
+  - Convert digits to words: 1→one, 2→two, 3→three, 4→four
+  - Set ai_cushions with BOTH seat AND back terms as separate array entries
+  - ALSO put the count pattern in semantic_query for vector ranking boost
+
+  USER SAYS → YOU SET:
+  '3 over 3 sofa' → ai_cushions: ['three seat'], semantic_query: '3 over 3 sofa three back cushions three seat cushions'
+  '2 over 2 sofa' → ai_cushions: ['two seat'], semantic_query: '2 over 2 sofa two back cushions two seat cushions'
+  '3 over 2 sofa' → ai_cushions: ['two seat'], semantic_query: '3 over 2 sofa three back cushions two seat cushions'
+  'bench seat sofa' → ai_cushions: ['bench seat', 'single bench']
+  'single cushion sofa' → ai_cushions: ['single', 'one seat', 'bench seat']
+
 SILHOUETTE → ai_silhouette:
   barrel, boxy, camelback, chesterfield, lawson, bridgewater,
   tuxedo, shelter, mid-century, slipper, parsons, waterfall
@@ -515,6 +530,23 @@ search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['down blend', 'down'
 exclude_fields: {}
 semantic_query: 'sofa with down blend cushions soft plush sink-in comfort'
 (down blend is PHYSICAL → ai_cushions)
+
+User: '3 over 3 sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['three seat'] }
+exclude_fields: {}
+semantic_query: '3 over 3 sofa three back cushions over three seat cushions three loose back pillows'
+(3 over 3 is a PHYSICAL cushion count → ai_cushions with word-form number + "seat")
+
+User: '2 over 2 sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['two seat'] }
+exclude_fields: {}
+semantic_query: '2 over 2 sofa two back cushions over two seat cushions'
+(same pattern — digit→word + "seat" for field filter, full pattern in semantic_query)
+
+User: 'bench seat sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_cushions: ['bench seat', 'single bench', 'one seat'] }
+exclude_fields: {}
+semantic_query: 'bench seat sofa single continuous seat cushion no individual cushion divisions'
 
 User: 'eight way hand tied sofa'
 search_fields: { ai_furniture_type: ['sofa'], ai_construction_details: ['eight-way hand-tied'] }
