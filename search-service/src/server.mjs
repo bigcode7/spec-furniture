@@ -5023,7 +5023,7 @@ function cleanDescription(desc) {
  * Parse and normalize dimensions into clean W × D × H format.
  * Extracts width, depth, height from various raw formats.
  */
-function parseDimensions(product) {
+function parseCleanDimensions(product) {
   const w = product.width;
   const d = product.depth;
   const h = product.height;
@@ -5129,7 +5129,7 @@ function sanitizeSearchProduct(product) {
 
   // Clean product data for professional presentation
   const cleanedDesc = cleanDescription(product.description);
-  const cleanedDims = parseDimensions(product);
+  const cleanedDims = parseCleanDimensions(product);
   const cleanedName = cleanProductName(product.product_name, product.sku, product.vendor_name);
   const cleanedSku = cleanSku(product.sku);
 
