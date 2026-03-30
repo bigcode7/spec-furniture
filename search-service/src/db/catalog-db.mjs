@@ -465,15 +465,16 @@ async function downloadCatalogIfMissing() {
 
   console.log(`[catalog-db] No catalog on disk — downloading ${urls.length} part(s) from CATALOG_URL...`);
   try {
-    // Memory-efficient download: stream each part directly into the products Map
-    // instead of accumulating everything in arrays first
+    // Memory-efficient: load products directly into the in-memory Map during download
+    // AND stream to disk simultaneously — avoids the download→write→reparse cycle
     fs.mkdirSync(DATA_DIR, { recursive: true });
 
-    // Phase 1: Download parts, write products directly to a temp file as JSON array
     const tmpPath = DB_PATH + ".build";
     const ws = fs.createWriteStream(tmpPath);
     ws.write('{"version":1,"saved_at":"' + new Date().toISOString() + '","products":[');
 
+    products = new Map();
+    vendorCrawlMeta = new Map();
     let totalProducts = 0;
     let first = true;
 
@@ -487,20 +488,29 @@ async function downloadCatalogIfMissing() {
       if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
         buffer = gunzipSync(buffer);
       }
-      // Parse this part only
+      // Parse this part
       const part = JSON.parse(buffer.toString("utf8"));
-      buffer = null; // Release buffer immediately
+      buffer = null; // Release buffer
 
       if (part.products) {
         for (const p of part.products) {
+          // Load directly into Map (skip the write-then-reparse cycle)
+          if (p.id) products.set(p.id, p);
+          // Also write to disk for persistence
           if (!first) ws.write(',');
           ws.write(JSON.stringify(p));
           first = false;
           totalProducts++;
         }
-        part.products = null; // Release products array
+        part.products = null;
       }
-      console.log(`[catalog-db] Part ${i + 1}: processed, total so far: ${totalProducts}`);
+      // Load vendor crawl meta from first part
+      if (i === 0 && part.vendor_crawl_meta) {
+        for (const [k, v] of Object.entries(part.vendor_crawl_meta)) {
+          vendorCrawlMeta.set(k, v);
+        }
+      }
+      console.log(`[catalog-db] Part ${i + 1}: ${totalProducts} products loaded into memory`);
       if (global.gc) global.gc();
     }
 
@@ -511,12 +521,16 @@ async function downloadCatalogIfMissing() {
     if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH);
     fs.renameSync(tmpPath, DB_PATH);
 
-    const writtenSize = fs.statSync(DB_PATH).size;
+    lastKnownVendorCounts = snapshotVendorCounts();
     catalogDownloadedFromURL = true;
-    console.log(`[catalog-db] Downloaded catalog — ${totalProducts} products, written ${(writtenSize / 1024 / 1024).toFixed(1)}MB to ${DB_PATH}`);
+    const writtenSize = fs.statSync(DB_PATH).size;
+    console.log(`[catalog-db] Downloaded catalog — ${totalProducts} products in memory, ${(writtenSize / 1024 / 1024).toFixed(1)}MB written to disk`);
+    console.log(`[catalog-db] Vendor snapshot: ${lastKnownVendorCounts.size} vendors tracked`);
+    return; // Products already loaded — skip loadFromDisk()
   } catch (err) {
     console.error(`[catalog-db] Catalog download failed: ${err.message}`);
     console.error(err.stack);
+    // Fall through to loadFromDisk() if download fails
   }
 }
 
@@ -933,9 +947,10 @@ async function seedFromSampleCatalog() {
 export async function initCatalogDB() {
   await resolveLFSPointer();
   await downloadCatalogIfMissing();
-  let loaded = loadFromDisk();
+  // If download already loaded products into memory, skip disk parse
+  let loaded = products.size > 0 ? true : loadFromDisk();
   if (loaded) {
-    console.log(`[catalog-db] Loaded ${products.size} products from disk`);
+    console.log(`[catalog-db] Loaded ${products.size} products${products.size > 0 && catalogDownloadedFromURL ? " (from download, skipped disk re-parse)" : " from disk"}`);
   } else {
     console.log("[catalog-db] No existing database found, starting fresh");
   }
