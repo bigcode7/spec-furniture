@@ -138,6 +138,19 @@ search_queries is an array of 1-5 search strings to run against the catalog. Use
  * @param {Array} conversation - Full conversation history with product details
  * @returns {object} Parsed filter object with response and search_queries
  */
+// ── Prompt injection sanitization ──
+function sanitizeForPrompt(text) {
+  if (typeof text !== "string") return "";
+  return text
+    .replace(/ignore (all )?(previous|prior|above) instructions?/gi, "")
+    .replace(/you are now/gi, "")
+    .replace(/new (system )?prompt/gi, "")
+    .replace(/\[INST\]|\[\/INST\]/g, "")
+    .replace(/<\|.*?\|>/g, "")
+    .slice(0, 2000)
+    .trim();
+}
+
 export async function askSearchBrain(conversation) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -149,7 +162,7 @@ export async function askSearchBrain(conversation) {
   const messages = [];
   for (const msg of conversation) {
     if (msg.role === "user") {
-      messages.push({ role: "user", content: msg.content });
+      messages.push({ role: "user", content: sanitizeForPrompt(msg.content) });
     } else if (msg.role === "assistant") {
       // Include detailed product context so the AI knows what was shown
       const summary = msg.resultSummary || msg.content || "Showed results";

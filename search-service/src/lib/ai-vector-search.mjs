@@ -905,11 +905,27 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
     };
   }
 
+  // Sanitize user inputs to prevent prompt injection
+  function sanitizeInput(text) {
+    if (typeof text !== "string") return "";
+    return text
+      .replace(/ignore (all )?(previous|prior|above) instructions?/gi, "")
+      .replace(/you are now/gi, "")
+      .replace(/new (system )?prompt/gi, "")
+      .replace(/\[INST\]|\[\/INST\]/g, "")
+      .replace(/<\|.*?\|>/g, "")
+      .slice(0, 2000)
+      .trim();
+  }
+
   const messages = [];
   for (const msg of conversationHistory) {
-    messages.push({ role: msg.role, content: msg.content });
+    messages.push({
+      role: msg.role,
+      content: msg.role === "user" ? sanitizeInput(msg.content) : msg.content,
+    });
   }
-  messages.push({ role: "user", content: query });
+  messages.push({ role: "user", content: sanitizeInput(query) });
 
   try {
     const controller = new AbortController();
