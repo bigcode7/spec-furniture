@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, HeartOff, Plus, Minus, Trash2, FileText, ChevronDown, ChevronRight,
   Edit3, Download, FolderPlus, Package, DollarSign, MessageSquare, Settings,
-  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X, Link2, Check,
+  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X, Link2, Check, ExternalLink,
 } from "lucide-react";
 import {
   getFavorites, toggleFavorite,
@@ -256,7 +256,8 @@ export default function Quotes() {
       product_name: fav.product_name || fav.name,
       manufacturer_name: fav.manufacturer_name,
       image_url: fav.image_url || fav.thumbnail,
-      portal_url: fav.portal_url,
+      portal_url: fav.portal_url || fav.product_url,
+      product_url: fav.product_url || fav.portal_url,
       retail_price: fav.retail_price,
       wholesale_price: fav.wholesale_price,
       material: fav.material,
@@ -953,8 +954,15 @@ function QuoteItemRow({
   return (
     <div className="px-5 py-3.5 hover:bg-white/[0.015] transition-colors group border-b border-white/[0.03] last:border-b-0">
       <div className="flex gap-4 sm:flex-row flex-col">
-        {/* Thumbnail */}
-        <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto">
+        {/* Thumbnail — clicks through to vendor product page */}
+        <a
+          href={item.portal_url || item.product_url || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => { if (!item.portal_url && !item.product_url) e.preventDefault(); }}
+          className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto block ${(item.portal_url || item.product_url) ? "cursor-pointer hover:border-gold/30 transition-colors" : ""}`}
+          title={item.portal_url || item.product_url ? "Open vendor product page" : ""}
+        >
           {item.image_url ? (
             <img
               src={item.image_url}
@@ -966,11 +974,36 @@ function QuoteItemRow({
               <Package className="h-6 w-6 text-white/10" />
             </div>
           )}
-        </div>
+        </a>
 
         {/* Details */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-white/80 truncate">{item.product_name}</div>
+          <div className="flex items-center gap-1.5">
+            {item.portal_url || item.product_url ? (
+              <a
+                href={item.portal_url || item.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-white/80 truncate hover:text-gold transition-colors"
+                title="Open vendor product page — check pricing"
+              >
+                {item.product_name}
+              </a>
+            ) : (
+              <div className="text-sm font-medium text-white/80 truncate">{item.product_name}</div>
+            )}
+            {(item.portal_url || item.product_url) && (
+              <a
+                href={item.portal_url || item.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 text-white/15 hover:text-gold/60 transition-colors"
+                title="Open vendor page"
+              >
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
           <div className="text-[11px] text-gold/60 truncate">{item.manufacturer_name}</div>
           {item.sku && <div className="text-[10px] text-white/20 mt-0.5">SKU: {item.sku}</div>}
           {dims && <div className="text-[10px] text-white/20">{dims}</div>}
@@ -1045,11 +1078,15 @@ function QuoteItemRow({
                     ) : null}
                     <button
                       onClick={() => setEditingPrice(true)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-white/[0.08] hover:border-gold/25 text-white/30 hover:text-gold/60 transition-colors"
-                      title="Set custom price"
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors ${
+                        price
+                          ? "border border-white/[0.08] hover:border-gold/25 text-white/30 hover:text-gold/60"
+                          : "border border-gold/20 bg-gold/[0.06] text-gold/60 hover:bg-gold/[0.12] hover:text-gold/80"
+                      }`}
+                      title={price ? "Edit price" : "Enter price from vendor page"}
                     >
                       <Edit3 className="h-2.5 w-2.5" />
-                      {price ? "Edit" : "Set price"}
+                      {price ? "Edit" : "Enter price"}
                     </button>
                   </div>
                 )}
