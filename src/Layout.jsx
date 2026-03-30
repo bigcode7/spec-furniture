@@ -255,7 +255,18 @@ export default function Layout({ children, currentPageName }) {
         setSubWarning("Your payment failed. Update your card to keep your access.");
       }
     });
-  }, [location.search]); // Re-check when URL changes (e.g. after Stripe redirect)
+  }, [location.search, user]); // Re-check when URL changes or user changes
+
+  // Listen for subscription changes (e.g. after Stripe checkout verification)
+  useEffect(() => {
+    const handler = (e) => {
+      const { status, trial_days_remaining } = e.detail || {};
+      if (status) setSubStatus(status);
+      if (trial_days_remaining != null) setTrialDaysLeft(trial_days_remaining);
+    };
+    window.addEventListener("spec:subscription-changed", handler);
+    return () => window.removeEventListener("spec:subscription-changed", handler);
+  }, []);
 
   useEffect(() => {
     setQuoteCount(getQuoteItemCount());

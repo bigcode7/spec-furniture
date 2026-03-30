@@ -118,6 +118,15 @@ export async function updateMe(updates) {
 
 export function logout() {
   clearAuth();
+  // Clear per-user data so next login starts fresh
+  try {
+    localStorage.removeItem("spec_growth_quote");
+    localStorage.removeItem("spec_growth_favorites");
+    localStorage.removeItem("spec_growth_compare_items");
+    localStorage.removeItem("spec_growth_projects");
+    localStorage.removeItem("spec_growth_quote_settings");
+    localStorage.removeItem("spec_sub_status");
+  } catch {}
   window.location.reload();
 }
 

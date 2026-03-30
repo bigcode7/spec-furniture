@@ -462,6 +462,7 @@ export default function SearchPage() {
               setIsFreeFallback(false);
               setShowPaywall(false);
               localStorage.setItem("spec_sub_status", verifyData.status);
+              window.dispatchEvent(new CustomEvent("spec:subscription-changed", { detail: { status: verifyData.status, trial_days_remaining: verifyData.trial_days_remaining } }));
               return;
             }
           } catch (e) {
@@ -480,6 +481,7 @@ export default function SearchPage() {
             setSearchesRemaining(null);
             setIsFreeFallback(false);
             setShowPaywall(false);
+            window.dispatchEvent(new CustomEvent("spec:subscription-changed", { detail: { status: freshStatus.status, trial_days_remaining: freshStatus.trial_days_remaining } }));
             return;
           }
           if (attempts < 5) {

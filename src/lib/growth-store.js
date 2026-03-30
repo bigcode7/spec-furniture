@@ -493,14 +493,48 @@ export function saveQuoteSettings(settings) {
 
 // ── Server sync on login ──
 // Call this after login to merge server data with localStorage
+
+const LAST_USER_KEY = "spec_growth_last_user_id";
+
+function getCurrentUserId() {
+  try {
+    const raw = window.localStorage.getItem("spec_auth_user");
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    return user?.id || user?.email || null;
+  } catch { return null; }
+}
+
+function clearLocalUserData() {
+  // Clear quote, favorites, and other per-user data when switching accounts
+  writeJson(STORAGE_KEYS.quote, null);
+  writeJson(STORAGE_KEYS.favorites, []);
+  writeJson(STORAGE_KEYS.compareItems, []);
+  writeJson(STORAGE_KEYS.projects, []);
+  writeJson(STORAGE_KEYS.quoteSettings, null);
+}
+
 export async function syncFromServer() {
   if (!isLoggedIn()) return;
+
+  // Detect account switch: if user ID changed, clear local data first
+  const currentUserId = getCurrentUserId();
+  if (currentUserId) {
+    try {
+      const lastUserId = window.localStorage.getItem(LAST_USER_KEY);
+      if (lastUserId && lastUserId !== currentUserId) {
+        clearLocalUserData();
+      }
+      window.localStorage.setItem(LAST_USER_KEY, currentUserId);
+    } catch {}
+  }
+
   try {
     const [serverFavs, serverQuote] = await Promise.all([
       fetchServerFavorites(),
       fetchServerQuote(),
     ]);
-    // Merge server favorites with local (server wins for conflicts)
+    // Favorites: server wins, then merge any local-only items
     if (serverFavs && serverFavs.length > 0) {
       const local = getFavorites();
       const merged = new Map();
@@ -508,15 +542,14 @@ export async function syncFromServer() {
       for (const f of local) { if (!merged.has(f.id)) merged.set(f.id, f); }
       writeJson(STORAGE_KEYS.favorites, [...merged.values()].slice(0, 40));
     }
-    // Merge server quote with local (server wins if it has items)
+    // Quote: always use server version for this account
     if (serverQuote && serverQuote.rooms) {
+      writeJson(STORAGE_KEYS.quote, serverQuote);
+    } else {
+      // Server has no quote — check if local has items that belong to this user
       const localQuote = getQuote();
       const localItemCount = localQuote.rooms.reduce((s, r) => s + r.items.length, 0);
-      const serverItemCount = serverQuote.rooms.reduce((s, r) => s + r.items.length, 0);
-      if (serverItemCount > 0 && serverItemCount >= localItemCount) {
-        writeJson(STORAGE_KEYS.quote, serverQuote);
-      } else if (localItemCount > 0) {
-        // Local has more, push to server
+      if (localItemCount > 0) {
         syncQuoteToServer(localQuote).catch(() => {});
       }
     }
