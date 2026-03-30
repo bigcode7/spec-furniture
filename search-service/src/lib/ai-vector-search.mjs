@@ -1259,6 +1259,18 @@ function fieldMatch(searchFields, excludeFields, excludeIds) {
             break;
           }
         }
+        // For style exclusions: if both ai_style and style are null, check product name
+        // and description for conflicting style terms. Many untagged products contain style
+        // keywords in their name (e.g., "Modern Credenza") that we can use to exclude.
+        if (fieldName === "ai_style" && !excluded) {
+          const nameDesc = `${product.product_name || ""} ${product.collection || ""}`.toLowerCase();
+          for (const term of excludeVals) {
+            if (nameDesc.includes(term.toLowerCase())) {
+              excluded = true;
+              break;
+            }
+          }
+        }
       }
     }
     if (excluded) continue;
@@ -1702,8 +1714,16 @@ export async function searchPipeline(query, options = {}) {
 
     // ── Step 3: MiniLM ranking within candidates ──
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
+      // If style was relaxed, emphasize the original style in the semantic query
+      // so MiniLM ranks style-matching products higher even when the field filter was dropped
+      let rankingQuery = haiku.semantic_query;
+      if (relaxedStyle && relaxedStyle.length > 0) {
+        const styleEmphasis = relaxedStyle.join(" ");
+        rankingQuery = `${styleEmphasis} ${styleEmphasis} ${rankingQuery}`;
+        console.log(`[style-boost] Enhanced ranking query with style emphasis: "${styleEmphasis}"`);
+      }
       const candidateIds = new Set(candidates.map(p => p.id));
-      const ranked = await vectorSearch(haiku.semantic_query, {
+      const ranked = await vectorSearch(rankingQuery, {
         limit: candidates.length,
         candidateIds,
       });
