@@ -465,8 +465,17 @@ async function downloadCatalogIfMissing() {
 
   console.log(`[catalog-db] No catalog on disk — downloading ${urls.length} part(s) from CATALOG_URL...`);
   try {
-    let mergedProducts = [];
-    let baseData = {};
+    // Memory-efficient download: stream each part directly into the products Map
+    // instead of accumulating everything in arrays first
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+
+    // Phase 1: Download parts, write products directly to a temp file as JSON array
+    const tmpPath = DB_PATH + ".build";
+    const ws = fs.createWriteStream(tmpPath);
+    ws.write('{"version":1,"saved_at":"' + new Date().toISOString() + '","products":[');
+
+    let totalProducts = 0;
+    let first = true;
 
     for (let i = 0; i < urls.length; i++) {
       const url = urls[i];
@@ -478,20 +487,33 @@ async function downloadCatalogIfMissing() {
       if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
         buffer = gunzipSync(buffer);
       }
+      // Parse this part only
       const part = JSON.parse(buffer.toString("utf8"));
-      if (i === 0) baseData = { ...part, products: undefined };
-      if (part.products) mergedProducts.push(...part.products);
+      buffer = null; // Release buffer immediately
+
+      if (part.products) {
+        for (const p of part.products) {
+          if (!first) ws.write(',');
+          ws.write(JSON.stringify(p));
+          first = false;
+          totalProducts++;
+        }
+        part.products = null; // Release products array
+      }
+      console.log(`[catalog-db] Part ${i + 1}: processed, total so far: ${totalProducts}`);
+      if (global.gc) global.gc();
     }
 
-    const merged = { ...baseData, products: mergedProducts };
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    // Write directly without holding the JSON string in a variable to reduce peak memory
-    fs.writeFileSync(DB_PATH, JSON.stringify(merged));
-    // Release the merged object immediately
-    mergedProducts.length = 0;
+    ws.write('],"product_count":' + totalProducts + '}');
+    await new Promise((resolve, reject) => { ws.end(resolve); ws.on('error', reject); });
+
+    // Rename temp file to final path
+    if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH);
+    fs.renameSync(tmpPath, DB_PATH);
+
     const writtenSize = fs.statSync(DB_PATH).size;
     catalogDownloadedFromURL = true;
-    console.log(`[catalog-db] Downloaded catalog — ${mergedProducts.length} products, written ${(writtenSize / 1024 / 1024).toFixed(1)}MB to ${DB_PATH}`);
+    console.log(`[catalog-db] Downloaded catalog — ${totalProducts} products, written ${(writtenSize / 1024 / 1024).toFixed(1)}MB to ${DB_PATH}`);
   } catch (err) {
     console.error(`[catalog-db] Catalog download failed: ${err.message}`);
     console.error(err.stack);
