@@ -4948,36 +4948,256 @@ Return JSON only:
   return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
 }
 
+// ── Product Data Cleanup Utilities ──────────────────────────────────
+
+/**
+ * Clean a product description — remove scraped junk, HTML artifacts, metadata,
+ * and normalize to professional prose.
+ */
+function cleanDescription(desc) {
+  if (!desc || typeof desc !== "string") return null;
+  let s = desc;
+
+  // Strip HTML tags and entities
+  s = s.replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/gi, " ").replace(/&#\d+;/g, " ");
+
+  // Remove raw data attributes (data-img_src="...", etc.)
+  s = s.replace(/data-\w+="[^"]*"/g, "");
+
+  // Remove SKU/model references that are just repeating the product name
+  // e.g. "LTD7600-WR - Cornerstone Configurable Raf Wedge Half Sofa"
+  s = s.replace(/^[A-Z0-9][-A-Z0-9_/]{3,}\s*[-–—]\s*/i, "");
+
+  // Remove "Product | Category | SKU | Brand" catalog header patterns
+  // e.g. "St Tropez | Sofa | 3925-33| Lexington Home Brands"
+  s = s.replace(/^[^|]+\|[^|]+\|[^|]+\|[^|]*$/gm, "");
+
+  // Remove shipping/logistics metadata
+  s = s.replace(/\b(shipping|ships? in|shipping cubes?|cartons?|freight|lead time)[^.]*\.?/gi, "");
+  s = s.replace(/\bweight:\s*\d+[\s.]*lbs?\.?/gi, "");
+  s = s.replace(/\bcubic\s*(meters?|feet)\b[^.]*\.?/gi, "");
+
+  // Remove COM yardage and cushion weight metadata
+  s = s.replace(/\bCOM:\s*[\d.]+\s*yards?\.?/gi, "");
+  s = s.replace(/\bcushion\s*weight:\s*\d+\s*lbs?\.?/gi, "");
+  s = s.replace(/\ballowed\s*patterns?:\s*[A-Z, ]+\.?/gi, "");
+  s = s.replace(/\bquick\s*ship\b[^.]*\.?/gi, "");
+
+  // Remove raw dimension strings embedded in descriptions
+  s = s.replace(/\bDimensions?\s*\(inches\)\.?\s*/gi, "");
+  s = s.replace(/\bDimension\s+\d+[Ww]\s+\d+[Dd]\s+[\d.]+[Hh]\b/g, "");
+  s = s.replace(/\b\d+[Ww]\s+\d+[Dd]\s+[\d.]+[Hh]\s*(in\.?|inches?)?\b/g, "");
+
+  // Remove "Standard Features." "Product Features" headers
+  s = s.replace(/\b(standard|product)\s+features?\.?\s*/gi, "");
+
+  // Remove "Rendering shown." / "As Shown:" lines
+  s = s.replace(/\b(rendering|photograph(ed)?)\s+(shown|in)[^.]*\.?/gi, "");
+  s = s.replace(/\bas\s+shown:\s*[^.]*\.?/gi, "");
+
+  // Remove "Shown in: , leather, trims, nails..." junk
+  s = s.replace(/\bshown\s+(in|with)[^.]*\.?/gi, "");
+
+  // Remove "Back Pillows: 2 BP Cushions: 2" spec lines
+  s = s.replace(/\b(back\s+pillows|bp\s+cushions|seat\s+cushions):\s*\d+\b[^.]*\.?/gi, "");
+
+  // Remove vendor catalog page references
+  s = s.replace(/\|\s*\w+\s+Home\s+Brands\b/gi, "");
+
+  // Remove "Available sizes:" followed by SKU
+  s = s.replace(/\bavailable\s+sizes?:\s*[A-Z0-9][-A-Z0-9_]*\.?/gi, "");
+
+  // Clean up resulting whitespace
+  s = s.replace(/\n{2,}/g, "\n").replace(/[ \t]+/g, " ").replace(/\n\s+/g, "\n").trim();
+
+  // Remove lines that are just punctuation or very short fragments
+  s = s.split("\n").filter(line => line.trim().length > 5).join("\n");
+
+  // If after cleanup the description is empty or too short, return null
+  if (!s || s.length < 10) return null;
+
+  return s;
+}
+
+/**
+ * Parse and normalize dimensions into clean W × D × H format.
+ * Extracts width, depth, height from various raw formats.
+ */
+function parseDimensions(product) {
+  const w = product.width;
+  const d = product.depth;
+  const h = product.height;
+
+  // If we have clean numeric dimensions, use those
+  if (w && d && h) {
+    // Sanity check: reject obviously wrong values (e.g. 900" width)
+    if (w > 200 || d > 200 || h > 200) return null;
+    return `${w}"W × ${d}"D × ${h}"H`;
+  }
+
+  // Try to parse from raw dimensions string
+  const raw = product.dimensions;
+  if (!raw || typeof raw !== "string") return null;
+
+  // Common patterns:
+  // "W76.14" x D36.06" x H36.22""
+  // "W: 81" x D: 39" x H: 35""
+  // "88"W x 44"D x 30"H"
+  // "L 82" x D 39" x H 37""
+  // "99"W x 41"D x 38"H"
+  let pw = null, pd = null, ph = null;
+
+  // Pattern 1: W: 81" x D: 39" x H: 35" (with optional colon and spaces)
+  const m1 = raw.match(/[WL]:?\s*([\d.]+)"?\s*[×xX]\s*D:?\s*([\d.]+)"?\s*[×xX]\s*H:?\s*([\d.]+)/i);
+  if (m1) { pw = parseFloat(m1[1]); pd = parseFloat(m1[2]); ph = parseFloat(m1[3]); }
+
+  // Pattern 2: 88"W x 44"D x 30"H
+  if (!pw) {
+    const m2 = raw.match(/([\d.]+)"?\s*W\s*[×xX]\s*([\d.]+)"?\s*D\s*[×xX]\s*([\d.]+)"?\s*H/i);
+    if (m2) { pw = parseFloat(m2[1]); pd = parseFloat(m2[2]); ph = parseFloat(m2[3]); }
+  }
+
+  // Pattern 3: W76.14" x D36.06" x H36.22" (no space between letter and number)
+  if (!pw) {
+    const m3 = raw.match(/W([\d.]+)"?\s*[×xX]\s*D([\d.]+)"?\s*[×xX]\s*H([\d.]+)/i);
+    if (m3) { pw = parseFloat(m3[1]); pd = parseFloat(m3[2]); ph = parseFloat(m3[3]); }
+  }
+
+  if (pw && pd && ph) {
+    // Sanity check
+    if (pw > 200 || pd > 200 || ph > 200) return null;
+    // Round to clean values
+    const fmt = (n) => Number.isInteger(n) ? `${n}` : `${n.toFixed(1).replace(/\.0$/, "")}`;
+    return `${fmt(pw)}"W × ${fmt(pd)}"D × ${fmt(ph)}"H`;
+  }
+
+  // Pattern 4: Just width — "W: 81" or "W: 71""
+  const mw = raw.match(/[WL]:?\s*([\d.]+)"?/i);
+  if (mw) {
+    const val = parseFloat(mw[1]);
+    if (val > 0 && val < 200) return `${Number.isInteger(val) ? val : val.toFixed(1)}"W`;
+  }
+
+  return null;
+}
+
+/**
+ * Clean product name — remove raw SKU-as-name, title case fixes, etc.
+ */
+function cleanProductName(name, sku, vendor) {
+  if (!name) return null;
+  let s = name.trim();
+
+  // If the product name IS just the SKU, try to make it more presentable
+  // e.g. "9600-Nflt" or "Hh19-908t" or "A100-825"
+  if (sku && s.toLowerCase().replace(/[-_\s]/g, "") === sku.toLowerCase().replace(/[-_\s]/g, "")) {
+    // Name is just the SKU — return null so we can fall back to AI description
+    return null;
+  }
+
+  // If name looks like a raw SKU pattern (all caps/numbers, no real words)
+  if (/^[A-Z0-9][-A-Z0-9_/]+$/.test(s) && s.length < 20) {
+    return null;
+  }
+
+  // Remove "CUSTOM KIT for " prefix
+  s = s.replace(/^CUSTOM\s+KIT\s+for\s+/i, "");
+
+  // Remove trailing vendor-specific suffixes like " - Peninsula/Flax"
+  // but keep meaningful color/finish descriptors
+
+  // Clean up multiple spaces
+  s = s.replace(/\s+/g, " ").trim();
+
+  return s || null;
+}
+
+/**
+ * Clean SKU — standardize format
+ */
+function cleanSku(sku) {
+  if (!sku || typeof sku !== "string") return null;
+  let s = sku.trim();
+  // Remove "None" or empty
+  if (s.toLowerCase() === "none" || s === "") return null;
+  return s;
+}
+
 function sanitizeSearchProduct(product) {
   const isAiDiscovery = product.ingestion_source === "ai-discovery" || product.ingestion_source === "ai-extraction";
   const isLive = product.ingestion_source === "live-crawler" || product.ingestion_source === "live-discovery";
+
+  // Clean product data for professional presentation
+  const cleanedDesc = cleanDescription(product.description);
+  const cleanedDims = parseDimensions(product);
+  const cleanedName = cleanProductName(product.product_name, product.sku, product.vendor_name);
+  const cleanedSku = cleanSku(product.sku);
+
+  // Fall back to AI-generated description if scraped description is junk
+  const aiDesc = product.ai_visual_analysis
+    ? (() => {
+      const va = product.ai_visual_analysis;
+      const parts = [];
+      if (va.furniture_type) parts.push(va.furniture_type.charAt(0).toUpperCase() + va.furniture_type.slice(1));
+      if (va.silhouette && va.silhouette !== "unable to determine") parts.push(`with ${va.silhouette} silhouette`);
+      if (va.upholstery_material && va.upholstery_material !== "unable to determine") parts.push(`in ${va.upholstery_material}`);
+      if (va.style && va.style !== "unable to determine") parts.push(`— ${va.style} style`);
+      return parts.length >= 2 ? parts.join(" ") + "." : null;
+    })()
+    : null;
+
+  // For product name: use cleaned name, or fall back to AI furniture type + vendor
+  const displayName = cleanedName
+    || (product.ai_furniture_type
+      ? `${product.ai_furniture_type.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}${product.collection ? ` — ${product.collection}` : ""}`
+      : product.product_name);
+
+  // Build clean images array — hero + unique gallery images, no dupes
+  const heroUrl = isAiDiscovery ? (product.image_url || null)
+    : isLive ? (product.image_verified ? product.image_url : null)
+    : (product.image_url || null);
+
+  const rawImages = Array.isArray(product.images) && product.images.length > 0
+    ? product.images.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean)
+    : Array.isArray(product.alternate_images) && product.alternate_images.length > 0
+      ? product.alternate_images.filter(Boolean)
+      : [];
+
+  // Deduplicate: remove hero dupes from gallery, then filter invalid images
+  const galleryDeduped = new Set();
+  if (heroUrl) galleryDeduped.add(heroUrl);
+  const uniqueGallery = [];
+  for (const url of rawImages) {
+    if (typeof url === "string" && url && !galleryDeduped.has(url)) {
+      galleryDeduped.add(url);
+      uniqueGallery.push(url);
+    }
+  }
+  const validGallery = uniqueGallery.filter(url => hasValidProductImage(url));
+  // Final images: hero first (if valid), then unique gallery images
+  const finalImages = heroUrl ? [heroUrl, ...validGallery] : validGallery.length > 0 ? validGallery : (heroUrl ? [heroUrl] : []);
+
   return {
     ...product,
+    product_name: displayName,
     // Map vendor_name → manufacturer_name for frontend compatibility
     manufacturer_name: product.vendor_name || product.manufacturer_name || null,
     // Map product_url → portal_url for frontend compatibility
     portal_url: product.product_url || product.portal_url || null,
     retail_price: product.retail_price ?? null,
     wholesale_price: product.wholesale_price ?? null,
-    // AI-discovered products pass through URLs directly (AI found real vendor URLs)
-    image_url: isAiDiscovery ? (product.image_url || null)
-      : isLive ? (product.image_verified ? product.image_url : null)
-      : (product.image_url || null),
-    images: filterProductImages(
-      Array.isArray(product.images) && product.images.length > 0
-        ? product.images.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean)
-        : Array.isArray(product.alternate_images) && product.alternate_images.length > 0
-          ? [product.image_url, ...product.alternate_images].filter(Boolean)
-          : (product.image_url ? [product.image_url] : [])
-    ),
+    image_url: heroUrl,
+    images: finalImages,
     image_contain: product.image_contain || false,
     product_url: isAiDiscovery ? (product.product_url || null)
       : isLive ? (product.product_url_verified ? product.product_url : null)
       : (product.product_url || null),
     retrieval_quality_score: Number(product.retrieval_quality_score || 0),
-    // Flag products with broken/missing images so frontend can show placeholder
     image_available: hasValidProductImage(product.image_url),
-    // Match explanation for "Why this result?" feature
     match_explanation: product.match_explanation || null,
+    // Cleaned fields
+    sku: cleanedSku,
+    dimensions: cleanedDims,
+    description: cleanedDesc || aiDesc || null,
   };
 }

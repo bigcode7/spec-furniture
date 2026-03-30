@@ -186,6 +186,19 @@ function normalizeStandaloneResult(item) {
     dimensions: item.dimensions || null,
     // AI visual tags
     ai_visual_tags: item.ai_visual_tags || "",
+    // AI intelligence fields for preview panel
+    ai_furniture_type: item.ai_furniture_type || null,
+    ai_style: item.ai_style || null,
+    ai_silhouette: item.ai_silhouette || null,
+    ai_formality: item.ai_formality || null,
+    ai_mood: item.ai_mood || null,
+    ai_primary_material: item.ai_primary_material || null,
+    ai_primary_color: item.ai_primary_color || null,
+    ai_back_style: item.ai_back_style || null,
+    ai_arm_style: item.ai_arm_style || null,
+    ai_leg_style: item.ai_leg_style || null,
+    ai_scale: item.ai_scale || null,
+    ai_visual_analysis: item.ai_visual_analysis || null,
     // Extra fields for preview
     color: item.color || null,
     width: item.width || null,
