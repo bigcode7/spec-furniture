@@ -86,7 +86,7 @@ export default function Quotes() {
   const [expandedRooms, setExpandedRooms] = useState(() => {
     const q = getQuote();
     const expanded = {};
-    q.rooms.forEach((r) => { expanded[r.id] = true; });
+    (q?.rooms || []).forEach((r) => { expanded[r.id] = true; });
     return expanded;
   });
 

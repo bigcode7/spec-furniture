@@ -36,7 +36,9 @@ function readJson(key, fallback) {
   if (!isBrowser) return fallback;
   try {
     const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed != null ? parsed : fallback;
   } catch {
     return fallback;
   }
