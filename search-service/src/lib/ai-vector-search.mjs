@@ -1888,6 +1888,77 @@ export async function searchPipeline(query, options = {}) {
       }
     }
   }
+  // ── Post-pipeline type validation ──
+  // Hard-filter any product whose category/type clearly contradicts the queried furniture type.
+  // This catches wrong types that slipped through field matching (e.g., dining table in sofa results).
+  const queriedTypes = haiku.search_fields.ai_furniture_type;
+  if (queriedTypes && Array.isArray(queriedTypes) && queriedTypes.length > 0 && results.length > 0) {
+    const TYPE_CATEGORY_MAP = {
+      "sofa": ["sofas", "sofa"],
+      "sectional": ["sectionals", "sectional"],
+      "loveseat": ["loveseats", "loveseat"],
+      "accent chair": ["accent-chairs", "accent chair", "accent chairs"],
+      "dining chair": ["dining-chairs", "dining chair", "dining chairs"],
+      "office chair": ["office-chairs", "office chair"],
+      "bar stool": ["bar-stools", "bar stool", "counter stool", "counter-stools"],
+      "counter stool": ["counter-stools", "counter stool", "bar stool", "bar-stools"],
+      "ottoman": ["ottomans", "ottoman"],
+      "bench": ["benches", "bench"],
+      "coffee table": ["coffee-tables", "coffee table", "cocktail table", "cocktail-tables"],
+      "cocktail table": ["coffee-tables", "cocktail-tables", "coffee table", "cocktail table"],
+      "dining table": ["dining-tables", "dining table"],
+      "side table": ["side-tables", "side table", "end table", "end-tables"],
+      "end table": ["end-tables", "side-tables", "end table", "side table"],
+      "console table": ["console-tables", "console table", "console"],
+      "console": ["console-tables", "console table", "console"],
+      "nightstand": ["nightstands", "nightstand"],
+      "desk": ["desks", "desk"],
+      "dresser": ["dressers", "dresser"],
+      "chest": ["chests", "chest"],
+      "bookcase": ["bookcases", "bookcase", "bookshelf"],
+      "credenza": ["credenzas", "credenza"],
+      "buffet": ["buffets", "buffet"],
+      "sideboard": ["sideboards", "sideboard"],
+      "bed": ["beds", "bed"],
+      "headboard": ["headboards", "headboard"],
+      "mirror": ["mirrors", "mirror"],
+      "rug": ["rugs", "rug"],
+      "chandelier": ["chandeliers", "chandelier"],
+      "pendant": ["pendants", "pendant"],
+      "floor lamp": ["floor-lamps", "floor lamp"],
+      "table lamp": ["table-lamps", "table lamp"],
+      "sconce": ["sconces", "sconce"],
+    };
+    // Build set of all acceptable categories for the queried types
+    const acceptableCategories = new Set();
+    for (const qt of queriedTypes) {
+      const cats = TYPE_CATEGORY_MAP[qt.toLowerCase()];
+      if (cats) cats.forEach(c => acceptableCategories.add(c.toLowerCase()));
+      // Always accept the queried type itself
+      acceptableCategories.add(qt.toLowerCase());
+      acceptableCategories.add(qt.toLowerCase().replace(/s$/, ""));
+      acceptableCategories.add(qt.toLowerCase() + "s");
+    }
+    // Only filter if we have a clear type mapping — don't filter for abstract/room queries
+    if (acceptableCategories.size > 0) {
+      const beforeCount = results.length;
+      const typeFiltered = results.filter(p => {
+        const cat = (p.category || "").toLowerCase().replace(/-/g, " ");
+        const aiType = (p.ai_furniture_type || "").toLowerCase();
+        // Accept if category OR ai_furniture_type matches any acceptable value
+        for (const ac of acceptableCategories) {
+          if (cat.includes(ac) || aiType.includes(ac)) return true;
+        }
+        return false;
+      });
+      // Only apply if it doesn't remove everything
+      if (typeFiltered.length > 0 && typeFiltered.length >= beforeCount * 0.3) {
+        results = typeFiltered;
+        console.log(`[type-validation] Filtered ${beforeCount} → ${results.length} (removed ${beforeCount - results.length} wrong-type products)`);
+      }
+    }
+  }
+
   console.log("Final result count:", results.length);
   console.log("Haiku response:", (haiku.response || "").slice(0, 200));
   console.log("========================\n");
