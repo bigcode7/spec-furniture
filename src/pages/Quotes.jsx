@@ -18,6 +18,15 @@ import { useTradePricing } from "@/lib/TradePricingContext";
 import { useAuth } from "@/lib/AuthContext";
 import { Lock, UserPlus as UserPlusIcon } from "lucide-react";
 
+const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
+
+function quoteImageUrl(item) {
+  // Use server proxy for higher quality + bypass hotlink protection
+  if (item.id) return `${SEARCH_SERVICE}/images/${encodeURIComponent(item.id)}`;
+  if (item.image_url) return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(item.image_url)}`;
+  return "";
+}
+
 /* ─── helpers ─────────────────────────────────────────────── */
 
 function dimStr(item) {
@@ -374,9 +383,10 @@ export default function Quotes() {
                     <div className="relative aspect-square bg-white border-b border-white/[0.06] overflow-hidden">
                       {(fav.image_url || fav.thumbnail) ? (
                         <img
-                          src={fav.image_url || fav.thumbnail}
+                          src={quoteImageUrl(fav)}
                           alt={fav.product_name || fav.name}
                           className="h-full w-full object-contain p-3"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center bg-white/[0.03]">
@@ -960,14 +970,15 @@ function QuoteItemRow({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => { if (!item.portal_url && !item.product_url) e.preventDefault(); }}
-          className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto block ${(item.portal_url || item.product_url) ? "cursor-pointer hover:border-gold/30 transition-colors" : ""}`}
+          className={`flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto block ${(item.portal_url || item.product_url) ? "cursor-pointer hover:border-gold/30 transition-colors" : ""}`}
           title={item.portal_url || item.product_url ? "Open vendor product page" : ""}
         >
           {item.image_url ? (
             <img
-              src={item.image_url}
+              src={quoteImageUrl(item)}
               alt={item.product_name}
               className="h-full w-full object-contain p-2"
+              loading="lazy"
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-white/[0.03]">
