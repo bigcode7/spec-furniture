@@ -425,7 +425,7 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 4. The 3-field limit applies ONLY to non-physical fields (style, color, mood, material). Physical construction attributes (arm style, back style, leg style, cushions, silhouette, construction details, formality, scale) do NOT count toward this limit. A query like 'tight back track arm tapered leg sofa' should use ALL of: ai_furniture_type + ai_back_style + ai_arm_style + ai_leg_style — that's 4 fields and it's correct.
 
-5. Negations and exclusions go in exclude_fields. 'Not modern' → exclude_fields.ai_style: ['modern']. 'No tufting' → exclude_fields.ai_distinctive_features: ['tufted', 'tufting']. 'Without nailheads' → exclude_fields.ai_distinctive_features: ['nailhead']. 'Armless' is NOT a negation — it IS an arm style, use ai_arm_style: ['armless']. IMPORTANT: Use SHORT exclude terms — 'mid-century' not 'mid-century modern', 'glass' not 'glass top'. Short terms catch more via substring matching.
+5. Negations and exclusions go in exclude_fields (a TOP-LEVEL key, NOT nested inside search_fields). 'Not modern' → exclude_fields.ai_style: ['modern']. 'No tufting' → exclude_fields.ai_distinctive_features: ['tufted', 'tufting']. 'Without nailheads' → exclude_fields.ai_distinctive_features: ['nailhead']. 'Armless' is NOT a negation — it IS an arm style, use ai_arm_style: ['armless']. IMPORTANT: Use SHORT exclude terms — 'mid-century' not 'mid-century modern', 'glass' not 'glass top'. Short terms catch more via substring matching. IMPLIED NEGATIONS: Words ending in '-less' or prefixed with 'un-' imply exclusion. 'buttonless tufted' → search for tufted + exclude 'button'. 'untufted' → exclude 'tufted'. 'legless' → exclude 'leg'. Always put these in the top-level exclude_fields object.
 
 6. Use values that EXIST in the lists above. Use substring terms that would match via contains.
 
@@ -657,6 +657,18 @@ search_fields: { ai_furniture_type: ['sectional'] }
 exclude_fields: { ai_back_style: ['loose back', 'pillow back'] }
 semantic_query: 'sectional with structured tight back clean tailored'
 (no loose back → exclude ai_back_style)
+
+User: 'buttonless tufted sofas'
+search_fields: { ai_furniture_type: ['sofa'], ai_distinctive_features: ['channel tufted', 'tufted'] }
+exclude_fields: { ai_distinctive_features: ['button'] }
+semantic_query: 'channel tufted sofa without buttons blind tufting quilted stitched'
+(buttonless = WITHOUT buttons → exclude 'button' from features, search for channel/blind tufting)
+
+User: 'untufted sofa'
+search_fields: { ai_furniture_type: ['sofa'] }
+exclude_fields: { ai_distinctive_features: ['tufted', 'tufting', 'button'] }
+semantic_query: 'sofa smooth clean upholstery no tufting'
+(untufted = no tufting at all → exclude all tufting terms)
 
 ── Outdoor/Indoor Qualifier Examples ──
 
@@ -972,9 +984,21 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
 
     console.log(`[ai-vector-search] Haiku responded in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
     const parsed = JSON.parse(jsonMatch[0]);
+    const searchFields = parsed.search_fields || {};
+    // Haiku sometimes nests exclude_fields inside search_fields — extract and merge
+    let excludeFields = parsed.exclude_fields || {};
+    if (searchFields.exclude_fields && typeof searchFields.exclude_fields === "object") {
+      console.log("[haiku-fix] Found exclude_fields nested inside search_fields, extracting");
+      for (const [k, v] of Object.entries(searchFields.exclude_fields)) {
+        if (Array.isArray(v) && v.length > 0) {
+          excludeFields[k] = [...new Set([...(excludeFields[k] || []), ...v])];
+        }
+      }
+      delete searchFields.exclude_fields;
+    }
     return {
-      search_fields: parsed.search_fields || {},
-      exclude_fields: parsed.exclude_fields || {},
+      search_fields: searchFields,
+      exclude_fields: excludeFields,
       semantic_query: parsed.semantic_query || query,
       response: parsed.response || "Here are your results.",
     };
