@@ -941,7 +941,7 @@ export async function translateQueryWithHaiku(query, conversationHistory = []) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const callStart = Date.now();
 
     const resp = await fetch(ANTHROPIC_API_URL, {
@@ -1033,7 +1033,7 @@ export async function translateListWithHaiku(items) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
     const resp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
@@ -1630,6 +1630,16 @@ function buildIntentResponse(query, results, responseText, mode) {
 export async function searchPipeline(query, options = {}) {
   const { conversation = [], excludeIds = new Set(), page = 1, filters = {} } = options;
 
+  // ── Hard pipeline timeout — never let a search hang longer than 18s ──
+  const PIPELINE_TIMEOUT_MS = 18000;
+  const pipelineStart = Date.now();
+  function checkTimeout(label) {
+    const elapsed = Date.now() - pipelineStart;
+    if (elapsed > PIPELINE_TIMEOUT_MS) {
+      throw new Error(`Pipeline timeout after ${elapsed}ms at ${label}`);
+    }
+  }
+
   // ── Check cache ──
   const cacheKey = `fsearch:${query.toLowerCase()}:${JSON.stringify(filters)}:p${page}`;
   if (excludeIds.size === 0 && conversation.length === 0) {
@@ -1651,7 +1661,9 @@ export async function searchPipeline(query, options = {}) {
   }
 
   // ── Step 1: Haiku translates query → search_fields + semantic_query ──
+  checkTimeout("pre-haiku");
   const haiku = await translateQueryWithHaiku(query, conversation);
+  checkTimeout("post-haiku");
 
   // ── Step 1b: Sanitize over-broad furniture types ──
   // Haiku sometimes adds generic fallbacks like "chair" alongside "dining chair".
@@ -1737,6 +1749,7 @@ export async function searchPipeline(query, options = {}) {
     }
 
     // ── Step 3: MiniLM ranking within candidates ──
+    checkTimeout("pre-vector-ranking");
     if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && haiku.semantic_query) {
       // If style was relaxed, emphasize the original style in the semantic query
       // so MiniLM ranks style-matching products higher even when the field filter was dropped

@@ -23,7 +23,7 @@ function setCache(key, data) {
   }
 }
 
-function timedFetch(url, options = {}, timeoutMs = 30000) {
+function timedFetch(url, options = {}, timeoutMs = 20000) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timeout));
@@ -197,7 +197,14 @@ function normalizeStandaloneResult(item) {
     ingestion_source: item.ingestion_source || null,
     created_at: item.created_at || null,
     image_contain: item.image_contain || false,
-    images: (item.images || []).map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean),
+    images: (() => {
+      const raw = (item.images || []).map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean);
+      // Deduplicate: remove exact URL matches and images identical to hero
+      const hero = item.image_url || "";
+      const seen = new Set();
+      if (hero) seen.add(hero);
+      return raw.filter(url => { if (seen.has(url)) return false; seen.add(url); return true; });
+    })(),
   };
 }
 

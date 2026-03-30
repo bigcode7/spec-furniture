@@ -47,7 +47,12 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
 
   if (!show) return null;
 
-  const isUpgrade = initialMode === "upgrade" || initialMode === "feature";
+  // Check if this user has ever had a subscription (cancelled, past_due, trial_expired = prior subscriber)
+  const priorSubStatus = (() => {
+    try { return localStorage.getItem("spec_sub_status") || "guest"; } catch { return "guest"; }
+  })();
+  const hadPriorSubscription = ["cancelled", "past_due", "trial_expired"].includes(priorSubStatus);
+  const isUpgrade = (initialMode === "upgrade" || initialMode === "feature") && hadPriorSubscription;
   const planValue = billing === "annual" ? "annual" : "monthly";
   const priceLabel = billing === "annual" ? "$990/yr" : "$99/mo";
 
@@ -243,16 +248,25 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
               </div>
 
               {isLoggedIn ? (
-                <>
-                  <h2 className="text-xl font-semibold text-white text-center mb-2">
-                    {isUpgrade ? "Upgrade to Pro" : "Unlock unlimited sourcing"}
-                  </h2>
-                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                    {isUpgrade
-                      ? (upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off.")
-                      : "You've seen what SPEKD can do. Start your free trial to search without limits."}
-                  </p>
-                </>
+                isUpgrade ? (
+                  <>
+                    <h2 className="text-xl font-semibold text-white text-center mb-2">
+                      Reactivate Pro
+                    </h2>
+                    <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                      {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold text-white text-center mb-2">
+                      Try SPEKD Pro free for 7 days
+                    </h2>
+                    <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                      Start your free trial — no charge for 7 days. Cancel anytime before the trial ends and you won't pay a thing.
+                    </p>
+                  </>
+                )
               ) : (
                 <>
                   <h2 className="text-xl font-semibold text-white text-center mb-2">
@@ -321,10 +335,12 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     style={goldBtnStyle}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate — ${priceLabel}` : `Start your 7-day free trial`}
+                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : "Start your 7-day free trial"}
                   </button>
                   <p className="text-[11px] text-white/30 text-center mt-2">
-                    Signed in as {existingUser?.email || ""}. You won't be charged for 7 days.
+                    {isUpgrade
+                      ? `Signed in as ${existingUser?.email || ""}.`
+                      : `Signed in as ${existingUser?.email || ""}. You won't be charged for 7 days.`}
                   </p>
                 </>
               ) : (
@@ -370,7 +386,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
             <motion.div key="signup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
               <p className="text-xs text-white/40 mb-1">
-                {isUpgrade ? `Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
+                {isUpgrade ? `Reactivate Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
               </p>
               <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
 

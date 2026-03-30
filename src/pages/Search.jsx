@@ -763,7 +763,11 @@ export default function SearchPage() {
         setLoading(false);
         return;
       }
-      setError("Search failed. Please try again.");
+      if (err.name === "AbortError" || (err.message && err.message.includes("timeout"))) {
+        setError("Search took too long. Please try a simpler query or try again.");
+      } else {
+        setError("Search failed. Please try again.");
+      }
     } finally {
       clearInterval(stepTimer);
       setLoading(false);
@@ -1938,8 +1942,20 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
     // Normalize: images may be strings or {url, type} objects
     const raw = (product.images && product.images.length > 0) ? product.images : [];
     const urls = raw.map(img => typeof img === "string" ? img : (img && img.url ? img.url : "")).filter(Boolean);
-    // Route all through proxy to bypass hotlink protection
-    if (urls.length > 0) return urls;
+    // Deduplicate: remove exact URL duplicates AND images that match the hero/main image
+    const heroUrl = product.image_url || "";
+    const seen = new Set();
+    if (heroUrl) seen.add(heroUrl);
+    const unique = [];
+    for (const url of urls) {
+      if (!seen.has(url)) {
+        seen.add(url);
+        unique.push(url);
+      }
+    }
+    // Always lead with hero if we have one
+    if (heroUrl) return [heroUrl, ...unique];
+    if (unique.length > 0) return unique;
     return product.image_url ? [product.image_url] : [];
   })();
 

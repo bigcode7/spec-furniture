@@ -2456,13 +2456,22 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
         ? body.conversation.slice(-MAX_CONVERSATION_MESSAGES)
         : [];
 
-      // Pure AI vector pipeline
-      const result = await searchPipeline(query, {
-        conversation,
-        excludeIds,
-        page,
-        filters: requestFilters,
-      });
+      // Pure AI vector pipeline — with hard 20s server timeout
+      let result;
+      try {
+        result = await Promise.race([
+          searchPipeline(query, {
+            conversation,
+            excludeIds,
+            page,
+            filters: requestFilters,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Server search timeout (20s)")), 20000)),
+        ]);
+      } catch (timeoutErr) {
+        console.error(`[search] Pipeline timeout for query "${query}": ${timeoutErr.message}`);
+        return json(res, 504, { error: "Search timed out. Please try again.", query });
+      }
 
       // Sanitize products for frontend
       const responseProducts = result.products.map(sanitizeSearchProduct);
@@ -4820,8 +4829,17 @@ function hasValidProductImage(url) {
 /** Filter an images array, keeping only valid product images */
 function filterProductImages(images) {
   if (!Array.isArray(images) || images.length === 0) return images;
-  const filtered = images.filter(url => typeof url === "string" && hasValidProductImage(url));
-  return filtered.length > 0 ? filtered : images.slice(0, 1); // keep at least one
+  // Deduplicate URLs first (many products have the hero image repeated 10+ times)
+  const seen = new Set();
+  const unique = [];
+  for (const url of images) {
+    if (typeof url === "string" && url && !seen.has(url)) {
+      seen.add(url);
+      unique.push(url);
+    }
+  }
+  const filtered = unique.filter(url => hasValidProductImage(url));
+  return filtered.length > 0 ? filtered : unique.slice(0, 1); // keep at least one
 }
 
 function getSearchVendorIds(body) {
