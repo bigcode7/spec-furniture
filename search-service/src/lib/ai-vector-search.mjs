@@ -138,6 +138,19 @@ const FIELD_ACCESSORS = {
   ai_seat_depth: p => p.ai_seat_depth || p.ai_visual_analysis?.seat_depth_category || null,
   ai_adjustable: p => p.ai_adjustable || p.ai_visual_analysis?.adjustable || null,
   ai_seat_height: p => p.ai_visual_analysis?.seat_height_category || null,
+  // Creative trade-intelligence fields
+  ai_weight_class: p => p.ai_weight_class || p.ai_visual_analysis?.weight_class || null,
+  ai_assembly_complexity: p => p.ai_assembly_complexity || p.ai_visual_analysis?.assembly_complexity || null,
+  ai_cleanability: p => p.ai_cleanability || p.ai_visual_analysis?.cleanability || null,
+  ai_pet_friendly: p => p.ai_pet_friendly || p.ai_visual_analysis?.pet_friendliness || null,
+  ai_kid_friendly: p => p.ai_kid_friendly || p.ai_visual_analysis?.kid_friendliness || null,
+  ai_space_efficiency: p => p.ai_space_efficiency || p.ai_visual_analysis?.space_efficiency || null,
+  ai_stackable: p => p.ai_stackable || p.ai_visual_analysis?.stackable_nestable || null,
+  ai_light_reflectivity: p => p.ai_light_reflectivity || p.ai_visual_analysis?.light_reflectivity || null,
+  ai_pattern_type: p => p.ai_pattern_type || p.ai_visual_analysis?.pattern_type || null,
+  ai_sustainability: p => p.ai_sustainability || p.ai_visual_analysis?.sustainability_signals || null,
+  ai_designer_match: p => p.ai_designer_match || p.ai_visual_analysis?.designer_silhouette_match || null,
+  ai_sourcing_difficulty: p => p.ai_sourcing_difficulty || p.ai_visual_analysis?.sourcing_difficulty || null,
 };
 
 // How many top values to include in Haiku prompt per field
@@ -176,6 +189,19 @@ const FIELD_LIMITS = {
   ai_seat_depth: 10,
   ai_adjustable: 20,
   ai_seat_height: 10,
+  // Creative trade-intelligence fields
+  ai_weight_class: 10,
+  ai_assembly_complexity: 10,
+  ai_cleanability: 10,
+  ai_pet_friendly: 10,
+  ai_kid_friendly: 10,
+  ai_space_efficiency: 10,
+  ai_stackable: 10,
+  ai_light_reflectivity: 10,
+  ai_pattern_type: 15,
+  ai_sustainability: 10,
+  ai_designer_match: 30,
+  ai_sourcing_difficulty: 10,
 };
 
 // Values to filter out of catalog index
@@ -511,6 +537,66 @@ ADJUSTABLE → ai_adjustable:
   reclining, power reclining, swivel, height adjustable, power headrest, glider, rocker
   USER SAYS → YOU SET: 'swivel accent chair' → ai_adjustable: ['swivel']
   USER SAYS → YOU SET: 'power reclining sofa' → ai_adjustable: ['power reclining']
+
+WEIGHT CLASS → ai_weight_class:
+  ultralight (<15 lbs), light (15-40 lbs), medium (40-80 lbs), heavy (80-150 lbs), very heavy (150+ lbs)
+  USER SAYS → YOU SET: 'lightweight side table' → ai_weight_class: ['ultralight', 'light']
+
+PET FRIENDLY → ai_pet_friendly:
+  pet friendly, somewhat pet friendly, not pet friendly
+  USER SAYS → YOU SET: 'pet friendly sofa' → ai_pet_friendly: ['pet friendly']
+  USER SAYS → YOU SET: 'dog proof chair' → ai_pet_friendly: ['pet friendly']
+
+KID FRIENDLY → ai_kid_friendly:
+  kid friendly, somewhat kid friendly, adults only
+  USER SAYS → YOU SET: 'kid friendly sectional' → ai_kid_friendly: ['kid friendly']
+  USER SAYS → YOU SET: 'family room sofa kids' → ai_kid_friendly: ['kid friendly']
+
+CLEANABILITY → ai_cleanability:
+  wipeable, spot clean, professional clean only, machine washable covers
+  USER SAYS → YOU SET: 'easy to clean dining chair' → ai_cleanability: ['wipeable']
+
+SPACE EFFICIENCY → ai_space_efficiency:
+  space saving, standard footprint, statement piece, room anchor
+  USER SAYS → YOU SET: 'small space sofa' → ai_space_efficiency: ['space saving']
+  USER SAYS → YOU SET: 'apartment sized' → ai_space_efficiency: ['space saving'] + ai_scale: ['small', 'petite']
+
+STACKABLE → ai_stackable:
+  stackable, nestable, foldable, modular, none
+  USER SAYS → YOU SET: 'stackable dining chairs' → ai_stackable: ['stackable']
+  USER SAYS → YOU SET: 'nesting tables' → ai_stackable: ['nestable']
+  USER SAYS → YOU SET: 'modular sectional' → ai_stackable: ['modular']
+
+PATTERN TYPE → ai_pattern_type:
+  solid, striped, geometric, floral, abstract, animal print, plaid, textured solid, two-tone
+  USER SAYS → YOU SET: 'striped accent chair' → ai_pattern_type: ['striped']
+  USER SAYS → YOU SET: 'geometric rug' → ai_pattern_type: ['geometric']
+  USER SAYS → YOU SET: 'solid fabric sofa' → ai_pattern_type: ['solid']
+
+DESIGNER MATCH → ai_designer_match:
+  like a Milo Baughman, like a Vladimir Kagan, like a Charles Eames, like a Florence Knoll, like a Jean Prouve, like a Gio Ponti, like a Hans Wegner, like a Pierre Jeanneret, like a Le Corbusier, like a Eileen Gray
+  USER SAYS → YOU SET: 'Eames style chair' → ai_designer_match: ['Eames']
+  USER SAYS → YOU SET: 'Kagan inspired sofa' → ai_designer_match: ['Kagan']
+  USER SAYS → YOU SET: 'Wegner wishbone' → ai_designer_match: ['Wegner']
+
+SOURCING DIFFICULTY → ai_sourcing_difficulty:
+  readily available, made to order, limited edition, artisan/one of a kind
+  USER SAYS → YOU SET: 'quick ship sofa' → ai_sourcing_difficulty: ['readily available']
+  USER SAYS → YOU SET: 'artisan dining table' → ai_sourcing_difficulty: ['artisan']
+
+ASSEMBLY → ai_assembly_complexity:
+  no assembly, minimal (attach legs), moderate (multiple components), complex (built-in/wall mount)
+  USER SAYS → YOU SET: 'easy assembly bookcase' → ai_assembly_complexity: ['no assembly', 'minimal']
+
+LIGHT REFLECTIVITY → ai_light_reflectivity:
+  matte, satin, semi-gloss, high gloss, mirror, mixed
+  USER SAYS → YOU SET: 'matte finish table' → ai_light_reflectivity: ['matte']
+  USER SAYS → YOU SET: 'high gloss console' → ai_light_reflectivity: ['high gloss']
+
+SUSTAINABILITY → ai_sustainability:
+  reclaimed materials, FSC wood, natural fibers, recyclable metal, handcrafted
+  USER SAYS → YOU SET: 'reclaimed wood dining table' → ai_sustainability: ['reclaimed materials']
+  USER SAYS → YOU SET: 'sustainable furniture' → ai_sustainability: ['reclaimed materials', 'FSC wood', 'natural fibers']
 
 RULE 0 ENFORCEMENT: If a query contains ANY of the terms above, the corresponding field MUST appear in search_fields. Putting a physical attribute only in semantic_query is a CRITICAL ERROR. Physical attributes are hard AND filters — the product must literally have that construction feature.
 

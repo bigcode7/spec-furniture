@@ -199,6 +199,17 @@ function normalizeStandaloneResult(item) {
     ai_leg_style: item.ai_leg_style || null,
     ai_scale: item.ai_scale || null,
     ai_visual_analysis: item.ai_visual_analysis || null,
+    // Trade-intelligence fields
+    ai_pet_friendly: item.ai_pet_friendly || null,
+    ai_kid_friendly: item.ai_kid_friendly || null,
+    ai_cleanability: item.ai_cleanability || null,
+    ai_weight_class: item.ai_weight_class || null,
+    ai_space_efficiency: item.ai_space_efficiency || null,
+    ai_pattern_type: item.ai_pattern_type || null,
+    ai_designer_match: item.ai_designer_match || null,
+    ai_sourcing_difficulty: item.ai_sourcing_difficulty || null,
+    ai_stackable: item.ai_stackable || null,
+    ai_sustainability: item.ai_sustainability || null,
     // Extra fields for preview
     color: item.color || null,
     width: item.width || null,
