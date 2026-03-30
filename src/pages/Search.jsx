@@ -391,16 +391,20 @@ export default function SearchPage() {
     const initialQuery = getInitialQuery();
 
     // Try restoring cached state first (e.g., returning from Quotes page)
+    // Restore if: cache exists with results, AND either no URL query or URL query matches cache
     const cached = loadSearchCache();
-    if (cached && initialQuery && cached.query === initialQuery && cached.allResults?.length > 0) {
-      setInputValue(initialQuery);
+    if (cached && cached.allResults?.length > 0 && (!initialQuery || cached.query === initialQuery)) {
+      const q = cached.query;
+      setInputValue(q);
       setAllResults(cached.allResults);
       setMessages(cached.messages || []);
-      setDisplayQuery(cached.displayQuery || initialQuery);
+      setDisplayQuery(cached.displayQuery || q);
       setSortKey(cached.sortKey || "relevance");
       setVisibleCount(cached.visibleCount || INITIAL_PAGE_SIZE);
       setTotalAvailable(cached.totalAvailable || cached.allResults.length);
-      lastQueryRef.current = initialQuery;
+      lastQueryRef.current = q;
+      // Put the query back in the URL so refresh works
+      window.history.replaceState({}, "", `/Search?q=${encodeURIComponent(q)}`);
       // Restore scroll position after React renders
       requestAnimationFrame(() => {
         setTimeout(() => {
