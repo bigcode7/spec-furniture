@@ -64,7 +64,9 @@ export default function AuthModal() {
           try {
             const sub = await getSubscriptionStatus();
             localStorage.setItem("spec_sub_status", sub.status || "guest");
-          } catch {}
+          } catch (e) {
+            console.error("[auth] Failed to cache subscription status after signup:", e.message || e);
+          }
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user, true);
@@ -79,7 +81,9 @@ export default function AuthModal() {
           try {
             const sub = await getSubscriptionStatus();
             localStorage.setItem("spec_sub_status", sub.status || "guest");
-          } catch {}
+          } catch (e) {
+            console.error("[auth] Failed to cache subscription status after login:", e.message || e);
+          }
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user);

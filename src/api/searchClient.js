@@ -384,7 +384,9 @@ export async function syncFavoriteToServer(product, add) {
         headers: { ...getAuthHeaders() },
       });
     }
-  } catch {}
+  } catch (e) {
+    console.error("[searchClient] Failed to sync favorite:", e.message || e);
+  }
 }
 
 export async function fetchServerQuote() {
@@ -395,7 +397,10 @@ export async function fetchServerQuote() {
     if (!response.ok) return null;
     const data = await response.json();
     return data.quote;
-  } catch { return null; }
+  } catch (e) {
+    console.error("[searchClient] Failed to fetch quote:", e.message || e);
+    return null;
+  }
 }
 
 export async function syncQuoteToServer(quote) {
@@ -405,7 +410,9 @@ export async function syncQuoteToServer(quote) {
       headers: { "content-type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ quote }),
     });
-  } catch {}
+  } catch (e) {
+    console.error("[searchClient] Failed to sync quote:", e.message || e);
+  }
 }
 
 function isVendorAssetUrl(url, vendorDomain) {

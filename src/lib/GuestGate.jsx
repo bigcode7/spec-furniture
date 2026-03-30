@@ -28,7 +28,9 @@ function getSearchCount() {
 function setSearchCount(n) {
   try {
     localStorage.setItem(SEARCH_COUNT_KEY, String(n));
-  } catch {}
+  } catch (e) {
+    console.error("[GuestGate] Failed to save search count:", e.message || e);
+  }
 }
 
 function isBannerDismissed() {
@@ -64,7 +66,9 @@ export function GuestGateProvider({ children }) {
     setShowBanner(false);
     try {
       sessionStorage.setItem(BANNER_DISMISSED_KEY, "1");
-    } catch {}
+    } catch (e) {
+      console.error("[GuestGate] Failed to dismiss banner:", e.message || e);
+    }
   }, []);
 
   // Gate a feature: if logged in, run the action. If guest, open auth modal.
