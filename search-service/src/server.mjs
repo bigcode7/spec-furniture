@@ -419,8 +419,8 @@ function json(res, status, payload) {
   res.end(JSON.stringify(payload, null, 2));
 }
 
-function notFound(res) {
-  json(res, 404, { error: "Not found" });
+function notFound(res, path) {
+  json(res, 404, { error: "Not found", path: path || undefined });
 }
 
 const MAX_BODY_SIZE = 1024 * 1024; // 1MB
@@ -4704,7 +4704,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       });
     }
 
-    return notFound(res);
+    return notFound(res, req.url);
   } catch (error) {
     if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
       return json(res, 413, { error: "Payload too large. Maximum body size is 1MB." });
