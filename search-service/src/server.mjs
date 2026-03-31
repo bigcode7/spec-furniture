@@ -5528,11 +5528,18 @@ function sanitizeSearchProduct(product) {
 
         const details = [];
         if (!skip(va.arms) && !va.arms.toLowerCase().includes("armless")) {
-          // Avoid "track arm arms" — if arm type already ends with "arm", just add "s"
-          const armVal = va.arms.toLowerCase();
-          details.push(armVal.endsWith("arm") ? `${va.arms}s` : `${va.arms} arms`);
+          const armVal = va.arms.toLowerCase().trim();
+          // Don't repeat arms if already mentioned in silhouette
+          if (!sil.toLowerCase().includes(armVal)) {
+            // Avoid "track arm arms" — if arm type already ends with "arm", just add "s"
+            details.push(armVal.endsWith("arm") ? `${va.arms}s` : `${va.arms} arms`);
+          }
         }
-        if (!skip(va.legs_base) && !/^(none|hidden|skirted)/i.test(va.legs_base)) details.push(`${va.legs_base} legs`);
+        if (!skip(va.legs_base) && !/^(none|hidden|skirted)/i.test(va.legs_base)) {
+          // Clean up verbose leg descriptions
+          let legDesc = va.legs_base.replace(/,?\s*(four-legged|three-legged)\s*/gi, "").trim();
+          if (legDesc && !skip(legDesc)) details.push(`${legDesc} legs`);
+        }
         if (details.length > 0) sentence1 += ` with ${details.join(" and ")}`;
 
         sentence1 += ".";
@@ -5562,9 +5569,18 @@ function sanitizeSearchProduct(product) {
       if (s2parts.length > 0) sentence2 = s2parts.join(". ") + ".";
 
       let result = [sentence1, sentence2].filter(Boolean).join(" ");
-      // Final cleanup: fix any remaining awkward patterns
-      result = result.replace(/\b(\w+) \1\b/gi, "$1"); // remove word-word dupes like "linen linen"
+      // Final cleanup: fix awkward AI-generated patterns
+      result = result.replace(/\b(\w+) \1\b/gi, "$1"); // "linen linen" → "linen"
+      result = result.replace(/\b(\w+ \w+) \1\b/gi, "$1"); // "shelter arm shelter arm" → "shelter arm"
+      result = result.replace(/with (\w+ \w+s?) (?:and|with) \1/gi, "with $1"); // "with shelter arms with shelter arms"
+      result = result.replace(/(\w+ chair)\s+\w+ chair\b/gi, "$1"); // "lounge chair accent chair" → "lounge chair"
+      result = result.replace(/,\s*(wooden|four-legged|three-legged),?\s*/gi, " "); // remove awkward mid-list items
+      result = result.replace(/(tapered|straight|turned),?\s*(tapered|straight|turned),?\s*/gi, "$1 "); // dedup leg adjectives
+      result = result.replace(/\b([\w-]+) legs legs\b/gi, "$1 legs"); // "four-legged legs" → just the descriptor
+      result = result.replace(/four-legged legs/gi, "four legs");
+      result = result.replace(/three-legged legs/gi, "three legs");
       result = result.replace(/\.\s*\./g, "."); // double periods
+      result = result.replace(/\s{2,}/g, " ").trim(); // collapse whitespace
       if (result.length < 30) return null;
       return result;
     })()
