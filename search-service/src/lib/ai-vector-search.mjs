@@ -2097,37 +2097,224 @@ export async function searchPipeline(query, options = {}) {
     };
 
     const PHYSICAL_ENFORCEMENT = [
-      // Skirt style — "skirted sofa", "skirt style", "kick pleat"
+      // ── Materials ──
+      { pattern: /\bleather\b/i, field: "ai_primary_material", values: ["leather"], keyword: "leather" },
+      { pattern: /\bvelvet\b/i, field: "ai_primary_material", values: ["velvet"], keyword: "velvet" },
+      { pattern: /\blinen\b/i, field: "ai_primary_material", values: ["linen"], keyword: "linen" },
+      { pattern: /\bperformance\s+fabric\b/i, field: "ai_primary_material", values: ["performance fabric", "performance"], keyword: "performance fabric" },
+      { pattern: /\bboucl[eé]\b/i, field: "ai_primary_material", values: ["boucle", "bouclé"], keyword: "boucl" },
+      { pattern: /\bchenille\b/i, field: "ai_primary_material", values: ["chenille"], keyword: "chenille" },
+      { pattern: /\bfabric\b/i, field: "ai_primary_material", values: ["fabric"], keyword: "fabric" },
+      { pattern: /\bwood\b/i, field: "ai_primary_material", values: ["wood"], keyword: "wood" },
+      { pattern: /\bmarble\b/i, field: "ai_primary_material", values: ["marble"], keyword: "marble" },
+      { pattern: /\bglass\b/i, field: "ai_primary_material", values: ["glass"], keyword: "glass" },
+      { pattern: /\bmetal\b/i, field: "ai_primary_material", values: ["metal"], keyword: "metal" },
+      { pattern: /\brattan\b/i, field: "ai_primary_material", values: ["rattan"], keyword: "rattan" },
+      { pattern: /\bwicker\b/i, field: "ai_primary_material", values: ["wicker"], keyword: "wicker" },
+      { pattern: /\bcane\b/i, field: "ai_primary_material", values: ["cane"], keyword: "cane" },
+      { pattern: /\bstone\b/i, field: "ai_primary_material", values: ["stone"], keyword: "stone" },
+      { pattern: /\bconcrete\b/i, field: "ai_primary_material", values: ["concrete"], keyword: "concrete" },
+      { pattern: /\bacrylic\b/i, field: "ai_primary_material", values: ["acrylic"], keyword: "acrylic" },
+      { pattern: /\blucite\b/i, field: "ai_primary_material", values: ["lucite", "acrylic"], keyword: "lucite" },
+      { pattern: /\bsunbrella\b/i, field: "ai_primary_material", values: ["sunbrella", "performance fabric"], keyword: "sunbrella" },
+      // Wood species → ai_primary_material AND ai_wood_species
+      { pattern: /\bwalnut\b/i, field: "ai_primary_material", values: ["walnut"], keyword: "walnut" },
+      { pattern: /\bwalnut\b/i, field: "ai_wood_species", values: ["walnut"], keyword: "walnut" },
+      { pattern: /\boak\b/i, field: "ai_primary_material", values: ["oak"], keyword: "oak" },
+      { pattern: /\boak\b/i, field: "ai_wood_species", values: ["oak"], keyword: "oak" },
+      { pattern: /\bmahogany\b/i, field: "ai_primary_material", values: ["mahogany"], keyword: "mahogany" },
+      { pattern: /\bmahogany\b/i, field: "ai_wood_species", values: ["mahogany"], keyword: "mahogany" },
+      { pattern: /\bteak\b/i, field: "ai_primary_material", values: ["teak"], keyword: "teak" },
+      { pattern: /\bteak\b/i, field: "ai_wood_species", values: ["teak"], keyword: "teak" },
+      { pattern: /\bmaple\b/i, field: "ai_primary_material", values: ["maple"], keyword: "maple" },
+      { pattern: /\bcherry\b/i, field: "ai_primary_material", values: ["cherry"], keyword: "cherry" },
+      { pattern: /\bash\b(?!\s+(?:gray|grey))/i, field: "ai_primary_material", values: ["ash"], keyword: "ash" },
+      { pattern: /\bpine\b/i, field: "ai_primary_material", values: ["pine"], keyword: "pine" },
+      { pattern: /\bcedar\b/i, field: "ai_primary_material", values: ["cedar"], keyword: "cedar" },
+      { pattern: /\belm\b/i, field: "ai_primary_material", values: ["elm"], keyword: "elm" },
+      { pattern: /\bbirch\b/i, field: "ai_primary_material", values: ["birch"], keyword: "birch" },
+
+      // ── Styles ──
+      { pattern: /\bmod(?:ern)\b/i, field: "ai_style", values: ["modern"], keyword: "modern" },
+      { pattern: /\bcontemporary\b/i, field: "ai_style", values: ["contemporary"], keyword: "contemporary" },
+      { pattern: /\btraditional\b/i, field: "ai_style", values: ["traditional"], keyword: "traditional" },
+      { pattern: /\btransitional\b/i, field: "ai_style", values: ["transitional"], keyword: "transitional" },
+      { pattern: /\bmid[\s-]*century\b/i, field: "ai_style", values: ["mid-century", "mid century"], keyword: "mid.century" },
+      { pattern: /\brustic\b/i, field: "ai_style", values: ["rustic"], keyword: "rustic" },
+      { pattern: /\bindustrial\b/i, field: "ai_style", values: ["industrial"], keyword: "industrial" },
+      { pattern: /\bcoastal\b/i, field: "ai_style", values: ["coastal"], keyword: "coastal" },
+      { pattern: /\bfarmhouse\b/i, field: "ai_style", values: ["farmhouse"], keyword: "farmhouse" },
+      { pattern: /\bart\s+deco\b/i, field: "ai_style", values: ["art deco"], keyword: "art deco" },
+      { pattern: /\bbohemian\b|\bboho\b/i, field: "ai_style", values: ["bohemian", "boho"], keyword: "boho" },
+      { pattern: /\bminimalist\b/i, field: "ai_style", values: ["minimalist"], keyword: "minimalist" },
+      { pattern: /\bglam\b/i, field: "ai_style", values: ["glam", "glamorous"], keyword: "glam" },
+      { pattern: /\bscandinavian\b/i, field: "ai_style", values: ["scandinavian"], keyword: "scandinavian" },
+      { pattern: /\bfrench\s+country\b/i, field: "ai_style", values: ["french country"], keyword: "french country" },
+      { pattern: /\bhollywood\s+regency\b/i, field: "ai_style", values: ["hollywood regency"], keyword: "hollywood regency" },
+
+      // ── Colors ──
+      { pattern: /\bblue\b/i, field: "ai_primary_color", values: ["blue"], keyword: "blue" },
+      { pattern: /\bnavy\b/i, field: "ai_primary_color", values: ["navy", "blue"], keyword: "navy" },
+      { pattern: /\bgr[ea]y\b/i, field: "ai_primary_color", values: ["gray", "grey"], keyword: "gray" },
+      { pattern: /\bwhite\b/i, field: "ai_primary_color", values: ["white"], keyword: "white" },
+      { pattern: /\bblack\b/i, field: "ai_primary_color", values: ["black"], keyword: "black" },
+      { pattern: /\bcream\b/i, field: "ai_primary_color", values: ["cream", "ivory"], keyword: "cream" },
+      { pattern: /\bivory\b/i, field: "ai_primary_color", values: ["ivory", "cream"], keyword: "ivory" },
+      { pattern: /\bbeige\b/i, field: "ai_primary_color", values: ["beige", "tan"], keyword: "beige" },
+      { pattern: /\btan\b/i, field: "ai_primary_color", values: ["tan", "beige"], keyword: "tan" },
+      { pattern: /\bbrown\b/i, field: "ai_primary_color", values: ["brown"], keyword: "brown" },
+      { pattern: /\bgreen\b/i, field: "ai_primary_color", values: ["green"], keyword: "green" },
+      { pattern: /\bred\b/i, field: "ai_primary_color", values: ["red"], keyword: "red" },
+      { pattern: /\bpink\b/i, field: "ai_primary_color", values: ["pink"], keyword: "pink" },
+      { pattern: /\borange\b/i, field: "ai_primary_color", values: ["orange"], keyword: "orange" },
+      { pattern: /\byellow\b/i, field: "ai_primary_color", values: ["yellow"], keyword: "yellow" },
+      { pattern: /\bgold\b/i, field: "ai_primary_color", values: ["gold"], keyword: "gold" },
+      { pattern: /\bburgundy\b/i, field: "ai_primary_color", values: ["burgundy"], keyword: "burgundy" },
+      { pattern: /\bteal\b/i, field: "ai_primary_color", values: ["teal"], keyword: "teal" },
+      { pattern: /\bcharcoal\b/i, field: "ai_primary_color", values: ["charcoal", "gray"], keyword: "charcoal" },
+      { pattern: /\bcamel\b/i, field: "ai_primary_color", values: ["camel", "tan"], keyword: "camel" },
+      { pattern: /\bcognac\b/i, field: "ai_primary_color", values: ["cognac", "brown"], keyword: "cognac" },
+      { pattern: /\brust\b/i, field: "ai_primary_color", values: ["rust", "orange"], keyword: "rust" },
+      { pattern: /\bsage\b/i, field: "ai_primary_color", values: ["sage", "green"], keyword: "sage" },
+      { pattern: /\bblush\b/i, field: "ai_primary_color", values: ["blush", "pink"], keyword: "blush" },
+      { pattern: /\bterracotta\b/i, field: "ai_primary_color", values: ["terracotta"], keyword: "terracotta" },
+
+      // ── Arm styles ──
+      { pattern: /\btrack\s+arm\b/i, field: "ai_arm_style", values: ["track"], keyword: "track arm" },
+      { pattern: /\brolled?\s+arm\b/i, field: "ai_arm_style", values: ["rolled"], keyword: "rolled arm" },
+      { pattern: /\bslope(?:d)?\s+arm\b/i, field: "ai_arm_style", values: ["slope"], keyword: "slope arm" },
+      { pattern: /\bflared?\s+arm\b/i, field: "ai_arm_style", values: ["flared"], keyword: "flare arm" },
+      { pattern: /\benglish\s+arm\b/i, field: "ai_arm_style", values: ["english"], keyword: "english arm" },
+      { pattern: /\bpad\s+arm\b/i, field: "ai_arm_style", values: ["pad"], keyword: "pad arm" },
+      { pattern: /\btuxedo\s+arm\b/i, field: "ai_arm_style", values: ["tuxedo"], keyword: "tuxedo arm" },
+      { pattern: /\bshelter\s+arm\b/i, field: "ai_arm_style", values: ["shelter"], keyword: "shelter arm" },
+      { pattern: /\bset[\s-]*back\s+arm\b/i, field: "ai_arm_style", values: ["set-back", "set back"], keyword: "set-back arm" },
+      { pattern: /\bcurved?\s+arm\b/i, field: "ai_arm_style", values: ["curved"], keyword: "curved arm" },
+      { pattern: /\bscooped?\s+arm\b/i, field: "ai_arm_style", values: ["scooped"], keyword: "scooped arm" },
+      { pattern: /\barmless\b/i, field: "ai_arm_style", values: ["armless"], keyword: "armless" },
+
+      // ── Back styles ──
+      { pattern: /\btight\s+back\b/i, field: "ai_back_style", values: ["tight back"], keyword: "tight back" },
+      { pattern: /\bloose\s+back\b/i, field: "ai_back_style", values: ["loose back"], keyword: "loose back" },
+      { pattern: /\bpillow\s+back\b/i, field: "ai_back_style", values: ["pillow back"], keyword: "pillow back" },
+      { pattern: /\bcamelback\b/i, field: "ai_back_style", values: ["camelback"], keyword: "camelback" },
+      { pattern: /\bwingback\b/i, field: "ai_back_style", values: ["wingback"], keyword: "wingback" },
+      { pattern: /\bchannel\s+back\b/i, field: "ai_back_style", values: ["channel back"], keyword: "channel back" },
+      { pattern: /\btufted\s+back\b/i, field: "ai_back_style", values: ["tufted back"], keyword: "tufted back" },
+      { pattern: /\bbutton\s+back\b/i, field: "ai_back_style", values: ["button back"], keyword: "button back" },
+      { pattern: /\bladder\s+back\b/i, field: "ai_back_style", values: ["ladder back"], keyword: "ladder back" },
+      { pattern: /\bspindle\s+back\b/i, field: "ai_back_style", values: ["spindle back"], keyword: "spindle back" },
+      { pattern: /\bcane\s+back\b/i, field: "ai_back_style", values: ["cane back"], keyword: "cane back" },
+
+      // ── Leg styles ──
+      { pattern: /\btapered?\s+leg\b/i, field: "ai_leg_style", values: ["tapered"], keyword: "tapered leg" },
+      { pattern: /\bturned?\s+leg\b/i, field: "ai_leg_style", values: ["turned"], keyword: "turned leg" },
+      { pattern: /\bcabriole\s+leg\b/i, field: "ai_leg_style", values: ["cabriole"], keyword: "cabriole leg" },
+      { pattern: /\bsaber\s+leg\b/i, field: "ai_leg_style", values: ["saber"], keyword: "saber leg" },
+      { pattern: /\bstraight\s+leg\b/i, field: "ai_leg_style", values: ["straight"], keyword: "straight leg" },
+      { pattern: /\bhairpin\s+leg\b/i, field: "ai_leg_style", values: ["hairpin"], keyword: "hairpin leg" },
+      { pattern: /\bmetal\s+leg\b/i, field: "ai_leg_style", values: ["metal"], keyword: "metal leg" },
+      { pattern: /\bsplayed?\s+leg\b/i, field: "ai_leg_style", values: ["splayed"], keyword: "splayed leg" },
+      { pattern: /\bbun\s+foot\b/i, field: "ai_leg_style", values: ["bun foot"], keyword: "bun foot" },
+      { pattern: /\bblock\s+leg\b/i, field: "ai_leg_style", values: ["block"], keyword: "block leg" },
+
+      // ── Silhouettes ──
+      { pattern: /\bbarrel\b/i, field: "ai_silhouette", values: ["barrel"], keyword: "barrel" },
+      { pattern: /\bchesterfield\b/i, field: "ai_silhouette", values: ["chesterfield"], keyword: "chesterfield" },
+      { pattern: /\blawson\b/i, field: "ai_silhouette", values: ["lawson"], keyword: "lawson" },
+      { pattern: /\bbridgewater\b/i, field: "ai_silhouette", values: ["bridgewater"], keyword: "bridgewater" },
+      { pattern: /\btuxedo\b(?!\s+arm)/i, field: "ai_silhouette", values: ["tuxedo"], keyword: "tuxedo" },
+      { pattern: /\bslipper\b/i, field: "ai_silhouette", values: ["slipper"], keyword: "slipper" },
+      { pattern: /\bparsons\b/i, field: "ai_silhouette", values: ["parsons"], keyword: "parsons" },
+      { pattern: /\bshelter\b(?!\s+arm)/i, field: "ai_silhouette", values: ["shelter"], keyword: "shelter" },
+
+      // ── Skirt style ──
       { pattern: /\bskirt(?:ed|s)?\b/i, field: "ai_skirt_style", values: ["skirted", "tailored skirt", "kick pleat", "bullion fringe"], keyword: "skirt" },
       { pattern: /\bkick\s+pleat\b/i, field: "ai_skirt_style", values: ["kick pleat"], keyword: "kick pleat" },
       { pattern: /\bbullion\s+fringe\b/i, field: "ai_skirt_style", values: ["bullion fringe"], keyword: "bullion fringe" },
-      // Tufting pattern
+
+      // ── Tufting pattern ──
       { pattern: /\bchannel\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["channel tufted", "channel"], keyword: "channel tuft" },
       { pattern: /\bbutton\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["button tufted", "button"], keyword: "button tuft" },
       { pattern: /\bdiamond\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["diamond tufted", "diamond"], keyword: "diamond tuft" },
       { pattern: /\bbiscuit\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["biscuit tufted", "biscuit"], keyword: "biscuit tuft" },
-      // Cushion configuration
+
+      // ── Cushion configuration ──
       { pattern: /\b[23]\s+over\s+[23]\b/i, field: "ai_cushion_config", values: () => { const m = qLower.match(/(\d)\s+over\s+(\d)/); return m ? [`${m[1]} over ${m[2]}`] : ["3 over 3"]; }, keyword: "cushion config" },
       { pattern: /\bbench\s+seat\b/i, field: "ai_cushion_config", values: ["bench seat", "bench"], keyword: "bench seat" },
       { pattern: /\btight\s+seat\b/i, field: "ai_cushion_config", values: ["tight seat"], keyword: "tight seat" },
-      // Nailhead
+
+      // ── Nailhead ──
       { pattern: /\bnailhead\b/i, field: "ai_has_nailhead", values: ["true"], keyword: "nailhead" },
-      // Edge profile
+
+      // ── Edge profile ──
       { pattern: /\bwaterfall\s+edge\b/i, field: "ai_edge_profile", values: ["waterfall"], keyword: "waterfall edge" },
       { pattern: /\bknife\s+edge\b/i, field: "ai_edge_profile", values: ["knife edge"], keyword: "knife edge" },
-      // Base type
-      { pattern: /\bpedestal\s+(?:base|table)\b/i, field: "ai_base_type", values: ["pedestal"], keyword: "pedestal" },
-      { pattern: /\btrestle\s+(?:base|table)\b/i, field: "ai_base_type", values: ["trestle"], keyword: "trestle" },
+
+      // ── Base type ──
+      { pattern: /\bpedestal\b/i, field: "ai_base_type", values: ["pedestal"], keyword: "pedestal" },
+      { pattern: /\btrestle\b/i, field: "ai_base_type", values: ["trestle"], keyword: "trestle" },
       { pattern: /\bx[\s-]*base\b/i, field: "ai_base_type", values: ["X-base"], keyword: "x-base" },
-      // Indoor/outdoor
+      { pattern: /\bplinth\b/i, field: "ai_base_type", values: ["plinth"], keyword: "plinth" },
+      { pattern: /\bsled\s+base\b/i, field: "ai_base_type", values: ["sled"], keyword: "sled base" },
+      { pattern: /\bcantilever\b/i, field: "ai_base_type", values: ["cantilever"], keyword: "cantilever" },
+
+      // ── Indoor/outdoor ──
       { pattern: /\bindoor[\s/]+outdoor\b/i, field: "ai_indoor_outdoor", values: ["indoor/outdoor"], keyword: "indoor/outdoor" },
-      // Pet/kid friendly
+
+      // ── Finish ──
+      { pattern: /\bdistressed\b/i, field: "ai_finish", values: ["distressed"], keyword: "distressed" },
+      { pattern: /\blacquered\b/i, field: "ai_finish", values: ["lacquered"], keyword: "lacquered" },
+      { pattern: /\bcerused\b/i, field: "ai_finish", values: ["cerused"], keyword: "cerused" },
+      { pattern: /\bwire[\s-]*brushed\b/i, field: "ai_finish", values: ["wire-brushed"], keyword: "wire-brushed" },
+      { pattern: /\bhand[\s-]*rubbed\b/i, field: "ai_finish", values: ["hand-rubbed"], keyword: "hand-rubbed" },
+      { pattern: /\bantiqued\b/i, field: "ai_finish", values: ["antiqued"], keyword: "antiqued" },
+
+      // ── Pet/kid friendly ──
       { pattern: /\bpet\s+friendly\b/i, field: "ai_pet_friendly", values: ["pet friendly"], keyword: "pet friendly" },
+      { pattern: /\bdog\s+(?:proof|friendly|safe)\b/i, field: "ai_pet_friendly", values: ["pet friendly"], keyword: "dog proof" },
       { pattern: /\bkid\s+friendly\b/i, field: "ai_kid_friendly", values: ["kid friendly"], keyword: "kid friendly" },
-      // Seat depth
+      { pattern: /\bchild\s+(?:proof|friendly|safe)\b/i, field: "ai_kid_friendly", values: ["kid friendly"], keyword: "child proof" },
+
+      // ── Seat depth ──
       { pattern: /\bdeep\s+seat\b/i, field: "ai_seat_depth", values: ["deep seat", "deep"], keyword: "deep seat" },
-      // COM eligible
+
+      // ── COM eligible ──
       { pattern: /\bCOM\b|customer'?s?\s+own\s+material/i, field: "ai_COM_eligible", values: ["true"], keyword: "COM" },
+
+      // ── Formality ──
+      { pattern: /\bformal\b/i, field: "ai_formality", values: ["formal"], keyword: "formal" },
+      { pattern: /\bcasual\b/i, field: "ai_formality", values: ["casual"], keyword: "casual" },
+
+      // ── Scale ──
+      { pattern: /\bapartment\s+size\b/i, field: "ai_scale", values: ["small", "compact", "apartment"], keyword: "apartment" },
+      { pattern: /\boversized\b/i, field: "ai_scale", values: ["oversized", "large"], keyword: "oversized" },
+      { pattern: /\bcompact\b/i, field: "ai_scale", values: ["compact", "small"], keyword: "compact" },
+      { pattern: /\bpetite\b/i, field: "ai_scale", values: ["petite", "small"], keyword: "petite" },
+
+      // ── Pattern type ──
+      { pattern: /\bstriped\b/i, field: "ai_pattern_type", values: ["striped"], keyword: "striped" },
+      { pattern: /\bgeometric\b/i, field: "ai_pattern_type", values: ["geometric"], keyword: "geometric" },
+      { pattern: /\bfloral\b/i, field: "ai_pattern_type", values: ["floral"], keyword: "floral" },
+      { pattern: /\bsolid\s+(?:fabric|color)\b/i, field: "ai_pattern_type", values: ["solid"], keyword: "solid" },
+      { pattern: /\bplaid\b/i, field: "ai_pattern_type", values: ["plaid"], keyword: "plaid" },
+
+      // ── Cleanability ──
+      { pattern: /\bwipeable\b/i, field: "ai_cleanability", values: ["wipeable"], keyword: "wipeable" },
+      { pattern: /\beasy\s+(?:to\s+)?clean\b/i, field: "ai_cleanability", values: ["wipeable"], keyword: "easy clean" },
+
+      // ── Stackable ──
+      { pattern: /\bstackable\b/i, field: "ai_stackable", values: ["stackable"], keyword: "stackable" },
+      { pattern: /\bnestable\b|\bnesting\b/i, field: "ai_stackable", values: ["nestable"], keyword: "nestable" },
+
+      // ── Sourcing difficulty ──
+      { pattern: /\bquick\s+ship\b/i, field: "ai_sourcing_difficulty", values: ["readily available"], keyword: "quick ship" },
+
+      // ── Designer match ──
+      { pattern: /\beames\b/i, field: "ai_designer_match", values: ["Eames"], keyword: "eames" },
+      { pattern: /\bkagan\b/i, field: "ai_designer_match", values: ["Kagan"], keyword: "kagan" },
+      { pattern: /\bwegner\b/i, field: "ai_designer_match", values: ["Wegner"], keyword: "wegner" },
+      { pattern: /\bbaughman\b/i, field: "ai_designer_match", values: ["Baughman"], keyword: "baughman" },
     ];
 
     for (const rule of PHYSICAL_ENFORCEMENT) {
