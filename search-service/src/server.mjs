@@ -5545,9 +5545,8 @@ function sanitizeSearchProduct(product) {
     }
   }
   const validGallery = uniqueGallery.filter(url => hasValidProductImage(url));
-  // Final images: just unique gallery (hero is shown separately by frontend)
-  // If gallery is empty, include hero as fallback
-  const finalImages = validGallery.length > 0 ? validGallery : (heroUrl ? [heroUrl] : []);
+  // Final images: unique gallery only (hero is shown separately by frontend via image_url)
+  const finalImages = validGallery;
 
   return {
     ...product,
