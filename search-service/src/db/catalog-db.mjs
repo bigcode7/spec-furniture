@@ -435,17 +435,20 @@ async function downloadCatalogIfMissing() {
     const size = fs.statSync(DB_PATH).size;
     console.log(`[catalog-db] Existing catalog file: ${(size / 1024 / 1024).toFixed(1)}MB`);
 
-    // Validate the file actually contains enough products
+    // Validate the file actually contains enough products AND has the right version
+    const CATALOG_VERSION = "v2-54tags";
     if (size > 50_000_000) {
       try {
         const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 500);
         const countMatch = head.match(/"product_count"\s*:\s*(\d+)/);
         const fileProductCount = countMatch ? parseInt(countMatch[1]) : 0;
-        console.log(`[catalog-db] File reports ${fileProductCount} products`);
-        if (fileProductCount > 10000) {
+        const hasVersion = head.includes(`"catalog_version":"${CATALOG_VERSION}"`);
+        console.log(`[catalog-db] File reports ${fileProductCount} products, version match: ${hasVersion}`);
+        if (fileProductCount > 10000 && hasVersion) {
           catalogDownloadedFromURL = true;
-          return; // File is valid
+          return; // File is valid and current version
         }
+        if (!hasVersion) console.log(`[catalog-db] Catalog version mismatch — forcing re-download`);
       } catch {}
     }
 
@@ -470,7 +473,7 @@ async function downloadCatalogIfMissing() {
 
     const tmpPath = DB_PATH + ".build";
     const ws = fs.createWriteStream(tmpPath);
-    ws.write('{"version":1,"saved_at":"' + new Date().toISOString() + '","products":[');
+    ws.write('{"version":1,"catalog_version":"v2-54tags","saved_at":"' + new Date().toISOString() + '","products":[');
 
     products = new Map();
     vendorCrawlMeta = new Map();
