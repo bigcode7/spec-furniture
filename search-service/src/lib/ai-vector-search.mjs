@@ -378,6 +378,56 @@ ai_visual_weight values: ${formatField("ai_visual_weight")}
 
 ai_ideal_client values: ${formatField("ai_ideal_client")}
 
+ai_skirt_style values: ${formatField("ai_skirt_style")}
+
+ai_has_nailhead values: ${formatField("ai_has_nailhead")}
+
+ai_nailhead_finish values: ${formatField("ai_nailhead_finish")}
+
+ai_tufting_pattern values: ${formatField("ai_tufting_pattern")}
+
+ai_cushion_config values: ${formatField("ai_cushion_config")}
+
+ai_base_type values: ${formatField("ai_base_type")}
+
+ai_edge_profile values: ${formatField("ai_edge_profile")}
+
+ai_indoor_outdoor values: ${formatField("ai_indoor_outdoor")}
+
+ai_COM_eligible values: ${formatField("ai_COM_eligible")}
+
+ai_seat_depth values: ${formatField("ai_seat_depth")}
+
+ai_adjustable values: ${formatField("ai_adjustable")}
+
+ai_seat_height values: ${formatField("ai_seat_height")}
+
+ai_wood_species values: ${formatField("ai_wood_species")}
+
+ai_weight_class values: ${formatField("ai_weight_class")}
+
+ai_pet_friendly values: ${formatField("ai_pet_friendly")}
+
+ai_kid_friendly values: ${formatField("ai_kid_friendly")}
+
+ai_cleanability values: ${formatField("ai_cleanability")}
+
+ai_space_efficiency values: ${formatField("ai_space_efficiency")}
+
+ai_stackable values: ${formatField("ai_stackable")}
+
+ai_pattern_type values: ${formatField("ai_pattern_type")}
+
+ai_designer_match values: ${formatField("ai_designer_match")}
+
+ai_sourcing_difficulty values: ${formatField("ai_sourcing_difficulty")}
+
+ai_assembly_complexity values: ${formatField("ai_assembly_complexity")}
+
+ai_light_reflectivity values: ${formatField("ai_light_reflectivity")}
+
+ai_sustainability values: ${formatField("ai_sustainability")}
+
 vendor_name values: ${formatField("vendor_name")}
 
 Price ranges by furniture type:
@@ -646,8 +696,9 @@ CRITICAL RULES FOR FIELD SELECTION:
 
 SEMANTIC_QUERY ONLY — these concepts NEVER go in search_fields:
 comfortable, luxury, cozy, inviting, statement, bold, dramatic, glamorous,
-airy, fresh, sophisticated, quiet luxury, kid friendly, family friendly,
+airy, fresh, sophisticated, quiet luxury,
 mountain house, coastal, beachy, resort, boutique hotel, magazine-worthy
+NOTE: "kid friendly", "pet friendly", "family friendly" ARE now filterable via ai_kid_friendly and ai_pet_friendly fields — use those fields, NOT semantic_query.
 
 EXAMPLES:
 
@@ -925,10 +976,10 @@ semantic_query: 'quiet luxury refined sophisticated accent chair premium quality
 (quiet luxury is ABSTRACT → semantic_query only)
 
 User: 'kid friendly sectional performance fabric not modern'
-search_fields: { ai_furniture_type: ['sectional'], ai_primary_material: ['performance fabric'] }
+search_fields: { ai_furniture_type: ['sectional'], ai_primary_material: ['performance fabric'], ai_kid_friendly: ['kid friendly'] }
 exclude_fields: { ai_style: ['modern', 'contemporary'] }
 semantic_query: 'durable family friendly sectional in performance fabric'
-(kid friendly is ABSTRACT → semantic_query)
+(kid friendly is a REAL FIELD → ai_kid_friendly)
 
 User: 'traditional walnut dining table seats 8'
 search_fields: { ai_furniture_type: ['dining table'], ai_style: ['traditional'], ai_primary_material: ['walnut'] }
@@ -986,6 +1037,104 @@ exclude_fields: {}
 semantic_query: 'statement accent chair with visual impact architectural form bold but refined'
 (statement is ABSTRACT → semantic_query only, NOT ai_scale or ai_visual_weight)
 
+── Advanced Field Examples ──
+
+User: 'skirted sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_skirt_style: ['skirted', 'tailored skirt'] }
+exclude_fields: {}
+semantic_query: 'skirted sofa traditional tailored fabric skirt concealed legs'
+(skirted is PHYSICAL → ai_skirt_style hard filter)
+
+User: 'skirted sofa with nailhead trim tight back traditional formal'
+search_fields: { ai_furniture_type: ['sofa'], ai_skirt_style: ['skirted'], ai_has_nailhead: ['true'], ai_back_style: ['tight back'], ai_formality: ['formal'], ai_style: ['traditional'] }
+exclude_fields: {}
+semantic_query: 'formal traditional skirted sofa tight back nailhead trim elegant classic living room'
+(ALL physical attributes become hard filters — skirted, nailhead, tight back, formal, traditional)
+
+User: 'nailhead trim dining chair'
+search_fields: { ai_furniture_type: ['dining chair'], ai_has_nailhead: ['true'] }
+exclude_fields: {}
+semantic_query: 'dining chair with nailhead trim brass tack detail traditional'
+(nailhead is PHYSICAL → ai_has_nailhead: true)
+
+User: 'deep seat sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_seat_depth: ['deep seat'] }
+exclude_fields: {}
+semantic_query: 'deep seat sofa generous seat depth comfortable lounging'
+(deep seat is PHYSICAL → ai_seat_depth hard filter)
+
+User: 'COM eligible upholstered chair'
+search_fields: { ai_furniture_type: ['accent chair', 'dining chair'], ai_COM_eligible: ['true'] }
+exclude_fields: {}
+semantic_query: 'COM eligible upholstered chair customers own material custom fabric'
+(COM eligible is a REAL attribute → ai_COM_eligible hard filter)
+
+User: 'traditional formal living room'
+search_fields: { ai_furniture_type: ['sofa', 'accent chair', 'cocktail table', 'side table'], ai_formality: ['formal'], ai_style: ['traditional'] }
+exclude_fields: {}
+semantic_query: 'formal traditional living room furniture elegant refined classic'
+(formal → ai_formality, traditional → ai_style)
+
+User: 'pet friendly sofa performance fabric'
+search_fields: { ai_furniture_type: ['sofa'], ai_pet_friendly: ['pet friendly'], ai_primary_material: ['performance fabric'] }
+exclude_fields: {}
+semantic_query: 'pet friendly durable sofa performance fabric easy clean family'
+(pet friendly is a REAL FIELD → ai_pet_friendly hard filter)
+
+User: 'channel tufted accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_tufting_pattern: ['channel tufted'], ai_distinctive_features: ['channel'] }
+exclude_fields: {}
+semantic_query: 'channel tufted accent chair glamorous vertical stitching'
+(channel tufted → ai_tufting_pattern AND ai_distinctive_features for coverage)
+
+User: 'pedestal dining table marble'
+search_fields: { ai_furniture_type: ['dining table'], ai_base_type: ['pedestal'], ai_primary_material: ['marble'] }
+exclude_fields: {}
+semantic_query: 'pedestal base marble dining table sculptural elegant'
+(pedestal → ai_base_type hard filter)
+
+User: 'stackable dining chairs'
+search_fields: { ai_furniture_type: ['dining chair'], ai_stackable: ['stackable'] }
+exclude_fields: {}
+semantic_query: 'stackable dining chairs space saving practical'
+(stackable → ai_stackable hard filter)
+
+User: 'easy to clean dining chair for families'
+search_fields: { ai_furniture_type: ['dining chair'], ai_cleanability: ['wipeable'], ai_kid_friendly: ['kid friendly'] }
+exclude_fields: {}
+semantic_query: 'easy clean family friendly dining chair durable wipeable'
+(cleanability and kid friendly are REAL fields)
+
+User: 'Eames style lounge chair'
+search_fields: { ai_furniture_type: ['lounge chair', 'accent chair'], ai_designer_match: ['Eames'] }
+exclude_fields: {}
+semantic_query: 'Eames inspired lounge chair mid century modern iconic design'
+(designer match → ai_designer_match hard filter)
+
+User: 'quick ship sofa'
+search_fields: { ai_furniture_type: ['sofa'], ai_sourcing_difficulty: ['readily available'] }
+exclude_fields: {}
+semantic_query: 'quick ship in stock ready to ship sofa fast delivery'
+(quick ship → ai_sourcing_difficulty hard filter)
+
+User: 'matte finish console table'
+search_fields: { ai_furniture_type: ['console table'], ai_light_reflectivity: ['matte'] }
+exclude_fields: {}
+semantic_query: 'matte finish console table subtle understated surface'
+(matte → ai_light_reflectivity hard filter)
+
+User: 'geometric pattern accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_pattern_type: ['geometric'] }
+exclude_fields: {}
+semantic_query: 'geometric pattern accent chair bold modern angular design'
+(geometric → ai_pattern_type hard filter)
+
+User: 'swivel accent chair'
+search_fields: { ai_furniture_type: ['accent chair'], ai_adjustable: ['swivel'] }
+exclude_fields: {}
+semantic_query: 'swivel accent chair rotating base living room versatile'
+(swivel → ai_adjustable hard filter)
+
 Return ONLY this JSON (no markdown, no backticks):
 {
   "search_fields": {
@@ -1009,6 +1158,31 @@ Return ONLY this JSON (no markdown, no backticks):
     "ai_durability_assessment": ["value1"] or null,
     "ai_visual_weight": ["value1"] or null,
     "ai_ideal_client": ["value1"] or null,
+    "ai_skirt_style": ["skirted"] or null,
+    "ai_has_nailhead": ["true"] or null,
+    "ai_nailhead_finish": ["brass", "nickel"] or null,
+    "ai_tufting_pattern": ["channel tufted", "button tufted"] or null,
+    "ai_cushion_config": ["3 over 3", "bench seat"] or null,
+    "ai_base_type": ["pedestal", "trestle"] or null,
+    "ai_edge_profile": ["waterfall", "knife edge"] or null,
+    "ai_indoor_outdoor": ["indoor", "outdoor"] or null,
+    "ai_COM_eligible": ["true"] or null,
+    "ai_seat_depth": ["deep seat", "standard"] or null,
+    "ai_adjustable": ["swivel", "reclining"] or null,
+    "ai_seat_height": ["counter height", "bar height"] or null,
+    "ai_wood_species": ["walnut", "oak"] or null,
+    "ai_weight_class": ["light", "heavy"] or null,
+    "ai_pet_friendly": ["pet friendly"] or null,
+    "ai_kid_friendly": ["kid friendly"] or null,
+    "ai_cleanability": ["wipeable", "spot clean"] or null,
+    "ai_space_efficiency": ["space saving"] or null,
+    "ai_stackable": ["stackable", "nestable", "modular"] or null,
+    "ai_pattern_type": ["solid", "geometric", "striped"] or null,
+    "ai_designer_match": ["Eames", "Kagan"] or null,
+    "ai_sourcing_difficulty": ["readily available", "made to order"] or null,
+    "ai_assembly_complexity": ["no assembly", "minimal"] or null,
+    "ai_light_reflectivity": ["matte", "high gloss"] or null,
+    "ai_sustainability": ["reclaimed materials", "FSC wood"] or null,
     "vendor_name": ["Exact Vendor Name"] or null,
     "price_min": number or null,
     "price_max": number or null,
@@ -1029,6 +1203,9 @@ Return ONLY this JSON (no markdown, no backticks):
     "ai_distinctive_features": ["tufted", "nailhead"] or null,
     "ai_cushions": ["down"] or null,
     "ai_formality": ["formal"] or null,
+    "ai_has_nailhead": ["true"] or null,
+    "ai_skirt_style": ["skirted"] or null,
+    "ai_tufting_pattern": ["button tufted"] or null,
     "vendor_name": ["Restoration Hardware"] or null
   },
   "semantic_query": "natural language description of the ideal product for ranking",
