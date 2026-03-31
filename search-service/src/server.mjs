@@ -5241,29 +5241,33 @@ function cleanDescription(desc) {
   if (!desc || typeof desc !== "string") return null;
   let s = desc;
 
-  // Strip HTML tags and entities
-  s = s.replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/gi, " ").replace(/&#\d+;/g, " ");
+  // Strip HTML tags completely (including img tags with alt text, etc.)
+  s = s.replace(/<[^>]+>/g, " ");
+  // Strip HTML entities
+  s = s.replace(/&[a-z]+;/gi, " ").replace(/&#\d+;/g, " ");
 
-  // Remove raw data attributes (data-img_src="...", etc.)
+  // Remove raw data/img attributes that survived HTML stripping
   s = s.replace(/data-\w+="[^"]*"/g, "");
+  s = s.replace(/alt="[^"]*"/g, "");
+  s = s.replace(/class="[^"]*"/g, "");
+  s = s.replace(/src="[^"]*"/g, "");
 
-  // Remove SKU/model references that are just repeating the product name
-  // e.g. "LTD7600-WR - Cornerstone Configurable Raf Wedge Half Sofa"
+  // Remove SKU/model references
   s = s.replace(/^[A-Z0-9][-A-Z0-9_/]{3,}\s*[-–—]\s*/i, "");
 
   // Remove "Product | Category | SKU | Brand" catalog header patterns
-  // e.g. "St Tropez | Sofa | 3925-33| Lexington Home Brands"
   s = s.replace(/^[^|]+\|[^|]+\|[^|]+\|[^|]*$/gm, "");
+
+  // Remove COL/COM yardage specs
+  s = s.replace(/\bCOL:\s*[\d.]+\s*(sq\s*ft|yards?)\.?/gi, "");
+  s = s.replace(/\bCOM:\s*[\d.]+\s*(sq\s*ft|yards?)\.?/gi, "");
+  s = s.replace(/\bcushion\s*weight:\s*\d+\s*lbs?\.?/gi, "");
+  s = s.replace(/\ballowed\s*patterns?:\s*[A-Z, ]+\.?/gi, "");
 
   // Remove shipping/logistics metadata
   s = s.replace(/\b(shipping|ships? in|shipping cubes?|cartons?|freight|lead time)[^.]*\.?/gi, "");
   s = s.replace(/\bweight:\s*\d+[\s.]*lbs?\.?/gi, "");
   s = s.replace(/\bcubic\s*(meters?|feet)\b[^.]*\.?/gi, "");
-
-  // Remove COM yardage and cushion weight metadata
-  s = s.replace(/\bCOM:\s*[\d.]+\s*yards?\.?/gi, "");
-  s = s.replace(/\bcushion\s*weight:\s*\d+\s*lbs?\.?/gi, "");
-  s = s.replace(/\ballowed\s*patterns?:\s*[A-Z, ]+\.?/gi, "");
   s = s.replace(/\bquick\s*ship\b[^.]*\.?/gi, "");
 
   // Remove raw dimension strings embedded in descriptions
@@ -5274,15 +5278,21 @@ function cleanDescription(desc) {
   // Remove "Standard Features." "Product Features" headers
   s = s.replace(/\b(standard|product)\s+features?\.?\s*/gi, "");
 
-  // Remove "Rendering shown." / "As Shown:" lines
+  // Remove "Rendering shown." / "As Shown:" / "Shown in:" lines
   s = s.replace(/\b(rendering|photograph(ed)?)\s+(shown|in)[^.]*\.?/gi, "");
   s = s.replace(/\bas\s+shown:\s*[^.]*\.?/gi, "");
-
-  // Remove "Shown in: , leather, trims, nails..." junk
   s = s.replace(/\bshown\s+(in|with)[^.]*\.?/gi, "");
 
-  // Remove "Back Pillows: 2 BP Cushions: 2" spec lines
+  // Remove spec lines like "Back Pillows: 2", "Inside: Arm Height: 26"
   s = s.replace(/\b(back\s+pillows|bp\s+cushions|seat\s+cushions):\s*\d+\b[^.]*\.?/gi, "");
+  s = s.replace(/\binside:\s*arm\s*height:\s*\d+\b[^.]*\.?/gi, "");
+  s = s.replace(/\bseat\s*height\s*:\s*\d+\b[^.]*\.?/gi, "");
+  s = s.replace(/\barm\s*height\s*:\s*\d+\b[^.]*\.?/gi, "");
+
+  // Remove "Options Shown:" and similar config lines
+  s = s.replace(/\boptions\s*shown\b[^.]*\.?/gi, "");
+  s = s.replace(/\bskirt\s*is\s*standard\b\.?/gi, "");
+  s = s.replace(/\b(loose\s*pillow\s*back)\s*$/gim, "");
 
   // Remove vendor catalog page references
   s = s.replace(/\|\s*\w+\s+Home\s+Brands\b/gi, "");
@@ -5290,11 +5300,48 @@ function cleanDescription(desc) {
   // Remove "Available sizes:" followed by SKU
   s = s.replace(/\bavailable\s+sizes?:\s*[A-Z0-9][-A-Z0-9_]*\.?/gi, "");
 
+  // Remove "this product is temporarily unavailable" type text
+  s = s.replace(/\bthis\s+product\s+is\s+temporarily\s+unavailable[^.]*\.?/gi, "");
+  s = s.replace(/\bour\s+team\s+is\s+working[^.]*\.?/gi, "");
+  s = s.replace(/\bplease\s+(contact|call|email|reach\s+out)[^.]*\.?/gi, "");
+  s = s.replace(/\b(currently\s+)?(out\s+of\s+stock|backordered|discontinued)\b[^.]*\.?/gi, "");
+
+  // Remove repeated comma-separated keyword spam (e.g. ": cc-chair-rc, cc-chair-rc, comfort, comfort")
+  s = s.replace(/^:\s*/, "");
+  s = s.replace(/\b(\w[-\w]*),\s*\1\b/gi, "$1"); // remove consecutive dupes
+  // Detect keyword spam: if line is mostly comma-separated short tokens with dupes
+  s = s.split("\n").map(line => {
+    const tokens = line.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+    if (tokens.length >= 4) {
+      const unique = new Set(tokens);
+      if (unique.size < tokens.length * 0.6) return ""; // >40% dupes = spam
+    }
+    return line;
+  }).join("\n");
+
+  // Remove lines starting with "+" (item category breadcrumbs)
+  s = s.replace(/^\+ .+$/gm, "");
+
+  // Remove "Removable Leg/ Fixed Seat Cushion Back Cushion Throw Available" type spec fragments
+  s = s.replace(/\b(removable|fixed)\s+(leg|seat|back)\b[^.]*\.?/gi, (match) => {
+    // Keep if it's part of a real sentence (has a verb beyond just listing features)
+    if (match.length > 60) return match;
+    return "";
+  });
+
   // Clean up resulting whitespace
   s = s.replace(/\n{2,}/g, "\n").replace(/[ \t]+/g, " ").replace(/\n\s+/g, "\n").trim();
 
-  // Remove lines that are just punctuation or very short fragments
-  s = s.split("\n").filter(line => line.trim().length > 5).join("\n");
+  // Remove lines that are just punctuation, very short fragments, or raw specs
+  s = s.split("\n").filter(line => {
+    const t = line.trim();
+    if (t.length <= 5) return false;
+    // Skip lines that are just number specs like "90: 42" Depth"
+    if (/^\d+:\s*\d+"?\s*\w+$/.test(t)) return false;
+    // Skip lines that are just "01: Chair S-Slope Arm" type config
+    if (/^\d{2,}:\s*\w/.test(t)) return false;
+    return true;
+  }).join("\n");
 
   // If after cleanup the description is empty or too short, return null
   if (!s || s.length < 10) return null;
@@ -5459,45 +5506,59 @@ function sanitizeSearchProduct(product) {
       const va = product.ai_visual_analysis;
       const skip = v => !v || v === "unable to determine" || v === "null" || v === "none" || v === "n/a";
       const cap = v => v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
-      const parts = [];
 
-      // Opening: "Accent chair with barrel silhouette"
+      // Build a natural-sounding sentence, not a spec list
+      // Target: "A barrel-silhouette accent chair upholstered in ivory linen with rolled arms and turned wood legs. Transitional style with nailhead trim and loose pillow back."
+      let sentence1 = "";
+      let sentence2 = "";
+
+      // Sentence 1: "A [silhouette] [type] upholstered in [color] [material] with [arms] and [legs]"
       if (va.furniture_type) {
-        let opener = cap(va.furniture_type);
-        if (!skip(va.silhouette)) opener += ` with ${va.silhouette} silhouette`;
-        parts.push(opener);
+        const sil = !skip(va.silhouette) ? `${va.silhouette} ` : "";
+        sentence1 = `A ${sil}${va.furniture_type}`;
+
+        const mat = va.upholstery_material || va.primary_material;
+        const color = va.color_primary;
+        if (!skip(mat)) {
+          const matStr = (!skip(color) && !mat.toLowerCase().includes(color.toLowerCase())) ? `${color} ${mat}` : mat;
+          sentence1 += ` upholstered in ${matStr}`;
+        } else if (!skip(color)) {
+          sentence1 += ` in ${color}`;
+        }
+
+        const details = [];
+        if (!skip(va.arms) && !va.arms.toLowerCase().includes("armless")) details.push(`${va.arms} arms`);
+        if (!skip(va.legs_base) && va.legs_base !== "none" && !va.legs_base.toLowerCase().includes("hidden")) details.push(`${va.legs_base} legs`);
+        if (details.length > 0) sentence1 += ` with ${details.join(" and ")}`;
+
+        sentence1 += ".";
       }
 
-      // Material + color: "upholstered in ivory performance velvet"
-      const mat = va.upholstery_material || va.primary_material;
-      const color = va.color_primary;
-      if (!skip(mat)) {
-        let matStr = mat;
-        if (!skip(color) && !mat.toLowerCase().includes(color.toLowerCase())) matStr = `${color} ${mat}`;
-        parts.push(`upholstered in ${matStr}`);
-      } else if (!skip(color)) {
-        parts.push(`in ${color}`);
-      }
-
-      // Construction details
-      const details = [];
-      if (!skip(va.arms)) details.push(`${va.arms} arms`);
-      if (!skip(va.back)) details.push(`${va.back}`);
-      if (!skip(va.legs_base) && va.legs_base !== "none") details.push(`${va.legs_base} legs`);
-      if (details.length > 0) parts.push(`featuring ${details.join(", ")}`);
-
-      // Style
-      if (!skip(va.style)) parts.push(`${cap(va.style)} style`);
-
-      // Distinctive features
+      // Sentence 2: "[Style] style with [distinctive features]"
+      const s2parts = [];
+      if (!skip(va.style)) s2parts.push(`${cap(va.style)} style`);
       const feats = va.distinctive_features;
       if (Array.isArray(feats) && feats.length > 0) {
-        const good = feats.filter(f => !skip(f)).slice(0, 3);
-        if (good.length > 0) parts.push(`with ${good.join(", ")}`);
+        const good = feats.filter(f => !skip(f) && f.length < 40).slice(0, 3);
+        if (good.length > 0) {
+          if (s2parts.length > 0) {
+            s2parts[0] += ` with ${good.join(", ")}`;
+          } else {
+            s2parts.push(`Features ${good.join(", ")}`);
+          }
+        }
       }
+      if (!skip(va.back) && !va.back.toLowerCase().includes("unable")) {
+        const backStr = va.back.toLowerCase();
+        if (!sentence1.toLowerCase().includes(backStr)) {
+          s2parts.push(`${cap(va.back)} back`);
+        }
+      }
+      if (s2parts.length > 0) sentence2 = s2parts.join(". ") + ".";
 
-      if (parts.length < 2) return null;
-      return parts.join(". ").replace(/\.\./g, ".").replace(/\. \./g, ".") + ".";
+      const result = [sentence1, sentence2].filter(Boolean).join(" ");
+      if (result.length < 30) return null;
+      return result;
     })()
     : null;
 
@@ -5569,6 +5630,18 @@ function sanitizeSearchProduct(product) {
     // Cleaned fields
     sku: cleanedSku,
     dimensions: cleanedDims,
-    description: (cleanedDesc && cleanedDesc.length >= 30) ? cleanedDesc : (aiDesc || cleanedDesc || null),
+    description: (() => {
+      // Use cleaned vendor description if it's substantial and not just repeating the name
+      if (cleanedDesc && cleanedDesc.length >= 30) {
+        const descLower = cleanedDesc.toLowerCase().trim();
+        const nameLower = (displayName || "").toLowerCase().trim();
+        // If description is just the product name (or close to it), use AI instead
+        if (nameLower && (descLower === nameLower || descLower.startsWith(nameLower + " ") && cleanedDesc.length < nameLower.length + 10)) {
+          return aiDesc || null;
+        }
+        return cleanedDesc;
+      }
+      return aiDesc || null;
+    })(),
   };
 }
