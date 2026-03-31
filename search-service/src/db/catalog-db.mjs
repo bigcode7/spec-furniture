@@ -456,14 +456,13 @@ async function downloadCatalogIfMissing() {
     fs.unlinkSync(DB_PATH);
   }
 
-  // Support single URL or comma-separated URLs for split catalogs
-  const HARDCODED_CATALOG_URLS = [
+  // Canonical catalog URL — always use this (overrides CATALOG_URL env var)
+  const urls = [
     "https://github.com/bigcode7/spec-furniture/releases/download/catalog-v2-54tags/catalog-full.json.gz",
   ];
-  const urlEnv = process.env.CATALOG_URL;
-  const urls = urlEnv
-    ? urlEnv.split(",").map(u => u.trim()).filter(Boolean)
-    : HARDCODED_CATALOG_URLS;
+  if (process.env.CATALOG_URL) {
+    console.log(`[catalog-db] Note: CATALOG_URL env var is set but using hardcoded v2 URL instead`);
+  }
 
   console.log(`[catalog-db] No catalog on disk — downloading ${urls.length} part(s) from CATALOG_URL...`);
   try {
