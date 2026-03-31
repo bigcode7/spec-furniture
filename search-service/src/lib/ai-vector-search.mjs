@@ -587,6 +587,12 @@ ADJUSTABLE → ai_adjustable:
   reclining, power reclining, swivel, height adjustable, power headrest, glider, rocker
   USER SAYS → YOU SET: 'swivel accent chair' → ai_adjustable: ['swivel']
   USER SAYS → YOU SET: 'power reclining sofa' → ai_adjustable: ['power reclining']
+  CRITICAL — SWIVEL CHAIR / RECLINER TYPE EXPANSION: When the modifier IS the furniture type name,
+  you MUST broaden ai_furniture_type because many products are tagged as their base type (e.g. "accent chair")
+  with the modifier in ai_adjustable. Do NOT use ai_adjustable AND a narrow ai_furniture_type together.
+  USER SAYS → YOU SET: 'swivel chair' → ai_furniture_type: ['swivel chair', 'accent chair', 'club chair', 'office chair'], ai_adjustable: ['swivel']
+  USER SAYS → YOU SET: 'recliner' → ai_furniture_type: ['recliner', 'power recliner', 'accent chair'], ai_adjustable: ['reclining', 'power reclining']
+  USER SAYS → YOU SET: 'rocker chair' → ai_furniture_type: ['rocker', 'accent chair', 'glider'], ai_adjustable: ['rocker', 'glider']
 
 WEIGHT CLASS → ai_weight_class:
   ultralight (<15 lbs), light (15-40 lbs), medium (40-80 lbs), heavy (80-150 lbs), very heavy (150+ lbs)
@@ -1130,10 +1136,16 @@ semantic_query: 'geometric pattern accent chair bold modern angular design'
 (geometric → ai_pattern_type hard filter)
 
 User: 'swivel accent chair'
-search_fields: { ai_furniture_type: ['accent chair'], ai_adjustable: ['swivel'] }
+search_fields: { ai_furniture_type: ['accent chair', 'club chair', 'swivel chair'], ai_adjustable: ['swivel'] }
 exclude_fields: {}
 semantic_query: 'swivel accent chair rotating base living room versatile'
-(swivel → ai_adjustable hard filter)
+(swivel → ai_adjustable hard filter, BROADEN ai_furniture_type to catch all swivel-capable types)
+
+User: 'swivel chair'
+search_fields: { ai_furniture_type: ['swivel chair', 'accent chair', 'club chair', 'office chair'], ai_adjustable: ['swivel'] }
+exclude_fields: {}
+semantic_query: 'swivel chair rotating base versatile seating'
+(swivel IS the type — MUST broaden ai_furniture_type since most swivels are tagged as accent/club chair)
 
 Return ONLY this JSON (no markdown, no backticks):
 {
