@@ -49,7 +49,8 @@ const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.
 // Build proxy URL for an image
 function proxyUrl(url, productId) {
   if (!url) return "";
-  if (productId) return `${SEARCH_SERVICE}/images/${encodeURIComponent(productId)}`;
+  // Always proxy through the URL-based endpoint so each gallery image loads correctly.
+  // The /images/:id endpoint only returns the hero — not suitable for gallery images.
   return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
