@@ -5588,6 +5588,8 @@ function sanitizeSearchProduct(product) {
       result = result.replace(/three-legged legs/gi, "three legs");
       result = result.replace(/\.\s*\./g, "."); // double periods
       result = result.replace(/\s{2,}/g, " ").trim(); // collapse whitespace
+      // Fix "A accent" → "An accent", "A upholstered" → "An upholstered"
+      result = result.replace(/^A ([aeiou])/i, "An $1");
       if (result.length < 30) return null;
       return result;
     })()
