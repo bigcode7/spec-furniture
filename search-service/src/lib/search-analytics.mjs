@@ -416,6 +416,82 @@ export function getSearchLocations(days = 7) {
 }
 
 /**
+ * Get suspect activity — searches grouped by city with IP + query details.
+ */
+export function getSuspectActivity(city = null, days = 7) {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const recent = searchLog.filter(s => s.timestamp >= cutoff && s.location);
+
+  // Group by city
+  const byCity = {};
+  for (const s of recent) {
+    const c = s.location.city;
+    if (!byCity[c]) byCity[c] = [];
+    byCity[c].push(s);
+  }
+
+  // If a specific city requested, return detailed view
+  if (city) {
+    const cityLower = city.toLowerCase();
+    const entries = recent.filter(s => s.location.city.toLowerCase() === cityLower);
+    const ips = [...new Set(entries.map(s => s.ip).filter(Boolean))];
+    const queryFreq = {};
+    for (const s of entries) {
+      queryFreq[s.query] = (queryFreq[s.query] || 0) + 1;
+    }
+    return {
+      city,
+      total_searches: entries.length,
+      unique_ips: ips,
+      query_frequency: Object.entries(queryFreq)
+        .sort((a, b) => b[1] - a[1])
+        .map(([query, count]) => ({ query, count })),
+      recent_searches: entries
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 100)
+        .map(s => ({
+          query: s.query,
+          ip: s.ip,
+          time: new Date(s.timestamp).toISOString(),
+          results: s.result_count,
+        })),
+    };
+  }
+
+  // Overview: flag cities with suspicious patterns
+  const suspects = [];
+  for (const [c, entries] of Object.entries(byCity)) {
+    const ips = new Set(entries.map(s => s.ip).filter(Boolean));
+    const queryFreq = {};
+    for (const s of entries) {
+      queryFreq[s.query] = (queryFreq[s.query] || 0) + 1;
+    }
+    const topQuery = Object.entries(queryFreq).sort((a, b) => b[1] - a[1])[0];
+    const repeatRate = topQuery ? topQuery[1] / entries.length : 0;
+    suspects.push({
+      city: c,
+      region: entries[0].location.region,
+      country: entries[0].location.country,
+      total_searches: entries.length,
+      unique_ips: ips.size,
+      unique_queries: Object.keys(queryFreq).length,
+      top_query: topQuery ? topQuery[0] : null,
+      top_query_count: topQuery ? topQuery[1] : 0,
+      repeat_rate: Math.round(repeatRate * 100),
+      risk: repeatRate > 0.5 && entries.length > 10 ? "high" : repeatRate > 0.3 && entries.length > 5 ? "medium" : "low",
+    });
+  }
+
+  return {
+    period_days: days,
+    cities: suspects.sort((a, b) => {
+      const riskOrder = { high: 0, medium: 1, low: 2 };
+      return (riskOrder[a.risk] || 2) - (riskOrder[b.risk] || 2) || b.total_searches - a.total_searches;
+    }),
+  };
+}
+
+/**
  * Get raw click data for search enhancement.
  */
 export function getProductClickData() {

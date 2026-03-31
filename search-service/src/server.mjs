@@ -2051,13 +2051,28 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ADMIN ENDPOINTS — tyler@spekd.ai only, returns 404 for others
     // ══════════════════════════════════════════════════════════════════
 
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || "e8d71b57f7a4a15f092ab7e003e0e0199e04da86871146bdfa43df78e7a2e44a";
+
     async function isAdmin(req) {
+      // Allow URL-based secret key for browser access
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      if (url.searchParams.get("key") === ADMIN_SECRET) return true;
       const authHeader = req.headers["authorization"];
       const token = extractToken(authHeader);
       if (!token) return false;
       const result = await getUserFromToken(token);
       if (!result.ok) return false;
       return result.user.email === "tyler@spekd.ai";
+    }
+
+    // GET /admin/suspect-activity — traffic analysis by city, flags scraping
+    if (req.method === "GET" && req.url.startsWith("/admin/suspect-activity")) {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const city = url.searchParams.get("city") || null;
+      const days = parseInt(url.searchParams.get("days")) || 7;
+      const { getSuspectActivity } = await import("./lib/search-analytics.mjs");
+      return json(res, 200, getSuspectActivity(city, days));
     }
 
     // GET /admin/active-visitors — who's on the site right now

@@ -1472,6 +1472,126 @@ function AnalyticsTab({ data, loading, error }) {
   );
 }
 
+// ── Traffic Tab ──
+
+function TrafficTab({ data, loading, error, onDrillDown, drillCity, drillData, drillLoading }) {
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox msg={error} />;
+  if (!data) return null;
+
+  const cities = data.cities || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Overview */}
+      <div className="bg-gray-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-gray-400">Traffic by City (7 days)</h3>
+          {drillCity && (
+            <button onClick={() => onDrillDown(null)} className="text-xs text-amber-400 hover:text-amber-300">
+              &larr; Back to overview
+            </button>
+          )}
+        </div>
+
+        {!drillCity ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="text-gray-500 text-xs border-b border-gray-700">
+                  <th className="py-2 px-3">City</th>
+                  <th className="py-2 px-3">Region</th>
+                  <th className="py-2 px-3">Searches</th>
+                  <th className="py-2 px-3">Unique IPs</th>
+                  <th className="py-2 px-3">Unique Queries</th>
+                  <th className="py-2 px-3">Top Query</th>
+                  <th className="py-2 px-3">Repeat %</th>
+                  <th className="py-2 px-3">Risk</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {cities.map((c, i) => (
+                  <tr
+                    key={i}
+                    className="text-gray-300 hover:bg-gray-700/50 cursor-pointer"
+                    onClick={() => onDrillDown(c.city)}
+                  >
+                    <td className="py-2 px-3 font-medium text-amber-400">{c.city}</td>
+                    <td className="py-2 px-3 text-gray-500">{c.region}, {c.country}</td>
+                    <td className="py-2 px-3">{fmt(c.total_searches)}</td>
+                    <td className="py-2 px-3">{c.unique_ips}</td>
+                    <td className="py-2 px-3">{c.unique_queries}</td>
+                    <td className="py-2 px-3 text-xs truncate max-w-[200px]">{c.top_query} ({c.top_query_count}x)</td>
+                    <td className="py-2 px-3">{c.repeat_rate}%</td>
+                    <td className="py-2 px-3">
+                      <Badge color={c.risk === "high" ? "red" : c.risk === "medium" ? "amber" : "gray"}>
+                        {c.risk}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+                {cities.length === 0 && (
+                  <tr><td colSpan={8} className="py-8 text-center text-gray-500 text-xs">No traffic with location data</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : drillLoading ? (
+          <Loading />
+        ) : drillData ? (
+          <div className="space-y-5">
+            {/* Drill-down header */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricCard label="City" value={drillData.city} />
+              <MetricCard label="Total Searches" value={fmt(drillData.total_searches)} />
+              <MetricCard label="Unique IPs" value={String(drillData.unique_ips?.length || 0)} />
+              <MetricCard label="IPs" value={drillData.unique_ips?.join(", ") || "—"} />
+            </div>
+
+            {/* Query frequency */}
+            <div className="bg-gray-900/50 rounded-lg p-4">
+              <h4 className="text-xs font-medium text-gray-400 mb-3">Query Frequency</h4>
+              {(drillData.query_frequency || []).map((q, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-800 last:border-0">
+                  <span className="text-sm text-gray-300 truncate max-w-[70%]">{q.query}</span>
+                  <Badge color={q.count > 5 ? "red" : q.count > 2 ? "amber" : "gray"}>{q.count}x</Badge>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent searches */}
+            <div className="bg-gray-900/50 rounded-lg p-4">
+              <h4 className="text-xs font-medium text-gray-400 mb-3">Recent Searches</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-gray-700">
+                      <th className="py-1.5 px-2">Time</th>
+                      <th className="py-1.5 px-2">Query</th>
+                      <th className="py-1.5 px-2">IP</th>
+                      <th className="py-1.5 px-2">Results</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {(drillData.recent_searches || []).map((s, i) => (
+                      <tr key={i} className="text-gray-400">
+                        <td className="py-1.5 px-2 whitespace-nowrap">{fmtTime(s.time)}</td>
+                        <td className="py-1.5 px-2 text-gray-300">{s.query}</td>
+                        <td className="py-1.5 px-2 font-mono text-gray-500">{s.ip}</td>
+                        <td className="py-1.5 px-2">{s.results}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 // ── Funnel Tab ──
 
 function FunnelTab({ data, loading, error }) {
@@ -1554,7 +1674,7 @@ function FunnelTab({ data, loading, error }) {
 
 // ── Main Admin Component ──
 
-const TABS = ["Overview", "Analytics", "Funnel", "Users", "Catalog Health", "Activity Log"];
+const TABS = ["Overview", "Analytics", "Traffic", "Funnel", "Users", "Catalog Health", "Activity Log"];
 
 export default function Admin() {
   const { user, isLoadingAuth } = useAuth();
@@ -1591,6 +1711,14 @@ export default function Admin() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
   const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
+
+  const [trafficData, setTrafficData] = useState(null);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const [trafficError, setTrafficError] = useState(null);
+  const [trafficLoaded, setTrafficLoaded] = useState(false);
+  const [trafficDrillCity, setTrafficDrillCity] = useState(null);
+  const [trafficDrillData, setTrafficDrillData] = useState(null);
+  const [trafficDrillLoading, setTrafficDrillLoading] = useState(false);
 
   const fetchOverview = useCallback((force = false) => {
     if (overviewLoaded && !force) return;
@@ -1655,15 +1783,36 @@ export default function Admin() {
       .finally(() => setAnalyticsLoading(false));
   }, [analyticsLoaded]);
 
+  const fetchTraffic = useCallback((force = false) => {
+    if (trafficLoaded && !force) return;
+    setTrafficLoading(true);
+    setTrafficError(null);
+    adminFetch("/admin/suspect-activity?days=7")
+      .then((d) => { setTrafficData(d); setTrafficLoaded(true); })
+      .catch((e) => setTrafficError(e.message))
+      .finally(() => setTrafficLoading(false));
+  }, [trafficLoaded]);
+
+  const handleTrafficDrillDown = useCallback((city) => {
+    if (!city) { setTrafficDrillCity(null); setTrafficDrillData(null); return; }
+    setTrafficDrillCity(city);
+    setTrafficDrillLoading(true);
+    adminFetch(`/admin/suspect-activity?city=${encodeURIComponent(city)}&days=7`)
+      .then((d) => setTrafficDrillData(d))
+      .catch(() => {})
+      .finally(() => setTrafficDrillLoading(false));
+  }, []);
+
   // Fetch data on tab switch
   useEffect(() => {
     if (tab === "Overview") fetchOverview();
     else if (tab === "Analytics") fetchAnalytics();
+    else if (tab === "Traffic") fetchTraffic();
     else if (tab === "Funnel") fetchFunnel();
     else if (tab === "Users") fetchUsers();
     else if (tab === "Catalog Health") fetchCatalog();
     else if (tab === "Activity Log") fetchActivity();
-  }, [tab, fetchOverview, fetchAnalytics, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
+  }, [tab, fetchOverview, fetchAnalytics, fetchTraffic, fetchFunnel, fetchUsers, fetchCatalog, fetchActivity]);
 
   // Auth gate — allow login via main auth OR direct admin login
   const activeUser = user || adminUser;
@@ -1710,6 +1859,17 @@ export default function Admin() {
         )}
         {tab === "Analytics" && (
           <AnalyticsTab data={analyticsData} loading={analyticsLoading} error={analyticsError} />
+        )}
+        {tab === "Traffic" && (
+          <TrafficTab
+            data={trafficData}
+            loading={trafficLoading}
+            error={trafficError}
+            onDrillDown={handleTrafficDrillDown}
+            drillCity={trafficDrillCity}
+            drillData={trafficDrillData}
+            drillLoading={trafficDrillLoading}
+          />
         )}
         {tab === "Funnel" && (
           <FunnelTab data={funnelData} loading={funnelLoading} error={funnelError} />
