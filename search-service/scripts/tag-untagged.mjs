@@ -37,8 +37,8 @@ const apiKeyMatch = envContent.match(/ANTHROPIC_API_KEY=(.+)/);
 if (!apiKeyMatch) { console.error('ERROR: No ANTHROPIC_API_KEY in .env'); process.exit(1); }
 const API_KEY = apiKeyMatch[1].trim();
 
-const CONCURRENCY = 15;
-const SAVE_EVERY = 50;
+const CONCURRENCY = 40;
+const SAVE_EVERY = 100;
 
 // ── Shared state ──
 let completedCount = 0;
@@ -357,7 +357,7 @@ async function worker(workerId, chunk, data, taggedIds, totalItems) {
       }
     }
 
-    await sleep(200);
+    await sleep(50);
   }
 
   return { workerTagged, workerFailed };
