@@ -436,7 +436,7 @@ async function downloadCatalogIfMissing() {
     console.log(`[catalog-db] Existing catalog file: ${(size / 1024 / 1024).toFixed(1)}MB`);
 
     // Validate the file actually contains enough products AND has the right version
-    const CATALOG_VERSION = "v2-54tags";
+    const CATALOG_VERSION = "v3-swatch-cleanup";
     if (size > 50_000_000) {
       try {
         const head = fs.readFileSync(DB_PATH, "utf8").slice(0, 500);
@@ -458,7 +458,7 @@ async function downloadCatalogIfMissing() {
 
   // Canonical catalog URL — always use this (overrides CATALOG_URL env var)
   const urls = [
-    "https://github.com/bigcode7/spec-furniture/releases/download/catalog-v2-54tags/catalog-full.json.gz",
+    "https://github.com/bigcode7/spec-furniture/releases/download/catalog-v3-swatch-cleanup/catalog-full-v3.json.gz",
   ];
   if (process.env.CATALOG_URL) {
     console.log(`[catalog-db] Note: CATALOG_URL env var is set but using hardcoded v2 URL instead`);
@@ -472,7 +472,7 @@ async function downloadCatalogIfMissing() {
 
     const tmpPath = DB_PATH + ".build";
     const ws = fs.createWriteStream(tmpPath);
-    ws.write('{"version":1,"catalog_version":"v2-54tags","saved_at":"' + new Date().toISOString() + '","products":[');
+    ws.write('{"version":1,"catalog_version":"v3-swatch-cleanup","saved_at":"' + new Date().toISOString() + '","products":[');
 
     products = new Map();
     vendorCrawlMeta = new Map();
