@@ -70,7 +70,7 @@ Return ONLY a JSON object with these fields:
   "back_cushion_count": integer or null — only if explicitly stated or clearly implied (e.g. "3 over 3" = 3 back cushions),
   "seat_cushion_count": integer or null — only if explicitly stated or clearly implied (e.g. "3 over 3" = 3 seat cushions),
 
-  "seat_depth_category": "deep seat" | "standard" | "shallow" | null — deep if seat depth > 22" or described as "deep seat",
+  "seat_depth_category": "deep seat" | "standard" | "shallow" | null — ONLY populate if the product name/description EXPLICITLY says "deep seat", "deep seating", "extra deep", or lists a seat depth measurement > 22". Do NOT guess from cushion appearance or product type. Most products = null.,
   "seat_height_category": "low profile" | "standard" | "counter height" | "bar height" | null,
 
   "tufting_pattern": "diamond tufted" | "biscuit tufted" | "channel tufted" | "button tufted" | "blind tufted" | "none" | null,
