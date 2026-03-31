@@ -5371,10 +5371,8 @@ function cleanProductName(name, sku, vendor) {
   if (!name) return null;
   let s = name.trim();
 
-  // If the product name IS just the SKU, try to make it more presentable
-  // e.g. "9600-Nflt" or "Hh19-908t" or "A100-825"
+  // If the product name IS just the SKU, return null for AI fallback
   if (sku && s.toLowerCase().replace(/[-_\s]/g, "") === sku.toLowerCase().replace(/[-_\s]/g, "")) {
-    // Name is just the SKU — return null so we can fall back to AI description
     return null;
   }
 
@@ -5383,14 +5381,53 @@ function cleanProductName(name, sku, vendor) {
     return null;
   }
 
+  // Remove leading SKU prefix patterns like "NC7003-PRB-HR " or "CD8600 "
+  s = s.replace(/^[A-Z]{1,4}\d{3,}[-A-Z0-9]*\s+/i, "");
+
+  // Remove leading numeric catalog codes like "100X44 " or "112X44 "
+  // But keep numbers that are part of real names like "1000 Series"
+  s = s.replace(/^\d+[Xx]\d+\s+/, "");
+
   // Remove "CUSTOM KIT for " prefix
   s = s.replace(/^CUSTOM\s+KIT\s+for\s+/i, "");
 
-  // Remove trailing vendor-specific suffixes like " - Peninsula/Flax"
-  // but keep meaningful color/finish descriptors
+  // Fix HTML entities
+  s = s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#\d+;/g, "");
+
+  // Fix encoding artifacts like "Cr+Ême" → "Crème"
+  s = s.replace(/\+Ê/g, "è").replace(/\+É/g, "é");
+
+  // Remove vendor name from product name if it's just prepended
+  if (vendor && s.toLowerCase().startsWith(vendor.toLowerCase() + " ")) {
+    s = s.slice(vendor.length + 1);
+  }
+
+  // Expand common abbreviations for display
+  s = s.replace(/\bUph\b/gi, "Upholstered");
+  s = s.replace(/\bPwr\b/gi, "Power");
+  s = s.replace(/\bRec\b/gi, "Recliner");
+  s = s.replace(/\bLaf\b/gi, "Left Arm Facing");
+  s = s.replace(/\bRaf\b/gi, "Right Arm Facing");
+  s = s.replace(/\bKg\b/g, "King");
+  s = s.replace(/\bQn\b/g, "Queen");
+  s = s.replace(/\bSr\b/g, "Side Rails");
+  s = s.replace(/\bFb\b/g, "Footboard");
+  s = s.replace(/\bHb\b/g, "Headboard");
+  s = s.replace(/\bRnd\b/gi, "Round");
+  s = s.replace(/\bRect\b/gi, "Rectangle");
+  s = s.replace(/\bEdg\b/gi, "Edge");
+  s = s.replace(/\b1\/2T\b/g, "½ Thick");
+  s = s.replace(/\bFlt\b/gi, "Flat");
+  s = s.replace(/\bW\/(\w)/g, "with $1");
+  s = s.replace(/\bw\/(\w)/g, "with $1");
 
   // Clean up multiple spaces
   s = s.replace(/\s+/g, " ").trim();
+
+  // Title case if name is ALL CAPS (more than 3 consecutive uppercase words)
+  if (/^[A-Z\s&]{10,}$/.test(s)) {
+    s = s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  }
 
   return s || null;
 }
@@ -5420,12 +5457,47 @@ function sanitizeSearchProduct(product) {
   const aiDesc = product.ai_visual_analysis
     ? (() => {
       const va = product.ai_visual_analysis;
+      const skip = v => !v || v === "unable to determine" || v === "null" || v === "none" || v === "n/a";
+      const cap = v => v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
       const parts = [];
-      if (va.furniture_type) parts.push(va.furniture_type.charAt(0).toUpperCase() + va.furniture_type.slice(1));
-      if (va.silhouette && va.silhouette !== "unable to determine") parts.push(`with ${va.silhouette} silhouette`);
-      if (va.upholstery_material && va.upholstery_material !== "unable to determine") parts.push(`in ${va.upholstery_material}`);
-      if (va.style && va.style !== "unable to determine") parts.push(`— ${va.style} style`);
-      return parts.length >= 2 ? parts.join(" ") + "." : null;
+
+      // Opening: "Accent chair with barrel silhouette"
+      if (va.furniture_type) {
+        let opener = cap(va.furniture_type);
+        if (!skip(va.silhouette)) opener += ` with ${va.silhouette} silhouette`;
+        parts.push(opener);
+      }
+
+      // Material + color: "upholstered in ivory performance velvet"
+      const mat = va.upholstery_material || va.primary_material;
+      const color = va.color_primary;
+      if (!skip(mat)) {
+        let matStr = mat;
+        if (!skip(color) && !mat.toLowerCase().includes(color.toLowerCase())) matStr = `${color} ${mat}`;
+        parts.push(`upholstered in ${matStr}`);
+      } else if (!skip(color)) {
+        parts.push(`in ${color}`);
+      }
+
+      // Construction details
+      const details = [];
+      if (!skip(va.arms)) details.push(`${va.arms} arms`);
+      if (!skip(va.back)) details.push(`${va.back}`);
+      if (!skip(va.legs_base) && va.legs_base !== "none") details.push(`${va.legs_base} legs`);
+      if (details.length > 0) parts.push(`featuring ${details.join(", ")}`);
+
+      // Style
+      if (!skip(va.style)) parts.push(`${cap(va.style)} style`);
+
+      // Distinctive features
+      const feats = va.distinctive_features;
+      if (Array.isArray(feats) && feats.length > 0) {
+        const good = feats.filter(f => !skip(f)).slice(0, 3);
+        if (good.length > 0) parts.push(`with ${good.join(", ")}`);
+      }
+
+      if (parts.length < 2) return null;
+      return parts.join(". ").replace(/\.\./g, ".").replace(/\. \./g, ".") + ".";
     })()
     : null;
 
@@ -5492,6 +5564,6 @@ function sanitizeSearchProduct(product) {
     // Cleaned fields
     sku: cleanedSku,
     dimensions: cleanedDims,
-    description: cleanedDesc || aiDesc || null,
+    description: (cleanedDesc && cleanedDesc.length >= 30) ? cleanedDesc : (aiDesc || cleanedDesc || null),
   };
 }
