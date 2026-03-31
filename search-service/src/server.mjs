@@ -5447,13 +5447,24 @@ function sanitizeSearchProduct(product) {
       : [];
 
   // Deduplicate: remove hero dupes from gallery, then filter invalid images
+  // Uses normalized URLs to catch dupes that differ only by query params or sizing
   const galleryDeduped = new Set();
-  if (heroUrl) galleryDeduped.add(heroUrl);
+  const normalizeImgUrl = (u) => {
+    try {
+      const parsed = new URL(u);
+      for (const k of ["w","h","width","height","fit","q","quality","format","fm","auto","dpr","crop","v"]) parsed.searchParams.delete(k);
+      return (parsed.hostname + parsed.pathname).toLowerCase().replace(/[_-]\d{2,4}x\d{2,4}/g, "");
+    } catch { return u.toLowerCase().trim(); }
+  };
+  if (heroUrl) galleryDeduped.add(normalizeImgUrl(heroUrl));
   const uniqueGallery = [];
   for (const url of rawImages) {
-    if (typeof url === "string" && url && !galleryDeduped.has(url)) {
-      galleryDeduped.add(url);
-      uniqueGallery.push(url);
+    if (typeof url === "string" && url) {
+      const norm = normalizeImgUrl(url);
+      if (!galleryDeduped.has(norm)) {
+        galleryDeduped.add(norm);
+        uniqueGallery.push(url);
+      }
     }
   }
   const validGallery = uniqueGallery.filter(url => hasValidProductImage(url));
