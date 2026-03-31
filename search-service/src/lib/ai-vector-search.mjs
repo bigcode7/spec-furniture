@@ -2080,6 +2080,68 @@ export async function searchPipeline(query, options = {}) {
     }
   }
 
+  // ── Step 1c: Enforce physical attribute hard filters ──
+  // Haiku sometimes puts physical attributes only in semantic_query instead of search_fields.
+  // This deterministic safety net ensures AI-tagged fields are used as hard filters when the
+  // user explicitly mentions a physical construction attribute. Without this, non-matching
+  // products leak into results via vector similarity ranking.
+  {
+    const qLower = query.toLowerCase();
+    // Negation detector — skip enforcement if the term is negated
+    const isNegated = (term) => {
+      const negPatterns = [
+        new RegExp(`\\b(?:not?|without|no|exclude|skip|avoid|minus|remove)\\s+(?:\\w+\\s+){0,2}${term}`, "i"),
+        new RegExp(`${term}\\s*-?\\s*free\\b`, "i"),
+      ];
+      return negPatterns.some(p => p.test(query));
+    };
+
+    const PHYSICAL_ENFORCEMENT = [
+      // Skirt style — "skirted sofa", "skirt style", "kick pleat"
+      { pattern: /\bskirt(?:ed|s)?\b/i, field: "ai_skirt_style", values: ["skirted", "tailored skirt", "kick pleat", "bullion fringe"], keyword: "skirt" },
+      { pattern: /\bkick\s+pleat\b/i, field: "ai_skirt_style", values: ["kick pleat"], keyword: "kick pleat" },
+      { pattern: /\bbullion\s+fringe\b/i, field: "ai_skirt_style", values: ["bullion fringe"], keyword: "bullion fringe" },
+      // Tufting pattern
+      { pattern: /\bchannel\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["channel tufted", "channel"], keyword: "channel tuft" },
+      { pattern: /\bbutton\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["button tufted", "button"], keyword: "button tuft" },
+      { pattern: /\bdiamond\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["diamond tufted", "diamond"], keyword: "diamond tuft" },
+      { pattern: /\bbiscuit\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["biscuit tufted", "biscuit"], keyword: "biscuit tuft" },
+      // Cushion configuration
+      { pattern: /\b[23]\s+over\s+[23]\b/i, field: "ai_cushion_config", values: () => { const m = qLower.match(/(\d)\s+over\s+(\d)/); return m ? [`${m[1]} over ${m[2]}`] : ["3 over 3"]; }, keyword: "cushion config" },
+      { pattern: /\bbench\s+seat\b/i, field: "ai_cushion_config", values: ["bench seat", "bench"], keyword: "bench seat" },
+      { pattern: /\btight\s+seat\b/i, field: "ai_cushion_config", values: ["tight seat"], keyword: "tight seat" },
+      // Nailhead
+      { pattern: /\bnailhead\b/i, field: "ai_has_nailhead", values: ["true"], keyword: "nailhead" },
+      // Edge profile
+      { pattern: /\bwaterfall\s+edge\b/i, field: "ai_edge_profile", values: ["waterfall"], keyword: "waterfall edge" },
+      { pattern: /\bknife\s+edge\b/i, field: "ai_edge_profile", values: ["knife edge"], keyword: "knife edge" },
+      // Base type
+      { pattern: /\bpedestal\s+(?:base|table)\b/i, field: "ai_base_type", values: ["pedestal"], keyword: "pedestal" },
+      { pattern: /\btrestle\s+(?:base|table)\b/i, field: "ai_base_type", values: ["trestle"], keyword: "trestle" },
+      { pattern: /\bx[\s-]*base\b/i, field: "ai_base_type", values: ["X-base"], keyword: "x-base" },
+      // Indoor/outdoor
+      { pattern: /\bindoor[\s/]+outdoor\b/i, field: "ai_indoor_outdoor", values: ["indoor/outdoor"], keyword: "indoor/outdoor" },
+      // Pet/kid friendly
+      { pattern: /\bpet\s+friendly\b/i, field: "ai_pet_friendly", values: ["pet friendly"], keyword: "pet friendly" },
+      { pattern: /\bkid\s+friendly\b/i, field: "ai_kid_friendly", values: ["kid friendly"], keyword: "kid friendly" },
+      // Seat depth
+      { pattern: /\bdeep\s+seat\b/i, field: "ai_seat_depth", values: ["deep seat", "deep"], keyword: "deep seat" },
+      // COM eligible
+      { pattern: /\bCOM\b|customer'?s?\s+own\s+material/i, field: "ai_COM_eligible", values: ["true"], keyword: "COM" },
+    ];
+
+    for (const rule of PHYSICAL_ENFORCEMENT) {
+      if (rule.pattern.test(query) && !isNegated(rule.keyword)) {
+        const existing = haiku.search_fields[rule.field];
+        if (!existing || (Array.isArray(existing) && existing.length === 0)) {
+          const vals = typeof rule.values === "function" ? rule.values() : rule.values;
+          haiku.search_fields[rule.field] = vals;
+          console.log(`[enforce-physical] Added ${rule.field}: [${vals.join(", ")}] — Haiku missed this physical attribute`);
+        }
+      }
+    }
+  }
+
   const hasFieldFilters = Object.values(haiku.search_fields).some(v =>
     v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && typeof v !== "number"
   );
