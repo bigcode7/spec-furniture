@@ -5504,11 +5504,11 @@ function sanitizeSearchProduct(product) {
   const aiDesc = product.ai_visual_analysis
     ? (() => {
       const va = product.ai_visual_analysis;
-      const skip = v => !v || v === "unable to determine" || v === "null" || v === "none" || v === "n/a";
+      // Skip values that are junk from the AI tagger
+      const skip = v => !v || /^(unable to determine|null|none|n\/a|unknown|not visible|not applicable|from schematic)/i.test(String(v).trim());
       const cap = v => v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
 
       // Build a natural-sounding sentence, not a spec list
-      // Target: "A barrel-silhouette accent chair upholstered in ivory linen with rolled arms and turned wood legs. Transitional style with nailhead trim and loose pillow back."
       let sentence1 = "";
       let sentence2 = "";
 
@@ -5527,8 +5527,12 @@ function sanitizeSearchProduct(product) {
         }
 
         const details = [];
-        if (!skip(va.arms) && !va.arms.toLowerCase().includes("armless")) details.push(`${va.arms} arms`);
-        if (!skip(va.legs_base) && va.legs_base !== "none" && !va.legs_base.toLowerCase().includes("hidden")) details.push(`${va.legs_base} legs`);
+        if (!skip(va.arms) && !va.arms.toLowerCase().includes("armless")) {
+          // Avoid "track arm arms" — if arm type already ends with "arm", just add "s"
+          const armVal = va.arms.toLowerCase();
+          details.push(armVal.endsWith("arm") ? `${va.arms}s` : `${va.arms} arms`);
+        }
+        if (!skip(va.legs_base) && !/^(none|hidden|skirted)/i.test(va.legs_base)) details.push(`${va.legs_base} legs`);
         if (details.length > 0) sentence1 += ` with ${details.join(" and ")}`;
 
         sentence1 += ".";
@@ -5539,7 +5543,7 @@ function sanitizeSearchProduct(product) {
       if (!skip(va.style)) s2parts.push(`${cap(va.style)} style`);
       const feats = va.distinctive_features;
       if (Array.isArray(feats) && feats.length > 0) {
-        const good = feats.filter(f => !skip(f) && f.length < 40).slice(0, 3);
+        const good = feats.filter(f => !skip(f) && f.length < 40 && f.length > 3).slice(0, 3);
         if (good.length > 0) {
           if (s2parts.length > 0) {
             s2parts[0] += ` with ${good.join(", ")}`;
@@ -5548,15 +5552,19 @@ function sanitizeSearchProduct(product) {
           }
         }
       }
-      if (!skip(va.back) && !va.back.toLowerCase().includes("unable")) {
+      if (!skip(va.back) && !/unable|unknown|not visible/i.test(va.back)) {
         const backStr = va.back.toLowerCase();
-        if (!sentence1.toLowerCase().includes(backStr)) {
+        // Avoid repeating back info already in sentence1 or duplicating "back back"
+        if (!sentence1.toLowerCase().includes(backStr) && !backStr.includes("back")) {
           s2parts.push(`${cap(va.back)} back`);
         }
       }
       if (s2parts.length > 0) sentence2 = s2parts.join(". ") + ".";
 
-      const result = [sentence1, sentence2].filter(Boolean).join(" ");
+      let result = [sentence1, sentence2].filter(Boolean).join(" ");
+      // Final cleanup: fix any remaining awkward patterns
+      result = result.replace(/\b(\w+) \1\b/gi, "$1"); // remove word-word dupes like "linen linen"
+      result = result.replace(/\.\s*\./g, "."); // double periods
       if (result.length < 30) return null;
       return result;
     })()
@@ -5633,10 +5641,17 @@ function sanitizeSearchProduct(product) {
     description: (() => {
       // Use cleaned vendor description if it's substantial and not just repeating the name
       if (cleanedDesc && cleanedDesc.length >= 30) {
-        const descLower = cleanedDesc.toLowerCase().trim();
-        const nameLower = (displayName || "").toLowerCase().trim();
-        // If description is just the product name (or close to it), use AI instead
-        if (nameLower && (descLower === nameLower || descLower.startsWith(nameLower + " ") && cleanedDesc.length < nameLower.length + 10)) {
+        const descLower = cleanedDesc.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+        const nameLower = (displayName || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+        // If description is essentially just the product name, use AI instead
+        if (nameLower && nameLower.length > 5) {
+          const similarity = descLower.startsWith(nameLower) || nameLower.startsWith(descLower);
+          if (similarity && cleanedDesc.length < nameLower.length + 15) {
+            return aiDesc || null;
+          }
+        }
+        // If description is mostly spec junk (very short after cleanup, or just dimensions)
+        if (cleanedDesc.length < 40 && /^[\d"WDHx×\s.]+$/.test(cleanedDesc)) {
           return aiDesc || null;
         }
         return cleanedDesc;
