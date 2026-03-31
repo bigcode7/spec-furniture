@@ -455,8 +455,7 @@ async function downloadCatalogIfMissing() {
 
   // Support single URL or comma-separated URLs for split catalogs
   const HARDCODED_CATALOG_URLS = [
-    "https://github.com/user-attachments/files/26251021/catalog-part1.json.gz",
-    "https://github.com/user-attachments/files/26251025/catalog-part2.json.gz",
+    "https://github.com/bigcode7/spec-furniture/releases/download/catalog-v2-54tags/catalog-full.json.gz",
   ];
   const urlEnv = process.env.CATALOG_URL;
   const urls = urlEnv
