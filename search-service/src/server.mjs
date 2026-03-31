@@ -5519,14 +5519,19 @@ function sanitizeSearchProduct(product) {
       : [];
 
   // Deduplicate: remove hero dupes from gallery, then filter invalid images
-  // Uses normalized URLs to catch dupes that differ only by query params or sizing
+  // Aggressive normalization to catch dupes that differ by query params, sizing,
+  // underscores vs hyphens, or minor path variations
   const galleryDeduped = new Set();
   const normalizeImgUrl = (u) => {
     try {
       const parsed = new URL(u);
-      for (const k of ["w","h","width","height","fit","q","quality","format","fm","auto","dpr","crop","v"]) parsed.searchParams.delete(k);
-      return (parsed.hostname + parsed.pathname).toLowerCase().replace(/[_-]\d{2,4}x\d{2,4}/g, "");
-    } catch { return u.toLowerCase().trim(); }
+      // Strip all query params (sizing, cache busters, etc.)
+      const clean = (parsed.hostname + parsed.pathname).toLowerCase()
+        .replace(/[_-]\d{2,4}x\d{2,4}/g, "")  // size suffixes like _800x600
+        .replace(/[_-](small|medium|large|thumb|xlarge|xxlarge|original|full|master|grande|compact|pico|icon)/gi, "")
+        .replace(/[_-]/g, "");  // treat underscores and hyphens as identical
+      return clean;
+    } catch { return u.toLowerCase().trim().replace(/[_-]/g, ""); }
   };
   if (heroUrl) galleryDeduped.add(normalizeImgUrl(heroUrl));
   const uniqueGallery = [];
@@ -5540,8 +5545,9 @@ function sanitizeSearchProduct(product) {
     }
   }
   const validGallery = uniqueGallery.filter(url => hasValidProductImage(url));
-  // Final images: hero first (if valid), then unique gallery images
-  const finalImages = heroUrl ? [heroUrl, ...validGallery] : validGallery.length > 0 ? validGallery : (heroUrl ? [heroUrl] : []);
+  // Final images: just unique gallery (hero is shown separately by frontend)
+  // If gallery is empty, include hero as fallback
+  const finalImages = validGallery.length > 0 ? validGallery : (heroUrl ? [heroUrl] : []);
 
   return {
     ...product,
