@@ -2876,7 +2876,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       // ── Filter out products without valid product images ──
       // Logo, placeholder, banner, and missing images provide no value to designers
       // But don't filter if it would remove ALL results — show what we have
-      const imageFiltered = filteredResults.filter(p => hasValidProductImage(p.image_url));
+      const imageFiltered = filteredResults.filter(p => hasValidProductImage(p.image_url) && !p.bad_image);
       if (imageFiltered.length > 0) {
         filteredResults = imageFiltered;
       }
