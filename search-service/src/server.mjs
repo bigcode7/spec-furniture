@@ -5309,12 +5309,13 @@ function cleanDescription(desc) {
   // Remove repeated comma-separated keyword spam (e.g. ": cc-chair-rc, cc-chair-rc, comfort, comfort")
   s = s.replace(/^:\s*/, "");
   s = s.replace(/\b(\w[-\w]*),\s*\1\b/gi, "$1"); // remove consecutive dupes
-  // Detect keyword spam: if line is mostly comma-separated short tokens with dupes
+  // Detect keyword spam: comma-separated short tokens that look like tags, not sentences
   s = s.split("\n").map(line => {
-    const tokens = line.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
-    if (tokens.length >= 4) {
-      const unique = new Set(tokens);
-      if (unique.size < tokens.length * 0.6) return ""; // >40% dupes = spam
+    const tokens = line.split(",").map(t => t.trim()).filter(Boolean);
+    if (tokens.length >= 3) {
+      // If most tokens are short single words or SKU-like, it's spam
+      const shortTokens = tokens.filter(t => t.length < 20 && t.split(" ").length <= 2);
+      if (shortTokens.length >= tokens.length * 0.7) return "";
     }
     return line;
   }).join("\n");
@@ -5322,12 +5323,10 @@ function cleanDescription(desc) {
   // Remove lines starting with "+" (item category breadcrumbs)
   s = s.replace(/^\+ .+$/gm, "");
 
-  // Remove "Removable Leg/ Fixed Seat Cushion Back Cushion Throw Available" type spec fragments
-  s = s.replace(/\b(removable|fixed)\s+(leg|seat|back)\b[^.]*\.?/gi, (match) => {
-    // Keep if it's part of a real sentence (has a verb beyond just listing features)
-    if (match.length > 60) return match;
-    return "";
-  });
+  // Remove spec fragment lists like "Removable Leg/ Fixed Seat Cushion Back Cushion Throw Available"
+  s = s.replace(/\b(removable|fixed)\s+(leg|seat|back)\/?[^.]*\b(available|included|optional)\b[^.]*\.?/gi, "");
+  // Remove bare feature lists without sentence structure
+  s = s.replace(/^(removable|fixed)\s+(leg|seat|back)\b.*$/gim, "");
 
   // Clean up resulting whitespace
   s = s.replace(/\n{2,}/g, "\n").replace(/[ \t]+/g, " ").replace(/\n\s+/g, "\n").trim();
@@ -5514,7 +5513,15 @@ function sanitizeSearchProduct(product) {
 
       // Sentence 1: "A [silhouette] [type] upholstered in [color] [material] with [arms] and [legs]"
       if (va.furniture_type) {
-        const sil = !skip(va.silhouette) ? `${va.silhouette} ` : "";
+        // Clean silhouette: strip "with ..." clauses (those go in the details section)
+        // Also skip if silhouette is too long/verbose or already contains the furniture type
+        let sil = "";
+        if (!skip(va.silhouette)) {
+          let silVal = va.silhouette.replace(/\s+with\s+.*/i, "").trim(); // strip "with X arms" from silhouette
+          if (silVal.length < 30 && !va.furniture_type.toLowerCase().includes(silVal.toLowerCase())) {
+            sil = `${silVal} `;
+          }
+        }
         sentence1 = `A ${sil}${va.furniture_type}`;
 
         const mat = va.upholstery_material || va.primary_material;
