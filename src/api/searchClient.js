@@ -256,7 +256,7 @@ export async function visualSearch(imageBase64, mimeType = "image/jpeg") {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/visual-search`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ image: imageBase64, mime_type: mimeType }),
   }, 25000);
   const paywall = handle402(response);
