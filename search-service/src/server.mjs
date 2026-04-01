@@ -3569,7 +3569,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       // Use the new visual search pipeline — same fieldMatch + vector ranking as text search
       const result = await withTimeout(
         visualSearchPipeline(body.image, body.mime_type || "image/jpeg"),
-        20000,
+        30000,
         { query: "[visual search]", products: [], total: 0, error: "Visual search timed out" }
       );
 

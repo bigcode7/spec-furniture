@@ -16,6 +16,7 @@ import { getAllProducts, getProduct, getProductCount } from "../db/catalog-db.mj
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-haiku-4-5-20251001";
+const VISION_MODEL = "claude-sonnet-4-6-20250514"; // Sonnet for superior image analysis
 
 // Haiku 4.5 pricing (per token)
 const HAIKU_INPUT_COST  = 0.80 / 1_000_000;  // $0.80 per 1M input tokens
@@ -2712,7 +2713,7 @@ function computeSimpleFacets(results) {
  * Analyze an uploaded image with Haiku and return search_fields + semantic_query.
  * Same output format as translateQueryWithHaiku so it plugs into the same pipeline.
  */
-async function translateImageWithHaiku(imageBase64, mimeType) {
+async function translateImageWithSonnet(imageBase64, mimeType) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error("[visual-search] No ANTHROPIC_API_KEY set");
@@ -2742,16 +2743,41 @@ async function translateImageWithHaiku(imageBase64, mimeType) {
     "ai_finish": ["distressed"] or null,
     "ai_formality": ["formal"] or null,
     "ai_scale": ["oversized"] or null,
+    "ai_mood": ["cozy"] or null,
     "ai_pattern_type": ["geometric"] or null
   }`;
 
-  const systemPrompt = `You are a furniture identification expert for SPEKD, a trade furniture sourcing platform. A designer has uploaded a photo of furniture they want to find or match in our catalog.
+  const systemPrompt = `You are an elite furniture identification expert for SPEKD, a trade furniture sourcing platform used by interior designers. A designer has uploaded a photo and needs you to identify what's in it so we can find matching products in our catalog.
 
-Our product database has these searchable fields with these values:
+You have exceptional visual analysis skills. You can identify construction techniques, material quality, era influences, proportional relationships, and design lineage from a single image.
+
+Our product database has these searchable fields with their known values:
 
 ${catalogIndexPromptText}
 
-Analyze this image carefully. First determine: does the image show a SINGLE piece of furniture, or a FULL ROOM / MULTIPLE pieces?
+═══ YOUR TASK ═══
+
+STEP 1 — DEEP VISUAL ANALYSIS (think carefully before writing search fields):
+Study the image intensely. Before generating any search fields, mentally answer:
+- What EXACT type of furniture is this? (Don't just say "chair" — is it a wingback, barrel, slipper, lounge, club, dining, accent, swivel?)
+- What is the PRIMARY material? Look at grain, sheen, texture, drape. Is it genuine leather, bonded leather, velvet, linen, performance fabric, boucle, sheepskin, wood, metal, stone, rattan?
+- What is the ARM style? Rolled, track, slope, English, flared, recessed, armless?
+- What is the BACK style? Tight back, loose back, cushion back, channel back, camelback, ladder back, spindle, cane?
+- What is the LEG style? Turned, tapered, cabriole, sled, hairpin, caster, bun feet, metal base, pedestal?
+- What is the SILHOUETTE? Chesterfield, Lawson, tuxedo, camelback, Parsons, barrel, wingback, slipcovered?
+- What CONSTRUCTION DETAILS can you see? Tufting (button, diamond, biscuit, channel), nailhead trim, welting, piping, skirt, exposed frame?
+- What is the SCALE? Apartment-size, standard, oversized, petite?
+- What ERA/STYLE influence? Mid-century modern, traditional, transitional, contemporary, art deco, Hollywood regency, coastal, farmhouse, industrial?
+- What is the FORMALITY level? Casual, relaxed, transitional, formal, ultra-formal?
+- What COLOR? Be precise — not just "blue" but navy, cobalt, slate blue, cerulean, dusty blue.
+
+STEP 2 — MAP TO SEARCH FIELDS:
+Only after deep analysis, generate the search fields. Be AGGRESSIVE about populating physical attribute fields — the more specific you are, the better our results. Only set a field if you're confident. Leave fields null if uncertain.
+
+STEP 3 — WRITE A RICH SEMANTIC QUERY:
+Write a detailed 2-4 sentence paragraph describing this piece as if you were telling a colleague what to look for in a warehouse. Include proportions, visual weight, the feeling it evokes, materials, construction quality, era influence, and any distinctive features. This is used for vector similarity matching — richer = better results.
+
+First determine: does the image show a SINGLE piece of furniture, or a FULL ROOM / MULTIPLE pieces?
 
 ═══ SINGLE PIECE MODE ═══
 If the image shows one furniture piece (or one is clearly the focus), return:
@@ -2759,9 +2785,15 @@ If the image shows one furniture piece (or one is clearly the focus), return:
   "mode": "single",
   "search_fields": ${searchFieldsSchema},
   "exclude_fields": {},
-  "semantic_query": "detailed natural language description for vector matching",
-  "response": "Expert sourcing advice — 2-4 sentences, sound like a colleague with 30 years in the trade."
+  "confidence": { "high": ["ai_furniture_type", "ai_primary_material"], "medium": ["ai_arm_style"], "low": [] },
+  "semantic_query": "Detailed 2-4 sentence description for vector matching — materials, proportions, construction, era, visual weight, mood.",
+  "response": "Expert sourcing advice — 2-4 sentences. Sound like a senior trade rep who has seen 100,000 pieces. If you can identify the manufacturer, brand, collection, or designer — say so. Mention the construction quality, material grade, and what makes this piece distinctive."
 }
+
+The "confidence" object helps us decide which fields to prioritize:
+- "high": fields you're very sure about (>90% confidence) — these become hard filters
+- "medium": fields you're fairly sure about (60-90%) — these become hard filters but get relaxed first if results are sparse
+- "low": fields you're guessing at (<60%) — these go into semantic_query only, NOT into search_fields
 
 ═══ ROOM MODE ═══
 If the image shows a full room or multiple distinct furniture pieces, identify EACH piece separately and return:
@@ -2769,33 +2801,36 @@ If the image shows a full room or multiple distinct furniture pieces, identify E
   "mode": "room",
   "items": [
     {
-      "label": "Navy Velvet Sofa",
+      "label": "Navy Velvet Chesterfield Sofa",
       "search_fields": ${searchFieldsSchema},
       "exclude_fields": {},
-      "semantic_query": "detailed description of this specific piece"
+      "confidence": { "high": [...], "medium": [...], "low": [] },
+      "semantic_query": "Detailed description of THIS specific piece"
     },
     {
-      "label": "Marble Cocktail Table",
+      "label": "Walnut Pedestal Dining Table",
       "search_fields": { ... },
       "exclude_fields": {},
+      "confidence": { "high": [...], "medium": [...], "low": [] },
       "semantic_query": "..."
     }
   ],
-  "response": "Expert overview of the room — identify the design style, how pieces work together, and sourcing advice. 2-4 sentences."
+  "response": "Expert overview of the room — identify the design direction, how pieces work together, the overall aesthetic, and sourcing strategy. 2-4 sentences."
 }
 
 RULES:
-- Use values that EXIST in the catalog field lists above. Use substring terms that match via contains.
-- For ai_furniture_type, use our exact category vocabulary (sofa, sectional, accent chair, dining chair, cocktail table, etc.)
-- Be aggressive about identifying physical attributes — arm style, back style, leg style, silhouette, tufting, skirt, nailhead. These make results accurate.
-- Put mood, vibe, era influence, and abstract qualities in semantic_query for vector ranking.
-- If you can identify the specific piece or manufacturer, mention it in the response.
-- In ROOM MODE: identify every distinct furniture piece you can see (up to 8). Skip decorative accessories, art, and lighting unless they are a major focal point. Label each item clearly (e.g., "Tufted Leather Chesterfield Sofa", "Walnut Pedestal Dining Table").
-- In ROOM MODE: each item gets its OWN search_fields — be specific per piece. Don't copy the room's overall style to every item if individual pieces differ.`;
+- ONLY use values that EXIST in the catalog field lists above. Use substring terms that match via contains.
+- For ai_furniture_type, use our EXACT category vocabulary (sofa, sectional, accent chair, dining chair, cocktail table, console table, etc.)
+- Physical attributes (arm, back, leg, silhouette, tufting, skirt, nailhead, cushion config) are the MOST IMPORTANT fields — they make or break result accuracy. Be aggressive about identifying them.
+- Put mood, vibe, era influence, texture description, and abstract qualities in semantic_query for vector ranking.
+- If you recognize the specific piece, manufacturer, designer, or collection — mention it in the response. Designers love when you identify a Baker, Restoration Hardware, Holly Hunt, or CB2 piece.
+- Do NOT set a field unless you're genuinely confident. A wrong field is worse than a missing field — it filters out good matches.
+- In ROOM MODE: identify every distinct furniture piece (up to 8). Skip small accessories, art, plants, and lighting unless they are statement pieces. Label each item descriptively (e.g., "Tufted Leather Chesterfield Sofa", not just "Sofa").
+- In ROOM MODE: each item gets its OWN independent search_fields. A rustic dining table and a modern dining chair in the same room should have completely different style/formality fields.`;
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 25000); // Sonnet needs more time
     const callStart = Date.now();
 
     const resp = await fetch(ANTHROPIC_API_URL, {
@@ -2806,14 +2841,14 @@ RULES:
         "x-api-key": apiKey,
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2400,
+        model: VISION_MODEL,
+        max_tokens: 3000,
         system: systemPrompt,
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: base64Data } },
-            { type: "text", text: "Analyze this furniture and return the search fields to find matching products in our catalog." },
+            { type: "text", text: "Analyze this furniture image with expert-level precision. Identify every physical attribute you can see — material, construction, silhouette, arms, back, legs, tufting, trim. Then generate search fields to find matching products in our catalog." },
           ],
         }],
       }),
@@ -2824,7 +2859,7 @@ RULES:
 
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error(`[visual-search] Haiku API error ${resp.status}: ${errText.slice(0, 200)}`);
+      console.error(`[visual-search] Sonnet API error ${resp.status}: ${errText.slice(0, 200)}`);
       return null;
     }
 
@@ -2832,7 +2867,7 @@ RULES:
     const text = data.content?.[0]?.text || "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error("[visual-search] Haiku returned non-JSON:", text.slice(0, 200));
+      console.error("[visual-search] Sonnet returned non-JSON:", text.slice(0, 200));
       return null;
     }
 
@@ -2840,34 +2875,66 @@ RULES:
     if (usage.input_tokens) {
       trackTokenUsage(usage.input_tokens, usage.output_tokens || 0);
     }
-    console.log(`[visual-search] Haiku analyzed image in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
+    console.log(`[visual-search] Sonnet analyzed image in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
 
     const parsed = JSON.parse(jsonMatch[0]);
     const mode = parsed.mode || "single";
     console.log(`[visual-search] Mode: ${mode}${mode === "room" ? ` (${(parsed.items || []).length} items)` : ""}`);
 
+    // Process confidence: move low-confidence fields out of search_fields and into semantic_query
+    function applyConfidence(searchFields, confidence, semanticQuery) {
+      if (!confidence || !confidence.low || !Array.isArray(confidence.low)) return { searchFields, semanticQuery };
+      const cleaned = { ...searchFields };
+      const extras = [];
+      for (const field of confidence.low) {
+        if (cleaned[field] && Array.isArray(cleaned[field]) && cleaned[field].length > 0) {
+          extras.push(`${field.replace("ai_", "")}: ${cleaned[field].join(", ")}`);
+          cleaned[field] = null;
+        }
+      }
+      const enrichedQuery = extras.length > 0
+        ? `${semanticQuery} Possibly: ${extras.join("; ")}.`
+        : semanticQuery;
+      return { searchFields: cleaned, semanticQuery: enrichedQuery };
+    }
+
     if (mode === "room" && Array.isArray(parsed.items) && parsed.items.length > 0) {
       return {
         mode: "room",
-        items: parsed.items.map(item => ({
-          label: item.label || "Furniture",
-          search_fields: item.search_fields || {},
-          exclude_fields: item.exclude_fields || {},
-          semantic_query: item.semantic_query || "furniture",
-        })),
+        items: parsed.items.map(item => {
+          const { searchFields, semanticQuery } = applyConfidence(
+            item.search_fields || {},
+            item.confidence,
+            item.semantic_query || "furniture"
+          );
+          return {
+            label: item.label || "Furniture",
+            search_fields: searchFields,
+            exclude_fields: item.exclude_fields || {},
+            semantic_query: semanticQuery,
+            confidence: item.confidence || {},
+          };
+        }),
         response: parsed.response || "Here are matching products for each piece.",
       };
     }
 
+    const { searchFields, semanticQuery } = applyConfidence(
+      parsed.search_fields || {},
+      parsed.confidence,
+      parsed.semantic_query || "furniture"
+    );
+
     return {
       mode: "single",
-      search_fields: parsed.search_fields || {},
+      search_fields: searchFields,
       exclude_fields: parsed.exclude_fields || {},
-      semantic_query: parsed.semantic_query || "furniture",
+      semantic_query: semanticQuery,
+      confidence: parsed.confidence || {},
       response: parsed.response || "Here are matching products from our catalog.",
     };
   } catch (err) {
-    console.error(`[visual-search] Haiku call failed: ${err.message}`);
+    console.error(`[visual-search] Sonnet call failed: ${err.message}`);
     return null;
   }
 }
@@ -2875,24 +2942,31 @@ RULES:
 /**
  * Run fieldMatch + vector ranking for a single visual search item.
  * Shared by both single-piece and room-mode pipelines.
+ * Uses confidence data for smarter progressive relaxation.
  */
-async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery) {
+async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery, confidence = {}) {
   const vectorStats = getVectorStoreStats();
+  const MIN_GOOD_RESULTS = 3;
   let candidates = fieldMatch(searchFields, excludeFields, new Set());
 
-  // Vibe-relax if 0 results
-  if (candidates.length === 0) {
+  // Progressive relaxation — drop medium-confidence fields first, then vibe fields
+  if (candidates.length < MIN_GOOD_RESULTS) {
+    const mediumFields = (confidence.medium || []).filter(f => searchFields[f] && Array.isArray(searchFields[f]) && searchFields[f].length > 0);
     const vibeRelaxOrder = [
       "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
       "ai_durability_assessment", "ai_texture_description", "ai_finish",
-      "ai_primary_color", "ai_scale", "ai_formality", "ai_silhouette", "ai_style",
+      "ai_primary_color", "ai_pattern_type", "ai_scale", "ai_formality",
+      "ai_silhouette", "ai_style",
     ];
+
+    // Phase 1: relax medium-confidence fields one by one
     const relaxed = { ...searchFields };
-    for (const dropField of vibeRelaxOrder) {
+    for (const dropField of [...mediumFields, ...vibeRelaxOrder]) {
+      if (candidates.length >= MIN_GOOD_RESULTS) break;
       if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
+        console.log(`[visual-search] Relaxing field: ${dropField} (had ${candidates.length} results)`);
         relaxed[dropField] = null;
         candidates = fieldMatch(relaxed, excludeFields, new Set());
-        if (candidates.length > 0) break;
       }
     }
   }
@@ -2920,8 +2994,8 @@ async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery) {
 export async function visualSearchPipeline(imageBase64, mimeType) {
   const pipelineStart = Date.now();
 
-  // Step 1: Haiku analyzes the image
-  const haiku = await translateImageWithHaiku(imageBase64, mimeType);
+  // Step 1: Sonnet analyzes the image (upgraded from Haiku for superior visual understanding)
+  const haiku = await translateImageWithSonnet(imageBase64, mimeType);
   if (!haiku) {
     return { query: "[visual search]", products: [], total: 0, error: "Failed to analyze image" };
   }
@@ -2935,7 +3009,7 @@ export async function visualSearchPipeline(imageBase64, mimeType) {
     const buckets = [];
     for (const item of haiku.items) {
       console.log(`[visual-room] Searching: ${item.label} | fields: ${JSON.stringify(item.search_fields)}`);
-      const products = await runVisualFieldMatch(item.search_fields, item.exclude_fields || {}, item.semantic_query);
+      const products = await runVisualFieldMatch(item.search_fields, item.exclude_fields || {}, item.semantic_query, item.confidence || {});
       const MAX_PER_BUCKET = 80;
       buckets.push({
         label: item.label,
@@ -2982,7 +3056,7 @@ export async function visualSearchPipeline(imageBase64, mimeType) {
   console.log("Haiku search_fields:", JSON.stringify(haiku.search_fields, null, 2));
   console.log("Haiku semantic_query:", haiku.semantic_query);
 
-  let results = await runVisualFieldMatch(haiku.search_fields, haiku.exclude_fields || {}, haiku.semantic_query);
+  let results = await runVisualFieldMatch(haiku.search_fields, haiku.exclude_fields || {}, haiku.semantic_query, haiku.confidence || {});
 
   // If field match returned nothing, try pure vector search
   if (results.length === 0 && haiku.semantic_query && vectorStats.ready) {

@@ -258,7 +258,7 @@ export async function visualSearch(imageBase64, mimeType = "image/jpeg") {
     method: "POST",
     headers: { "content-type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ image: imageBase64, mime_type: mimeType }),
-  }, 25000);
+  }, 35000);
   const paywall = handle402(response);
   if (paywall) return paywall;
   handle429(response);
