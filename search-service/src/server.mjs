@@ -4381,6 +4381,23 @@ Return JSON array:
       return json(res, 200, { ok: true, message: "Bernhardt import stop requested." });
     }
 
+    // ── Update a single product's fields (image, name, etc.) ──
+    if (req.method === "POST" && req.url === "/admin/update-product") {
+      const body = await collectBody(req);
+      const id = String(body.id || "");
+      if (!id) return json(res, 400, { error: "id required" });
+      const product = getProduct(id);
+      if (!product) return json(res, 404, { error: "product not found" });
+      const allowed = ["image_url", "images", "image_verified", "product_name", "product_url", "description", "material", "style", "category", "retail_price", "wholesale_price", "dimensions", "width", "depth", "height"];
+      const updates = {};
+      for (const key of allowed) {
+        if (body[key] !== undefined) updates[key] = body[key];
+      }
+      if (Object.keys(updates).length === 0) return json(res, 400, { error: "no valid fields to update" });
+      updateProductDirect(id, updates);
+      return json(res, 200, { ok: true, updated: Object.keys(updates), product: getProduct(id) });
+    }
+
     // ── Cleanup bad enrichment data ──
     if (req.method === "POST" && req.url === "/admin/deep-enrichment/cleanup") {
       let cleaned = 0;
