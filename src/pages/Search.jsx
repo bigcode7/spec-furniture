@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Plus,
   Check,
+  Shuffle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
@@ -289,6 +290,9 @@ export default function SearchPage() {
   const [previewProduct, setPreviewProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [alternativeProducts, setAlternativeProducts] = useState([]);
+  const [alternativeLoading, setAlternativeLoading] = useState(false);
+  const [alternativeLabel, setAlternativeLabel] = useState("");
 
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [favorites, setFavorites] = useState([]);
@@ -808,6 +812,8 @@ export default function SearchPage() {
   const openPreview = (product) => {
     setPreviewProduct(product);
     setSimilarProducts([]);
+    setAlternativeProducts([]);
+    setAlternativeLabel("");
     // Track view
     trackProductClick(product.id, product.manufacturer_name);
     trackStyleInteraction(product.id, "click");
@@ -825,6 +831,53 @@ export default function SearchPage() {
       setSimilarProducts([]);
     } finally {
       setSimilarLoading(false);
+    }
+  };
+
+  const handleFindAlternative = async (product, altType) => {
+    if (!product) return;
+    setAlternativeLoading(true);
+    setAlternativeProducts([]);
+    setAlternativeLabel(altType);
+
+    // Build tag summary from product's AI fields
+    const tags = [];
+    if (product.ai_furniture_type) tags.push(`furniture type: ${product.ai_furniture_type}`);
+    if (product.ai_style) tags.push(`style: ${product.ai_style}`);
+    if (product.ai_formality) tags.push(`formality: ${product.ai_formality}`);
+    if (product.ai_primary_material) tags.push(`primary material: ${product.ai_primary_material}`);
+    if (product.ai_primary_color) tags.push(`primary color: ${product.ai_primary_color}`);
+    if (product.ai_silhouette) tags.push(`silhouette: ${product.ai_silhouette}`);
+    if (product.ai_arm_style) tags.push(`arm style: ${product.ai_arm_style}`);
+    if (product.ai_back_style) tags.push(`back style: ${product.ai_back_style}`);
+    if (product.ai_leg_style) tags.push(`leg style: ${product.ai_leg_style}`);
+    if (product.ai_scale) tags.push(`scale: ${product.ai_scale}`);
+    if (product.ai_mood) tags.push(`mood: ${product.ai_mood}`);
+    if (product.material) tags.push(`material: ${product.material}`);
+    if (product.color) tags.push(`color: ${product.color}`);
+    const tagStr = tags.join(", ");
+    const name = product.product_name || "this product";
+    const vendor = product.manufacturer_name || "unknown vendor";
+
+    const queryMap = {
+      "Different Material": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME silhouette, SAME style, SAME formality, SAME scale BUT made from a DIFFERENT material. Show alternatives in other materials — if the original is leather show fabric, velvet, performance fabric options; if fabric show leather, linen, boucle options. Exclude ${product.ai_primary_material || product.material || "the same material"}.`,
+      "Different Color": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME silhouette, SAME style, SAME material, SAME formality BUT in a DIFFERENT color. The current color is ${product.ai_primary_color || product.color || "unknown"}. Show alternatives in contrasting or complementary colors.`,
+      "Different Size": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME style, SAME material, SAME formality BUT in a DIFFERENT size. ${product.ai_scale === "large" || product.ai_scale === "oversized" ? "Show smaller, apartment-scale, or compact versions." : "Show larger, grander, or more substantial versions."}`,
+      "Less Formal": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME silhouette, SAME approximate scale BUT more CASUAL and RELAXED. Think slipcovered, lived-in, organic textures, softer lines, coastal or farmhouse influence. Less formal than ${product.ai_formality || "the current piece"}.`,
+      "More Formal": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME silhouette, SAME approximate scale BUT more ELEVATED and REFINED. Think tighter tailoring, richer materials, nailhead trim, tufting, polished legs, luxurious finishes. More formal than ${product.ai_formality || "the current piece"}.`,
+      "Lower Price": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME style, SAME silhouette, SAME approximate scale and look BUT from MORE AFFORDABLE vendors. Find similar style from mid-tier or value-oriented brands. Budget-friendly alternatives to ${vendor}.`,
+      "Higher End": `The designer is looking at "${name}" from ${vendor} with these characteristics: ${tagStr}. They want the SAME furniture type, SAME style, SAME silhouette BUT from PREMIUM, luxury, or high-end vendors. Think designer brands, artisan makers, top-tier quality. More premium than ${vendor}.`,
+    };
+
+    const query = queryMap[altType] || `Find alternatives to "${name}" from ${vendor}`;
+
+    try {
+      const data = await searchProducts(query, { exclude_ids: [product.id] });
+      setAlternativeProducts((data.products || []).slice(0, 5));
+    } catch {
+      setAlternativeProducts([]);
+    } finally {
+      setAlternativeLoading(false);
     }
   };
 
@@ -1734,6 +1787,10 @@ export default function SearchPage() {
             onAddToQuote={handleAddToQuote}
             isFavorited={isFavorited(previewProduct.id)}
             onOpenPreview={openPreview}
+            onFindAlternative={handleFindAlternative}
+            alternativeProducts={alternativeProducts}
+            alternativeLoading={alternativeLoading}
+            alternativeLabel={alternativeLabel}
           />
         )}
       </AnimatePresence>
@@ -2016,7 +2073,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
 
 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
-function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview }) {
+function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview, onFindAlternative, alternativeProducts, alternativeLoading, alternativeLabel }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const { getPrice, fmtPrice } = useTradePricing();
@@ -2287,8 +2344,71 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   </a>
                 )}
               </div>
+              {/* Find Alternatives */}
+              <div className="pt-3">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/25 mb-2.5">Find Alternatives</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Different Material", "Different Color", "Different Size", "Less Formal", "More Formal", "Lower Price", "Higher End"].map((alt) => (
+                    <button
+                      key={alt}
+                      onClick={() => onFindAlternative(product, alt)}
+                      disabled={alternativeLoading}
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
+                        alternativeLabel === alt && alternativeProducts.length > 0
+                          ? "border-gold/30 bg-gold/10 text-gold/90"
+                          : "border-white/[0.06] text-white/40 hover:text-gold/70 hover:border-gold/20 hover:bg-gold/[0.04]"
+                      }`}
+                    >
+                      {alternativeLoading && alternativeLabel === alt ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        <Shuffle className="h-2.5 w-2.5" />
+                      )}
+                      {alt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Alternative products row */}
+          {alternativeProducts.length > 0 && (
+            <div className="mt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/[0.08]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/50">
+                  {alternativeLabel}
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/[0.08]" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {alternativeProducts.map((ap) => (
+                  <button key={ap.id} onClick={() => onOpenPreview(ap)} className="text-left group">
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
+                      {ap.image_url ? (
+                        <ProxyImg src={ap.image_url} productId={ap.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
+                          {(ap.manufacturer_name || "?")[0]}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-gold/50 truncate">{ap.manufacturer_name}</div>
+                    <div className="text-[11px] text-white/50 truncate group-hover:text-white/70 transition-colors">{ap.product_name}</div>
+                    {(() => {
+                      const apPrice = getPrice(ap);
+                      return apPrice.price ? (
+                        <div className={`text-[10px] ${apPrice.isTrade ? "text-emerald-400/60" : "text-gold/60"}`}>
+                          {apPrice.isTrade ? `${apPrice.label} ` : ""}{fmtPrice(apPrice.price)}
+                        </div>
+                      ) : null;
+                    })()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Similar products row */}
           {similarProducts.length > 0 && (
