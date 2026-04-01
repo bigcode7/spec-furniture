@@ -31,7 +31,7 @@ const AuthenticatedApp = () => {
             key={path}
             path={`/${path}`}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="global-loading-bar" />}>
                 <Comp />
               </Suspense>
             }
@@ -47,7 +47,7 @@ const AuthenticatedApp = () => {
             key={path}
             path={`/${path}`}
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="global-loading-bar" />}>
                 <LayoutWrapper currentPageName={path}>
                   <Page />
                 </LayoutWrapper>

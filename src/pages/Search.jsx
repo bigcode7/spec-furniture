@@ -1315,11 +1315,10 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[60vh] sm:min-h-[75vh] px-3 sm:px-4">
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[55vh] sm:min-h-[65vh] px-3 sm:px-4">
           <div className="w-full max-w-xl">
             {/* Copy */}
-            <div className="text-center mb-10">
-              <div className="inline-block mb-5"><img src="/logo.png" alt="" className="h-6 w-6 object-contain opacity-40" /></div>
+            <div className="text-center mb-6 sm:mb-8">
               <p className="text-[13px] tracking-[0.25em] uppercase text-white/30 font-light">
                 Describe it. We&apos;ll find it.
               </p>
@@ -1328,8 +1327,9 @@ export default function SearchPage() {
             {/* Search bar */}
             <form ref={searchFormRef} onSubmit={handleSubmit}>
               <div className="relative">
-                <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]">
+                <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
                   <div className="flex items-start">
+                    <img src="/logo.png" alt="" className="h-5 w-5 object-contain opacity-30 ml-4 sm:ml-5 mt-[18px] sm:mt-[20px] shrink-0" />
                     <textarea
                       ref={inputRef}
                       value={inputValue}
@@ -1367,8 +1367,8 @@ export default function SearchPage() {
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
-                        Go <ArrowRight className="h-3.5 w-3.5" />
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-5 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c4a882, #d4ba94)", color: "#1c1917", boxShadow: "0 2px 16px rgba(196,168,130,0.4)" }}>
+                        Search <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1379,14 +1379,14 @@ export default function SearchPage() {
             </form>
 
             {/* Search suggestions */}
-            <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-1.5 sm:gap-2">
+            <div className="mt-5 sm:mt-6 flex flex-wrap justify-center gap-1.5 sm:gap-2">
               {EXAMPLE_SEARCHES.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
                   onMouseEnter={() => { clearTimeout(window._prefetchTimer); window._prefetchTimer = setTimeout(() => prefetchSearch(suggestion), 300); }}
                   onMouseLeave={() => clearTimeout(window._prefetchTimer)}
-                  className="px-3 py-2 sm:py-1.5 sm:px-3.5 rounded-full border border-white/[0.06] bg-white/[0.02] text-[12px] sm:text-[12px] text-white/30 hover:text-white/60 hover:border-gold/20 hover:bg-white/[0.04] transition-all duration-200"
+                  className="px-3.5 py-2 sm:py-1.5 sm:px-4 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/35 hover:text-gold/70 hover:border-gold/25 hover:bg-gold/[0.04] transition-all duration-200"
                 >
                   {suggestion}
                 </button>
@@ -1800,16 +1800,22 @@ export default function SearchPage() {
                 )}
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {visibleProducts.map((item, idx) => (
-                    <ProductCard
+                    <motion.div
                       key={item.id || idx}
-                      item={item}
-                      index={idx}
-                      isFavorited={isFavorited(item.id)}
-                      isInQuote={quoteIds.has(item.id)}
-                      onToggleFavorite={() => handleToggleFavorite(item)}
-                      onAddToQuote={(e) => handleAddToQuote(item, e)}
-                      onPreview={() => openPreview(item)}
-                    />
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.5) }}
+                    >
+                      <ProductCard
+                        item={item}
+                        index={idx}
+                        isFavorited={isFavorited(item.id)}
+                        isInQuote={quoteIds.has(item.id)}
+                        onToggleFavorite={() => handleToggleFavorite(item)}
+                        onAddToQuote={(e) => handleAddToQuote(item, e)}
+                        onPreview={() => openPreview(item)}
+                      />
+                    </motion.div>
                   ))}
                 </div>
 
@@ -2024,7 +2030,7 @@ export default function SearchPage() {
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
 function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
   return (
-    <div className="sticky top-[57px] z-20 -mx-4 px-4 pt-3 pb-3 border-b border-white/[0.04] mb-4 bg-[#1c1917]/95 backdrop-blur-sm">
+    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[57px] z-20 -mx-4 px-4 pt-3 pb-3 border-b border-white/[0.04] mb-4 bg-[#1c1917]/95 backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <p className="text-[12px]" style={{ color: "#a89880" }}>
           <span style={{ color: "#c4a882" }}>"{query}"</span>
@@ -2064,7 +2070,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
       {showSortMenu && (
         <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -2118,11 +2124,11 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
           <>
             {!imgLoaded && (
               <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
-                <div className="loading-emblem" style={{ width: 12, height: 12 }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(196,168,130,0.06) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s ease-in-out infinite" }} />
               </div>
             )}
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
-              className={`h-full w-full transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+              className={`h-full w-full transition-all duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"} group-hover:scale-105`}
               style={{ objectFit: "contain", padding: "12px" }}
               eager={index < 5}
               fetchPriority={index < 5 ? "high" : undefined}

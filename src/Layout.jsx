@@ -175,40 +175,47 @@ function DropdownItem({ icon: Icon, label, disabled }) {
 
 function AppFooter() {
   return (
-    <footer className="relative mt-20 border-t border-white/[0.06]">
-      <div className="page-wrap py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Left */}
-          <div className="text-[11px] text-white/25">
-            &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
+    <footer className="relative mt-20 border-t border-white/[0.06]" style={{ background: "rgba(28, 25, 23, 0.6)" }}>
+      <div className="page-wrap py-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Left — Logo + Copyright */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded" />
+              <span className="font-brand text-sm tracking-[0.2em] text-white/50 font-medium">SPEKD</span>
+            </div>
+            <span className="hidden md:inline text-white/10">|</span>
+            <span className="text-[11px] text-white/25">
+              &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
+            </span>
           </div>
 
           {/* Center — links */}
           <nav className="flex items-center gap-4 text-[11px]">
-            <Link to={createPageUrl("About")} className="text-white/30 hover:text-white/60 transition-colors">
+            <Link to={createPageUrl("About")} className="text-white/30 hover:text-gold/70 transition-colors">
               About
             </Link>
             <span className="text-white/10">·</span>
-            <a href="mailto:support@spekd.ai" className="text-white/30 hover:text-white/60 transition-colors">
+            <a href="mailto:support@spekd.ai" className="text-white/30 hover:text-gold/70 transition-colors">
               Contact
             </a>
             <span className="text-white/10">·</span>
-            <Link to={createPageUrl("Privacy")} className="text-white/30 hover:text-white/60 transition-colors">
-              Privacy Policy
+            <Link to={createPageUrl("Privacy")} className="text-white/30 hover:text-gold/70 transition-colors">
+              Privacy
             </Link>
             <span className="text-white/10">·</span>
-            <Link to={createPageUrl("Terms")} className="text-white/30 hover:text-white/60 transition-colors">
-              Terms of Service
+            <Link to={createPageUrl("Terms")} className="text-white/30 hover:text-gold/70 transition-colors">
+              Terms
             </Link>
           </nav>
 
           {/* Right — social icons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <a
               href="https://linkedin.com/company/spekd"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
               title="LinkedIn"
             >
               <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -219,7 +226,7 @@ function AppFooter() {
               href="https://instagram.com/spekd.ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
               title="Instagram"
             >
               <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -417,7 +424,14 @@ export default function Layout({ children, currentPageName }) {
       <ScrollProgress />
 
       <main className="relative flex-1 pb-16 md:pb-0">
-        {children}
+        <motion.div
+          key={currentPageName}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {children}
+        </motion.div>
       </main>
 
       {/* Mobile bottom tab bar */}

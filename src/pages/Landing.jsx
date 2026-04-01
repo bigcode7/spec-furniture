@@ -71,6 +71,21 @@ function Atmosphere() {
 // ── Design Intent Decoder — shows how AI parses natural language ──
 function IntentDecoder() {
   const inputPhrase = "modern high back swivel chair";
+  const [typedLength, setTypedLength] = useState(0);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (!inView) return;
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      if (i > inputPhrase.length) { clearInterval(timer); return; }
+      setTypedLength(i);
+    }, 60);
+    return () => clearInterval(timer);
+  }, [inView]);
+
   const decoded = [
     { label: "Category", value: "Accent Chair", color: "text-gold" },
     { label: "Back Style", value: "High Back", color: "text-emerald-400" },
@@ -90,7 +105,7 @@ function IntentDecoder() {
         {/* Input */}
         <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
           <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
-          <span className="text-sm text-white/50 italic">"{inputPhrase}"</span>
+          <span ref={ref} className="text-sm text-white/50 italic">"{inputPhrase.slice(0, typedLength)}{typedLength < inputPhrase.length ? <span className="animate-pulse text-gold/40">|</span> : ""}"</span>
         </div>
 
         {/* Decoded arrow */}
@@ -102,10 +117,15 @@ function IntentDecoder() {
 
         {/* Structured output */}
         <div className="grid grid-cols-2 gap-2.5">
-          {decoded.map((attr) => (
+          {decoded.map((attr, i) => (
             <div
               key={attr.label}
-              className="rounded-lg bg-white/[0.03] border border-white/[0.04] px-3 py-2.5"
+              className="rounded-lg bg-white/[0.03] border border-white/[0.04] px-3 py-2.5 transition-all duration-500"
+              style={{
+                opacity: typedLength >= inputPhrase.length ? 1 : 0,
+                transform: typedLength >= inputPhrase.length ? "translateY(0)" : "translateY(8px)",
+                transitionDelay: `${i * 100}ms`,
+              }}
             >
               <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 mb-1">
                 {attr.label}
@@ -624,8 +644,9 @@ export default function Landing() {
           <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#1c1917] to-transparent" />
           <div className="brand-marquee whitespace-nowrap">
             {[...marqueeNames, ...marqueeNames].map((name, i) => (
-              <span key={`${name}-${i}`} className="inline-flex items-center mx-8 text-base font-display text-white/[0.12] tracking-wide">
-                {name}
+              <span key={`${name}-${i}`} className="inline-flex items-center mx-6 sm:mx-10">
+                <span className="text-sm sm:text-base font-display text-white/[0.18] tracking-[0.08em] uppercase whitespace-nowrap" style={{ fontWeight: 500 }}>{name}</span>
+                <span className="ml-6 sm:ml-10 text-gold/15">·</span>
               </span>
             ))}
           </div>
@@ -666,7 +687,7 @@ export default function Landing() {
               },
             ].map((item, i) => (
               <Reveal key={item.step} delay={i * 0.1}>
-                <div className="relative text-center p-8 rounded-2xl border border-white/[0.04] hover:border-white/[0.08] transition-colors" style={{ background: "rgba(255,255,255,0.015)" }}>
+                <div className="relative text-center p-8 rounded-2xl border border-white/[0.04] hover:border-gold/15 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(196,168,130,0.08)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(196,168,130,0.015) 100%)" }}>
                   <div className="text-[64px] font-display font-bold text-white/[0.03] absolute top-4 right-6 leading-none">{item.step}</div>
                   <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gold/10 border border-gold/15 flex items-center justify-center">
                     <item.icon className="w-6 h-6 text-gold/70" />
