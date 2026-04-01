@@ -56,7 +56,7 @@ import { importVerellen, getVerellenStatus, stopVerellen } from "./importers/ver
 import { getCategoryTree } from "./lib/category-normalizer.mjs";
 import { detectQueryCategory, productMatchesCategory, inferCategoryFromName } from "./lib/query-category-filter.mjs";
 import { initVectorStore, indexAllProducts as vectorIndexAll, indexProduct as vectorIndexProduct, removeVector, getVectorStoreStats, persistVectors, crossMatchScores, vectorSearch } from "./lib/vector-store.mjs";
-import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache, getAICostStats } from "./lib/ai-vector-search.mjs";
+import { searchPipeline, findSimilar as vectorFindSimilar, listSearchPipeline, buildCatalogIndex, clearVectorSearchCache, getAICostStats, visualSearchPipeline } from "./lib/ai-vector-search.mjs";
 import { getRoomTemplate, getAllRoomTemplates, getStyleDNA, checkStyleCoherence, generateSourcingQueries, estimateLeadTime, suggestSwaps } from "./lib/sourcing-brain.mjs";
 import { initProjectStore, createProject, getProject, updateProject, deleteProject, listProjects, addRoomToProject, updateRoomItem, getProjectShareToken, getProjectByShareToken } from "./lib/project-store.mjs";
 import { parseDimensions, batchParseDimensions, checkProductFit, checkArrangement, calculateFitScore, checkDeliveryFeasibility, suggestProportions, recommendRoomSize, getSpatialRules } from "./lib/spatial-engine.mjs";
@@ -3563,9 +3563,38 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       const rl = checkRateLimit(reqIp + ":visual", 10);
       if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
+
+      // Pro-only feature
+      const identity = await getRequestIdentity(req, body);
+      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "visual_search");
+      if (!access.allowed) {
+        return json(res, 402, {
+          error: "subscription_required",
+          status: access.status,
+          reason: "Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.",
+          feature: "visual_search",
+        });
+      }
+
       if (!body.image) return json(res, 400, { error: "image (base64) required" });
-      const result = await withTimeout(aiVisualSearch(body.image, body.mime_type || "image/jpeg"), 90000, null);
-      return json(res, 200, { result });
+
+      // Use the new visual search pipeline — same fieldMatch + vector ranking as text search
+      const result = await withTimeout(
+        visualSearchPipeline(body.image, body.mime_type || "image/jpeg"),
+        20000,
+        { query: "[visual search]", products: [], total: 0, error: "Visual search timed out" }
+      );
+
+      // Sanitize products for both single and room modes
+      if (result.result_mode === "visual-room" && result.items) {
+        result.items = result.items.map(item => ({
+          ...item,
+          products: (item.products || []).map(sanitizeSearchProduct),
+        }));
+      } else if (result.products) {
+        result.products = result.products.map(sanitizeSearchProduct);
+      }
+      return json(res, 200, result);
     }
 
     if (req.method === "POST" && req.url === "/room-plan") {

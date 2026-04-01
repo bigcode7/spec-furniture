@@ -299,7 +299,7 @@ function checkAccess(userId, fingerprint, ip, localStorageId, action = "search")
   }
 
   // Actions that require active subscription
-  if (action === "pdf" || action === "favorites" || action === "trade_pricing") {
+  if (action === "pdf" || action === "favorites" || action === "trade_pricing" || action === "visual_search") {
     if (userId && (getUserStatus(userId) === "active" || getUserStatus(userId) === "cancelled")) {
       return { allowed: true, status: getUserStatus(userId) };
     }

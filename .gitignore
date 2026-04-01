@@ -35,7 +35,21 @@ search-service/data/catalog.db.json
 search-service/data/catalog.db.json.bak
 search-service/data/catalog.db.json.small
 search-service/data/catalog-backup-before-tagging.db.json
+search-service/data/catalog.db.json.gz
+search-service/data/catalog-compact.json
+search-service/data/catalog-slim.json.gz
+search-service/data/catalog-part*.json.gz
+search-service/data/vectors.bin
+search-service/data/vectors.meta.json
+search-service/data/analytics.json
+search-service/data/admin-store.json
+search-service/data/projects.json
+search-service/data/*-progress.json
+search-service/data/.auth-secret
+search-service/data/.transformers-cache/
 search-service/.env
+.auth-secret
+*.gz
 
 # Legacy scraper/debug files (superseded by search-service/src/importers/)
 *_scraper.mjs

@@ -252,13 +252,16 @@ export async function listSearch(items) {
   };
 }
 
-export async function visualSearch(imageBase64) {
+export async function visualSearch(imageBase64, mimeType = "image/jpeg") {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
   const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/visual-search`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ image: imageBase64 }),
-  });
+    body: JSON.stringify({ image: imageBase64, mime_type: mimeType }),
+  }, 25000);
+  const paywall = handle402(response);
+  if (paywall) return paywall;
+  handle429(response);
   if (!response.ok) throw new Error(`visual search error: ${response.status}`);
   return response.json();
 }

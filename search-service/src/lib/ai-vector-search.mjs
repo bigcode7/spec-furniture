@@ -2080,255 +2080,6 @@ export async function searchPipeline(query, options = {}) {
     }
   }
 
-  // ── Step 1c: Enforce physical attribute hard filters ──
-  // Haiku sometimes puts physical attributes only in semantic_query instead of search_fields.
-  // This deterministic safety net ensures AI-tagged fields are used as hard filters when the
-  // user explicitly mentions a physical construction attribute. Without this, non-matching
-  // products leak into results via vector similarity ranking.
-  {
-    const qLower = query.toLowerCase();
-    // Negation detector — skip enforcement if the term is negated
-    const isNegated = (term) => {
-      const negPatterns = [
-        new RegExp(`\\b(?:not?|without|no|exclude|skip|avoid|minus|remove)\\s+(?:\\w+\\s+){0,2}${term}`, "i"),
-        new RegExp(`${term}\\s*-?\\s*free\\b`, "i"),
-      ];
-      return negPatterns.some(p => p.test(query));
-    };
-
-    const PHYSICAL_ENFORCEMENT = [
-      // ── Materials ──
-      { pattern: /\bleather\b/i, field: "ai_primary_material", values: ["leather"], keyword: "leather" },
-      { pattern: /\bvelvet\b/i, field: "ai_primary_material", values: ["velvet"], keyword: "velvet" },
-      { pattern: /\blinen\b/i, field: "ai_primary_material", values: ["linen"], keyword: "linen" },
-      { pattern: /\bperformance\s+fabric\b/i, field: "ai_primary_material", values: ["performance fabric", "performance"], keyword: "performance fabric" },
-      { pattern: /\bboucl[eé]\b/i, field: "ai_primary_material", values: ["boucle", "bouclé"], keyword: "boucl" },
-      { pattern: /\bchenille\b/i, field: "ai_primary_material", values: ["chenille"], keyword: "chenille" },
-      { pattern: /\bfabric\b/i, field: "ai_primary_material", values: ["fabric"], keyword: "fabric" },
-      { pattern: /\bwood\b/i, field: "ai_primary_material", values: ["wood"], keyword: "wood" },
-      { pattern: /\bmarble\b/i, field: "ai_primary_material", values: ["marble"], keyword: "marble" },
-      { pattern: /\bglass\b/i, field: "ai_primary_material", values: ["glass"], keyword: "glass" },
-      { pattern: /\bmetal\b/i, field: "ai_primary_material", values: ["metal"], keyword: "metal" },
-      { pattern: /\brattan\b/i, field: "ai_primary_material", values: ["rattan"], keyword: "rattan" },
-      { pattern: /\bwicker\b/i, field: "ai_primary_material", values: ["wicker"], keyword: "wicker" },
-      { pattern: /\bcane\b/i, field: "ai_primary_material", values: ["cane"], keyword: "cane" },
-      { pattern: /\bstone\b/i, field: "ai_primary_material", values: ["stone"], keyword: "stone" },
-      { pattern: /\bconcrete\b/i, field: "ai_primary_material", values: ["concrete"], keyword: "concrete" },
-      { pattern: /\bacrylic\b/i, field: "ai_primary_material", values: ["acrylic"], keyword: "acrylic" },
-      { pattern: /\blucite\b/i, field: "ai_primary_material", values: ["lucite", "acrylic"], keyword: "lucite" },
-      { pattern: /\bsunbrella\b/i, field: "ai_primary_material", values: ["sunbrella", "performance fabric"], keyword: "sunbrella" },
-      // Wood species → ai_primary_material AND ai_wood_species
-      { pattern: /\bwalnut\b/i, field: "ai_primary_material", values: ["walnut"], keyword: "walnut" },
-      { pattern: /\bwalnut\b/i, field: "ai_wood_species", values: ["walnut"], keyword: "walnut" },
-      { pattern: /\boak\b/i, field: "ai_primary_material", values: ["oak"], keyword: "oak" },
-      { pattern: /\boak\b/i, field: "ai_wood_species", values: ["oak"], keyword: "oak" },
-      { pattern: /\bmahogany\b/i, field: "ai_primary_material", values: ["mahogany"], keyword: "mahogany" },
-      { pattern: /\bmahogany\b/i, field: "ai_wood_species", values: ["mahogany"], keyword: "mahogany" },
-      { pattern: /\bteak\b/i, field: "ai_primary_material", values: ["teak"], keyword: "teak" },
-      { pattern: /\bteak\b/i, field: "ai_wood_species", values: ["teak"], keyword: "teak" },
-      { pattern: /\bmaple\b/i, field: "ai_primary_material", values: ["maple"], keyword: "maple" },
-      { pattern: /\bcherry\b/i, field: "ai_primary_material", values: ["cherry"], keyword: "cherry" },
-      { pattern: /\bash\b(?!\s+(?:gray|grey))/i, field: "ai_primary_material", values: ["ash"], keyword: "ash" },
-      { pattern: /\bpine\b/i, field: "ai_primary_material", values: ["pine"], keyword: "pine" },
-      { pattern: /\bcedar\b/i, field: "ai_primary_material", values: ["cedar"], keyword: "cedar" },
-      { pattern: /\belm\b/i, field: "ai_primary_material", values: ["elm"], keyword: "elm" },
-      { pattern: /\bbirch\b/i, field: "ai_primary_material", values: ["birch"], keyword: "birch" },
-
-      // ── Styles ──
-      { pattern: /\bmod(?:ern)\b/i, field: "ai_style", values: ["modern"], keyword: "modern" },
-      { pattern: /\bcontemporary\b/i, field: "ai_style", values: ["contemporary"], keyword: "contemporary" },
-      { pattern: /\btraditional\b/i, field: "ai_style", values: ["traditional"], keyword: "traditional" },
-      { pattern: /\btransitional\b/i, field: "ai_style", values: ["transitional"], keyword: "transitional" },
-      { pattern: /\bmid[\s-]*century\b/i, field: "ai_style", values: ["mid-century", "mid century"], keyword: "mid.century" },
-      { pattern: /\brustic\b/i, field: "ai_style", values: ["rustic"], keyword: "rustic" },
-      { pattern: /\bindustrial\b/i, field: "ai_style", values: ["industrial"], keyword: "industrial" },
-      { pattern: /\bcoastal\b/i, field: "ai_style", values: ["coastal"], keyword: "coastal" },
-      { pattern: /\bfarmhouse\b/i, field: "ai_style", values: ["farmhouse"], keyword: "farmhouse" },
-      { pattern: /\bart\s+deco\b/i, field: "ai_style", values: ["art deco"], keyword: "art deco" },
-      { pattern: /\bbohemian\b|\bboho\b/i, field: "ai_style", values: ["bohemian", "boho"], keyword: "boho" },
-      { pattern: /\bminimalist\b/i, field: "ai_style", values: ["minimalist"], keyword: "minimalist" },
-      { pattern: /\bglam\b/i, field: "ai_style", values: ["glam", "glamorous"], keyword: "glam" },
-      { pattern: /\bscandinavian\b/i, field: "ai_style", values: ["scandinavian"], keyword: "scandinavian" },
-      { pattern: /\bfrench\s+country\b/i, field: "ai_style", values: ["french country"], keyword: "french country" },
-      { pattern: /\bhollywood\s+regency\b/i, field: "ai_style", values: ["hollywood regency"], keyword: "hollywood regency" },
-
-      // ── Colors ──
-      { pattern: /\bblue\b/i, field: "ai_primary_color", values: ["blue"], keyword: "blue" },
-      { pattern: /\bnavy\b/i, field: "ai_primary_color", values: ["navy", "blue"], keyword: "navy" },
-      { pattern: /\bgr[ea]y\b/i, field: "ai_primary_color", values: ["gray", "grey"], keyword: "gray" },
-      { pattern: /\bwhite\b/i, field: "ai_primary_color", values: ["white"], keyword: "white" },
-      { pattern: /\bblack\b/i, field: "ai_primary_color", values: ["black"], keyword: "black" },
-      { pattern: /\bcream\b/i, field: "ai_primary_color", values: ["cream", "ivory"], keyword: "cream" },
-      { pattern: /\bivory\b/i, field: "ai_primary_color", values: ["ivory", "cream"], keyword: "ivory" },
-      { pattern: /\bbeige\b/i, field: "ai_primary_color", values: ["beige", "tan"], keyword: "beige" },
-      { pattern: /\btan\b/i, field: "ai_primary_color", values: ["tan", "beige"], keyword: "tan" },
-      { pattern: /\bbrown\b/i, field: "ai_primary_color", values: ["brown"], keyword: "brown" },
-      { pattern: /\bgreen\b/i, field: "ai_primary_color", values: ["green"], keyword: "green" },
-      { pattern: /\bred\b/i, field: "ai_primary_color", values: ["red"], keyword: "red" },
-      { pattern: /\bpink\b/i, field: "ai_primary_color", values: ["pink"], keyword: "pink" },
-      { pattern: /\borange\b/i, field: "ai_primary_color", values: ["orange"], keyword: "orange" },
-      { pattern: /\byellow\b/i, field: "ai_primary_color", values: ["yellow"], keyword: "yellow" },
-      { pattern: /\bgold\b/i, field: "ai_primary_color", values: ["gold"], keyword: "gold" },
-      { pattern: /\bburgundy\b/i, field: "ai_primary_color", values: ["burgundy"], keyword: "burgundy" },
-      { pattern: /\bteal\b/i, field: "ai_primary_color", values: ["teal"], keyword: "teal" },
-      { pattern: /\bcharcoal\b/i, field: "ai_primary_color", values: ["charcoal", "gray"], keyword: "charcoal" },
-      { pattern: /\bcamel\b/i, field: "ai_primary_color", values: ["camel", "tan"], keyword: "camel" },
-      { pattern: /\bcognac\b/i, field: "ai_primary_color", values: ["cognac", "brown"], keyword: "cognac" },
-      { pattern: /\brust\b/i, field: "ai_primary_color", values: ["rust", "orange"], keyword: "rust" },
-      { pattern: /\bsage\b/i, field: "ai_primary_color", values: ["sage", "green"], keyword: "sage" },
-      { pattern: /\bblush\b/i, field: "ai_primary_color", values: ["blush", "pink"], keyword: "blush" },
-      { pattern: /\bterracotta\b/i, field: "ai_primary_color", values: ["terracotta"], keyword: "terracotta" },
-
-      // ── Arm styles ──
-      { pattern: /\btrack\s+arm\b/i, field: "ai_arm_style", values: ["track"], keyword: "track arm" },
-      { pattern: /\brolled?\s+arm\b/i, field: "ai_arm_style", values: ["rolled"], keyword: "rolled arm" },
-      { pattern: /\bslope(?:d)?\s+arm\b/i, field: "ai_arm_style", values: ["slope"], keyword: "slope arm" },
-      { pattern: /\bflared?\s+arm\b/i, field: "ai_arm_style", values: ["flared"], keyword: "flare arm" },
-      { pattern: /\benglish\s+arm\b/i, field: "ai_arm_style", values: ["english"], keyword: "english arm" },
-      { pattern: /\bpad\s+arm\b/i, field: "ai_arm_style", values: ["pad"], keyword: "pad arm" },
-      { pattern: /\btuxedo\s+arm\b/i, field: "ai_arm_style", values: ["tuxedo"], keyword: "tuxedo arm" },
-      { pattern: /\bshelter\s+arm\b/i, field: "ai_arm_style", values: ["shelter"], keyword: "shelter arm" },
-      { pattern: /\bset[\s-]*back\s+arm\b/i, field: "ai_arm_style", values: ["set-back", "set back"], keyword: "set-back arm" },
-      { pattern: /\bcurved?\s+arm\b/i, field: "ai_arm_style", values: ["curved"], keyword: "curved arm" },
-      { pattern: /\bscooped?\s+arm\b/i, field: "ai_arm_style", values: ["scooped"], keyword: "scooped arm" },
-      { pattern: /\barmless\b/i, field: "ai_arm_style", values: ["armless"], keyword: "armless" },
-
-      // ── Back styles ──
-      { pattern: /\btight\s+back\b/i, field: "ai_back_style", values: ["tight back"], keyword: "tight back" },
-      { pattern: /\bloose\s+back\b/i, field: "ai_back_style", values: ["loose back"], keyword: "loose back" },
-      { pattern: /\bpillow\s+back\b/i, field: "ai_back_style", values: ["pillow back"], keyword: "pillow back" },
-      { pattern: /\bcamelback\b/i, field: "ai_back_style", values: ["camelback"], keyword: "camelback" },
-      { pattern: /\bwingback\b/i, field: "ai_back_style", values: ["wingback"], keyword: "wingback" },
-      { pattern: /\bchannel\s+back\b/i, field: "ai_back_style", values: ["channel back"], keyword: "channel back" },
-      { pattern: /\btufted\s+back\b/i, field: "ai_back_style", values: ["tufted back"], keyword: "tufted back" },
-      { pattern: /\bbutton\s+back\b/i, field: "ai_back_style", values: ["button back"], keyword: "button back" },
-      { pattern: /\bladder\s+back\b/i, field: "ai_back_style", values: ["ladder back"], keyword: "ladder back" },
-      { pattern: /\bspindle\s+back\b/i, field: "ai_back_style", values: ["spindle back"], keyword: "spindle back" },
-      { pattern: /\bcane\s+back\b/i, field: "ai_back_style", values: ["cane back"], keyword: "cane back" },
-
-      // ── Leg styles ──
-      { pattern: /\btapered?\s+leg\b/i, field: "ai_leg_style", values: ["tapered"], keyword: "tapered leg" },
-      { pattern: /\bturned?\s+leg\b/i, field: "ai_leg_style", values: ["turned"], keyword: "turned leg" },
-      { pattern: /\bcabriole\s+leg\b/i, field: "ai_leg_style", values: ["cabriole"], keyword: "cabriole leg" },
-      { pattern: /\bsaber\s+leg\b/i, field: "ai_leg_style", values: ["saber"], keyword: "saber leg" },
-      { pattern: /\bstraight\s+leg\b/i, field: "ai_leg_style", values: ["straight"], keyword: "straight leg" },
-      { pattern: /\bhairpin\s+leg\b/i, field: "ai_leg_style", values: ["hairpin"], keyword: "hairpin leg" },
-      { pattern: /\bmetal\s+leg\b/i, field: "ai_leg_style", values: ["metal"], keyword: "metal leg" },
-      { pattern: /\bsplayed?\s+leg\b/i, field: "ai_leg_style", values: ["splayed"], keyword: "splayed leg" },
-      { pattern: /\bbun\s+foot\b/i, field: "ai_leg_style", values: ["bun foot"], keyword: "bun foot" },
-      { pattern: /\bblock\s+leg\b/i, field: "ai_leg_style", values: ["block"], keyword: "block leg" },
-
-      // ── Silhouettes ──
-      { pattern: /\bbarrel\b/i, field: "ai_silhouette", values: ["barrel"], keyword: "barrel" },
-      { pattern: /\bchesterfield\b/i, field: "ai_silhouette", values: ["chesterfield"], keyword: "chesterfield" },
-      { pattern: /\blawson\b/i, field: "ai_silhouette", values: ["lawson"], keyword: "lawson" },
-      { pattern: /\bbridgewater\b/i, field: "ai_silhouette", values: ["bridgewater"], keyword: "bridgewater" },
-      { pattern: /\btuxedo\b(?!\s+arm)/i, field: "ai_silhouette", values: ["tuxedo"], keyword: "tuxedo" },
-      { pattern: /\bslipper\b/i, field: "ai_silhouette", values: ["slipper"], keyword: "slipper" },
-      { pattern: /\bparsons\b/i, field: "ai_silhouette", values: ["parsons"], keyword: "parsons" },
-      { pattern: /\bshelter\b(?!\s+arm)/i, field: "ai_silhouette", values: ["shelter"], keyword: "shelter" },
-
-      // ── Skirt style ──
-      { pattern: /\bskirt(?:ed|s)?\b/i, field: "ai_skirt_style", values: ["skirted", "tailored skirt", "kick pleat", "bullion fringe"], keyword: "skirt" },
-      { pattern: /\bkick\s+pleat\b/i, field: "ai_skirt_style", values: ["kick pleat"], keyword: "kick pleat" },
-      { pattern: /\bbullion\s+fringe\b/i, field: "ai_skirt_style", values: ["bullion fringe"], keyword: "bullion fringe" },
-
-      // ── Tufting pattern ──
-      { pattern: /\bchannel\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["channel tufted", "channel"], keyword: "channel tuft" },
-      { pattern: /\bbutton\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["button tufted", "button"], keyword: "button tuft" },
-      { pattern: /\bdiamond\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["diamond tufted", "diamond"], keyword: "diamond tuft" },
-      { pattern: /\bbiscuit\s+tuft(?:ed|ing)?\b/i, field: "ai_tufting_pattern", values: ["biscuit tufted", "biscuit"], keyword: "biscuit tuft" },
-
-      // ── Cushion configuration ──
-      { pattern: /\b[23]\s+over\s+[23]\b/i, field: "ai_cushion_config", values: () => { const m = qLower.match(/(\d)\s+over\s+(\d)/); return m ? [`${m[1]} over ${m[2]}`] : ["3 over 3"]; }, keyword: "cushion config" },
-      { pattern: /\bbench\s+seat\b/i, field: "ai_cushion_config", values: ["bench seat", "bench"], keyword: "bench seat" },
-      { pattern: /\btight\s+seat\b/i, field: "ai_cushion_config", values: ["tight seat"], keyword: "tight seat" },
-
-      // ── Nailhead ──
-      { pattern: /\bnailhead\b/i, field: "ai_has_nailhead", values: ["true"], keyword: "nailhead" },
-
-      // ── Edge profile ──
-      { pattern: /\bwaterfall\s+edge\b/i, field: "ai_edge_profile", values: ["waterfall"], keyword: "waterfall edge" },
-      { pattern: /\bknife\s+edge\b/i, field: "ai_edge_profile", values: ["knife edge"], keyword: "knife edge" },
-
-      // ── Base type ──
-      { pattern: /\bpedestal\b/i, field: "ai_base_type", values: ["pedestal"], keyword: "pedestal" },
-      { pattern: /\btrestle\b/i, field: "ai_base_type", values: ["trestle"], keyword: "trestle" },
-      { pattern: /\bx[\s-]*base\b/i, field: "ai_base_type", values: ["X-base"], keyword: "x-base" },
-      { pattern: /\bplinth\b/i, field: "ai_base_type", values: ["plinth"], keyword: "plinth" },
-      { pattern: /\bsled\s+base\b/i, field: "ai_base_type", values: ["sled"], keyword: "sled base" },
-      { pattern: /\bcantilever\b/i, field: "ai_base_type", values: ["cantilever"], keyword: "cantilever" },
-
-      // ── Indoor/outdoor ──
-      { pattern: /\bindoor[\s/]+outdoor\b/i, field: "ai_indoor_outdoor", values: ["indoor/outdoor"], keyword: "indoor/outdoor" },
-
-      // ── Finish ──
-      { pattern: /\bdistressed\b/i, field: "ai_finish", values: ["distressed"], keyword: "distressed" },
-      { pattern: /\blacquered\b/i, field: "ai_finish", values: ["lacquered"], keyword: "lacquered" },
-      { pattern: /\bcerused\b/i, field: "ai_finish", values: ["cerused"], keyword: "cerused" },
-      { pattern: /\bwire[\s-]*brushed\b/i, field: "ai_finish", values: ["wire-brushed"], keyword: "wire-brushed" },
-      { pattern: /\bhand[\s-]*rubbed\b/i, field: "ai_finish", values: ["hand-rubbed"], keyword: "hand-rubbed" },
-      { pattern: /\bantiqued\b/i, field: "ai_finish", values: ["antiqued"], keyword: "antiqued" },
-
-      // ── Pet/kid friendly ──
-      { pattern: /\bpet\s+friendly\b/i, field: "ai_pet_friendly", values: ["pet friendly"], keyword: "pet friendly" },
-      { pattern: /\bdog\s+(?:proof|friendly|safe)\b/i, field: "ai_pet_friendly", values: ["pet friendly"], keyword: "dog proof" },
-      { pattern: /\bkid\s+friendly\b/i, field: "ai_kid_friendly", values: ["kid friendly"], keyword: "kid friendly" },
-      { pattern: /\bchild\s+(?:proof|friendly|safe)\b/i, field: "ai_kid_friendly", values: ["kid friendly"], keyword: "child proof" },
-
-      // ── Seat depth ──
-      { pattern: /\bdeep\s+seat\b/i, field: "ai_seat_depth", values: ["deep seat", "deep"], keyword: "deep seat" },
-
-      // ── COM eligible ──
-      { pattern: /\bCOM\b|customer'?s?\s+own\s+material/i, field: "ai_COM_eligible", values: ["true"], keyword: "COM" },
-
-      // ── Formality ──
-      { pattern: /\bformal\b/i, field: "ai_formality", values: ["formal"], keyword: "formal" },
-      { pattern: /\bcasual\b/i, field: "ai_formality", values: ["casual"], keyword: "casual" },
-
-      // ── Scale ──
-      { pattern: /\bapartment\s+size\b/i, field: "ai_scale", values: ["small", "compact", "apartment"], keyword: "apartment" },
-      { pattern: /\boversized\b/i, field: "ai_scale", values: ["oversized", "large"], keyword: "oversized" },
-      { pattern: /\bcompact\b/i, field: "ai_scale", values: ["compact", "small"], keyword: "compact" },
-      { pattern: /\bpetite\b/i, field: "ai_scale", values: ["petite", "small"], keyword: "petite" },
-
-      // ── Pattern type ──
-      { pattern: /\bstriped\b/i, field: "ai_pattern_type", values: ["striped"], keyword: "striped" },
-      { pattern: /\bgeometric\b/i, field: "ai_pattern_type", values: ["geometric"], keyword: "geometric" },
-      { pattern: /\bfloral\b/i, field: "ai_pattern_type", values: ["floral"], keyword: "floral" },
-      { pattern: /\bsolid\s+(?:fabric|color)\b/i, field: "ai_pattern_type", values: ["solid"], keyword: "solid" },
-      { pattern: /\bplaid\b/i, field: "ai_pattern_type", values: ["plaid"], keyword: "plaid" },
-
-      // ── Cleanability ──
-      { pattern: /\bwipeable\b/i, field: "ai_cleanability", values: ["wipeable"], keyword: "wipeable" },
-      { pattern: /\beasy\s+(?:to\s+)?clean\b/i, field: "ai_cleanability", values: ["wipeable"], keyword: "easy clean" },
-
-      // ── Stackable ──
-      { pattern: /\bstackable\b/i, field: "ai_stackable", values: ["stackable"], keyword: "stackable" },
-      { pattern: /\bnestable\b|\bnesting\b/i, field: "ai_stackable", values: ["nestable"], keyword: "nestable" },
-
-      // ── Sourcing difficulty ──
-      { pattern: /\bquick\s+ship\b/i, field: "ai_sourcing_difficulty", values: ["readily available"], keyword: "quick ship" },
-
-      // ── Designer match ──
-      { pattern: /\beames\b/i, field: "ai_designer_match", values: ["Eames"], keyword: "eames" },
-      { pattern: /\bkagan\b/i, field: "ai_designer_match", values: ["Kagan"], keyword: "kagan" },
-      { pattern: /\bwegner\b/i, field: "ai_designer_match", values: ["Wegner"], keyword: "wegner" },
-      { pattern: /\bbaughman\b/i, field: "ai_designer_match", values: ["Baughman"], keyword: "baughman" },
-    ];
-
-    for (const rule of PHYSICAL_ENFORCEMENT) {
-      if (rule.pattern.test(query) && !isNegated(rule.keyword)) {
-        const existing = haiku.search_fields[rule.field];
-        if (!existing || (Array.isArray(existing) && existing.length === 0)) {
-          const vals = typeof rule.values === "function" ? rule.values() : rule.values;
-          haiku.search_fields[rule.field] = vals;
-          console.log(`[enforce-physical] Added ${rule.field}: [${vals.join(", ")}] — Haiku missed this physical attribute`);
-        }
-      }
-    }
-  }
-
   const hasFieldFilters = Object.values(haiku.search_fields).some(v =>
     v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && typeof v !== "number"
   );
@@ -2949,6 +2700,338 @@ function computeSimpleFacets(results) {
     material: toFacet(materialCounts),
     style: toFacet(styleCounts),
     color: toFacet(colorCounts),
+  };
+}
+
+// ══════════════════════════════════════════════════════════
+// VISUAL SEARCH — Upload a photo, find matching furniture
+// Uses the same pipeline: Haiku analyzes image → search_fields → fieldMatch → MiniLM ranking
+// ══════════════════════════════════════════════════════════
+
+/**
+ * Analyze an uploaded image with Haiku and return search_fields + semantic_query.
+ * Same output format as translateQueryWithHaiku so it plugs into the same pipeline.
+ */
+async function translateImageWithHaiku(imageBase64, mimeType) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error("[visual-search] No ANTHROPIC_API_KEY set");
+    return null;
+  }
+
+  // Strip data URL prefix if present
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+  const searchFieldsSchema = `{
+    "ai_furniture_type": ["sofa"] or null,
+    "ai_silhouette": ["chesterfield"] or null,
+    "ai_arm_style": ["track"] or null,
+    "ai_back_style": ["tight back"] or null,
+    "ai_leg_style": ["tapered"] or null,
+    "ai_primary_material": ["leather"] or null,
+    "ai_primary_color": ["brown"] or null,
+    "ai_style": ["traditional"] or null,
+    "ai_distinctive_features": ["tufted", "nailhead"] or null,
+    "ai_skirt_style": ["skirted"] or null,
+    "ai_tufting_pattern": ["diamond tufted"] or null,
+    "ai_cushion_config": ["3 over 3"] or null,
+    "ai_has_nailhead": ["true"] or null,
+    "ai_base_type": ["pedestal"] or null,
+    "ai_edge_profile": ["waterfall"] or null,
+    "ai_wood_species": ["walnut"] or null,
+    "ai_finish": ["distressed"] or null,
+    "ai_formality": ["formal"] or null,
+    "ai_scale": ["oversized"] or null,
+    "ai_pattern_type": ["geometric"] or null
+  }`;
+
+  const systemPrompt = `You are a furniture identification expert for SPEKD, a trade furniture sourcing platform. A designer has uploaded a photo of furniture they want to find or match in our catalog.
+
+Our product database has these searchable fields with these values:
+
+${catalogIndexPromptText}
+
+Analyze this image carefully. First determine: does the image show a SINGLE piece of furniture, or a FULL ROOM / MULTIPLE pieces?
+
+═══ SINGLE PIECE MODE ═══
+If the image shows one furniture piece (or one is clearly the focus), return:
+{
+  "mode": "single",
+  "search_fields": ${searchFieldsSchema},
+  "exclude_fields": {},
+  "semantic_query": "detailed natural language description for vector matching",
+  "response": "Expert sourcing advice — 2-4 sentences, sound like a colleague with 30 years in the trade."
+}
+
+═══ ROOM MODE ═══
+If the image shows a full room or multiple distinct furniture pieces, identify EACH piece separately and return:
+{
+  "mode": "room",
+  "items": [
+    {
+      "label": "Navy Velvet Sofa",
+      "search_fields": ${searchFieldsSchema},
+      "exclude_fields": {},
+      "semantic_query": "detailed description of this specific piece"
+    },
+    {
+      "label": "Marble Cocktail Table",
+      "search_fields": { ... },
+      "exclude_fields": {},
+      "semantic_query": "..."
+    }
+  ],
+  "response": "Expert overview of the room — identify the design style, how pieces work together, and sourcing advice. 2-4 sentences."
+}
+
+RULES:
+- Use values that EXIST in the catalog field lists above. Use substring terms that match via contains.
+- For ai_furniture_type, use our exact category vocabulary (sofa, sectional, accent chair, dining chair, cocktail table, etc.)
+- Be aggressive about identifying physical attributes — arm style, back style, leg style, silhouette, tufting, skirt, nailhead. These make results accurate.
+- Put mood, vibe, era influence, and abstract qualities in semantic_query for vector ranking.
+- If you can identify the specific piece or manufacturer, mention it in the response.
+- In ROOM MODE: identify every distinct furniture piece you can see (up to 8). Skip decorative accessories, art, and lighting unless they are a major focal point. Label each item clearly (e.g., "Tufted Leather Chesterfield Sofa", "Walnut Pedestal Dining Table").
+- In ROOM MODE: each item gets its OWN search_fields — be specific per piece. Don't copy the room's overall style to every item if individual pieces differ.`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const callStart = Date.now();
+
+    const resp = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2400,
+        system: systemPrompt,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: base64Data } },
+            { type: "text", text: "Analyze this furniture and return the search fields to find matching products in our catalog." },
+          ],
+        }],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`[visual-search] Haiku API error ${resp.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("[visual-search] Haiku returned non-JSON:", text.slice(0, 200));
+      return null;
+    }
+
+    const usage = data.usage || {};
+    if (usage.input_tokens) {
+      trackTokenUsage(usage.input_tokens, usage.output_tokens || 0);
+    }
+    console.log(`[visual-search] Haiku analyzed image in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const mode = parsed.mode || "single";
+    console.log(`[visual-search] Mode: ${mode}${mode === "room" ? ` (${(parsed.items || []).length} items)` : ""}`);
+
+    if (mode === "room" && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return {
+        mode: "room",
+        items: parsed.items.map(item => ({
+          label: item.label || "Furniture",
+          search_fields: item.search_fields || {},
+          exclude_fields: item.exclude_fields || {},
+          semantic_query: item.semantic_query || "furniture",
+        })),
+        response: parsed.response || "Here are matching products for each piece.",
+      };
+    }
+
+    return {
+      mode: "single",
+      search_fields: parsed.search_fields || {},
+      exclude_fields: parsed.exclude_fields || {},
+      semantic_query: parsed.semantic_query || "furniture",
+      response: parsed.response || "Here are matching products from our catalog.",
+    };
+  } catch (err) {
+    console.error(`[visual-search] Haiku call failed: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Run fieldMatch + vector ranking for a single visual search item.
+ * Shared by both single-piece and room-mode pipelines.
+ */
+async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery) {
+  const vectorStats = getVectorStoreStats();
+  let candidates = fieldMatch(searchFields, excludeFields, new Set());
+
+  // Vibe-relax if 0 results
+  if (candidates.length === 0) {
+    const vibeRelaxOrder = [
+      "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
+      "ai_durability_assessment", "ai_texture_description", "ai_finish",
+      "ai_primary_color", "ai_scale", "ai_formality", "ai_silhouette", "ai_style",
+    ];
+    const relaxed = { ...searchFields };
+    for (const dropField of vibeRelaxOrder) {
+      if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
+        relaxed[dropField] = null;
+        candidates = fieldMatch(relaxed, excludeFields, new Set());
+        if (candidates.length > 0) break;
+      }
+    }
+  }
+
+  // MiniLM ranking
+  if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && semanticQuery) {
+    const candidateIds = new Set(candidates.map(p => p.id));
+    const ranked = await vectorSearch(semanticQuery, { limit: candidates.length, candidateIds });
+    const rankedMap = new Map(ranked.map(r => [r.id, r.score]));
+    for (const product of candidates) {
+      product.relevance_score = rankedMap.get(product.id) || 0;
+      product._vector_score = product.relevance_score;
+    }
+    candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+  }
+
+  return applyVendorDiversity(candidates);
+}
+
+/**
+ * Visual search pipeline — image in, matched products out.
+ * Supports both single-piece and room (multi-piece) modes.
+ * Same architecture as text searchPipeline but starts with image analysis.
+ */
+export async function visualSearchPipeline(imageBase64, mimeType) {
+  const pipelineStart = Date.now();
+
+  // Step 1: Haiku analyzes the image
+  const haiku = await translateImageWithHaiku(imageBase64, mimeType);
+  if (!haiku) {
+    return { query: "[visual search]", products: [], total: 0, error: "Failed to analyze image" };
+  }
+
+  const vectorStats = getVectorStoreStats();
+
+  // ── ROOM MODE: multiple pieces → bucket results like paste-list ──
+  if (haiku.mode === "room" && Array.isArray(haiku.items) && haiku.items.length > 0) {
+    console.log(`\n=== VISUAL SEARCH (ROOM MODE — ${haiku.items.length} items) ===`);
+
+    const buckets = [];
+    for (const item of haiku.items) {
+      console.log(`[visual-room] Searching: ${item.label} | fields: ${JSON.stringify(item.search_fields)}`);
+      const products = await runVisualFieldMatch(item.search_fields, item.exclude_fields || {}, item.semantic_query);
+      const MAX_PER_BUCKET = 80;
+      buckets.push({
+        label: item.label,
+        search_fields: item.search_fields,
+        semantic_query: item.semantic_query,
+        products: products.slice(0, MAX_PER_BUCKET),
+        total: products.length,
+      });
+      console.log(`[visual-room] ${item.label}: ${products.length} results`);
+    }
+
+    const totalProducts = buckets.reduce((sum, b) => sum + b.products.length, 0);
+    console.log(`[visual-search] Room mode complete in ${Date.now() - pipelineStart}ms — ${buckets.length} buckets, ${totalProducts} total products`);
+    console.log("================================\n");
+
+    return {
+      query: "[visual search]",
+      intent: { summary: haiku.response, product_type: null },
+      ai_summary: haiku.response,
+      assistant_message: haiku.response,
+      total: totalProducts,
+      total_available: totalProducts,
+      page: 1,
+      result_mode: "visual-room",
+      tier_used: 1,
+      ai_called: true,
+      cache_hit: false,
+      items: buckets.map(b => ({
+        label: b.label,
+        total: b.total,
+        products: b.products,
+      })),
+      diagnostics: {
+        mode: "room",
+        items_count: buckets.length,
+        total_catalog_size: getProductCount(),
+        haiku_response: haiku.response,
+      },
+    };
+  }
+
+  // ── SINGLE PIECE MODE ──
+  console.log("\n=== VISUAL SEARCH (SINGLE PIECE) ===");
+  console.log("Haiku search_fields:", JSON.stringify(haiku.search_fields, null, 2));
+  console.log("Haiku semantic_query:", haiku.semantic_query);
+
+  let results = await runVisualFieldMatch(haiku.search_fields, haiku.exclude_fields || {}, haiku.semantic_query);
+
+  // If field match returned nothing, try pure vector search
+  if (results.length === 0 && haiku.semantic_query && vectorStats.ready) {
+    console.log("[visual-search] No field matches — falling back to pure vector search");
+    const ranked = await vectorSearch(haiku.semantic_query, { limit: 200 });
+    const productMap = new Map();
+    for (const r of ranked) {
+      const p = getProduct(r.id);
+      if (p && p.ai_furniture_type) {
+        p.relevance_score = r.score;
+        p._vector_score = r.score;
+        productMap.set(r.id, p);
+      }
+    }
+    results = applyVendorDiversity([...productMap.values()]);
+  }
+
+  const totalAvailable = results.length;
+  const MAX_PAGE = 500;
+  const pageResults = results.slice(0, MAX_PAGE);
+
+  console.log(`[visual-search] Single piece complete in ${Date.now() - pipelineStart}ms — ${totalAvailable} results`);
+  console.log("================================\n");
+
+  return {
+    query: "[visual search]",
+    intent: { summary: haiku.response, product_type: null },
+    ai_summary: haiku.response,
+    assistant_message: haiku.response,
+    total: pageResults.length,
+    total_available: totalAvailable,
+    has_more: totalAvailable > MAX_PAGE,
+    page: 1,
+    result_mode: "visual-search",
+    tier_used: 1,
+    ai_called: true,
+    cache_hit: false,
+    facets: computeSimpleFacets(results),
+    diagnostics: {
+      mode: "single",
+      ai_filter_used: true,
+      total_catalog_size: getProductCount(),
+      vector_indexed: vectorStats.total_vectors,
+      search_fields: haiku.search_fields,
+      semantic_query: haiku.semantic_query,
+      field_match_count: totalAvailable,
+      haiku_response: haiku.response,
+    },
+    products: pageResults,
   };
 }
 

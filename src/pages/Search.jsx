@@ -273,6 +273,7 @@ export default function SearchPage() {
   const [autocompleteResults, setAutocompleteResults] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [visualSearchLoading, setVisualSearchLoading] = useState(false);
+  const [visualSearchThumb, setVisualSearchThumb] = useState(null);
   const autocompleteTimer = useRef(null);
   const searchFormRef = useRef(null);
 
@@ -661,6 +662,7 @@ export default function SearchPage() {
     pageRef.current = 1;
     lastQueryRef.current = trimmed;
     setDisplayQuery(trimmed);
+    setVisualSearchThumb(null);
 
     const userMsg = { role: "user", content: trimmed, timestamp: Date.now() };
     const updatedMessages = hasConversation ? [...messages, userMsg] : [userMsg];
@@ -887,18 +889,94 @@ export default function SearchPage() {
   const handleVisualSearch = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setVisualSearchLoading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result;
-        const data = await visualSearch(base64);
-        if (data.description) runSearch(data.description);
-        setVisualSearchLoading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch { setVisualSearchLoading(false); }
     e.target.value = "";
+
+    setVisualSearchLoading(true);
+    setError(null);
+    setZeroResultGuidance(null);
+
+    try {
+      // Resize image client-side to max 1024px to save bandwidth
+      const resized = await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1024;
+          let { width, height } = img;
+          if (width > MAX || height > MAX) {
+            const ratio = Math.min(MAX / width, MAX / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL(file.type || "image/jpeg", 0.85));
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      // Show thumbnail of uploaded image
+      setVisualSearchThumb(resized);
+      setDisplayQuery("[Visual Search]");
+      setLoading(true);
+      setAllResults([]);
+      setInputValue("");
+
+      const mimeType = file.type || "image/jpeg";
+      const data = await visualSearch(resized, mimeType);
+
+      const summaryText = data.assistant_message || data.ai_summary || "Here are matching products.";
+
+      // Room mode — display as buckets like paste-list
+      if (data.result_mode === "visual-room" && data.items?.length > 0) {
+        const roomItems = data.items.map((item, i) => ({
+          original_text: item.label,
+          summary: `${item.total || item.products?.length || 0} matches`,
+          item_number: i + 1,
+          products: item.products || [],
+          total: item.total || item.products?.length || 0,
+        }));
+        setListMode(true);
+        setListResults({ overview_message: summaryText, items: roomItems });
+        setBucketColors(roomItems.map((_, i) => {
+          const COLORS = ["#c4a882", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#c4a882", "#a882c4", "#c48282"];
+          return COLORS[i % COLORS.length];
+        }));
+        setExpandedBuckets(new Set([0]));
+        setAllResults([]);
+        setTotalAvailable(data.total || 0);
+      } else {
+        // Single piece mode
+        const products = data.products || [];
+        setTotalAvailable(data.total_available || data.total || products.length);
+        for (const p of products) {
+          if (p.id) shownProductIds.current.add(p.id);
+        }
+        setAllResults(products);
+        setListMode(false);
+        setListResults(null);
+      }
+
+      setZeroResultGuidance(data.zero_result_guidance || null);
+
+      const assistantMsg = {
+        role: "assistant",
+        content: summaryText,
+        resultSummary: `Visual search: ${data.result_mode === "visual-room" ? `${data.items?.length} pieces identified` : `${data.total || 0} results`}.`,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err) {
+      if (err.status === 402) {
+        setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.");
+      } else {
+        setError("Visual search failed. Please try again.");
+      }
+    } finally {
+      setVisualSearchLoading(false);
+      setLoading(false);
+    }
   };
 
   const handleChipClick = (chip) => {
@@ -1116,8 +1194,9 @@ export default function SearchPage() {
                           <X className="h-4 w-4" />
                         </button>
                       )}
-                      <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl text-white/20 hover:bg-white/5 hover:text-gold/50 transition-colors" title="Visual search">
+                      <button type="button" onClick={() => isPro ? fileInputRef.current?.click() : setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.")}
+                        className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isPro ? "text-white/20 hover:bg-white/5 hover:text-gold/50" : "text-white/10 cursor-not-allowed"}`}
+                        title={isPro ? "Visual search — upload a photo to find matching furniture" : "Upgrade to Pro for visual search"}>
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
                       <button type="submit" disabled={!inputValue.trim()} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
@@ -1126,7 +1205,7 @@ export default function SearchPage() {
                     </div>
                   </div>
                 </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleVisualSearch} />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleVisualSearch} />
                 <SmartAutocomplete show={showAutocomplete} results={autocompleteResults} onSelect={handleAutocompleteSelect} />
               </div>
             </form>
@@ -1531,10 +1610,21 @@ export default function SearchPage() {
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {/* Search query header */}
                 {displayQuery && (
-                  <div className="mb-4 flex items-baseline justify-between">
-                    <h2 className="text-base sm:text-lg font-medium text-white/80 truncate">
-                      {displayQuery}
-                    </h2>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {visualSearchThumb && (
+                        <div className="relative shrink-0">
+                          <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover border border-white/10" />
+                          <button onClick={() => { setVisualSearchThumb(null); setDisplayQuery(""); setAllResults([]); }}
+                            className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-stone-800 border border-white/20 flex items-center justify-center hover:bg-red-900/60 transition-colors">
+                            <X className="h-2.5 w-2.5 text-white/60" />
+                          </button>
+                        </div>
+                      )}
+                      <h2 className="text-base sm:text-lg font-medium text-white/80 truncate">
+                        {visualSearchThumb ? "Visual Search Results" : displayQuery}
+                      </h2>
+                    </div>
                     <span className="text-xs text-white/30 ml-3 whitespace-nowrap shrink-0">
                       {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
                     </span>
@@ -1610,8 +1700,9 @@ export default function SearchPage() {
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                      <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-white/20 hover:bg-white/5 hover:text-gold/50 transition-colors">
+                      <button type="button" onClick={() => isPro ? fileInputRef.current?.click() : setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.")}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isPro ? "text-white/20 hover:bg-white/5 hover:text-gold/50" : "text-white/10 cursor-not-allowed"}`}
+                        title={isPro ? "Visual search" : "Upgrade to Pro for visual search"}>
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gold/60" /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
@@ -1622,7 +1713,7 @@ export default function SearchPage() {
                     </div>
                   </div>
                 </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleVisualSearch} />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleVisualSearch} />
                 <SmartAutocomplete show={showAutocomplete} results={autocompleteResults} onSelect={handleAutocompleteSelect} position="above" />
               </form>
             </div>
