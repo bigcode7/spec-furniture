@@ -1291,13 +1291,11 @@ export default function SearchPage() {
                           <X className="h-4 w-4" />
                         </button>
                       )}
-                      {voiceSupported && (
-                        <button type="button" onClick={handleVoiceSearch}
-                          className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
-                          title={isListening ? "Stop listening" : "Voice search"}>
-                          <Mic className="h-4 w-4" />
-                        </button>
-                      )}
+                      <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
+                        className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                        title={isListening ? "Stop listening" : "Voice search"}>
+                        <Mic className={isListening ? "h-4 w-4" : "h-4 w-4"} />
+                      </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
                         title="Visual search — upload a photo to find matching furniture">
@@ -1804,13 +1802,11 @@ export default function SearchPage() {
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                      {voiceSupported && (
-                        <button type="button" onClick={handleVoiceSearch}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
-                          title={isListening ? "Stop listening" : "Voice search"}>
-                          <Mic className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                        title={isListening ? "Stop listening" : "Voice search"}>
+                        <Mic className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
                         title="Visual search">
