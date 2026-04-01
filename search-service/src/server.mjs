@@ -73,6 +73,39 @@ import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, 
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
 import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendSubscriptionConfirmationEmail, sendPaymentFailedEmail, sendClientFeedbackEmail, sendRevisionEmail } from "./lib/email.mjs";
 import { initUserDataStore, getSavedProducts, saveProduct, unsaveProduct, getUserQuote, saveUserQuote, addSearchHistory, getSearchHistory, createSharedQuote, getSharedQuote, submitQuoteFeedback, getDesignerSharedQuotes, updateSharedQuote } from "./lib/user-data-store.mjs";
+import { z } from "zod";
+
+// ── Input validation schemas (Zod) ──
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address").max(255),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one number or special character"),
+  full_name: z.string().max(100, "Name too long").optional().default(""),
+  business_name: z.string().max(100, "Company name too long").optional().default(""),
+  fingerprint: z.string().optional(),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+  fingerprint: z.string().optional(),
+});
+
+const sanitizeString = (s) => {
+  if (typeof s !== "string") return s;
+  return s.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+};
+
+function validateBody(schema, body) {
+  const result = schema.safeParse(body);
+  if (!result.success) {
+    const msg = result.error.issues.map(i => i.message).join("; ");
+    return { ok: false, error: msg };
+  }
+  return { ok: true, data: result.data };
+}
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
@@ -830,11 +863,34 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://api.spekd.ai https://js.stripe.com; frame-src https://js.stripe.com; font-src 'self'");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    res.setHeader("X-DNS-Prefetch-Control", "off");
+    res.setHeader("X-Download-Options", "noopen");
+    res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
 
     // Rate limiting on search endpoints (fast path — no DB lookup)
     const reqIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+    // Rate limit auth endpoints — 5 attempts per 15 minutes
+    if (req.method === "POST" && (req.url === "/auth/register" || req.url === "/auth/login" || req.url === "/auth/forgot-password")) {
+      const authRateCheck = checkRateLimit(reqIp + ":auth", 5);
+      if (!authRateCheck.allowed) {
+        return json(res, 429, { error: "Too many attempts. Try again in 15 minutes.", retry_after: authRateCheck.retryAfter });
+      }
+    }
+
+    // Rate limit general API endpoints — 100 per minute
+    if (req.method !== "GET" && req.method !== "OPTIONS" && !req.url.startsWith("/subscribe/webhook")) {
+      const apiRateCheck = checkRateLimit(reqIp + ":api", 100);
+      if (!apiRateCheck.allowed) {
+        return json(res, 429, { error: "Too many requests. Please wait.", retry_after: apiRateCheck.retryAfter });
+      }
+    }
+
     if (req.method === "POST" && (req.url === "/search" || req.url === "/smart-search" || req.url === "/conversational-search" || req.url === "/list-search")) {
       // Block cloud provider IPs — no real designer searches from AWS/GCP/Azure
       if (isCloudIP(reqIp)) {
@@ -892,7 +948,9 @@ const server = http.createServer(async (req, res) => {
     // ── AUTH ENDPOINTS ──────────────────────────────────────────
     if (req.method === "POST" && req.url === "/auth/register") {
       const body = await collectBody(req);
-      const result = await registerUser(body);
+      const validated = validateBody(registerSchema, body);
+      if (!validated.ok) return json(res, 400, { ok: false, error: validated.error });
+      const result = await registerUser(validated.data);
       if (result.ok) {
         const verifyToken = generateVerificationToken(result.user.id, result.user.email);
         result.verification_token = verifyToken;
@@ -915,6 +973,8 @@ const server = http.createServer(async (req, res) => {
         return json(res, 429, { error: `Too many login attempts. Try again in ${Math.ceil(rateCheck.retryAfterSeconds / 60)} minutes.` });
       }
       const body = await collectBody(req);
+      const loginValidation = validateBody(loginSchema, body);
+      if (!loginValidation.ok) return json(res, 400, { ok: false, error: loginValidation.error });
       const result = await loginUser(body);
       if (result.ok) {
         clearLoginAttempts(loginIp);
@@ -1032,6 +1092,11 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, auth);
       const body = await collectBody(req);
+      // Sanitize user-editable fields
+      if (body.full_name) body.full_name = sanitizeString(body.full_name).slice(0, 100);
+      if (body.business_name) body.business_name = sanitizeString(body.business_name).slice(0, 100);
+      if (body.location) body.location = sanitizeString(body.location);
+      if (body.phone) body.phone = sanitizeString(body.phone);
       const result = await updateUser(auth.user.id, body);
       return json(res, result.ok ? 200 : 400, result);
     }
@@ -1116,6 +1181,19 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, { error: "Authentication required" });
       const body = await collectBody(req);
+      // Sanitize user-editable text fields in quote
+      if (body.quote?.rooms) {
+        for (const room of body.quote.rooms) {
+          if (room.name) room.name = sanitizeString(room.name);
+          if (room.items) {
+            for (const item of room.items) {
+              if (item.notes) item.notes = sanitizeString(item.notes);
+            }
+          }
+        }
+        if (body.quote.projectName) body.quote.projectName = sanitizeString(body.quote.projectName);
+        if (body.quote.clientName) body.quote.clientName = sanitizeString(body.quote.clientName);
+      }
       const result = await saveUserQuote(auth.user.id, body.quote);
       return json(res, 200, result);
     }
@@ -1129,12 +1207,12 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const body = await collectBody(req);
       const result = await createSharedQuote(auth.user.id, {
         quoteData: body.quoteData,
-        designerName: body.designerName || auth.user.full_name,
-        designerCompany: body.designerCompany || "",
+        designerName: sanitizeString(body.designerName || auth.user.full_name),
+        designerCompany: sanitizeString(body.designerCompany || ""),
         designerEmail: auth.user.email,
-        projectName: body.projectName || "Untitled Project",
-        clientNote: body.clientNote || "",
-        clientEmail: body.clientEmail || "",
+        projectName: sanitizeString(body.projectName || "Untitled Project"),
+        clientNote: sanitizeString(body.clientNote || ""),
+        clientEmail: (body.clientEmail || "").trim().toLowerCase(),
       });
       if (result.ok && body.clientEmail) {
         sendRevisionEmail(body.clientEmail, body.projectName || "Untitled Project", body.designerName || auth.user.full_name).catch(err => console.error("[email] revision send failed:", err));
@@ -1144,7 +1222,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
     if (req.method === "GET" && req.url.startsWith("/quotes/shared/")) {
       const shareToken = req.url.split("/quotes/shared/")[1]?.split("?")[0];
-      if (!shareToken) return json(res, 400, { error: "Token required" });
+      if (!shareToken || !/^[a-f0-9]{48}$/.test(shareToken)) return json(res, 400, { error: "Invalid token" });
       const shared = await getSharedQuote(shareToken);
       if (!shared) return json(res, 404, { error: "Quote not found" });
       // Strip wholesale prices from response
@@ -1171,10 +1249,18 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
     if (req.method === "POST" && req.url.startsWith("/quotes/shared/") && req.url.endsWith("/feedback")) {
       const shareToken = req.url.split("/quotes/shared/")[1]?.split("/feedback")[0];
-      if (!shareToken) return json(res, 400, { error: "Token required" });
+      if (!shareToken || !/^[a-f0-9]{48}$/.test(shareToken)) return json(res, 400, { error: "Invalid token" });
       const shared = await getSharedQuote(shareToken);
       if (!shared) return json(res, 404, { error: "Quote not found" });
       const body = await collectBody(req);
+      // Sanitize feedback comments
+      if (body.feedback && typeof body.feedback === "object") {
+        for (const key of Object.keys(body.feedback)) {
+          if (body.feedback[key].comment) {
+            body.feedback[key].comment = sanitizeString(body.feedback[key].comment);
+          }
+        }
+      }
       const result = await submitQuoteFeedback(shareToken, body.feedback);
       // Email the designer
       if (result.ok && shared.designer_email) {
@@ -1201,7 +1287,7 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
     if (req.method === "PUT" && req.url.startsWith("/quotes/shared/")) {
       const shareToken = req.url.split("/quotes/shared/")[1]?.split("?")[0];
-      if (!shareToken) return json(res, 400, { error: "Token required" });
+      if (!shareToken || !/^[a-f0-9]{48}$/.test(shareToken)) return json(res, 400, { error: "Invalid token" });
       const token = extractToken(req.headers.authorization);
       const auth = await getUserFromToken(token);
       if (!auth.ok) return json(res, 401, { error: "Authentication required" });
@@ -2415,18 +2501,20 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ADMIN ENDPOINTS — tyler@spekd.ai only, returns 404 for others
     // ══════════════════════════════════════════════════════════════════
 
-    const ADMIN_SECRET = process.env.ADMIN_SECRET || "e8d71b57f7a4a15f092ab7e003e0e0199e04da86871146bdfa43df78e7a2e44a";
+    const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
     async function isAdmin(req) {
-      // Allow URL-based secret key for browser access
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      if (url.searchParams.get("key") === ADMIN_SECRET) return true;
+      // Allow URL-based secret key for browser access (must be set via env var)
+      if (ADMIN_SECRET) {
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        if (url.searchParams.get("key") === ADMIN_SECRET) return true;
+      }
       const authHeader = req.headers["authorization"];
       const token = extractToken(authHeader);
       if (!token) return false;
       const result = await getUserFromToken(token);
       if (!result.ok) return false;
-      return result.user.email === "tyler@spekd.ai";
+      return isAdminEmail(result.user.email);
     }
 
     // GET /admin/suspect-activity — traffic analysis by city, flags scraping

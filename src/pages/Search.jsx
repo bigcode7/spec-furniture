@@ -433,6 +433,54 @@ export default function SearchPage() {
       setInputValue(initialQuery);
       runSearch(initialQuery);
     }
+
+    // Handle visual search triggered from Landing page
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("visual") === "true") {
+      const imageData = sessionStorage.getItem("spekd_visual_search");
+      if (imageData) {
+        sessionStorage.removeItem("spekd_visual_search");
+        window.history.replaceState({}, "", "/Search");
+        // Trigger visual search with the stored image
+        setVisualSearchLoading(true);
+        setDisplayQuery("[Visual Search]");
+        setVisualSearchThumb(imageData);
+        setLoading(true);
+        setAllResults([]);
+        const mimeType = imageData.startsWith("data:image/png") ? "image/png" : "image/jpeg";
+        visualSearch(imageData, mimeType).then((data) => {
+          const summaryText = data.assistant_message || data.ai_summary || "Here are matching products.";
+          if (data.result_mode === "visual-room" && data.items?.length > 0) {
+            const roomItems = data.items.map((item, i) => ({
+              original_text: item.label,
+              summary: `${item.total || item.products?.length || 0} matches`,
+              item_number: i + 1,
+              products: item.products || [],
+              total: item.total || item.products?.length || 0,
+            }));
+            setListMode(true);
+            setListResults({ overview_message: summaryText, items: roomItems });
+            setBucketColors(roomItems.map((_, i) => {
+              const COLORS = ["#c4a882", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#c4a882", "#a882c4", "#c48282"];
+              return COLORS[i % COLORS.length];
+            }));
+            setExpandedBuckets(new Set([0]));
+            setAllResults([]);
+            setTotalAvailable(data.total || 0);
+          } else {
+            const products = data.products || [];
+            setAllResults(products);
+            setTotalAvailable(data.total || products.length);
+            setMessages([{ role: "assistant", content: summaryText }]);
+          }
+        }).catch((err) => {
+          setError("Visual search failed — " + (err.message || "try again."));
+        }).finally(() => {
+          setLoading(false);
+          setVisualSearchLoading(false);
+        });
+      }
+    }
   }, []);
 
   // Initialize subscription status & guest token

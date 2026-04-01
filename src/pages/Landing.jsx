@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, FileText, Send } from "lucide-react";
+import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, FileText, Send, Mic, Camera } from "lucide-react";
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 // Subtle texture background — replaces particle field
@@ -312,6 +312,62 @@ export default function Landing() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0.97]);
 
+  // ── Voice & visual search ──
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const handleVoiceSearch = () => {
+    if (!voiceSupported) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setQuery(transcript);
+      if (event.results[event.results.length - 1].isFinal && transcript.trim()) {
+        setTimeout(() => {
+          setIsListening(false);
+          navigate(`${createPageUrl("Search")}?q=${encodeURIComponent(transcript.trim())}`);
+        }, 300);
+      }
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  };
+
+  const handleVisualSearch = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Store the file in sessionStorage as base64 and navigate to Search
+    const reader = new FileReader();
+    reader.onload = () => {
+      sessionStorage.setItem("spekd_visual_search", reader.result);
+      navigate(`${createPageUrl("Search")}?visual=true`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   // ── Live data state ──
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
@@ -396,6 +452,8 @@ export default function Landing() {
           Sign In
         </button>
       )}
+      {/* Hidden file input for visual search */}
+      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFileSelected} />
       <Atmosphere />
 
       {/* ═══════════ HERO ═══════════ */}
@@ -502,10 +560,20 @@ export default function Landing() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder='Describe what you need...'
+                  placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
                   className="flex-1 bg-transparent text-white/80 text-base placeholder:text-white/25 focus:outline-none"
                 />
-                <button type="submit" className="btn-gold ml-3 sm:ml-4 h-10 sm:h-11 px-5 sm:px-7 rounded-full text-sm shrink-0">
+                <button type="button" onClick={handleVoiceSearch}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
+                  title={isListening ? "Stop listening" : "Voice search"}>
+                  <Mic className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={handleVisualSearch}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
+                  title="Search by image">
+                  <Camera className="h-4 w-4" />
+                </button>
+                <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 sm:h-11 px-5 sm:px-7 rounded-full text-sm shrink-0">
                   Search
                 </button>
               </div>
@@ -753,10 +821,20 @@ export default function Landing() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="What are you looking for?"
+                  placeholder={isListening ? "Listening..." : "What are you looking for?"}
                   className="flex-1 bg-transparent text-white/80 text-sm placeholder:text-white/25 focus:outline-none"
                 />
-                <button type="submit" className="btn-gold ml-3 h-9 px-6 rounded-full text-xs shrink-0">
+                <button type="button" onClick={handleVoiceSearch}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
+                  title={isListening ? "Stop listening" : "Voice search"}>
+                  <Mic className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={handleVisualSearch}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
+                  title="Search by image">
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+                <button type="submit" className="btn-gold ml-1 h-9 px-6 rounded-full text-xs shrink-0">
                   Search
                 </button>
               </div>

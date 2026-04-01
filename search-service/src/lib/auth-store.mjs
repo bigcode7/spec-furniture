@@ -243,8 +243,8 @@ function verifyToken(token) {
 // ── Login rate limiting (in-memory, resets on restart — that's fine) ──
 
 const loginAttempts = {};
-const MAX_LOGIN_ATTEMPTS = 10;
-const LOCKOUT_MINUTES = 2;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
 
 export function checkLoginRateLimit(ip) {
   const record = loginAttempts[ip];
@@ -526,6 +526,9 @@ export async function updateUser(userId, updates) {
 export async function changePassword(userId, { current_password, new_password }) {
   if (!current_password || !new_password) return { ok: false, error: "Current and new password are required" };
   if (new_password.length < 8) return { ok: false, error: "New password must be at least 8 characters" };
+  if (!/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(new_password)) {
+    return { ok: false, error: "New password must contain at least one number or special character" };
+  }
 
   if (usePostgres) {
     try {
