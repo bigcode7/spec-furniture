@@ -865,13 +865,13 @@ const server = http.createServer(async (req, res) => {
     res.setHeader("X-XSS-Protection", "1; mode=block");
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://api.spekd.ai https://js.stripe.com; frame-src https://js.stripe.com; font-src 'self'");
+    // CSP only applies to HTML responses — skip for API/image endpoints
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
     res.setHeader("X-DNS-Prefetch-Control", "off");
     res.setHeader("X-Download-Options", "noopen");
     res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 
     // Rate limiting on search endpoints (fast path — no DB lookup)
     const reqIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress;
