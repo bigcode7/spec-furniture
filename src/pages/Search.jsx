@@ -24,10 +24,12 @@ import {
   Check,
   Shuffle,
   Mic,
+  Link2,
+  Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
-import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch } from "@/api/searchClient";
+import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch, getProduct } from "@/api/searchClient";
 import {
   getRecentSearches,
   pushRecentSearch,
@@ -517,6 +519,22 @@ export default function SearchPage() {
       setShowPaywall(true);
     }
   }, [searchParams]);
+
+  // React to ?product=<id> — open shareable product link
+  useEffect(() => {
+    const productId = searchParams.get("product");
+    if (productId && !previewProduct) {
+      setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete("product"); return p; }, { replace: true });
+      (async () => {
+        try {
+          const p = await getProduct(productId);
+          if (p) openPreview(p);
+        } catch (err) {
+          console.error("[share-link] Could not load product:", err);
+        }
+      })();
+    }
+  }, []);
 
   // Removed: auto-scroll to chat end was pushing page to bottom on every search
 
@@ -2129,6 +2147,24 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
 function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview, onFindAlternative, alternativeProducts, alternativeLoading, alternativeLabel }) {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/Search?product=${encodeURIComponent(product.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.product_name || product.name, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }
+  };
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const { getPrice, fmtPrice } = useTradePricing();
 
@@ -2397,6 +2433,13 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     <ExternalLink className="h-3 w-3" /> View at {(product.manufacturer_name || "vendor").split(" ")[0]}
                   </a>
                 )}
+                <button onClick={handleShare}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all w-full sm:w-auto ${
+                    shareCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
+                  }`}>
+                  {shareCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                  {shareCopied ? "Link Copied" : "Share"}
+                </button>
               </div>
               {/* Find Alternatives */}
               <div className="pt-3">
