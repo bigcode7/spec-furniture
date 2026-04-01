@@ -66,7 +66,7 @@ function drawImageContained(doc, imgData, boxX, boxY, boxW, boxH) {
  * Generate a professional PDF quote from the current quote builder state.
  */
 export async function generateQuotePdf(items, projectName = "Untitled Quote", options = {}) {
-  const { pdfMode = "client" } = options;
+  const { pdfMode = "client", justifications = {} } = options;
   const quote = getQuote();
   const settings = getQuoteSettings();
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -330,6 +330,17 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
         y += descLines.length * 4.5 + 6;
       } else {
         y += 2;
+      }
+
+      // Design justification (Why This Piece)
+      const itemJustification = justifications[item.id];
+      if (itemJustification) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.gold);
+        const justLines = doc.splitTextToSize(itemJustification, contentWidth - 16).slice(0, 4);
+        doc.text(justLines, margin + 8, y);
+        y += justLines.length * 4.5 + 5;
       }
 
       // Specs card

@@ -5,6 +5,7 @@ import {
   Heart, HeartOff, Plus, Minus, Trash2, FileText, ChevronDown, ChevronRight,
   Edit3, Download, FolderPlus, Package, DollarSign, MessageSquare, Settings,
   ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X, Link2, Check, ExternalLink,
+  Sparkles, Loader2, RefreshCw,
 } from "lucide-react";
 import {
   getFavorites, toggleFavorite,
@@ -108,6 +109,13 @@ export default function Quotes() {
   const nameRef = useRef(null);
   const clientRef = useRef(null);
 
+  // Why This Piece — AI justifications
+  const [justifications, setJustifications] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("spec_justifications") || "{}"); } catch { return {}; }
+  });
+  const [justifyLoading, setJustifyLoading] = useState({});
+  const [justifyBatchLoading, setJustifyBatchLoading] = useState(null); // roomId if loading
+
   /* refresh helpers */
   const refreshQuote = () => {
     const q = getQuote();
@@ -116,6 +124,61 @@ export default function Quotes() {
 
   const refreshFavorites = () => {
     setFavorites(getFavorites());
+  };
+
+  /* justification helpers */
+  const saveJustifications = (updated) => {
+    setJustifications(updated);
+    localStorage.setItem("spec_justifications", JSON.stringify(updated));
+  };
+
+  const handleWhyThisPiece = async (product, room) => {
+    setJustifyLoading(prev => ({ ...prev, [product.id]: true }));
+    try {
+      const resp = await fetch(`${SEARCH_SERVICE}/why-this-piece`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          product,
+          room_products: room.items,
+          room_name: room.name,
+        }),
+      });
+      if (!resp.ok) throw new Error("Failed");
+      const data = await resp.json();
+      const updated = { ...justifications, [product.id]: data.justification };
+      saveJustifications(updated);
+    } catch { /* silent fail */ }
+    setJustifyLoading(prev => ({ ...prev, [product.id]: false }));
+  };
+
+  const handleGenerateAllJustifications = async (room) => {
+    if (room.items.length === 0) return;
+    setJustifyBatchLoading(room.id);
+    try {
+      const resp = await fetch(`${SEARCH_SERVICE}/why-this-piece-batch`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          products: room.items,
+          room_name: room.name,
+        }),
+      });
+      if (!resp.ok) throw new Error("Failed");
+      const data = await resp.json();
+      const updated = { ...justifications };
+      for (const j of (data.justifications || [])) {
+        const product = room.items[j.product_index];
+        if (product) updated[product.id] = j.justification;
+      }
+      saveJustifications(updated);
+    } catch { /* silent fail */ }
+    setJustifyBatchLoading(null);
+  };
+
+  const handleUpdateJustification = (productId, text) => {
+    const updated = { ...justifications, [productId]: text };
+    saveJustifications(updated);
   };
 
   /* price helpers */
@@ -238,7 +301,7 @@ export default function Quotes() {
           };
         })
       );
-      await generateQuotePdf(allItems, quote.name || "Untitled Quote", { pdfMode });
+      await generateQuotePdf(allItems, quote.name || "Untitled Quote", { pdfMode, justifications });
     } catch (err) {
       console.error("PDF generation failed:", err);
     }
@@ -723,8 +786,29 @@ export default function Quotes() {
                             getItemPrice={() => getItemPrice(item)}
                             getItemPriceInfo={() => getItemPriceInfo(item)}
                             showPricing={showPricing}
+                            justification={justifications[item.id] || null}
+                            justifyLoading={!!justifyLoading[item.id]}
+                            onWhyThisPiece={() => handleWhyThisPiece(item, room)}
+                            onUpdateJustification={handleUpdateJustification}
                           />
                         ))}
+                        {/* Generate All Justifications */}
+                        {room.items.length >= 2 && (
+                          <div className="px-5 py-3 border-t border-white/[0.03]">
+                            <button
+                              onClick={() => handleGenerateAllJustifications(room)}
+                              disabled={justifyBatchLoading === room.id}
+                              className="flex items-center gap-1.5 text-[10px] font-medium text-gold/40 hover:text-gold/70 transition-colors disabled:opacity-40"
+                            >
+                              {justifyBatchLoading === room.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3 w-3" />
+                              )}
+                              {justifyBatchLoading === room.id ? "Generating justifications..." : "Generate All — Why These Pieces"}
+                            </button>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -952,10 +1036,15 @@ function QuoteItemRow({
   getItemPrice,
   getItemPriceInfo,
   showPricing,
+  justification,
+  justifyLoading,
+  onWhyThisPiece,
+  onUpdateJustification,
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
+  const [editingJustification, setEditingJustification] = useState(false);
 
   const price = getItemPrice();
   const priceInfo = getItemPriceInfo?.() || { isTrade: false };
@@ -1117,6 +1206,16 @@ function QuoteItemRow({
             <ArrowRightLeft className="h-3.5 w-3.5" />
           </button>
 
+          {/* Why This Piece */}
+          <button
+            onClick={onWhyThisPiece}
+            disabled={justifyLoading}
+            className={`p-1.5 transition-colors ${justification ? "text-gold/40 hover:text-gold/70" : "text-white/20 hover:text-gold/60"}`}
+            title={justification ? "Regenerate design justification" : "Why This Piece — AI design justification"}
+          >
+            {justifyLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          </button>
+
           {/* Notes */}
           <button
             onClick={() => setShowNotes(!showNotes)}
@@ -1193,6 +1292,34 @@ function QuoteItemRow({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Design justification */}
+      {justification && (
+        <div className="mt-2 ml-0 sm:ml-28">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-3 w-3 text-gold/40" />
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-gold/40">Design Justification</span>
+            <button onClick={() => setEditingJustification(!editingJustification)}
+              className="text-[9px] text-white/20 hover:text-white/40 transition-colors">
+              {editingJustification ? "Done" : "Edit"}
+            </button>
+            <button onClick={onWhyThisPiece} disabled={justifyLoading}
+              className="text-[9px] text-white/20 hover:text-white/40 transition-colors">
+              {justifyLoading ? "..." : "Regenerate"}
+            </button>
+          </div>
+          {editingJustification ? (
+            <textarea
+              value={justification}
+              onChange={(e) => onUpdateJustification(item.id, e.target.value)}
+              className="w-full bg-white/[0.03] border border-gold/10 rounded-lg px-3 py-2 text-[11px] text-white/50 leading-relaxed focus:outline-none focus:border-gold/20 resize-none"
+              rows={3}
+            />
+          ) : (
+            <p className="text-[11px] text-white/40 leading-relaxed italic">{justification}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

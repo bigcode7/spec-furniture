@@ -3601,6 +3601,146 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       return json(res, 200, { brief });
     }
 
+    // ── Why This Piece — AI design justification ──
+    if (req.method === "POST" && req.url === "/why-this-piece") {
+      const rl = checkRateLimit(reqIp + ":justify", 30);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests.", retry_after: rl.retryAfter });
+      const body = await collectBody(req);
+
+      const { product, room_products, room_name } = body;
+      if (!product) return json(res, 400, { error: "product required" });
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return json(res, 500, { error: "AI not configured" });
+
+      // Build product description from AI tags
+      const describeProd = (p) => {
+        const parts = [p.product_name || "Unknown"];
+        if (p.manufacturer_name) parts.push(`by ${p.manufacturer_name}`);
+        const tags = [];
+        if (p.ai_furniture_type) tags.push(p.ai_furniture_type);
+        if (p.ai_style) tags.push(`${p.ai_style} style`);
+        if (p.ai_primary_material) tags.push(p.ai_primary_material);
+        if (p.ai_primary_color) tags.push(p.ai_primary_color);
+        if (p.ai_silhouette) tags.push(`${p.ai_silhouette} silhouette`);
+        if (p.ai_formality) tags.push(p.ai_formality);
+        if (p.ai_arm_style) tags.push(`${p.ai_arm_style} arms`);
+        if (p.ai_back_style) tags.push(`${p.ai_back_style} back`);
+        if (p.ai_leg_style) tags.push(`${p.ai_leg_style} legs`);
+        if (p.ai_scale) tags.push(`${p.ai_scale} scale`);
+        if (p.material) tags.push(`material: ${p.material}`);
+        if (p.dimensions) tags.push(`dimensions: ${p.dimensions}`);
+        if (p.ai_mood) tags.push(`${p.ai_mood} mood`);
+        if (tags.length > 0) parts.push(`(${tags.join(", ")})`);
+        return parts.join(" ");
+      };
+
+      const otherProducts = (room_products || [])
+        .filter(rp => rp.id !== product.id)
+        .map(describeProd);
+
+      const prompt = `You are writing a design justification for a client presentation. The designer selected this product:
+
+${describeProd(product)}
+
+${otherProducts.length > 0 ? `It is in ${room_name ? `the "${room_name}" room` : "a room"} with these other pieces:
+${otherProducts.map((d, i) => `${i + 1}. ${d}`).join("\n")}` : "This is the first piece selected for the room."}
+
+Write 2-3 sentences explaining WHY this piece was selected for this room. Sound like a confident interior designer presenting to a client. Reference how it complements the other pieces (if any), what makes this specific piece the right choice, and how it contributes to the overall design vision. Be specific about actual product features — material, construction, scale, finish. Do NOT sound like a salesperson. Do NOT use generic praise.`;
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01", "x-api-key": apiKey },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 300,
+            messages: [{ role: "user", content: prompt }],
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!resp.ok) return json(res, 500, { error: "AI call failed" });
+        const data = await resp.json();
+        const justification = data.content?.[0]?.text || "";
+        return json(res, 200, { justification, product_id: product.id });
+      } catch (err) {
+        return json(res, 500, { error: "AI call failed: " + err.message });
+      }
+    }
+
+    // ── Generate All justifications in one call ──
+    if (req.method === "POST" && req.url === "/why-this-piece-batch") {
+      const rl = checkRateLimit(reqIp + ":justify-batch", 10);
+      if (!rl.allowed) return json(res, 429, { error: "Too many requests.", retry_after: rl.retryAfter });
+      const body = await collectBody(req);
+
+      const { products, room_name } = body;
+      if (!Array.isArray(products) || products.length === 0) return json(res, 400, { error: "products array required" });
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return json(res, 500, { error: "AI not configured" });
+
+      const describeProd = (p) => {
+        const parts = [p.product_name || "Unknown"];
+        if (p.manufacturer_name) parts.push(`by ${p.manufacturer_name}`);
+        const tags = [];
+        if (p.ai_furniture_type) tags.push(p.ai_furniture_type);
+        if (p.ai_style) tags.push(`${p.ai_style} style`);
+        if (p.ai_primary_material) tags.push(p.ai_primary_material);
+        if (p.ai_primary_color) tags.push(p.ai_primary_color);
+        if (p.ai_silhouette) tags.push(`${p.ai_silhouette} silhouette`);
+        if (p.ai_formality) tags.push(p.ai_formality);
+        if (p.ai_arm_style) tags.push(`${p.ai_arm_style} arms`);
+        if (p.ai_scale) tags.push(`${p.ai_scale} scale`);
+        if (p.material) tags.push(`material: ${p.material}`);
+        if (p.ai_mood) tags.push(`${p.ai_mood} mood`);
+        if (tags.length > 0) parts.push(`(${tags.join(", ")})`);
+        return parts.join(" ");
+      };
+
+      const productList = products.map((p, i) => `${i + 1}. ${describeProd(p)}`).join("\n");
+
+      const prompt = `You are writing design justifications for a client presentation. The designer has curated these pieces for ${room_name ? `the "${room_name}" room` : "a room"}:
+
+${productList}
+
+For EACH product, write 2-3 sentences explaining WHY it was selected. Sound like a confident interior designer presenting to a high-end client. Reference how each piece complements the others, what makes it the right choice, and how it contributes to the overall design vision. Be specific about actual product features. Do NOT sound like a salesperson.
+
+Return JSON array:
+[
+  { "product_index": 0, "justification": "..." },
+  { "product_index": 1, "justification": "..." }
+]`;
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01", "x-api-key": apiKey },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 1500,
+            messages: [{ role: "user", content: prompt }],
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!resp.ok) return json(res, 500, { error: "AI call failed" });
+        const data = await resp.json();
+        const text = data.content?.[0]?.text || "";
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) return json(res, 500, { error: "AI returned invalid format" });
+        const justifications = JSON.parse(jsonMatch[0]);
+        return json(res, 200, { justifications });
+      } catch (err) {
+        return json(res, 500, { error: "AI call failed: " + err.message });
+      }
+    }
+
     // Old AI autocomplete replaced by local autocomplete (see /autocomplete handler below)
 
     if (req.method === "POST" && req.url === "/weekly-digest") {

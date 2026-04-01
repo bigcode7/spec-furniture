@@ -23,6 +23,7 @@ import {
   Plus,
   Check,
   Shuffle,
+  Mic,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
@@ -326,6 +327,11 @@ export default function SearchPage() {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
+
+  // Voice search
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const isPro = subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "activating" || (() => {
     try {
@@ -873,7 +879,7 @@ export default function SearchPage() {
 
     try {
       const data = await searchProducts(query, { exclude_ids: [product.id] });
-      setAlternativeProducts((data.products || []).slice(0, 5));
+      setAlternativeProducts((data.products || []).slice(0, 12));
     } catch {
       setAlternativeProducts([]);
     } finally {
@@ -1026,6 +1032,48 @@ export default function SearchPage() {
       setVisualSearchLoading(false);
       setLoading(false);
     }
+  };
+
+  const handleVoiceSearch = () => {
+    if (!voiceSupported) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInputValue(transcript);
+      // Auto-submit when final result
+      if (event.results[event.results.length - 1].isFinal && transcript.trim()) {
+        setTimeout(() => {
+          setIsListening(false);
+          runSearch(transcript.trim());
+        }, 300);
+      }
+    };
+    recognition.onerror = (event) => {
+      console.error("[voice-search] Error:", event.error);
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        setError("Microphone access denied. Check browser permissions.");
+      } else if (event.error !== "aborted") {
+        setError("Couldn't hear that. Try again.");
+      }
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
   };
 
   const handleChipClick = (chip) => {
@@ -1232,7 +1280,7 @@ export default function SearchPage() {
                       }}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={'Search 40,000+ trade products...'}
+                      placeholder={isListening ? 'Listening...' : 'Search 40,000+ trade products...'}
                       className="min-h-[56px] sm:min-h-[60px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-5 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
                       rows={1}
                     />
@@ -1243,12 +1291,19 @@ export default function SearchPage() {
                           <X className="h-4 w-4" />
                         </button>
                       )}
+                      {voiceSupported && (
+                        <button type="button" onClick={handleVoiceSearch}
+                          className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                          title={isListening ? "Stop listening" : "Voice search"}>
+                          <Mic className="h-4 w-4" />
+                        </button>
+                      )}
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim()} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
                         Go <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1749,6 +1804,13 @@ export default function SearchPage() {
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                      {voiceSupported && (
+                        <button type="button" onClick={handleVoiceSearch}
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                          title={isListening ? "Stop listening" : "Voice search"}>
+                          <Mic className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
                         title="Visual search">

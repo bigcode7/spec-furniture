@@ -2713,6 +2713,14 @@ function computeSimpleFacets(results) {
  * Analyze an uploaded image with Haiku and return search_fields + semantic_query.
  * Same output format as translateQueryWithHaiku so it plugs into the same pipeline.
  */
+/**
+ * Two-pass visual search with Sonnet 4.6.
+ * Pass 1: Deep visual analysis — describe what you see with expert precision.
+ * Pass 2: Map analysis to catalog — furniture_type + rich semantic_query.
+ *
+ * Only furniture_type is used as a field filter. Everything else goes to vector ranking.
+ * This ensures designers ALWAYS get relevant results even without exact matches.
+ */
 async function translateImageWithSonnet(imageBase64, mimeType) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -2720,120 +2728,36 @@ async function translateImageWithSonnet(imageBase64, mimeType) {
     return null;
   }
 
-  // Strip data URL prefix if present
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-  const searchFieldsSchema = `{
-    "ai_furniture_type": ["sofa"] or null,
-    "ai_silhouette": ["chesterfield"] or null,
-    "ai_arm_style": ["track"] or null,
-    "ai_back_style": ["tight back"] or null,
-    "ai_leg_style": ["tapered"] or null,
-    "ai_primary_material": ["leather"] or null,
-    "ai_primary_color": ["brown"] or null,
-    "ai_style": ["traditional"] or null,
-    "ai_distinctive_features": ["tufted", "nailhead"] or null,
-    "ai_skirt_style": ["skirted"] or null,
-    "ai_tufting_pattern": ["diamond tufted"] or null,
-    "ai_cushion_config": ["3 over 3"] or null,
-    "ai_has_nailhead": ["true"] or null,
-    "ai_base_type": ["pedestal"] or null,
-    "ai_edge_profile": ["waterfall"] or null,
-    "ai_wood_species": ["walnut"] or null,
-    "ai_finish": ["distressed"] or null,
-    "ai_formality": ["formal"] or null,
-    "ai_scale": ["oversized"] or null,
-    "ai_mood": ["cozy"] or null,
-    "ai_pattern_type": ["geometric"] or null
-  }`;
+  // ── PASS 1: Deep visual analysis ──
+  const pass1System = `You are an elite furniture identification expert with 30 years in the trade. A designer has uploaded a photo. Analyze it with expert precision.
 
-  const systemPrompt = `You are an elite furniture identification expert for SPEKD, a trade furniture sourcing platform used by interior designers. A designer has uploaded a photo and needs you to identify what's in it so we can find matching products in our catalog.
+Describe EXACTLY what you see — do NOT try to match it to any catalog. Just describe:
+- What type of furniture is this? Be specific (wingback chair, not just "chair"; Chesterfield sofa, not just "sofa")
+- What is the silhouette/shape? Describe the outline and proportions
+- What materials do you observe? Be specific — top grain leather vs bonded, solid walnut vs veneer, velvet vs chenille, marble vs quartz
+- What colors? Be precise — not "blue" but "navy" or "slate blue"
+- What style era does it reference? Mid-century modern, traditional, transitional, art deco, etc.
+- What construction details are visible? Tufting type, nailhead trim, welting, skirted, exposed joinery, caning
+- What are the arm, back, and leg styles? Rolled arms, tight back, tapered legs, etc.
+- What distinctive features stand out? Channel tufting, waterfall edge, hairpin legs, etc.
+- What are the proportions? Compact/apartment-scale, standard, oversized, petite
+- What mood does it evoke? Casual, formal, cozy, sleek, dramatic
+- If you can identify the manufacturer, designer, or collection — say so
 
-You have exceptional visual analysis skills. You can identify construction techniques, material quality, era influences, proportional relationships, and design lineage from a single image.
+Also determine: does the image show a SINGLE piece of furniture, or a FULL ROOM with MULTIPLE pieces?
 
-Our product database has these searchable fields with their known values:
+If ROOM: describe EACH distinct furniture piece separately with the same level of detail. Label each piece clearly. Skip small accessories, art, plants, and lighting.
 
-${catalogIndexPromptText}
-
-═══ YOUR TASK ═══
-
-STEP 1 — DEEP VISUAL ANALYSIS (think carefully before writing search fields):
-Study the image intensely. Before generating any search fields, mentally answer:
-- What EXACT type of furniture is this? (Don't just say "chair" — is it a wingback, barrel, slipper, lounge, club, dining, accent, swivel?)
-- What is the PRIMARY material? Look at grain, sheen, texture, drape. Is it genuine leather, bonded leather, velvet, linen, performance fabric, boucle, sheepskin, wood, metal, stone, rattan?
-- What is the ARM style? Rolled, track, slope, English, flared, recessed, armless?
-- What is the BACK style? Tight back, loose back, cushion back, channel back, camelback, ladder back, spindle, cane?
-- What is the LEG style? Turned, tapered, cabriole, sled, hairpin, caster, bun feet, metal base, pedestal?
-- What is the SILHOUETTE? Chesterfield, Lawson, tuxedo, camelback, Parsons, barrel, wingback, slipcovered?
-- What CONSTRUCTION DETAILS can you see? Tufting (button, diamond, biscuit, channel), nailhead trim, welting, piping, skirt, exposed frame?
-- What is the SCALE? Apartment-size, standard, oversized, petite?
-- What ERA/STYLE influence? Mid-century modern, traditional, transitional, contemporary, art deco, Hollywood regency, coastal, farmhouse, industrial?
-- What is the FORMALITY level? Casual, relaxed, transitional, formal, ultra-formal?
-- What COLOR? Be precise — not just "blue" but navy, cobalt, slate blue, cerulean, dusty blue.
-
-STEP 2 — MAP TO SEARCH FIELDS:
-Only after deep analysis, generate the search fields. Be AGGRESSIVE about populating physical attribute fields — the more specific you are, the better our results. Only set a field if you're confident. Leave fields null if uncertain.
-
-STEP 3 — WRITE A RICH SEMANTIC QUERY:
-Write a detailed 2-4 sentence paragraph describing this piece as if you were telling a colleague what to look for in a warehouse. Include proportions, visual weight, the feeling it evokes, materials, construction quality, era influence, and any distinctive features. This is used for vector similarity matching — richer = better results.
-
-First determine: does the image show a SINGLE piece of furniture, or a FULL ROOM / MULTIPLE pieces?
-
-═══ SINGLE PIECE MODE ═══
-If the image shows one furniture piece (or one is clearly the focus), return:
-{
-  "mode": "single",
-  "search_fields": ${searchFieldsSchema},
-  "exclude_fields": {},
-  "confidence": { "high": ["ai_furniture_type", "ai_primary_material"], "medium": ["ai_arm_style"], "low": [] },
-  "semantic_query": "Detailed 2-4 sentence description for vector matching — materials, proportions, construction, era, visual weight, mood.",
-  "response": "Expert sourcing advice — 2-4 sentences. Sound like a senior trade rep who has seen 100,000 pieces. If you can identify the manufacturer, brand, collection, or designer — say so. Mention the construction quality, material grade, and what makes this piece distinctive."
-}
-
-The "confidence" object helps us decide which fields to prioritize:
-- "high": fields you're very sure about (>90% confidence) — these become hard filters
-- "medium": fields you're fairly sure about (60-90%) — these become hard filters but get relaxed first if results are sparse
-- "low": fields you're guessing at (<60%) — these go into semantic_query only, NOT into search_fields
-
-═══ ROOM MODE ═══
-If the image shows a full room or multiple distinct furniture pieces, identify EACH piece separately and return:
-{
-  "mode": "room",
-  "items": [
-    {
-      "label": "Navy Velvet Chesterfield Sofa",
-      "search_fields": ${searchFieldsSchema},
-      "exclude_fields": {},
-      "confidence": { "high": [...], "medium": [...], "low": [] },
-      "semantic_query": "Detailed description of THIS specific piece"
-    },
-    {
-      "label": "Walnut Pedestal Dining Table",
-      "search_fields": { ... },
-      "exclude_fields": {},
-      "confidence": { "high": [...], "medium": [...], "low": [] },
-      "semantic_query": "..."
-    }
-  ],
-  "response": "Expert overview of the room — identify the design direction, how pieces work together, the overall aesthetic, and sourcing strategy. 2-4 sentences."
-}
-
-RULES:
-- ONLY use values that EXIST in the catalog field lists above. Use substring terms that match via contains.
-- For ai_furniture_type, use our EXACT category vocabulary (sofa, sectional, accent chair, dining chair, cocktail table, console table, etc.)
-- Physical attributes (arm, back, leg, silhouette, tufting, skirt, nailhead, cushion config) are the MOST IMPORTANT fields — they make or break result accuracy. Be aggressive about identifying them.
-- Put mood, vibe, era influence, texture description, and abstract qualities in semantic_query for vector ranking.
-- If you recognize the specific piece, manufacturer, designer, or collection — mention it in the response. Designers love when you identify a Baker, Restoration Hardware, Holly Hunt, or CB2 piece.
-- Do NOT set a field unless you're genuinely confident. A wrong field is worse than a missing field — it filters out good matches.
-- In ROOM MODE: identify every distinct furniture piece (up to 8). Skip small accessories, art, plants, and lighting unless they are statement pieces. Label each item descriptively (e.g., "Tufted Leather Chesterfield Sofa", not just "Sofa").
-- In ROOM MODE: each item gets its OWN independent search_fields. A rustic dining table and a modern dining chair in the same room should have completely different style/formality fields.`;
+Respond in natural language paragraphs — no JSON yet.`;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // Sonnet needs more time
+    const controller1 = new AbortController();
+    const timeout1 = setTimeout(() => controller1.abort(), 18000);
     const callStart = Date.now();
 
-    const resp = await fetch(ANTHROPIC_API_URL, {
+    const pass1Resp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2842,95 +2766,140 @@ RULES:
       },
       body: JSON.stringify({
         model: VISION_MODEL,
-        max_tokens: 3000,
-        system: systemPrompt,
+        max_tokens: 1500,
+        system: pass1System,
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: base64Data } },
-            { type: "text", text: "Analyze this furniture image with expert-level precision. Identify every physical attribute you can see — material, construction, silhouette, arms, back, legs, tufting, trim. Then generate search fields to find matching products in our catalog." },
+            { type: "text", text: "Analyze this furniture image with expert-level precision. Describe everything you see." },
           ],
         }],
       }),
-      signal: controller.signal,
+      signal: controller1.signal,
     });
 
-    clearTimeout(timeout);
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error(`[visual-search] Sonnet API error ${resp.status}: ${errText.slice(0, 200)}`);
+    clearTimeout(timeout1);
+    if (!pass1Resp.ok) {
+      const errText = await pass1Resp.text();
+      console.error(`[visual-search] Sonnet pass 1 error ${pass1Resp.status}: ${errText.slice(0, 200)}`);
       return null;
     }
 
-    const data = await resp.json();
-    const text = data.content?.[0]?.text || "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const pass1Data = await pass1Resp.json();
+    const description = pass1Data.content?.[0]?.text || "";
+    const pass1Usage = pass1Data.usage || {};
+    if (pass1Usage.input_tokens) trackTokenUsage(pass1Usage.input_tokens, pass1Usage.output_tokens || 0);
+    console.log(`[visual-search] Pass 1 (analysis) in ${Date.now() - callStart}ms | tokens: ${pass1Usage.input_tokens || "?"}in/${pass1Usage.output_tokens || "?"}out`);
+    console.log(`[visual-search] Description: ${description.slice(0, 200)}...`);
+
+    // ── PASS 2: Map to catalog ──
+    // Build furniture type list from catalog index
+    const furnitureTypes = catalogIndexPromptText
+      ? catalogIndexPromptText.split("\n")
+          .filter(line => line.includes("ai_furniture_type"))
+          .join("\n") || "sofa, sectional, accent chair, dining chair, cocktail table, end table, console table, dining table, bed, dresser, nightstand, bookcase, desk, ottoman, bench, bar stool, counter stool, credenza, media console, chaise, daybed, loveseat, settee, recliner, swivel chair, lounge chair, office chair, side table, buffet, hutch, armoire, vanity, etagere, bar cabinet"
+      : "sofa, sectional, accent chair, dining chair, cocktail table, end table, console table, dining table, bed, dresser, nightstand, bookcase, desk, ottoman, bench, bar stool, counter stool, credenza, media console, chaise, daybed, loveseat, settee, recliner, swivel chair, lounge chair, office chair, side table, buffet, hutch, armoire, vanity, etagere, bar cabinet";
+
+    const pass2System = `Based on your expert furniture analysis below, map it to our catalog search system.
+
+Your analysis:
+${description}
+
+Our catalog contains these furniture types (use ONLY these exact terms):
+${furnitureTypes}
+
+IMPORTANT RULES:
+- furniture_type is the ONLY hard filter — results must be the same type of furniture. A sofa photo returns sofas, not chairs.
+- semantic_query is used for vector similarity ranking — the richer and more specific, the better. Include silhouette, materials, colors, style, mood, construction details, distinctive features, proportions. Write 3-4 sentences as if telling a colleague what to look for in a warehouse.
+- If you recognized the manufacturer, designer, or collection — mention it in the response.
+
+If your analysis describes a SINGLE piece, return:
+{
+  "mode": "single",
+  "furniture_type": "the best matching furniture type from our catalog",
+  "semantic_query": "3-4 sentence detailed paragraph for vector matching — silhouette, materials, colors, style era, construction details, mood, proportions, distinctive features",
+  "response": "Expert sourcing advice — 2-4 sentences. Sound like a senior trade rep. Reference construction quality, material grade, and what makes this piece distinctive."
+}
+
+If your analysis describes a ROOM with multiple pieces, return:
+{
+  "mode": "room",
+  "items": [
+    {
+      "label": "Descriptive Label (e.g., Navy Velvet Chesterfield Sofa)",
+      "furniture_type": "sofa",
+      "semantic_query": "detailed description of this specific piece for vector matching"
+    }
+  ],
+  "response": "Expert overview of the room design and sourcing strategy. 2-4 sentences."
+}
+
+Return ONLY valid JSON.`;
+
+    const controller2 = new AbortController();
+    const timeout2 = setTimeout(() => controller2.abort(), 12000);
+    const pass2Start = Date.now();
+
+    const pass2Resp = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        model: VISION_MODEL,
+        max_tokens: 1500,
+        system: pass2System,
+        messages: [{
+          role: "user",
+          content: "Map your analysis to our catalog search format. Return JSON only.",
+        }],
+      }),
+      signal: controller2.signal,
+    });
+
+    clearTimeout(timeout2);
+    if (!pass2Resp.ok) {
+      const errText = await pass2Resp.text();
+      console.error(`[visual-search] Sonnet pass 2 error ${pass2Resp.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const pass2Data = await pass2Resp.json();
+    const pass2Text = pass2Data.content?.[0]?.text || "";
+    const pass2Usage = pass2Data.usage || {};
+    if (pass2Usage.input_tokens) trackTokenUsage(pass2Usage.input_tokens, pass2Usage.output_tokens || 0);
+    console.log(`[visual-search] Pass 2 (mapping) in ${Date.now() - pass2Start}ms | tokens: ${pass2Usage.input_tokens || "?"}in/${pass2Usage.output_tokens || "?"}out`);
+    console.log(`[visual-search] Total two-pass time: ${Date.now() - callStart}ms`);
+
+    const jsonMatch = pass2Text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error("[visual-search] Sonnet returned non-JSON:", text.slice(0, 200));
+      console.error("[visual-search] Sonnet pass 2 non-JSON:", pass2Text.slice(0, 200));
       return null;
     }
-
-    const usage = data.usage || {};
-    if (usage.input_tokens) {
-      trackTokenUsage(usage.input_tokens, usage.output_tokens || 0);
-    }
-    console.log(`[visual-search] Sonnet analyzed image in ${Date.now() - callStart}ms | tokens: ${usage.input_tokens || "?"}in/${usage.output_tokens || "?"}out`);
 
     const parsed = JSON.parse(jsonMatch[0]);
     const mode = parsed.mode || "single";
     console.log(`[visual-search] Mode: ${mode}${mode === "room" ? ` (${(parsed.items || []).length} items)` : ""}`);
 
-    // Process confidence: move low-confidence fields out of search_fields and into semantic_query
-    function applyConfidence(searchFields, confidence, semanticQuery) {
-      if (!confidence || !confidence.low || !Array.isArray(confidence.low)) return { searchFields, semanticQuery };
-      const cleaned = { ...searchFields };
-      const extras = [];
-      for (const field of confidence.low) {
-        if (cleaned[field] && Array.isArray(cleaned[field]) && cleaned[field].length > 0) {
-          extras.push(`${field.replace("ai_", "")}: ${cleaned[field].join(", ")}`);
-          cleaned[field] = null;
-        }
-      }
-      const enrichedQuery = extras.length > 0
-        ? `${semanticQuery} Possibly: ${extras.join("; ")}.`
-        : semanticQuery;
-      return { searchFields: cleaned, semanticQuery: enrichedQuery };
-    }
-
     if (mode === "room" && Array.isArray(parsed.items) && parsed.items.length > 0) {
       return {
         mode: "room",
-        items: parsed.items.map(item => {
-          const { searchFields, semanticQuery } = applyConfidence(
-            item.search_fields || {},
-            item.confidence,
-            item.semantic_query || "furniture"
-          );
-          return {
-            label: item.label || "Furniture",
-            search_fields: searchFields,
-            exclude_fields: item.exclude_fields || {},
-            semantic_query: semanticQuery,
-            confidence: item.confidence || {},
-          };
-        }),
+        items: parsed.items.map(item => ({
+          label: item.label || "Furniture",
+          furniture_type: item.furniture_type || null,
+          semantic_query: item.semantic_query || "furniture",
+        })),
         response: parsed.response || "Here are matching products for each piece.",
       };
     }
 
-    const { searchFields, semanticQuery } = applyConfidence(
-      parsed.search_fields || {},
-      parsed.confidence,
-      parsed.semantic_query || "furniture"
-    );
-
     return {
       mode: "single",
-      search_fields: searchFields,
-      exclude_fields: parsed.exclude_fields || {},
-      semantic_query: semanticQuery,
-      confidence: parsed.confidence || {},
+      furniture_type: parsed.furniture_type || null,
+      semantic_query: parsed.semantic_query || "furniture",
       response: parsed.response || "Here are matching products from our catalog.",
     };
   } catch (err) {
@@ -2940,38 +2909,31 @@ RULES:
 }
 
 /**
- * Run fieldMatch + vector ranking for a single visual search item.
- * Shared by both single-piece and room-mode pipelines.
- * Uses confidence data for smarter progressive relaxation.
+ * Visual search field match — furniture_type ONLY + vector ranking.
+ * Unlike text search which uses strict multi-field matching, visual search
+ * filters ONLY by furniture type and lets MiniLM vector similarity rank everything.
+ * This ensures designers always get relevant results even without exact matches.
  */
-async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery, confidence = {}) {
+async function runVisualFieldMatch(furnitureType, semanticQuery) {
   const vectorStats = getVectorStoreStats();
-  const MIN_GOOD_RESULTS = 3;
-  let candidates = fieldMatch(searchFields, excludeFields, new Set());
 
-  // Progressive relaxation — drop medium-confidence fields first, then vibe fields
-  if (candidates.length < MIN_GOOD_RESULTS) {
-    const mediumFields = (confidence.medium || []).filter(f => searchFields[f] && Array.isArray(searchFields[f]) && searchFields[f].length > 0);
-    const vibeRelaxOrder = [
-      "ai_ideal_client", "ai_mood", "ai_era_influence", "ai_visual_weight",
-      "ai_durability_assessment", "ai_texture_description", "ai_finish",
-      "ai_primary_color", "ai_pattern_type", "ai_scale", "ai_formality",
-      "ai_silhouette", "ai_style",
-    ];
+  // Step 1: Filter by furniture type only
+  let candidates;
+  if (furnitureType) {
+    candidates = fieldMatch({ ai_furniture_type: [furnitureType] }, {}, new Set());
+    console.log(`[visual-search] Furniture type "${furnitureType}" → ${candidates.length} candidates`);
 
-    // Phase 1: relax medium-confidence fields one by one
-    const relaxed = { ...searchFields };
-    for (const dropField of [...mediumFields, ...vibeRelaxOrder]) {
-      if (candidates.length >= MIN_GOOD_RESULTS) break;
-      if (relaxed[dropField] && Array.isArray(relaxed[dropField]) && relaxed[dropField].length > 0) {
-        console.log(`[visual-search] Relaxing field: ${dropField} (had ${candidates.length} results)`);
-        relaxed[dropField] = null;
-        candidates = fieldMatch(relaxed, excludeFields, new Set());
-      }
+    // If no results for exact type, try broader matching
+    if (candidates.length === 0) {
+      // Try without strict type — pure vector search
+      console.log(`[visual-search] No matches for type "${furnitureType}" — falling back to pure vector`);
+      candidates = [];
     }
+  } else {
+    candidates = [];
   }
 
-  // MiniLM ranking
+  // Step 2: MiniLM vector ranking — this is where the magic happens
   if (candidates.length > 0 && vectorStats.ready && vectorStats.total_vectors > 0 && semanticQuery) {
     const candidateIds = new Set(candidates.map(p => p.id));
     const ranked = await vectorSearch(semanticQuery, { limit: candidates.length, candidateIds });
@@ -2981,6 +2943,22 @@ async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery, c
       product._vector_score = product.relevance_score;
     }
     candidates.sort((a, b) => b.relevance_score - a.relevance_score);
+  }
+
+  // Step 3: If no furniture type match, try pure vector search across entire catalog
+  if (candidates.length === 0 && vectorStats.ready && vectorStats.total_vectors > 0 && semanticQuery) {
+    console.log("[visual-search] No type matches — using pure vector search across catalog");
+    const ranked = await vectorSearch(semanticQuery, { limit: 200 });
+    const productMap = new Map();
+    for (const r of ranked) {
+      const p = getProduct(r.id);
+      if (p && p.ai_furniture_type) {
+        p.relevance_score = r.score;
+        p._vector_score = r.score;
+        productMap.set(r.id, p);
+      }
+    }
+    candidates = [...productMap.values()];
   }
 
   return applyVendorDiversity(candidates);
@@ -2994,29 +2972,27 @@ async function runVisualFieldMatch(searchFields, excludeFields, semanticQuery, c
 export async function visualSearchPipeline(imageBase64, mimeType) {
   const pipelineStart = Date.now();
 
-  // Step 1: Sonnet analyzes the image (upgraded from Haiku for superior visual understanding)
-  const haiku = await translateImageWithSonnet(imageBase64, mimeType);
-  if (!haiku) {
+  // Step 1: Sonnet two-pass analysis (describe → map to catalog)
+  const sonnet = await translateImageWithSonnet(imageBase64, mimeType);
+  if (!sonnet) {
     return { query: "[visual search]", products: [], total: 0, error: "Failed to analyze image" };
   }
 
-  const vectorStats = getVectorStoreStats();
-
   // ── ROOM MODE: multiple pieces → bucket results like paste-list ──
-  if (haiku.mode === "room" && Array.isArray(haiku.items) && haiku.items.length > 0) {
-    console.log(`\n=== VISUAL SEARCH (ROOM MODE — ${haiku.items.length} items) ===`);
+  if (sonnet.mode === "room" && Array.isArray(sonnet.items) && sonnet.items.length > 0) {
+    console.log(`\n=== VISUAL SEARCH (ROOM MODE — ${sonnet.items.length} items) ===`);
 
     const buckets = [];
-    for (const item of haiku.items) {
-      console.log(`[visual-room] Searching: ${item.label} | fields: ${JSON.stringify(item.search_fields)}`);
-      const products = await runVisualFieldMatch(item.search_fields, item.exclude_fields || {}, item.semantic_query, item.confidence || {});
-      const MAX_PER_BUCKET = 80;
+    for (const item of sonnet.items) {
+      console.log(`[visual-room] Searching: ${item.label} | type: ${item.furniture_type}`);
+      const products = await runVisualFieldMatch(item.furniture_type, item.semantic_query);
+      const MAX_PER_BUCKET = 40;
       buckets.push({
         label: item.label,
-        search_fields: item.search_fields,
+        furniture_type: item.furniture_type,
         semantic_query: item.semantic_query,
         products: products.slice(0, MAX_PER_BUCKET),
-        total: products.length,
+        total: Math.min(products.length, MAX_PER_BUCKET),
       });
       console.log(`[visual-room] ${item.label}: ${products.length} results`);
     }
@@ -3027,9 +3003,9 @@ export async function visualSearchPipeline(imageBase64, mimeType) {
 
     return {
       query: "[visual search]",
-      intent: { summary: haiku.response, product_type: null },
-      ai_summary: haiku.response,
-      assistant_message: haiku.response,
+      intent: { summary: sonnet.response, product_type: null },
+      ai_summary: sonnet.response,
+      assistant_message: sonnet.response,
       total: totalProducts,
       total_available: totalProducts,
       page: 1,
@@ -3046,46 +3022,30 @@ export async function visualSearchPipeline(imageBase64, mimeType) {
         mode: "room",
         items_count: buckets.length,
         total_catalog_size: getProductCount(),
-        haiku_response: haiku.response,
+        sonnet_response: sonnet.response,
       },
     };
   }
 
   // ── SINGLE PIECE MODE ──
   console.log("\n=== VISUAL SEARCH (SINGLE PIECE) ===");
-  console.log("Haiku search_fields:", JSON.stringify(haiku.search_fields, null, 2));
-  console.log("Haiku semantic_query:", haiku.semantic_query);
+  console.log("Furniture type:", sonnet.furniture_type);
+  console.log("Semantic query:", sonnet.semantic_query);
 
-  let results = await runVisualFieldMatch(haiku.search_fields, haiku.exclude_fields || {}, haiku.semantic_query, haiku.confidence || {});
-
-  // If field match returned nothing, try pure vector search
-  if (results.length === 0 && haiku.semantic_query && vectorStats.ready) {
-    console.log("[visual-search] No field matches — falling back to pure vector search");
-    const ranked = await vectorSearch(haiku.semantic_query, { limit: 200 });
-    const productMap = new Map();
-    for (const r of ranked) {
-      const p = getProduct(r.id);
-      if (p && p.ai_furniture_type) {
-        p.relevance_score = r.score;
-        p._vector_score = r.score;
-        productMap.set(r.id, p);
-      }
-    }
-    results = applyVendorDiversity([...productMap.values()]);
-  }
+  let results = await runVisualFieldMatch(sonnet.furniture_type, sonnet.semantic_query);
 
   const totalAvailable = results.length;
-  const MAX_PAGE = 500;
+  const MAX_PAGE = 40; // Visual search returns top 40 ranked by similarity
   const pageResults = results.slice(0, MAX_PAGE);
 
-  console.log(`[visual-search] Single piece complete in ${Date.now() - pipelineStart}ms — ${totalAvailable} results`);
+  console.log(`[visual-search] Single piece complete in ${Date.now() - pipelineStart}ms — ${totalAvailable} candidates, returning top ${pageResults.length}`);
   console.log("================================\n");
 
   return {
     query: "[visual search]",
-    intent: { summary: haiku.response, product_type: null },
-    ai_summary: haiku.response,
-    assistant_message: haiku.response,
+    intent: { summary: sonnet.response, product_type: sonnet.furniture_type },
+    ai_summary: sonnet.response,
+    assistant_message: sonnet.response,
     total: pageResults.length,
     total_available: totalAvailable,
     has_more: totalAvailable > MAX_PAGE,
@@ -3097,13 +3057,11 @@ export async function visualSearchPipeline(imageBase64, mimeType) {
     facets: computeSimpleFacets(results),
     diagnostics: {
       mode: "single",
-      ai_filter_used: true,
+      furniture_type: sonnet.furniture_type,
       total_catalog_size: getProductCount(),
-      vector_indexed: vectorStats.total_vectors,
-      search_fields: haiku.search_fields,
-      semantic_query: haiku.semantic_query,
+      semantic_query: sonnet.semantic_query,
       field_match_count: totalAvailable,
-      haiku_response: haiku.response,
+      sonnet_response: sonnet.response,
     },
     products: pageResults,
   };
