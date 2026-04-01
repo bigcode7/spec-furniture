@@ -359,29 +359,107 @@ export default function Quotes() {
     navigate(`/Search?q=${encodeURIComponent(query)}&swap=${encodeURIComponent(item.id)}`);
   };
 
+  // ── Client Portal Share ──
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareToken, setShareToken] = useState(() => {
+    try { return localStorage.getItem("spec_share_token") || null; } catch { return null; }
+  });
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareNote, setShareNote] = useState("");
+  const [shareClientEmail, setShareClientEmail] = useState("");
+  const [clientFeedback, setClientFeedback] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("spec_client_feedback") || "{}"); } catch { return {}; }
+  });
+
+  // Load feedback for existing share tokens
+  useEffect(() => {
+    if (!shareToken) return;
+    (async () => {
+      try {
+        const token = localStorage.getItem("spec_auth_token");
+        if (!token) return;
+        const resp = await fetch(`${SEARCH_SERVICE}/quotes/shared/${shareToken}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.feedback && Object.keys(data.feedback).length > 0) {
+          setClientFeedback(data.feedback);
+          localStorage.setItem("spec_client_feedback", JSON.stringify(data.feedback));
+        }
+      } catch { /* silent */ }
+    })();
+  }, [shareToken]);
+
   const handleShareLink = async () => {
+    setShowShareModal(true);
+  };
+
+  const handleCreateShareLink = async () => {
+    setShareLoading(true);
     try {
-      // Create sanitized copy without wholesale prices
+      const authToken = localStorage.getItem("spec_auth_token");
+      if (!authToken) { alert("Sign in to share quotes"); return; }
       const sanitized = {
         name: quote.name || "Shared Quote",
         rooms: quote.rooms.map((r) => ({
-          name: r.name,
+          ...r,
           items: r.items.map(({ wholesale_price, ...rest }) => ({
             ...rest,
             quantity: rest.quantity || 1,
+            justification: justifications[rest.id] || null,
           })),
         })),
+        justifications,
       };
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(sanitized))));
-      const url = `${window.location.origin}/Search?shared_quote=${encoded}`;
+      const payload = {
+        quoteData: sanitized,
+        designerName: settings.designer_name || user.full_name || "",
+        designerCompany: settings.business_name || "",
+        projectName: quote.name || "Untitled Project",
+        clientNote: shareNote,
+        clientEmail: shareClientEmail,
+      };
+      // Create or update
+      let resp;
+      if (shareToken) {
+        resp = await fetch(`${SEARCH_SERVICE}/quotes/shared/${shareToken}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ ...payload, quoteData: sanitized }),
+        });
+      } else {
+        resp = await fetch(`${SEARCH_SERVICE}/quotes/share`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!resp.ok) throw new Error("Failed to create share link");
+      const data = await resp.json();
+      const token = data.token || shareToken;
+      if (data.token) {
+        setShareToken(token);
+        localStorage.setItem("spec_share_token", token);
+      }
+      const url = `${window.location.origin}/Approve?token=${token}`;
       await navigator.clipboard.writeText(url);
       setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
+      setShowShareModal(false);
+      setShareNote("");
+      // Clear old feedback on new version
+      if (shareToken) {
+        setClientFeedback({});
+        localStorage.setItem("spec_client_feedback", "{}");
+      }
+      setTimeout(() => setShareCopied(false), 3000);
     } catch (err) {
-      console.error("Failed to copy share link:", err);
+      console.error("Share link error:", err);
+    } finally {
+      setShareLoading(false);
     }
   };
+
+  const getItemFeedback = (itemId) => clientFeedback[itemId] || null;
 
   /* ─── render ────────────────────────────────────────────── */
   return (
@@ -700,6 +778,7 @@ export default function Quotes() {
               </p>
             </motion.div>
           ) : (
+            <>
             <div className="space-y-2">
               {quote.rooms.map((room) => (
                 <motion.div
@@ -790,6 +869,7 @@ export default function Quotes() {
                             justifyLoading={!!justifyLoading[item.id]}
                             onWhyThisPiece={() => handleWhyThisPiece(item, room)}
                             onUpdateJustification={handleUpdateJustification}
+                            clientFeedback={getItemFeedback(item.id)}
                           />
                         ))}
                         {/* Generate All Justifications */}
@@ -983,12 +1063,13 @@ export default function Quotes() {
 
                   <button
                     onClick={handleShareLink}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all border border-white/[0.08] hover:border-white/[0.15] sm:w-auto w-full"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all border sm:w-auto w-full"
                     style={{
-                      background: shareCopied ? "rgba(110,180,140,0.15)" : "rgba(255,255,255,0.04)",
-                      color: shareCopied ? "rgba(110,180,140,0.8)" : "rgba(255,255,255,0.45)",
+                      background: shareCopied ? "rgba(110,180,140,0.15)" : "linear-gradient(135deg, rgba(100,140,220,0.15), rgba(100,140,220,0.08))",
+                      border: shareCopied ? "1px solid rgba(110,180,140,0.3)" : "1px solid rgba(100,140,220,0.25)",
+                      color: shareCopied ? "rgba(110,180,140,0.8)" : "rgba(100,140,220,0.8)",
                     }}
-                    title="Copy a shareable link (no trade pricing)"
+                    title="Share interactive client approval portal"
                   >
                     {shareCopied ? (
                       <>
@@ -998,7 +1079,7 @@ export default function Quotes() {
                     ) : (
                       <>
                         <Link2 className="h-3.5 w-3.5" />
-                        Copy Share Link
+                        {shareToken ? "Update & Copy Link" : "Client Approval Portal"}
                       </>
                     )}
                   </button>
@@ -1010,8 +1091,105 @@ export default function Quotes() {
                     Clear Quote
                   </button>
                 </div>
+
+                {/* Client Feedback Summary */}
+                {Object.keys(clientFeedback).length > 0 && (
+                  <div className="mt-4 p-4 rounded-xl border border-white/[0.06]" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare className="h-4 w-4 text-white/30" />
+                      <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Client Feedback</span>
+                      {shareToken && (
+                        <span className="ml-auto text-[10px] text-white/20">v{localStorage.getItem("spec_share_version") || "1"}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                      <span className="text-emerald-400/70">
+                        {Object.values(clientFeedback).filter(f => f.status === "approved").length} approved
+                      </span>
+                      <span className="text-amber-400/70">
+                        {Object.values(clientFeedback).filter(f => f.status === "change").length} changes
+                      </span>
+                      <span className="text-red-400/70">
+                        {Object.values(clientFeedback).filter(f => f.status === "rejected").length} rejected
+                      </span>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </div>
+
+            {/* ── Share Modal ── */}
+            <AnimatePresence>
+              {showShareModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowShareModal(false); }}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="w-full max-w-md rounded-2xl border border-white/[0.08] p-6"
+                    style={{ background: "rgb(20,20,28)" }}
+                  >
+                    <h3 className="text-lg font-semibold text-white/85 mb-1">
+                      {shareToken ? "Update Client Portal" : "Share with Client"}
+                    </h3>
+                    <p className="text-xs text-white/35 mb-5">
+                      Your client will see an interactive approval experience — no account needed.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1.5 block">Personal Note (optional)</label>
+                        <textarea
+                          value={shareNote}
+                          onChange={(e) => setShareNote(e.target.value)}
+                          placeholder="Hi! Here are my initial selections for your living room. Let me know what you think..."
+                          className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white/60 placeholder:text-white/15 focus:outline-none focus:border-gold/20 resize-none"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1.5 block">Client Email (optional — sends notification)</label>
+                        <input
+                          type="email"
+                          value={shareClientEmail}
+                          onChange={(e) => setShareClientEmail(e.target.value)}
+                          placeholder="client@email.com"
+                          className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white/60 placeholder:text-white/15 focus:outline-none focus:border-gold/20"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <button
+                        onClick={() => setShowShareModal(false)}
+                        className="flex-1 py-2.5 rounded-xl text-sm text-white/40 border border-white/[0.08] hover:border-white/[0.15] transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleCreateShareLink}
+                        disabled={shareLoading}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                        style={{
+                          background: "linear-gradient(135deg, #C9A96E, #B8944F)",
+                          color: "#0A0B10",
+                        }}
+                      >
+                        {shareLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                        {shareToken ? "Update & Copy Link" : "Create & Copy Link"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            </>
           )}
         </section>
       </div>
@@ -1040,6 +1218,7 @@ function QuoteItemRow({
   justifyLoading,
   onWhyThisPiece,
   onUpdateJustification,
+  clientFeedback,
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
@@ -1051,7 +1230,11 @@ function QuoteItemRow({
   const dims = dimStr(item);
 
   return (
-    <div className="px-5 py-3.5 hover:bg-white/[0.015] transition-colors group border-b border-white/[0.03] last:border-b-0">
+    <div className={`px-5 py-3.5 hover:bg-white/[0.015] transition-colors group border-b border-white/[0.03] last:border-b-0 ${
+      clientFeedback?.status === "approved" ? "border-l-2 border-l-emerald-500/40" :
+      clientFeedback?.status === "change" ? "border-l-2 border-l-amber-500/40" :
+      clientFeedback?.status === "rejected" ? "border-l-2 border-l-red-500/40" : ""
+    }`}>
       <div className="flex gap-4 sm:flex-row flex-col">
         {/* Thumbnail — clicks through to vendor product page */}
         <a
@@ -1107,6 +1290,33 @@ function QuoteItemRow({
           <div className="text-[11px] text-gold/60 truncate">{item.manufacturer_name}</div>
           {item.sku && <div className="text-[10px] text-white/20 mt-0.5">SKU: {item.sku}</div>}
           {dims && <div className="text-[10px] text-white/20">{dims}</div>}
+
+          {/* Client Feedback Badge */}
+          {clientFeedback && (
+            <div className={`mt-1.5 flex items-start gap-2 px-2.5 py-1.5 rounded-lg text-[11px] ${
+              clientFeedback.status === "approved" ? "bg-emerald-500/[0.08] border border-emerald-500/15" :
+              clientFeedback.status === "change" ? "bg-amber-500/[0.08] border border-amber-500/15" :
+              "bg-red-500/[0.08] border border-red-500/15"
+            }`}>
+              {clientFeedback.status === "approved" && <Check className="h-3.5 w-3.5 text-emerald-400/70 flex-shrink-0 mt-0.5" />}
+              {clientFeedback.status === "change" && <Edit3 className="h-3.5 w-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />}
+              {clientFeedback.status === "rejected" && <XCircle className="h-3.5 w-3.5 text-red-400/70 flex-shrink-0 mt-0.5" />}
+              <div>
+                <span className={
+                  clientFeedback.status === "approved" ? "text-emerald-400/70 font-medium" :
+                  clientFeedback.status === "change" ? "text-amber-400/70 font-medium" :
+                  "text-red-400/70 font-medium"
+                }>
+                  {clientFeedback.status === "approved" ? "Client Approved" :
+                   clientFeedback.status === "change" ? "Change Requested" :
+                   "Client Rejected"}
+                </span>
+                {clientFeedback.comment && (
+                  <p className="text-white/35 mt-0.5 leading-relaxed">"{clientFeedback.comment}"</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Quantity & Price */}
           <div className="flex items-center gap-4 mt-2 flex-wrap">

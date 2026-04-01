@@ -71,8 +71,8 @@ import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGu
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
-import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendSubscriptionConfirmationEmail, sendPaymentFailedEmail } from "./lib/email.mjs";
-import { initUserDataStore, getSavedProducts, saveProduct, unsaveProduct, getUserQuote, saveUserQuote, addSearchHistory, getSearchHistory } from "./lib/user-data-store.mjs";
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, sendSubscriptionConfirmationEmail, sendPaymentFailedEmail, sendClientFeedbackEmail, sendRevisionEmail } from "./lib/email.mjs";
+import { initUserDataStore, getSavedProducts, saveProduct, unsaveProduct, getUserQuote, saveUserQuote, addSearchHistory, getSearchHistory, createSharedQuote, getSharedQuote, submitQuoteFeedback, getDesignerSharedQuotes, updateSharedQuote } from "./lib/user-data-store.mjs";
 
 const host = process.env.SEARCH_SERVICE_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || process.env.SEARCH_SERVICE_PORT || 4310);
@@ -1118,6 +1118,102 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       const body = await collectBody(req);
       const result = await saveUserQuote(auth.user.id, body.quote);
       return json(res, 200, result);
+    }
+
+    // ── SHARED QUOTE / CLIENT PORTAL ENDPOINTS ──
+
+    if (req.method === "POST" && req.url === "/quotes/share") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const body = await collectBody(req);
+      const result = await createSharedQuote(auth.user.id, {
+        quoteData: body.quoteData,
+        designerName: body.designerName || auth.user.full_name,
+        designerCompany: body.designerCompany || "",
+        designerEmail: auth.user.email,
+        projectName: body.projectName || "Untitled Project",
+        clientNote: body.clientNote || "",
+        clientEmail: body.clientEmail || "",
+      });
+      if (result.ok && body.clientEmail) {
+        sendRevisionEmail(body.clientEmail, body.projectName || "Untitled Project", body.designerName || auth.user.full_name).catch(err => console.error("[email] revision send failed:", err));
+      }
+      return json(res, result.ok ? 200 : 500, result);
+    }
+
+    if (req.method === "GET" && req.url.startsWith("/quotes/shared/")) {
+      const shareToken = req.url.split("/quotes/shared/")[1]?.split("?")[0];
+      if (!shareToken) return json(res, 400, { error: "Token required" });
+      const shared = await getSharedQuote(shareToken);
+      if (!shared) return json(res, 404, { error: "Quote not found" });
+      // Strip wholesale prices from response
+      const safeQuote = { ...shared.quote_data };
+      if (safeQuote.rooms) {
+        safeQuote.rooms = safeQuote.rooms.map(r => ({
+          ...r,
+          items: r.items.map(({ wholesale_price, ...rest }) => rest),
+        }));
+      }
+      return json(res, 200, {
+        ok: true,
+        quote: safeQuote,
+        designerName: shared.designer_name,
+        designerCompany: shared.designer_company,
+        projectName: shared.project_name,
+        clientNote: shared.client_note,
+        version: shared.version,
+        feedback: shared.feedback || {},
+        feedbackSubmittedAt: shared.feedback_submitted_at,
+        createdAt: shared.created_at,
+      });
+    }
+
+    if (req.method === "POST" && req.url.startsWith("/quotes/shared/") && req.url.endsWith("/feedback")) {
+      const shareToken = req.url.split("/quotes/shared/")[1]?.split("/feedback")[0];
+      if (!shareToken) return json(res, 400, { error: "Token required" });
+      const shared = await getSharedQuote(shareToken);
+      if (!shared) return json(res, 404, { error: "Quote not found" });
+      const body = await collectBody(req);
+      const result = await submitQuoteFeedback(shareToken, body.feedback);
+      // Email the designer
+      if (result.ok && shared.designer_email) {
+        const fb = body.feedback || {};
+        const items = Object.values(fb);
+        const summary = {
+          approved: items.filter(i => i.status === "approved").length,
+          changes: items.filter(i => i.status === "change").length,
+          rejected: items.filter(i => i.status === "rejected").length,
+          total: items.length,
+        };
+        sendClientFeedbackEmail(shared.designer_email, shared.designer_name, shared.project_name || "Untitled", summary).catch(err => console.error("[email] feedback email failed:", err));
+      }
+      return json(res, result.ok ? 200 : 500, result);
+    }
+
+    if (req.method === "GET" && req.url === "/quotes/shared") {
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const quotes = await getDesignerSharedQuotes(auth.user.id);
+      return json(res, 200, { ok: true, quotes });
+    }
+
+    if (req.method === "PUT" && req.url.startsWith("/quotes/shared/")) {
+      const shareToken = req.url.split("/quotes/shared/")[1]?.split("?")[0];
+      if (!shareToken) return json(res, 400, { error: "Token required" });
+      const token = extractToken(req.headers.authorization);
+      const auth = await getUserFromToken(token);
+      if (!auth.ok) return json(res, 401, { error: "Authentication required" });
+      const body = await collectBody(req);
+      const result = await updateSharedQuote(shareToken, auth.user.id, {
+        quoteData: body.quoteData,
+        clientNote: body.clientNote,
+      });
+      if (result.ok && body.clientEmail) {
+        sendRevisionEmail(body.clientEmail, body.projectName || "Updated Selections", auth.user.full_name || "Your designer").catch(err => console.error("[email] revision send failed:", err));
+      }
+      return json(res, result.ok ? 200 : 500, result);
     }
 
     if (req.method === "GET" && req.url === "/user/search-history") {

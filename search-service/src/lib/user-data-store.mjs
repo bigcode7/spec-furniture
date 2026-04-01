@@ -51,6 +51,30 @@ export async function initUserDataStore() {
         )
       `);
 
+      // Shared quotes — client approval portal
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS shared_quotes (
+          id SERIAL PRIMARY KEY,
+          token VARCHAR(64) NOT NULL UNIQUE,
+          user_id UUID NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1,
+          quote_data JSONB NOT NULL DEFAULT '{}',
+          designer_name VARCHAR(255),
+          designer_company VARCHAR(255),
+          designer_email VARCHAR(255),
+          project_name VARCHAR(255),
+          client_note TEXT,
+          client_email VARCHAR(255),
+          feedback JSONB DEFAULT '{}',
+          feedback_submitted_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_shared_quotes_token ON shared_quotes(token)`).catch(() => {});
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_shared_quotes_user ON shared_quotes(user_id)`).catch(() => {});
+
       // Add indexes
       await pool.query(`CREATE INDEX IF NOT EXISTS idx_saved_products_user ON saved_products(user_id)`).catch(() => {});
       await pool.query(`CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history(user_id)`).catch(() => {});
@@ -146,6 +170,90 @@ export async function saveUserQuote(userId, quoteData) {
     return { ok: true };
   } catch (err) {
     console.error("[user-data-store] saveUserQuote error:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+// ── Shared Quotes (Client Approval Portal) ──
+
+import crypto from "node:crypto";
+
+export async function createSharedQuote(userId, { quoteData, designerName, designerCompany, designerEmail, projectName, clientNote, clientEmail }) {
+  if (!usePostgres || !userId) return { ok: false, error: "No database" };
+  try {
+    const token = crypto.randomBytes(24).toString("hex");
+    const res = await pool.query(
+      `INSERT INTO shared_quotes (token, user_id, version, quote_data, designer_name, designer_company, designer_email, project_name, client_note, client_email)
+       VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING token, version, created_at`,
+      [token, userId, JSON.stringify(quoteData), designerName || null, designerCompany || null, designerEmail || null, projectName || null, clientNote || null, clientEmail || null]
+    );
+    return { ok: true, token: res.rows[0].token, version: res.rows[0].version };
+  } catch (err) {
+    console.error("[user-data-store] createSharedQuote error:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function getSharedQuote(token) {
+  if (!usePostgres || !token) return null;
+  try {
+    const res = await pool.query(
+      `SELECT * FROM shared_quotes WHERE token = $1`,
+      [token]
+    );
+    if (res.rows.length === 0) return null;
+    return res.rows[0];
+  } catch (err) {
+    console.error("[user-data-store] getSharedQuote error:", err.message);
+    return null;
+  }
+}
+
+export async function submitQuoteFeedback(token, feedback) {
+  if (!usePostgres || !token) return { ok: false };
+  try {
+    await pool.query(
+      `UPDATE shared_quotes SET feedback = $1, feedback_submitted_at = NOW(), updated_at = NOW() WHERE token = $2`,
+      [JSON.stringify(feedback), token]
+    );
+    return { ok: true };
+  } catch (err) {
+    console.error("[user-data-store] submitQuoteFeedback error:", err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function getDesignerSharedQuotes(userId) {
+  if (!usePostgres || !userId) return [];
+  try {
+    const res = await pool.query(
+      `SELECT token, version, project_name, client_email, feedback, feedback_submitted_at, created_at, updated_at
+       FROM shared_quotes WHERE user_id = $1 ORDER BY updated_at DESC`,
+      [userId]
+    );
+    return res.rows;
+  } catch (err) {
+    console.error("[user-data-store] getDesignerSharedQuotes error:", err.message);
+    return [];
+  }
+}
+
+export async function updateSharedQuote(token, userId, { quoteData, clientNote }) {
+  if (!usePostgres || !token || !userId) return { ok: false };
+  try {
+    const res = await pool.query(
+      `UPDATE shared_quotes
+       SET quote_data = $1, version = version + 1, client_note = COALESCE($2, client_note),
+           feedback = '{}', feedback_submitted_at = NULL, updated_at = NOW()
+       WHERE token = $3 AND user_id = $4
+       RETURNING version`,
+      [JSON.stringify(quoteData), clientNote || null, token, userId]
+    );
+    if (res.rows.length === 0) return { ok: false, error: "Not found" };
+    return { ok: true, version: res.rows[0].version };
+  } catch (err) {
+    console.error("[user-data-store] updateSharedQuote error:", err.message);
     return { ok: false, error: err.message };
   }
 }

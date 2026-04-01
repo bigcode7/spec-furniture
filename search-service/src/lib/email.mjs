@@ -198,6 +198,58 @@ export async function sendSubscriptionConfirmationEmail(to, name, plan) {
   });
 }
 
+export async function sendClientFeedbackEmail(to, designerName, projectName, summary) {
+  const { approved, changes, rejected, total } = summary;
+  return sendEmail({
+    to,
+    subject: `Client feedback on "${projectName}" — ${approved} approved, ${changes} need changes, ${rejected} rejected`,
+    html: wrap(`
+      <h2 style="color:rgba(255,255,255,0.9);font-size:20px;margin:0 0 16px;">Client Feedback Received</h2>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 16px;">
+        Your client submitted feedback on <strong style="color:rgba(201,169,110,0.8);">${projectName}</strong>.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;width:100%;">
+        <tr>
+          <td style="padding:12px 16px;background:rgba(110,180,140,0.1);border-radius:8px 8px 0 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="color:rgba(110,180,140,0.8);font-size:14px;font-weight:600;">${approved} Approved</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:rgba(220,160,50,0.1);border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="color:rgba(220,160,50,0.8);font-size:14px;font-weight:600;">${changes} Changes Requested</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:rgba(220,80,80,0.1);border-radius:0 0 8px 8px;">
+            <span style="color:rgba(220,80,80,0.8);font-size:14px;font-weight:600;">${rejected} Rejected</span>
+          </td>
+        </tr>
+      </table>
+      ${button("View Feedback in SPEKD", getAppUrl() + "/Quotes")}
+    `),
+  });
+}
+
+export async function sendRevisionEmail(to, projectName, designerName) {
+  return sendEmail({
+    to,
+    subject: `${designerName || "Your designer"} updated "${projectName}" — review the changes`,
+    html: wrap(`
+      <h2 style="color:rgba(255,255,255,0.9);font-size:20px;margin:0 0 16px;">Revised Selections Ready</h2>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 8px;">
+        ${designerName || "Your designer"} has updated the selections for <strong style="color:rgba(201,169,110,0.8);">${projectName}</strong> based on your feedback.
+      </p>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6;margin:0 0 8px;">
+        Please review the updated pieces and let them know what you think.
+      </p>
+      ${button("Review Updated Selections", getAppUrl() + "/Quotes")}
+      <p style="color:rgba(255,255,255,0.25);font-size:12px;margin:16px 0 0;">
+        You'll receive a direct link from your designer with the updated selections.
+      </p>
+    `),
+  });
+}
+
 export async function sendPaymentFailedEmail(to, name) {
   const displayName = name || "there";
   return sendEmail({

@@ -17,6 +17,7 @@ const Search = lazy(() => import('./pages/Search'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const Account = lazy(() => import('./pages/Account'));
 const About = lazy(() => import('./pages/About'));
+const ClientPortal = lazy(() => import('./pages/ClientPortal'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 
@@ -30,6 +31,7 @@ export const PAGES = {
     "About": About,
     "Privacy": Privacy,
     "Terms": Terms,
+    "Approve": ClientPortal,
     /* Legacy redirects */
     "Dashboard": ToSearch,
     "Cart": ToSearch,
