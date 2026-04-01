@@ -451,6 +451,54 @@ async function runHeavyInit() {
 
   console.log(`[startup] Products in memory at heavy init start: ${getProductCount()}`);
 
+  // ── Fix Universal products showing finish swatches instead of product photos ──
+  {
+    const universalImageFixes = {
+      "universal_modern-bedside-table": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/643355_vm_002.jpg", images: ["643355_vm_002.jpg","643_BR_RS78_320_355_C.jpg","643_BR_RS5_260_C.jpg"] },
+      "universal_escape-coastal-living-home-collection-bedside-table-with-stone-top": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833351.jpg", images: ["833351.jpg","833351_angle_VM.jpg","833_RS36_320B.jpg"] },
+      "universal_modern-brinkley-credenza": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/643779_vm_002.jpg", images: ["643779_vm_002.jpg","643779_vm_003.jpg","643_DR_RS14_779_C.jpg"] },
+      "universal_devon-queen-bed": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/326220B_vm_003.jpg", images: ["326220B_vm_003.jpg","326_BR_RS01_210_350_150_u_vm_001.jpg"] },
+      "universal_drawer-dresser": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/326040_vm_003.jpg", images: ["326040_vm_003.jpg","326040_angle_VM.jpg","326_BR_RS02_04M_040_u_vm_001.jpg"] },
+      "universal_escape-coastal-living-home-collection-escape-entertainment-console": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833966.jpg", images: ["833966.jpg","833966_GLASS.jpg","833966_OPEN.jpg"] },
+      "universal_modern-huston-dresser": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/643040_vm_002.jpg", images: ["643040_vm_002.jpg","643_BR_RS36_040_05M_C.jpg","643_BR_RS37_040_detail_C.jpg"] },
+      "universal_modern-huston-nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/643350_vm_002.jpg", images: ["643350_vm_002.jpg","643_BR_RS34_320_350_C.jpg","643_BR_RS35_350_C.jpg"] },
+      "universal_libations-locker": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/414690_vm_003.jpg", images: ["414690_vm_003.jpg","414690_vm_005.jpg","414_DR_RS15_690.jpg"] },
+      "universal_escape-coastal-living-home-collection-nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833350.jpg", images: ["833350.jpg","833350_angle_VM.jpg","833_RS57_350.jpg"] },
+      "universal_playlist-nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/507350.jpg", images: ["507350.jpg","507_BR_RS12_220SB_350_crop_001.jpg","507_BR_RS06_350.jpg"] },
+      "universal_modern-robards-rectangular-dining-table": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/645755_VM_V2.jpg", images: ["645755_VM_V2.jpg","645755_overHead_S_C.jpg","645_DR_RS53_755_735_736_C.jpg"] },
+      "universal_escape-coastal-living-home-collection-surfside-king-bed": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833260B.jpg", images: ["833260B.jpg","833260_VVM.jpg","833_RS58_260B.jpg"] },
+      "universal_playlist-two-drawer-nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/507351.jpg", images: ["507351.jpg","507_BR_RS13_220SB_351_crop_001.jpg","507_BR_RS08_351_crop_001.jpg"] },
+      "universal_devon-king-bed": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/326220B_vm_003.jpg", images: ["326220B_vm_003.jpg","326_BR_RS01_210_350_150_u_vm_001.jpg"] },
+      "universal_escape-coastal-living-home-collection-surfside-queen-bed": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833260B.jpg", images: ["833260B.jpg","833260_VVM.jpg","833_RS58_260B.jpg"] },
+      "universal_escape-coastal-living-home-collection-the-escape-drawer-dresser": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/833040.jpg", images: ["833040.jpg","833040_angle_VM.jpg","833_RS59_040_05M.jpg"] },
+      "universal_modern-wilshire-nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/643_BR_RS34_320_350_C.jpg", images: ["643_BR_RS34_320_350_C.jpg"] },
+      "universal_nightstand": { hero: "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/326350_vm_003.jpg", images: ["326350_vm_003.jpg","326350_angle_VM.jpg","326_BR_RS01_210_350_150_u_vm_001.jpg"] },
+    };
+    const base = "https://www.viewmastercms.com/assets/VMAPP_Universal_Furniture/image/ic/orig/";
+    let fixCount = 0;
+    for (const [id, fix] of Object.entries(universalImageFixes)) {
+      const p = getProduct(id);
+      if (!p) continue;
+      // Only fix if current image is a swatch (short SKU_Finish pattern)
+      const filename = (p.image_url || "").split("/").pop();
+      if (/^\d{3}_[A-Za-z]+\.jpg$/.test(filename) || !p.image_verified) {
+        updateProductDirect(id, {
+          image_url: fix.hero,
+          images: fix.images.map((f, i) => ({ url: base + f, type: i === 0 ? "hero" : "lifestyle", priority: i + 1 })),
+          image_verified: true,
+        });
+        fixCount++;
+      }
+    }
+    // Remove discontinued Summer Hill products (404 on Universal's site)
+    const discontinued = ["universal_summer-hill-drawer-chest","universal_summer-hill-nightstand","universal_summer-hill-nine-drawer-dresser","universal_summer-hill-king-panel-bed","universal_summer-hill-storage-king-bed","universal_summer-hill-woven-accent-king-bed"];
+    let removedCount = 0;
+    for (const id of discontinued) {
+      if (getProduct(id)) { deleteProduct(id); removedCount++; }
+    }
+    if (fixCount || removedCount) console.log(`[startup] Universal image fix: ${fixCount} swatch→product, ${removedCount} discontinued removed`);
+  }
+
   // Skip catalog mutations on Railway — protect the volume file
   if (!isCatalogFromURL()) {
     // Fix miscategorized products
