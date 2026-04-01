@@ -2501,14 +2501,7 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
     // ADMIN ENDPOINTS — tyler@spekd.ai only, returns 404 for others
     // ══════════════════════════════════════════════════════════════════
 
-    const ADMIN_SECRET = process.env.ADMIN_SECRET;
-
     async function isAdmin(req) {
-      // Allow URL-based secret key for browser access (must be set via env var)
-      if (ADMIN_SECRET) {
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        if (url.searchParams.get("key") === ADMIN_SECRET) return true;
-      }
       const authHeader = req.headers["authorization"];
       const token = extractToken(authHeader);
       if (!token) return false;
