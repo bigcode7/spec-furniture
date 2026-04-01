@@ -675,6 +675,40 @@ const resultCache = new Map();
 let cacheHits = 0;
 let cacheMisses = 0;
 
+// ── In-memory image proxy cache (LRU, capped at ~150MB) ──
+const IMAGE_CACHE_MAX_BYTES = 150 * 1024 * 1024; // 150MB
+const IMAGE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const imageCache = new Map(); // url → { buffer, contentType, expires, size }
+let imageCacheBytes = 0;
+
+function getImageFromCache(url) {
+  const entry = imageCache.get(url);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    imageCacheBytes -= entry.size;
+    imageCache.delete(url);
+    return null;
+  }
+  // Move to end (LRU refresh)
+  imageCache.delete(url);
+  imageCache.set(url, entry);
+  return entry;
+}
+
+function setImageCache(url, buffer, contentType) {
+  const size = buffer.length;
+  // Don't cache images > 5MB individually
+  if (size > 5 * 1024 * 1024) return;
+  // Evict oldest entries until we have room
+  while (imageCacheBytes + size > IMAGE_CACHE_MAX_BYTES && imageCache.size > 0) {
+    const [oldestKey, oldestVal] = imageCache.entries().next().value;
+    imageCacheBytes -= oldestVal.size;
+    imageCache.delete(oldestKey);
+  }
+  imageCache.set(url, { buffer, contentType, expires: Date.now() + IMAGE_CACHE_TTL, size });
+  imageCacheBytes += size;
+}
+
 function getFromCache(key) {
   const entry = resultCache.get(key);
   if (!entry) return null;
@@ -1906,6 +1940,19 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         } catch {}
       }
 
+      // Check in-memory cache
+      const cachedImg = getImageFromCache(product.image_url);
+      if (cachedImg) {
+        res.writeHead(200, {
+          "content-type": cachedImg.contentType,
+          "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
+          "access-control-allow-origin": _currentCorsOrigin,
+          "x-cache": "HIT",
+        });
+        res.end(cachedImg.buffer);
+        return;
+      }
+
       // Proxy fetch the image server-side to bypass hotlink protection
       try {
         const imgResp = await fetch(product.image_url, {
@@ -1916,10 +1963,12 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         if (imgResp.ok) {
           const contentType = imgResp.headers.get("content-type") || "image/jpeg";
           const buffer = Buffer.from(await imgResp.arrayBuffer());
+          setImageCache(product.image_url, buffer, contentType);
           res.writeHead(200, {
             "content-type": contentType,
-            "cache-control": "public, max-age=86400",
+            "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
             "access-control-allow-origin": _currentCorsOrigin,
+            "x-cache": "MISS",
           });
           res.end(buffer);
           return;
@@ -1931,11 +1980,25 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       return;
     }
 
-    // Image proxy for PDF generation (avoids CORS issues with vendor CDNs)
+    // Image proxy — serves cached images or fetches from vendor CDN
     if (req.method === "GET" && req.url.startsWith("/proxy-image?")) {
       const params = new URL(req.url, "http://localhost").searchParams;
       const imageUrl = params.get("url");
       if (!imageUrl) return json(res, 400, { error: "url param required" });
+
+      // Check in-memory cache first
+      const cached = getImageFromCache(imageUrl);
+      if (cached) {
+        res.writeHead(200, {
+          "content-type": cached.contentType,
+          "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
+          "access-control-allow-origin": _currentCorsOrigin,
+          "x-cache": "HIT",
+        });
+        res.end(cached.buffer);
+        return;
+      }
+
       try {
         const imgResp = await fetch(imageUrl, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; SpekdBot/1.0)" },
@@ -1944,10 +2007,15 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
         if (!imgResp.ok) return json(res, 502, { error: "upstream failed" });
         const contentType = imgResp.headers.get("content-type") || "image/jpeg";
         const buffer = Buffer.from(await imgResp.arrayBuffer());
+
+        // Cache the image in memory
+        setImageCache(imageUrl, buffer, contentType);
+
         res.writeHead(200, {
           "content-type": contentType,
-          "cache-control": "public, max-age=86400",
+          "cache-control": "public, max-age=604800, stale-while-revalidate=86400",
           "access-control-allow-origin": _currentCorsOrigin,
+          "x-cache": "MISS",
         });
         res.end(buffer);
       } catch {

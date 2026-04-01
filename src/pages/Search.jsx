@@ -2110,8 +2110,8 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="product-card group cursor-pointer"
-      style={{ contain: "layout style paint" }}
+      className="product-card group cursor-pointer flex flex-col"
+      style={{ contain: "layout style paint", height: "100%" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
         if (e.target.closest("[data-action]")) return;
@@ -2170,11 +2170,11 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
       <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
 
       {/* Card meta */}
-      <div className="card-meta p-3 sm:p-4 pb-2 sm:pb-3">
+      <div className="card-meta p-3 sm:p-4 pb-2 sm:pb-3 flex-1 flex flex-col">
         <div className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-1 sm:mb-1.5 truncate">{item.manufacturer_name}</div>
-        <h3 className="product-name text-white/90 line-clamp-2 mb-1.5 sm:mb-2 text-[13px] sm:text-sm">{item.product_name}</h3>
-        {materialStyle && <div className="text-[12px] text-white/25 truncate mb-1.5 sm:mb-2">{materialStyle}</div>}
-        <div className="flex items-center gap-2 flex-wrap">
+        <h3 className="product-name text-white/90 line-clamp-2 mb-1.5 sm:mb-2 text-[13px] sm:text-sm min-h-[2.6em]">{item.product_name}</h3>
+        <div className="text-[12px] text-white/25 truncate mb-1.5 sm:mb-2 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
+        <div className="flex items-center gap-2 flex-wrap mt-auto">
           {priceStr && (
             <span className={`text-[13px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
               {priceInfo.isTrade && <span className="text-[9px] uppercase tracking-wider mr-1 opacity-70">{priceInfo.label}</span>}
