@@ -3564,18 +3564,6 @@ Be specific with search_queries — generate 2-3 targeted queries per item.`,
       if (!rl.allowed) return json(res, 429, { error: "Too many requests. Please wait a moment.", retry_after: rl.retryAfter });
       const body = await collectBody(req);
 
-      // Pro-only feature
-      const identity = await getRequestIdentity(req, body);
-      const access = checkAccess(identity.userId, identity.fingerprint, identity.ip, identity.localStorageId, "visual_search");
-      if (!access.allowed) {
-        return json(res, 402, {
-          error: "subscription_required",
-          status: access.status,
-          reason: "Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.",
-          feature: "visual_search",
-        });
-      }
-
       if (!body.image) return json(res, 400, { error: "image (base64) required" });
 
       // Use the new visual search pipeline — same fieldMatch + vector ranking as text search

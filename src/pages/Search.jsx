@@ -1021,11 +1021,7 @@ export default function SearchPage() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
-      if (err.status === 402) {
-        setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.");
-      } else {
-        setError("Visual search failed. Please try again.");
-      }
+      setError("Visual search failed. Please try again.");
     } finally {
       setVisualSearchLoading(false);
       setLoading(false);
@@ -1247,9 +1243,9 @@ export default function SearchPage() {
                           <X className="h-4 w-4" />
                         </button>
                       )}
-                      <button type="button" onClick={() => isPro ? fileInputRef.current?.click() : setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.")}
-                        className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isPro ? "text-white/20 hover:bg-white/5 hover:text-gold/50" : "text-white/10 cursor-not-allowed"}`}
-                        title={isPro ? "Visual search — upload a photo to find matching furniture" : "Upgrade to Pro for visual search"}>
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
+                        title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
                       <button type="submit" disabled={!inputValue.trim()} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed" style={{ background: "#c4a882", color: "#1c1917", boxShadow: "0 2px 12px rgba(196,168,130,0.3)" }}>
@@ -1753,9 +1749,9 @@ export default function SearchPage() {
                       className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                      <button type="button" onClick={() => isPro ? fileInputRef.current?.click() : setError("Visual search is a Pro feature. Upgrade to unlock photo-based furniture search.")}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isPro ? "text-white/20 hover:bg-white/5 hover:text-gold/50" : "text-white/10 cursor-not-allowed"}`}
-                        title={isPro ? "Visual search" : "Upgrade to Pro for visual search"}>
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
+                        title="Visual search">
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gold/60" /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
