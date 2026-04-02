@@ -460,6 +460,13 @@ export default function Landing() {
     sessionStorage.removeItem("spekd_demo_v2");
   }, []);
 
+  const goToSearch = (url) => {
+    try {
+      sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() }));
+    } catch {}
+    navigate(url);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (query.trim()) {
@@ -960,9 +967,3 @@ export default function Landing() {
     </div>
   );
 }
-  const goToSearch = (url) => {
-    try {
-      sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() }));
-    } catch {}
-    navigate(url);
-  };
