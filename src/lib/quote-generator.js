@@ -114,6 +114,48 @@ function drawInfoPill(doc, text, x, y, w, fill = COLORS.cardSoft, textColor = CO
   doc.text(text.toUpperCase(), x + w / 2, y + 6.4, { align: "center" });
 }
 
+function getTextLines(doc, text, maxWidth, maxLines = Infinity) {
+  return doc.splitTextToSize(String(text || ""), maxWidth).slice(0, maxLines);
+}
+
+function getBlockHeight(lines, lineHeight, padding = 0) {
+  return lines.length * lineHeight + padding;
+}
+
+function drawPanelHeading(doc, label, x, y, color = COLORS.gold) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...color);
+  doc.text(label.toUpperCase(), x, y);
+}
+
+function drawSpecGrid(doc, rows, x, y, w) {
+  const gap = 6;
+  const colW = (w - gap) / 2;
+  const rowH = 18;
+  rows.forEach((row, index) => {
+    const col = index % 2;
+    const line = Math.floor(index / 2);
+    const boxX = x + col * (colW + gap);
+    const boxY = y + line * (rowH + 4);
+    drawLuxePanel(doc, boxX, boxY, colW, rowH, COLORS.cardSoft, 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.mediumGray);
+    doc.text(row.label.toUpperCase(), boxX + 6, boxY + 6.5);
+    doc.setFont("times", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.white);
+    const valueLines = getTextLines(doc, row.value, colW - 12, 2);
+    doc.text(valueLines, boxX + 6, boxY + 12);
+  });
+  return Math.ceil(rows.length / 2) * 22 - 4;
+}
+
+function estimateSummaryRoomHeight(roomItems, includeHeader) {
+  return (includeHeader ? 18 : 0) + roomItems.length * 8 + 18;
+}
+
 /**
  * Generate a professional PDF quote from the current quote builder state.
  */
@@ -206,8 +248,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   drawInfoPill(doc, pdfMode === "trade" ? "trade presentation" : "client presentation", pageWidth - margin - 42, subtitleY - 6, 42, COLORS.cardSoft, COLORS.gold);
 
   // Summary stats card
-  const statsY = 166;
-  drawLuxePanel(doc, margin, statsY, contentWidth, 34, COLORS.cardBg, 7);
+  const statsY = 160;
+  drawLuxePanel(doc, margin, statsY, contentWidth, 42, COLORS.cardBg, 7);
 
   const vendorCount = new Set(items.map((i) => i.manufacturer_name)).size;
   const totalQuantity = items.reduce((sum, i) => sum + (i._quantity || 1), 0);
@@ -230,12 +272,18 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
     doc.setFont("times", "bold");
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
-    doc.text(stat.value, x, statsY + 14);
+    doc.text(stat.value, x, statsY + 16);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.mediumGray);
-    doc.text(stat.label, x, statsY + 24);
+    doc.text(stat.label, x, statsY + 28);
   });
+
+  drawLuxePanel(doc, margin, statsY + 48, contentWidth, 18, COLORS.cardSoft, 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.cream);
+  doc.text("Curated for client-ready review, room by room, with clear sourcing and pricing context.", margin + 8, statsY + 59);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
@@ -334,8 +382,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
       // Product image — aspect-ratio-preserving
       const imgCached = imageCache.get(item.id);
-      const imgY = 26;
-      const imgBoxHeight = 85;
+      const imgY = 28;
+      const imgBoxHeight = 78;
 
       if (imgCached) {
         try {
@@ -352,46 +400,49 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       }
 
       // Vendor name
-      let y = imgY + imgBoxHeight + 10;
+      let y = imgY + imgBoxHeight + 12;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(...COLORS.gold);
       doc.text(item.manufacturer_name || "Unknown Vendor", margin, y);
 
       // Product name
-      y += 10;
+      y += 9;
       doc.setFont("times", "bold");
-      doc.setFontSize(21);
+      doc.setFontSize(20);
       doc.setTextColor(...COLORS.white);
-      const nameLines = doc.splitTextToSize(item.product_name || "Untitled Product", contentWidth);
+      const nameLines = getTextLines(doc, item.product_name || "Untitled Product", contentWidth, 3);
       doc.text(nameLines, margin, y);
       if (item.portal_url) {
         doc.link(margin, y - 7, contentWidth, nameLines.length * 8, { url: item.portal_url });
       }
 
-      y += nameLines.length * 7 + 6;
+      y += nameLines.length * 7 + 4;
 
       // AI Narrative — short one-liner
       const narrative = narrativeMap.get(item.id);
       if (narrative?.narrative) {
-        drawLuxePanel(doc, margin, y - 2, contentWidth, 18, COLORS.cardSoft, 5);
+        const narrativeLines = getTextLines(doc, narrative.narrative, contentWidth - 16, 3);
+        const narrativeHeight = getBlockHeight(narrativeLines, 4.4, 10);
+        drawLuxePanel(doc, margin, y - 2, contentWidth, narrativeHeight, COLORS.cardSoft, 5);
+        drawPanelHeading(doc, "Editorial note", margin + 8, y + 4, COLORS.gold);
         doc.setFont("times", "italic");
         doc.setFontSize(10);
         doc.setTextColor(...COLORS.cream);
-        const narrativeLines = doc.splitTextToSize(narrative.narrative, contentWidth - 12).slice(0, 2);
-        doc.text(narrativeLines, margin, y);
-        y += 20;
+        doc.text(narrativeLines, margin + 8, y + 10);
+        y += narrativeHeight + 4;
       }
 
       // Description fallback (only if no AI narrative)
       const desc = item.snippet || item.description;
       if (desc && !narrative?.narrative) {
+        drawPanelHeading(doc, "Description", margin, y + 2, COLORS.mediumGray);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.lightGray);
-        const descLines = doc.splitTextToSize(desc, contentWidth).slice(0, 2);
-        doc.text(descLines, margin, y);
-        y += descLines.length * 4.5 + 6;
+        const descLines = getTextLines(doc, desc, contentWidth, 3);
+        doc.text(descLines, margin, y + 8);
+        y += descLines.length * 4.5 + 10;
       } else {
         y += 2;
       }
@@ -399,52 +450,45 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       // Design justification (Why This Piece)
       const itemJustification = justifications[item.id];
       if (itemJustification) {
-        drawLuxePanel(doc, margin, y - 1, contentWidth, 20, COLORS.cardSoft, 5);
+        const justLines = getTextLines(doc, itemJustification, contentWidth - 16, 5);
+        const justHeight = getBlockHeight(justLines, 4.2, 12);
+        drawLuxePanel(doc, margin, y - 1, contentWidth, justHeight, COLORS.cardSoft, 5);
+        drawPanelHeading(doc, "Why this piece", margin + 8, y + 5, COLORS.gold);
         doc.setFont("times", "italic");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.gold);
-        const justLines = doc.splitTextToSize(itemJustification, contentWidth - 16).slice(0, 4);
-        doc.text(justLines, margin + 8, y);
-        y += 22;
+        doc.text(justLines, margin + 8, y + 11);
+        y += justHeight + 5;
       }
 
       // Specs card
       const specRows = buildSpecRows(item);
-      const specHeight = specRows.length * 10 + 12;
-      drawLuxePanel(doc, margin, y, contentWidth, specHeight, COLORS.cardBg, 5);
-
-      specRows.forEach((row, i) => {
-        const rowY = y + 10 + i * 10;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...COLORS.mediumGray);
-        doc.text(row.label, margin + 8, rowY);
-        doc.setFont("times", "bold");
-        doc.setTextColor(...COLORS.white);
-        doc.text(String(row.value), margin + 55, rowY);
-      });
-
-      y += specHeight + 5;
+      drawPanelHeading(doc, "Specifications", margin, y + 2, COLORS.mediumGray);
+      y += 6;
+      y += drawSpecGrid(doc, specRows, margin, y, contentWidth) + 6;
 
       // Designer notes for this item
       if (item.notes) {
+        const noteLines = getTextLines(doc, item.notes, contentWidth - 16, 4);
+        const noteHeight = getBlockHeight(noteLines, 4, 12);
+        drawLuxePanel(doc, margin, y, contentWidth, noteHeight, COLORS.cardSoft, 5);
+        drawPanelHeading(doc, "Designer note", margin + 8, y + 6, COLORS.gold);
         doc.setFont("helvetica", "italic");
         doc.setFontSize(8);
-        doc.setTextColor(...COLORS.gold);
-        const noteLines = doc.splitTextToSize(`Note: ${item.notes}`, contentWidth - 16);
-        doc.text(noteLines, margin + 8, y + 3);
-        y += noteLines.length * 4 + 6;
+        doc.setTextColor(...COLORS.cream);
+        doc.text(noteLines, margin + 8, y + 12);
+        y += noteHeight + 6;
       }
 
       // Vendor link button
       if (item.portal_url && y < pageHeight - 35) {
-        drawLuxePanel(doc, margin, y, contentWidth, 12, COLORS.cardSoft, 4);
+        drawLuxePanel(doc, margin, y, contentWidth, 14, COLORS.cardSoft, 4);
         doc.setFont("times", "bold");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.gold);
         const linkText = `View on ${item.manufacturer_name || "vendor"} website`;
-        doc.text(linkText, margin + contentWidth / 2, y + 8, { align: "center" });
-        doc.link(margin, y, contentWidth, 12, { url: item.portal_url });
+        doc.text(linkText, margin + contentWidth / 2, y + 9, { align: "center" });
+        doc.link(margin, y, contentWidth, 14, { url: item.portal_url });
       }
 
       drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
@@ -471,12 +515,26 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
   // Room-by-room summary
   for (const [roomName, roomItems] of rooms) {
+    const requiredHeight = estimateSummaryRoomHeight(roomItems, rooms.size > 1);
+    if (sy + requiredHeight > pageHeight - 52) {
+      drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
+      doc.addPage();
+      doc.setFillColor(...COLORS.black);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawGradientBand(doc, 0, 0, pageWidth, 38, COLORS.gold, 6);
+      drawSectionEyebrow(doc, "Quote summary", margin, 22);
+      drawRule(doc, margin, 27, 24, COLORS.gold, 0.8);
+      pageNum++;
+      sy = 38;
+    }
+
     if (rooms.size > 1) {
+      drawLuxePanel(doc, margin, sy - 2, contentWidth, 12, COLORS.cardSoft, 4);
       doc.setFont("times", "bold");
       doc.setFontSize(12);
       doc.setTextColor(...COLORS.white);
-      doc.text(roomName, margin, sy);
-      sy += 7;
+      doc.text(roomName, margin + 8, sy + 6);
+      sy += 16;
     }
 
     for (const item of roomItems) {
@@ -487,7 +545,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...COLORS.lightGray);
-      const nameTrunc = (item.product_name || "").slice(0, 50) + ((item.product_name || "").length > 50 ? "..." : "");
+      const nameTrunc = (item.product_name || "").slice(0, 58) + ((item.product_name || "").length > 58 ? "..." : "");
       doc.text(`${nameTrunc}`, margin + (rooms.size > 1 ? 6 : 0), sy);
 
       doc.setFont("helvetica", "normal");
@@ -500,16 +558,11 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.setTextColor(...COLORS.white);
       doc.text(lineTotal > 0 ? `$${lineTotal.toLocaleString()}` : "TBD", pageWidth - margin, sy, { align: "right" });
 
-      sy += 6;
+      doc.setDrawColor(...COLORS.taupe);
+      doc.setLineWidth(0.15);
+      doc.line(margin + (rooms.size > 1 ? 6 : 0), sy + 2, pageWidth - margin, sy + 2);
 
-      if (sy > pageHeight - 60) {
-        drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
-        doc.addPage();
-        doc.setFillColor(...COLORS.black);
-        doc.rect(0, 0, pageWidth, pageHeight, "F");
-        pageNum++;
-        sy = 30;
-      }
+      sy += 8;
     }
 
     // Room subtotal
@@ -524,7 +577,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.setTextColor(...COLORS.white);
       doc.text(`${roomName} Subtotal`, margin + 6, sy);
       doc.text(roomTotal > 0 ? `$${roomTotal.toLocaleString()}` : "TBD", pageWidth - margin, sy, { align: "right" });
-      sy += 10;
+      sy += 12;
     }
   }
 

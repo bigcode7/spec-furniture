@@ -14,6 +14,7 @@ import { Navigate } from 'react-router-dom';
 import __Layout from './Layout.jsx';
 
 const Search = lazy(() => import('./pages/Search'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Quotes = lazy(() => import('./pages/Quotes'));
 const Account = lazy(() => import('./pages/Account'));
 const About = lazy(() => import('./pages/About'));
@@ -33,7 +34,7 @@ export const PAGES = {
     "Terms": Terms,
     "Approve": ClientPortal,
     /* Legacy redirects */
-    "Dashboard": ToSearch,
+    "Dashboard": Dashboard,
     "Cart": ToSearch,
     "Compare": ToSearch,
     "Projects": ToSearch,
