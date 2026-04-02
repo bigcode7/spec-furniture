@@ -31,6 +31,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
 const DB_PATH = path.join(DATA_DIR, "catalog.db.json");
+const PATCHES_PATH = path.join(DATA_DIR, "product-patches.json");
 
 // ── In-Memory State ──────────────────────────────────────────
 
@@ -1019,6 +1020,10 @@ export async function initCatalogDB() {
     await seedFromSampleCatalog();
   }
 
+  // Apply admin product patches (image fixes, etc.) that survive redeploys
+  loadPatches();
+  applyPatches();
+
   // Reset cache
   searchCache = new Map();
   cacheHits = 0;
@@ -1656,6 +1661,48 @@ export function getAllProducts() {
  * Update specific fields on a product without full re-normalization.
  * Used by background jobs (image verifier, enrichment, dedup).
  */
+// ── Product Patches — survive redeploys when catalog is loaded from URL ──
+
+let productPatches = {}; // id → { field: value, ... }
+
+function loadPatches() {
+  try {
+    if (fs.existsSync(PATCHES_PATH)) {
+      productPatches = JSON.parse(fs.readFileSync(PATCHES_PATH, "utf8"));
+      console.log(`[catalog-db] Loaded ${Object.keys(productPatches).length} product patches`);
+    }
+  } catch (e) {
+    console.error(`[catalog-db] Failed to load patches: ${e.message}`);
+  }
+}
+
+function savePatches() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(PATCHES_PATH, JSON.stringify(productPatches, null, 2));
+  } catch (e) {
+    console.error(`[catalog-db] Failed to save patches: ${e.message}`);
+  }
+}
+
+/**
+ * Apply all saved patches to in-memory products.
+ * Called after catalog load to restore admin fixes.
+ */
+function applyPatches() {
+  let applied = 0;
+  for (const [id, fields] of Object.entries(productPatches)) {
+    const product = products.get(id);
+    if (product) {
+      Object.assign(product, fields);
+      applied++;
+    }
+  }
+  if (applied > 0) {
+    console.log(`[catalog-db] Applied ${applied} product patches`);
+  }
+}
+
 export function updateProductDirect(id, fields) {
   const product = products.get(id);
   if (!product) return false;
@@ -1675,6 +1722,13 @@ export function updateProductDirect(id, fields) {
     product.search_text = buildSearchText(product);
     indexProduct(id, product);
     product.search_text = ""; // Free memory
+  }
+
+  // Save patch so it survives redeploys (even when catalogDownloadedFromURL blocks disk writes)
+  if (catalogDownloadedFromURL) {
+    if (!productPatches[id]) productPatches[id] = {};
+    Object.assign(productPatches[id], fields);
+    savePatches();
   }
 
   scheduleSave();

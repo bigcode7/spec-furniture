@@ -675,15 +675,19 @@ function getTeamMembers(teamId) {
  * Count how many early-bird subscribers exist.
  * Returns { total, remaining, available }
  */
+// Pre-existing early-bird claims (users who signed up before the tracking system)
+const EARLY_BIRD_PRE_CLAIMED = parseInt(process.env.EARLY_BIRD_PRE_CLAIMED || "37", 10);
+
 function getEarlyBirdStatus() {
   const earlyBirdCount = Object.values(subscriptions).filter(
     s => s.plan === "early_bird" && (s.status === "active" || s.status === "trialing" || s.status === "cancelled")
   ).length;
+  const totalClaimed = earlyBirdCount + EARLY_BIRD_PRE_CLAIMED;
   return {
-    total: earlyBirdCount,
+    total: totalClaimed,
     cap: EARLY_BIRD_CAP,
-    remaining: Math.max(0, EARLY_BIRD_CAP - earlyBirdCount),
-    available: earlyBirdCount < EARLY_BIRD_CAP,
+    remaining: Math.max(0, EARLY_BIRD_CAP - totalClaimed),
+    available: totalClaimed < EARLY_BIRD_CAP,
   };
 }
 
