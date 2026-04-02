@@ -465,20 +465,19 @@ export default function Landing() {
       })
       .catch(() => {});
 
-    // 3. Demo search — real coastal products for landing page demo widget
-    const cachedDemo = sessionStorage.getItem("spekd_demo_products");
+    // 3. Demo search — real recliner products for landing page demo widget
+    const DEMO_CACHE_KEY = "spekd_demo_v2"; // bump version to bust stale coastal cache
+    const cachedDemo = sessionStorage.getItem(DEMO_CACHE_KEY);
+    sessionStorage.removeItem("spekd_demo_products"); // clear old key
     if (cachedDemo) {
       try {
         const parsed = JSON.parse(cachedDemo);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setDemoProducts(parsed);
         } else {
-          // Clear bad cache and re-fetch
-          sessionStorage.removeItem("spekd_demo_products");
           fetchDemoProducts();
         }
       } catch {
-        sessionStorage.removeItem("spekd_demo_products");
         fetchDemoProducts();
       }
     } else {
@@ -491,7 +490,7 @@ export default function Landing() {
         const top3 = products.slice(0, 3);
         if (top3.length > 0) {
           setDemoProducts(top3);
-          sessionStorage.setItem("spekd_demo_products", JSON.stringify(top3));
+          sessionStorage.setItem(DEMO_CACHE_KEY, JSON.stringify(top3));
         }
       }).catch(() => {});
     }
