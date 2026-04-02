@@ -50,9 +50,9 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }) {
 function Atmosphere() {
   return (
     <div className="landing-atmosphere">
-      <div className="glow glow-violet" />
-      <div className="glow glow-rose" />
-      <div className="glow glow-teal" />
+      <div className="glow" style={{ background: "radial-gradient(circle, rgba(198,161,106,0.2) 0%, transparent 70%)" }} />
+      <div className="glow" style={{ background: "radial-gradient(circle, rgba(132,98,63,0.18) 0%, transparent 70%)" }} />
+      <div className="glow" style={{ background: "radial-gradient(circle, rgba(92,71,56,0.18) 0%, transparent 70%)" }} />
     </div>
   );
 }
@@ -502,8 +502,8 @@ export default function Landing() {
           style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.05) 0%, transparent 65%)", filter: "blur(80px)" }}
         />
 
-        <div className="relative z-10 page-wrap w-full py-20 md:py-32">
-          <div className="mx-auto max-w-4xl text-center">
+        <div className="relative z-10 page-wrap-wide w-full py-20 md:py-28">
+          <div className="mx-auto max-w-6xl atelier-panel px-6 py-10 text-center sm:px-10 md:px-14 md:py-14">
             {/* Kicker */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -519,7 +519,7 @@ export default function Landing() {
                 style={{ transformOrigin: "right" }}
               />
               <span className="font-brand text-[11px] font-semibold uppercase tracking-[0.22em] text-gold gold-glow-text">
-                Trade Furniture Sourcing
+                Interior Design Sourcing
               </span>
               <motion.div
                 initial={{ scaleX: 0 }}
@@ -548,7 +548,7 @@ export default function Landing() {
 
             {/* Headline */}
             <motion.h1
-              className="font-display text-[28px] sm:text-5xl md:text-7xl lg:text-[80px] leading-[1.05] text-white"
+              className="font-display text-[34px] sm:text-6xl md:text-7xl lg:text-[88px] leading-[0.98] text-white"
               initial={{ clipPath: "inset(0 100% 0 0)" }}
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
@@ -556,14 +556,14 @@ export default function Landing() {
               Source
               <br />
               <span className="text-gold">
-                smarter
+                beautifully
               </span>{" "}
-              instantly
+              with intent
             </motion.h1>
 
             {/* Subtitle — live numbers */}
             <motion.p
-              className="mt-6 sm:mt-8 mx-auto max-w-2xl text-[15px] sm:text-lg md:text-xl leading-relaxed"
+              className="mt-6 sm:mt-8 mx-auto max-w-3xl text-[15px] sm:text-lg md:text-[22px] leading-relaxed"
               style={{ color: "var(--warm-gray)" }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -574,13 +574,13 @@ export default function Landing() {
                 : "Search thousands of products across trade vendors."
               }
               <br />
-              Sourcing that understands the way you design.
+              A sourcing platform that looks and feels aligned with the designers using it.
             </motion.p>
 
             {/* Search Bar */}
             <motion.form
               onSubmit={handleSearch}
-              className="mt-14 mx-auto max-w-2xl relative"
+              className="mt-14 mx-auto max-w-4xl relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 1.2, ease: EASE }}
@@ -588,7 +588,7 @@ export default function Landing() {
               <div className="absolute -inset-10 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
               />
-              <div className="search-bar-glow relative flex h-14 sm:h-16 md:h-[68px] items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-4 sm:px-6 group">
+              <div className="luxe-input search-bar-glow relative flex h-16 sm:h-[72px] md:h-[78px] items-center rounded-[30px] px-4 sm:px-6 group">
                 <div className="relative mr-3 sm:mr-4 hidden sm:block">
                   <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
                 </div>
@@ -597,7 +597,7 @@ export default function Landing() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
-                  className="flex-1 bg-transparent text-white/80 text-base placeholder:text-white/25 focus:outline-none"
+                  className="flex-1 bg-transparent text-white/84 text-base sm:text-[15px] placeholder:text-white/25 focus:outline-none"
                 />
                 <button type="button" onClick={handleVoiceSearch}
                   className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
@@ -609,8 +609,8 @@ export default function Landing() {
                   title="Search by image">
                   <Camera className="h-4 w-4" />
                 </button>
-                <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 sm:h-11 px-5 sm:px-7 rounded-full text-sm shrink-0">
-                  Search
+                <button type="submit" className="btn-gold ml-1 sm:ml-2 h-11 sm:h-12 px-6 sm:px-8 rounded-full text-sm shrink-0">
+                  Explore
                 </button>
               </div>
             </motion.form>
@@ -671,7 +671,7 @@ export default function Landing() {
 
       {/* ═══════════ HOW IT WORKS ═══════════ */}
       <section className="relative py-24 md:py-32">
-        <div className="page-wrap">
+        <div className="page-wrap-wide">
           <Reveal className="text-center mb-6">
             <span className="label-caps text-gold/50 tracking-[0.25em]">How It Works</span>
           </Reveal>
@@ -703,7 +703,7 @@ export default function Landing() {
               },
             ].map((item, i) => (
               <Reveal key={item.step} delay={i * 0.1}>
-                <div className="relative text-center p-8 rounded-2xl border border-white/[0.04] hover:border-gold/15 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(196,168,130,0.08)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(196,168,130,0.015) 100%)" }}>
+                <div className="relative text-center p-8 editorial-card hover:-translate-y-1 transition-all duration-300">
                   <div className="text-[64px] font-display font-bold text-white/[0.03] absolute top-4 right-6 leading-none">{item.step}</div>
                   <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gold/10 border border-gold/15 flex items-center justify-center">
                     <item.icon className="w-6 h-6 text-gold/70" />
@@ -717,7 +717,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <div className="page-wrap">
+      <div className="page-wrap-wide">
         <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
       </div>
 
@@ -730,7 +730,7 @@ export default function Landing() {
         icon={Brain}
       />
 
-      <div className="page-wrap">
+      <div className="page-wrap-wide">
         <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
       </div>
 
@@ -743,7 +743,7 @@ export default function Landing() {
         reverse
       />
 
-      <div className="page-wrap">
+      <div className="page-wrap-wide">
         <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
       </div>
 
@@ -760,7 +760,7 @@ export default function Landing() {
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(200,169,126,0.04) 0%, transparent 60%)", filter: "blur(80px)" }}
         />
-        <div className="page-wrap">
+        <div className="page-wrap-wide">
           <Reveal className="text-center mb-6">
             <span className="label-caps text-gold/50 tracking-[0.25em]">By the Numbers</span>
           </Reveal>
@@ -777,7 +777,7 @@ export default function Landing() {
               { value: 100, suffix: "%", label: "Source Verified", sublabel: "Every link goes to the vendor" },
             ].map((stat, i) => (
               <Reveal key={stat.label} delay={i * 0.1} className="text-center">
-                <div className="stat-glow py-8">
+                <div className="atelier-panel-soft py-8 px-6">
                   <div className="font-display text-5xl md:text-6xl lg:text-7xl text-white mb-3"
                     style={{ textShadow: "0 0 40px rgba(200,169,126,0.2)" }}
                   >
@@ -794,7 +794,7 @@ export default function Landing() {
 
       {/* ═══════════ BUILT FOR THE TRADE ═══════════ */}
       <section className="relative py-24 md:py-32">
-        <div className="page-wrap">
+        <div className="page-wrap-wide">
           <Reveal className="text-center mb-6">
             <span className="label-caps text-gold/50 tracking-[0.25em]">Why SPEKD</span>
           </Reveal>
@@ -811,7 +811,7 @@ export default function Landing() {
               "Quote builder with polished PDF export — organize specs and pricing, ready for client review.",
             ].map((text, i) => (
               <Reveal key={i} delay={i * 0.1}>
-                <div className="p-6 rounded-2xl border border-white/[0.04] h-full flex flex-col" style={{ background: "rgba(255,255,255,0.015)" }}>
+                <div className="p-6 editorial-card h-full flex flex-col">
                   <p className="text-sm text-white/50 leading-relaxed flex-1">{text}</p>
                 </div>
               </Reveal>
@@ -820,7 +820,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <div className="page-wrap">
+      <div className="page-wrap-wide">
         <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
       </div>
 
@@ -829,7 +829,7 @@ export default function Landing() {
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(200,169,126,0.06) 0%, transparent 55%)", filter: "blur(100px)" }}
         />
-        <div className="page-wrap text-center relative z-10">
+        <div className="page-wrap-wide text-center relative z-10">
           <Reveal>
             <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent mb-20 max-w-xl mx-auto" />
           </Reveal>
@@ -848,18 +848,18 @@ export default function Landing() {
           </Reveal>
 
           <Reveal delay={0.2} className="mt-12">
-            <form onSubmit={handleSearch} className="mx-auto max-w-xl relative">
+            <form onSubmit={handleSearch} className="mx-auto max-w-3xl relative">
               <div className="absolute -inset-8 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
               />
-              <div className="search-bar-glow relative flex h-14 items-center rounded-full bg-white/[0.04] backdrop-blur-xl px-5 group">
+              <div className="luxe-input search-bar-glow relative flex h-16 items-center rounded-[28px] px-5 group">
                 <Search className="w-4 h-4 text-white/20 mr-3 shrink-0" />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={isListening ? "Listening..." : "What are you looking for?"}
-                  className="flex-1 bg-transparent text-white/80 text-sm placeholder:text-white/25 focus:outline-none"
+                  className="flex-1 bg-transparent text-white/82 text-sm placeholder:text-white/25 focus:outline-none"
                 />
                 <button type="button" onClick={handleVoiceSearch}
                   className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
@@ -871,8 +871,8 @@ export default function Landing() {
                   title="Search by image">
                   <Camera className="h-3.5 w-3.5" />
                 </button>
-                <button type="submit" className="btn-gold ml-1 h-9 px-6 rounded-full text-xs shrink-0">
-                  Search
+                <button type="submit" className="btn-gold ml-1 h-10 px-7 rounded-full text-xs shrink-0">
+                  Explore
                 </button>
               </div>
             </form>

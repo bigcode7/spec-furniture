@@ -1315,21 +1315,64 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-[55vh] sm:min-h-[65vh] px-3 sm:px-4">
-          <div className="w-full max-w-xl">
-            {/* Copy */}
-            <div className="text-center mb-6 sm:mb-8">
-              <p className="text-[13px] tracking-[0.25em] uppercase text-white/30 font-light">
-                Describe it. We&apos;ll find it.
-              </p>
+        <div className="relative z-10 page-wrap-wide pt-12 pb-16 md:pt-20 md:pb-24">
+          <div className="mx-auto max-w-6xl atelier-panel px-5 py-8 sm:px-8 md:px-12 md:py-12">
+            <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+              <div>
+                <div className="workspace-kicker mb-6">Interior search atelier</div>
+                <h1 className="workspace-heading max-w-4xl">
+                  The sourcing workspace that feels designed for designers.
+                </h1>
+                <p className="workspace-subhead mt-5">
+                  Search by mood, silhouette, material, room intent, or visual reference. The workflow stays intact. The interface now leads with calm hierarchy, richer materials, and a stronger sense of curation.
+                </p>
+                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                  <div className="atelier-panel-soft px-4 py-4">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
+                    <div className="mt-2 text-2xl font-semibold text-white/92">40k+</div>
+                    <div className="mt-1 text-xs text-white/40">Trade-ready products</div>
+                  </div>
+                  <div className="atelier-panel-soft px-4 py-4">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Workflow</div>
+                    <div className="mt-2 text-2xl font-semibold text-white/92">Search</div>
+                    <div className="mt-1 text-xs text-white/40">Compare, save, spec, quote</div>
+                  </div>
+                  <div className="atelier-panel-soft px-4 py-4">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Mode</div>
+                    <div className="mt-2 text-2xl font-semibold text-white/92">Studio</div>
+                    <div className="mt-1 text-xs text-white/40">Quietly premium, highly usable</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="editorial-card p-5 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold/75">Search brief</span>
+                  <span className="text-[11px] text-white/28">Natural language</span>
+                </div>
+                <div className="mt-4 rounded-[22px] border border-white/[0.06] bg-white/[0.02] px-5 py-5">
+                  <p className="text-sm leading-7 text-white/70">
+                    “I need a sculptural, warm modern accent chair with a higher back and a refined silhouette for a luxury residential living room.”
+                  </p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["Warm modern", "Higher back", "Luxury residential", "Accent chair"].map((tag) => (
+                    <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/46">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Search bar */}
-            <form ref={searchFormRef} onSubmit={handleSubmit}>
+            <form ref={searchFormRef} onSubmit={handleSubmit} className="mx-auto mt-8 max-w-5xl">
               <div className="relative">
-                <div className="search-bar-glow relative rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 focus-within:border-gold/20 focus-within:bg-white/[0.05]" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
+                <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
                   <div className="flex items-start">
-                    <img src="/logo.png" alt="" className="h-5 w-5 object-contain opacity-30 ml-4 sm:ml-5 mt-[18px] sm:mt-[20px] shrink-0" />
+                    <div className="ml-4 mt-[18px] flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:ml-5 sm:mt-[18px]">
+                      <img src="/logo.png" alt="" className="h-5 w-5 object-contain opacity-70" />
+                    </div>
                     <textarea
                       ref={inputRef}
                       value={inputValue}
@@ -1346,29 +1389,29 @@ export default function SearchPage() {
                       }}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={isListening ? 'Listening...' : 'Search 40,000+ trade products...'}
-                      className="min-h-[56px] sm:min-h-[60px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-5 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none resize-none overflow-hidden"
+                      placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
+                      className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] text-white/84 placeholder:text-white/26 outline-none resize-none overflow-hidden"
                       rows={1}
                     />
-                    <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0">
+                    <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0 sm:pr-4">
                       {inputValue && (
                         <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); if (inputRef.current) { inputRef.current.style.height = "auto"; } }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl text-white/20 hover:bg-white/5 hover:text-white/40 transition-colors">
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-white/24 hover:bg-white/5 hover:text-white/56 transition-colors">
                           <X className="h-4 w-4" />
                         </button>
                       )}
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
-                        className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/70"}`}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className={isListening ? "h-4 w-4" : "h-4 w-4"} />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
+                        className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/70"
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-10 items-center justify-center gap-1.5 rounded-xl px-5 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c4a882, #d4ba94)", color: "#1c1917", boxShadow: "0 2px 16px rgba(196,168,130,0.4)" }}>
-                        Search <ArrowRight className="h-3.5 w-3.5" />
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917", boxShadow: "0 18px 40px rgba(198,161,106,0.28)" }}>
+                        Find Pieces <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1379,14 +1422,14 @@ export default function SearchPage() {
             </form>
 
             {/* Search suggestions */}
-            <div className="mt-5 sm:mt-6 flex flex-wrap justify-center gap-1.5 sm:gap-2">
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
               {EXAMPLE_SEARCHES.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => runSearch(suggestion)}
                   onMouseEnter={() => { clearTimeout(window._prefetchTimer); window._prefetchTimer = setTimeout(() => prefetchSearch(suggestion), 300); }}
                   onMouseLeave={() => clearTimeout(window._prefetchTimer)}
-                  className="px-3.5 py-2 sm:py-1.5 sm:px-4 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/35 hover:text-gold/70 hover:border-gold/25 hover:bg-gold/[0.04] transition-all duration-200"
+                  className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[12px] text-white/38 hover:text-gold/80 hover:border-gold/25 hover:bg-gold/[0.05] transition-all duration-200"
                 >
                   {suggestion}
                 </button>
@@ -1411,22 +1454,27 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-14 z-30 border-b border-white/[0.04] bg-[#1c1917] sm:bg-[#1c1917]/95 sm:backdrop-blur-xl">
-            <div className="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
+          <div className="sticky top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
+            <div className="page-wrap-wide py-3 flex items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
-                <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold/70 hidden sm:inline">Results</span>
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
+                  <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
+                </div>
+                <div className="hidden sm:block">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Results Studio</div>
+                  <div className="text-[12px] text-white/32">Refine, review, and quote</div>
+                </div>
               </div>
               {/* Inline compact search input */}
-              <form onSubmit={handleSubmit} className="flex-1 max-w-md">
-                <div className="relative rounded-lg border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20">
+              <form onSubmit={handleSubmit} className="flex-1 max-w-xl">
+                <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <Search className="ml-2.5 h-3 w-3 text-white/20 shrink-0" />
+                    <Search className="ml-4 h-3.5 w-3.5 text-white/20 shrink-0" />
                     <input
                       value={inputValue}
                       onChange={(e) => handleInputChange(e.target.value)}
                       placeholder="Search..."
-                      className="h-10 sm:h-8 w-full bg-transparent pl-2 pr-8 text-base sm:text-[12px] text-white/70 placeholder:text-white/20 outline-none"
+                      className="h-12 w-full bg-transparent pl-3 pr-10 text-[14px] text-white/74 placeholder:text-white/22 outline-none"
                       disabled={loading}
                     />
                     {inputValue.trim() && (
@@ -1438,7 +1486,7 @@ export default function SearchPage() {
                 </div>
               </form>
               <button onClick={handleNewSearch}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0">
+                className="flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] text-white/30 hover:bg-white/5 hover:text-gold/60 transition-colors shrink-0">
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
@@ -1456,7 +1504,7 @@ export default function SearchPage() {
             )}
           </div>
 
-          <div className="max-w-7xl mx-auto px-4">
+          <div className="page-wrap-wide">
             {/* Compact thread */}
             {messages.length > 1 && (
               <div className="pt-4 pb-2">
@@ -1778,7 +1826,7 @@ export default function SearchPage() {
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {/* Search query header */}
                 {displayQuery && (
-                  <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="mb-5 flex items-center justify-between gap-3 rounded-[26px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
                     <div className="flex items-center gap-3 min-w-0">
                       {visualSearchThumb && (
                         <div className="relative shrink-0">
@@ -1789,11 +1837,11 @@ export default function SearchPage() {
                           </button>
                         </div>
                       )}
-                      <h2 className="text-base sm:text-lg font-medium text-white/80 truncate">
+                      <h2 className="text-base sm:text-xl font-medium text-white/88 truncate">
                         {visualSearchThumb ? "Visual Search Results" : displayQuery}
                       </h2>
                     </div>
-                    <span className="text-xs text-white/30 ml-3 whitespace-nowrap shrink-0">
+                    <span className="text-xs text-white/34 ml-3 whitespace-nowrap shrink-0">
                       {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
                     </span>
                   </div>
@@ -1859,34 +1907,34 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#1c1917] sm:bg-[#1c1917]/95 sm:backdrop-blur-xl"
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#120f0d]/94 backdrop-blur-xl"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
-            <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="page-wrap-wide py-3">
               <form onSubmit={handleSubmit} className="relative">
-                <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all focus-within:border-gold/20 focus-within:shadow-[0_0_20px_rgba(200,169,126,0.08)]">
+                <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <div className="ml-3.5 shrink-0"><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
+                    <div className="ml-3.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]"><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
-                      className="h-12 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/80 placeholder:text-white/20 outline-none"
+                      className="h-14 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/82 placeholder:text-white/20 outline-none"
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/50"}`}
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/70"}`}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors text-white/20 hover:bg-white/5 hover:text-gold/50"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/70"
                         title="Visual search">
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gold/60" /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
-                        className="flex h-8 items-center justify-center gap-1 rounded-lg px-3 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                        style={{ background: "#c4a882", color: "#1c1917" }}>
+                        className="flex h-9 items-center justify-center gap-1 rounded-xl px-3.5 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917" }}>
                         <Send className="h-3 w-3" />
                       </button>
                     </div>
@@ -2030,11 +2078,11 @@ export default function SearchPage() {
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
 function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
   return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[57px] z-20 -mx-4 px-4 pt-3 pb-3 border-b border-white/[0.04] mb-4 bg-[#1c1917]/95 backdrop-blur-sm">
-      <div className="flex items-center justify-between">
+    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[145px] z-20 mb-5">
+      <div className="atelier-panel-soft flex items-center justify-between gap-3 px-4 py-3">
         <p className="text-[12px]" style={{ color: "#a89880" }}>
-          <span style={{ color: "#c4a882" }}>"{query}"</span>
-          {" "}&mdash; {totalCount} result{totalCount !== 1 ? "s" : ""}
+          <span style={{ color: "#c6a16a" }}>"{query}"</span>
+          {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
         </p>
 
         <div className="flex items-center gap-3">
@@ -2119,7 +2167,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
       }}
     >
       {/* Image — landscape for studio shots, tall for lifestyle */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
+      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
@@ -2128,8 +2176,8 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
               </div>
             )}
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
-              className={`h-full w-full transition-all duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"} group-hover:scale-105`}
-              style={{ objectFit: "contain", padding: "12px" }}
+              className={`h-full w-full transition-all duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"} group-hover:scale-[1.03]`}
+              style={{ objectFit: "contain", padding: "18px" }}
               eager={index < 5}
               fetchPriority={index < 5 ? "high" : undefined}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
@@ -2167,25 +2215,33 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
       </div>
 
       {/* Gold hairline */}
-      <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+      <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
 
       {/* Card meta */}
-      <div className="card-meta p-3 sm:p-4 pb-2 sm:pb-3 flex-1 flex flex-col">
-        <div className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-1 sm:mb-1.5 truncate">{item.manufacturer_name}</div>
-        <h3 className="product-name text-white/90 line-clamp-2 mb-1.5 sm:mb-2 text-[13px] sm:text-sm min-h-[2.6em]">{item.product_name}</h3>
-        <div className="text-[12px] text-white/25 truncate mb-1.5 sm:mb-2 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
-        <div className="flex items-center gap-2 flex-wrap mt-auto">
+      <div className="card-meta p-4 sm:p-5 pb-3 sm:pb-4 flex-1 flex flex-col">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold/72 truncate">{item.manufacturer_name}</div>
+          {item.result_quality && (
+            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white/34">
+              {item.result_quality === "verified" ? "Verified" : item.result_quality === "ai-discovered" ? "AI" : "Catalog"}
+            </span>
+          )}
+        </div>
+        <h3 className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</h3>
+        <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
+        <div className="mt-auto flex items-end justify-between gap-2">
           {priceStr && (
-            <span className={`text-[13px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
+            <span className={`text-[14px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/90"}`}>
               {priceInfo.isTrade && <span className="text-[9px] uppercase tracking-wider mr-1 opacity-70">{priceInfo.label}</span>}
               {priceStr}
             </span>
           )}
+          <span className="text-[10px] uppercase tracking-[0.18em] text-white/22">Preview</span>
         </div>
       </div>
 
       {/* Hover actions */}
-      <div className="card-link px-3 pb-2.5 flex items-center justify-end">
+      <div className="card-link px-4 pb-4 flex items-center justify-end">
         {item.portal_url && (
           <a href={item.portal_url} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} data-action
             className="text-[10px] font-medium text-gold/60 flex items-center gap-1 hover:text-gold/80 transition-colors">
@@ -2288,11 +2344,11 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         animate={IS_MOBILE ? { opacity: 1 } : { opacity: 1, x: 0 }}
         exit={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
         transition={IS_MOBILE ? { duration: 0.15 } : { type: "spring", damping: 30, stiffness: 400 }}
-        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[550px] overflow-y-auto md:rounded-l-2xl border-l border-white/[0.08] bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl shadow-2xl overscroll-contain"
+        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[600px] overflow-y-auto md:rounded-l-[32px] border-l border-white/[0.08] bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl shadow-2xl overscroll-contain"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
-        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#0e0e14] md:bg-[#0e0e14]/95 md:backdrop-blur-xl"
+        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl"
           style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
           <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors">
             <X className="h-5 w-5 sm:h-4 sm:w-4" />
@@ -2303,7 +2359,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           <div className="flex flex-col gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
-              <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/[0.04]" style={{ backgroundColor: "#ffffff" }}>
+              <div className="relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04]" style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
                 {productImages.length > 0 ? (
                   <>
                     {!imgLoaded && (
@@ -2365,7 +2421,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               </div>
 
               {/* Product name */}
-              <h2 className="font-display text-2xl text-white/90 leading-tight">
+              <h2 className="font-display text-[32px] text-white/92 leading-tight">
                 {product.product_name}
               </h2>
 
@@ -2465,17 +2521,17 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/20 bg-gold/5 px-4 py-2.5 text-[11px] font-semibold text-gold/80 hover:bg-gold/10 transition-all disabled:opacity-40 w-full sm:w-auto">
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-gold/20 bg-gold/5 px-4 py-3 text-[11px] font-semibold text-gold/80 hover:bg-gold/10 transition-all disabled:opacity-40 w-full sm:w-auto">
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
                 <button onClick={(ev) => onAddToQuote(product, ev)}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10 w-full sm:w-auto">
+                  className="flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10 w-full sm:w-auto">
                   <FileText className="h-3 w-3" />
                   Add to Quote
                 </button>
                 <button onClick={() => onToggleFavorite(product)}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all w-full sm:w-auto ${
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto ${
                     isFavorited ? "border-gold/30 bg-gold/10 text-gold" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
                   }`}>
                   <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
@@ -2483,12 +2539,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 </button>
                 {product.portal_url && (
                   <a href={product.portal_url} target="_blank" rel="noopener"
-                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-4 py-2 text-[11px] font-semibold text-white/40 hover:text-white/60 hover:border-white/15 transition-all">
+                    className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] px-4 py-3 text-[11px] font-semibold text-white/40 hover:text-white/60 hover:border-white/15 transition-all">
                     <ExternalLink className="h-3 w-3" /> View at {(product.manufacturer_name || "vendor").split(" ")[0]}
                   </a>
                 )}
                 <button onClick={handleShare}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border px-4 py-2.5 text-[11px] font-semibold transition-all w-full sm:w-auto ${
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto ${
                     shareCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
                   }`}>
                   {shareCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
@@ -2614,7 +2670,7 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
           initial={{ opacity: 0, y: position === "above" ? 4 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: position === "above" ? 4 : -4 }}
-          className={`absolute z-50 w-full rounded-xl border border-white/[0.08] bg-[#2a251f] shadow-2xl overflow-hidden ${
+          className={`absolute z-50 w-full rounded-[24px] border border-white/[0.08] bg-[rgba(31,27,24,0.98)] shadow-2xl overflow-hidden ${
             position === "above" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >

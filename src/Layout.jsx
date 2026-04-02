@@ -175,14 +175,19 @@ function DropdownItem({ icon: Icon, label, disabled }) {
 
 function AppFooter() {
   return (
-    <footer className="relative mt-20 border-t border-white/[0.06]" style={{ background: "rgba(28, 25, 23, 0.6)" }}>
-      <div className="page-wrap py-10">
+    <footer className="relative mt-20 border-t border-white/[0.06]" style={{ background: "linear-gradient(180deg, rgba(18,15,13,0.72), rgba(14,12,10,0.92))" }}>
+      <div className="page-wrap-wide py-12">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Left — Logo + Copyright */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded" />
-              <span className="font-brand text-sm tracking-[0.2em] text-white/50 font-medium">SPEKD</span>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#c6a16a]/18 bg-white/[0.03]">
+                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-brand text-sm tracking-[0.24em] text-white/66 font-medium">SPEKD</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/24">Interior sourcing studio</span>
+              </div>
             </div>
             <span className="hidden md:inline text-white/10">|</span>
             <span className="text-[11px] text-white/25">
@@ -215,7 +220,7 @@ function AppFooter() {
               href="https://linkedin.com/company/spekd"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.05] bg-white/[0.02] text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
               title="LinkedIn"
             >
               <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -226,7 +231,7 @@ function AppFooter() {
               href="https://instagram.com/spekd.ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.05] bg-white/[0.02] text-white/20 hover:text-gold/60 hover:bg-white/[0.04] transition-all"
               title="Instagram"
             >
               <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -236,7 +241,7 @@ function AppFooter() {
           </div>
         </div>
 
-        <p className="text-[10px] text-white/10 text-center mt-6 max-w-xl mx-auto leading-relaxed">
+        <p className="text-[10px] text-white/10 text-center mt-8 max-w-xl mx-auto leading-relaxed">
           All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
         </p>
       </div>
@@ -293,22 +298,29 @@ export default function Layout({ children, currentPageName }) {
   if (currentPageName === "Landing") return <>{children}</>;
 
   return (
-    <div className="min-h-screen text-white flex flex-col">
+    <div className="app-shell min-h-screen text-white flex flex-col">
       <AppAtmosphere />
 
       <header className="glass-header sticky top-0 z-40">
-        <div className="page-wrap">
-          <div className="flex h-14 items-center justify-between gap-4">
+        <div className="page-wrap-wide">
+          <div className="flex h-[72px] items-center justify-between gap-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain rounded-lg" />
-              <span className="font-brand text-lg tracking-[0.2em] text-white/90 font-medium">
-                SPEKD
-              </span>
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#c6a16a]/20 bg-white/[0.03] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+                <img src="/logo.png" alt="SPEKD" className="h-7 w-7 object-contain rounded-lg" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-brand text-lg tracking-[0.28em] text-white/95 font-medium">
+                  SPEKD
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.24em] text-white/30">
+                  Interior sourcing studio
+                </span>
+              </div>
             </Link>
 
             {/* Center nav — hidden on mobile, shown on md+ */}
-            <nav className="hidden md:flex items-center gap-0.5">
+            <nav className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
               {NAV_ITEMS.map((item) => {
                 // Hide Quotes nav for guests
                 if (item.path === "Quotes" && !user) return null;
@@ -317,8 +329,8 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     key={item.path}
                     to={createPageUrl(item.path)}
-                    className={`relative inline-flex items-center gap-2 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors ${
-                      active ? "text-white" : "text-white/35 hover:text-white/60"
+                    className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                      active ? "text-white" : "text-white/35 hover:text-white/70"
                     }`}
                   >
                     {item.label}
@@ -333,10 +345,11 @@ export default function Layout({ children, currentPageName }) {
                     {active && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full"
+                        className="absolute inset-0 rounded-full"
                         style={{
-                          background: "var(--gold)",
-                          boxShadow: "0 2px 12px rgba(200,169,126,0.4)",
+                          background: "linear-gradient(180deg, rgba(198,161,106,0.22), rgba(198,161,106,0.1))",
+                          border: "1px solid rgba(198,161,106,0.24)",
+                          boxShadow: "0 10px 24px rgba(198,161,106,0.12)",
                         }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
@@ -351,7 +364,7 @@ export default function Layout({ children, currentPageName }) {
               {/* Trial countdown — shown when user has active trial */}
               {user && subStatus === "trialing" && trialDaysLeft != null && (
                 <div
-                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium"
+                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-medium"
                   style={{
                     background: "rgba(196,168,130,0.08)",
                     border: "1px solid rgba(196,168,130,0.2)",
@@ -367,7 +380,7 @@ export default function Layout({ children, currentPageName }) {
               {user && subStatus && subStatus !== "active" && subStatus !== "trialing" && subStatus !== "cancelled" && (
                 <Link
                   to={createPageUrl("Search") + "?upgrade=true"}
-                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-semibold transition-all hover:brightness-110"
+                  className="flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold transition-all hover:brightness-110"
                   style={{
                     background: "linear-gradient(135deg, rgba(196,168,130,0.2), rgba(196,168,130,0.1))",
                     border: "1px solid rgba(196,168,130,0.3)",
@@ -384,7 +397,7 @@ export default function Layout({ children, currentPageName }) {
               ) : (
                 <button
                   onClick={() => navigateToLogin("signup")}
-                  className="flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:brightness-110"
+                  className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all hover:brightness-110"
                   style={{
                     background: "linear-gradient(135deg, rgba(196,168,130,0.2), rgba(196,168,130,0.1))",
                     border: "1px solid rgba(196,168,130,0.3)",
@@ -435,11 +448,11 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[#1c1917]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <div className="flex items-center justify-around h-14">
+      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[rgba(18,15,13,0.95)] backdrop-blur-xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <div className="flex items-center justify-around h-16">
           <Link
             to={createPageUrl("Search")}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Search" ? "text-gold" : "text-white/35"}`}
+            className={`flex flex-col items-center gap-1 px-4 py-2 ${currentPageName === "Search" ? "text-gold" : "text-white/35"}`}
           >
             <Search className="h-5 w-5" />
             <span className="text-[10px] font-medium">Search</span>
@@ -447,7 +460,7 @@ export default function Layout({ children, currentPageName }) {
           {user && (
             <Link
               to={createPageUrl("Quotes")}
-              className={`relative flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Quotes" ? "text-gold" : "text-white/35"}`}
+              className={`relative flex flex-col items-center gap-1 px-4 py-2 ${currentPageName === "Quotes" ? "text-gold" : "text-white/35"}`}
             >
               <FileText className="h-5 w-5" />
               <span className="text-[10px] font-medium">Quotes</span>
@@ -459,7 +472,7 @@ export default function Layout({ children, currentPageName }) {
           <Link
             to={user ? "/Account" : "#"}
             onClick={(e) => { if (!user) { e.preventDefault(); navigateToLogin("signup"); } }}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1.5 ${currentPageName === "Account" ? "text-gold" : "text-white/35"}`}
+            className={`flex flex-col items-center gap-1 px-4 py-2 ${currentPageName === "Account" ? "text-gold" : "text-white/35"}`}
           >
             <User className="h-5 w-5" />
             <span className="text-[10px] font-medium">{user ? "Account" : "Sign Up"}</span>

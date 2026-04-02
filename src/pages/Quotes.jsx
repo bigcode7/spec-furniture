@@ -463,16 +463,40 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#1c1917] text-white">
-      <div className="max-w-7xl mx-auto px-4 py-10 pb-48 sm:pb-10">
-        {/* Page Title */}
-        <motion.h1
+    <div className="min-h-screen bg-[#120f0d] text-white">
+      <div className="page-wrap-wide py-10 pb-48 sm:pb-10">
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-lg font-semibold uppercase tracking-widest text-white/80 mb-10"
+          className="atelier-panel mb-10 px-6 py-8 sm:px-8 md:px-10"
         >
-          Quotes
-        </motion.h1>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="workspace-kicker mb-5">Quote studio</div>
+              <h1 className="workspace-heading max-w-4xl">Build polished client-facing presentations without leaving the sourcing flow.</h1>
+              <p className="workspace-subhead mt-4">
+                Organize saved pieces into rooms, adjust pricing, generate PDFs, and share approval links from a workspace that feels curated instead of purely transactional.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[440px]">
+              <div className="atelier-panel-soft px-4 py-4">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Saved</div>
+                <div className="mt-2 text-2xl font-semibold text-white/92">{favorites.length}</div>
+                <div className="mt-1 text-xs text-white/40">Products ready to spec</div>
+              </div>
+              <div className="atelier-panel-soft px-4 py-4">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Rooms</div>
+                <div className="mt-2 text-2xl font-semibold text-white/92">{quote.rooms.length}</div>
+                <div className="mt-1 text-xs text-white/40">Presentation groupings</div>
+              </div>
+              <div className="atelier-panel-soft px-4 py-4">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Quote total</div>
+                <div className="mt-2 text-2xl font-semibold text-white/92">{showPricing && grandTotal > 0 ? formatUsd(grandTotal) : "POR"}</div>
+                <div className="mt-1 text-xs text-white/40">Live estimate</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* ═══════════════════════════════════════════════════
             SECTION 1 — SAVED PRODUCTS
@@ -494,7 +518,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-2xl border border-white/[0.06] py-14 flex flex-col items-center justify-center"
+              className="editorial-card py-14 flex flex-col items-center justify-center"
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <HeartOff className="h-8 w-8 text-white/10 mb-3" />
@@ -505,7 +529,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
             >
               {favorites.map((fav) => {
                 const priceInfo = getPrice(fav);
@@ -517,11 +541,10 @@ export default function Quotes() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="group rounded-xl border border-white/[0.06] overflow-hidden transition-colors hover:border-white/[0.12]"
-                    style={{ background: "rgba(255,255,255,0.02)" }}
+                    className="group editorial-card transition-colors"
                   >
                     {/* Thumbnail */}
-                    <div className="relative aspect-square bg-white border-b border-white/[0.06] overflow-hidden">
+                    <div className="relative aspect-square border-b border-white/[0.06] overflow-hidden" style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
                       {(fav.image_url || fav.thumbnail) ? (
                         <img
                           src={quoteImageUrl(fav)}
@@ -536,11 +559,11 @@ export default function Quotes() {
                       )}
                     </div>
 
-                    <div className="px-3 pt-2.5 pb-3 space-y-1.5">
-                      <p className="text-xs font-medium text-white/80 truncate leading-tight">
+                    <div className="px-4 pt-3 pb-4 space-y-2">
+                      <p className="text-sm font-medium text-white/86 truncate leading-tight">
                         {fav.product_name || fav.name}
                       </p>
-                      <p className="text-[10px] text-gold/60 truncate">{fav.manufacturer_name}</p>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-gold/60 truncate">{fav.manufacturer_name}</p>
 
                       {/* Price */}
                       {showPricing && (
@@ -615,8 +638,7 @@ export default function Quotes() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-white/[0.06] overflow-hidden mb-4"
-            style={{ background: "rgba(255,255,255,0.015)" }}
+            className="atelier-panel overflow-hidden mb-4"
           >
             <div className="px-6 py-5 border-b border-white/[0.06]">
               <div className="flex items-center justify-between mb-4">
@@ -669,7 +691,7 @@ export default function Quotes() {
             </div>
 
             {/* Designer Info — always visible */}
-            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(196,168,130,0.02)" }}>
+            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(196,168,130,0.03)" }}>
               <div className="text-[9px] uppercase tracking-[0.2em] text-gold/40 font-semibold mb-3">
                 Your Info (appears on PDF)
               </div>
@@ -768,7 +790,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-2xl border border-white/[0.06] py-20 flex flex-col items-center justify-center"
+              className="editorial-card py-20 flex flex-col items-center justify-center"
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <Package className="h-12 w-12 text-white/10 mb-4" />
@@ -785,7 +807,7 @@ export default function Quotes() {
                   key={room.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border border-white/[0.06] overflow-hidden"
+                  className="atelier-panel overflow-hidden"
                   style={{ background: "rgba(255,255,255,0.015)" }}
                 >
                   {/* Room Header */}
@@ -942,8 +964,8 @@ export default function Quotes() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl border border-white/[0.06] px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-2xl"
-                style={{ background: "rgba(15,16,22,0.98)", backdropFilter: "blur(12px)" }}
+                className="atelier-panel px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px]"
+                style={{ backdropFilter: "blur(12px)" }}
               >
                 {/* Markup toggle */}
                 <div className="flex items-center justify-between">
@@ -1132,8 +1154,8 @@ export default function Quotes() {
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="w-full max-w-md rounded-2xl border border-white/[0.08] p-6"
-                    style={{ background: "rgb(20,20,28)" }}
+                    className="w-full max-w-md rounded-[28px] border border-white/[0.08] p-6"
+                    style={{ background: "linear-gradient(180deg, rgba(28,24,21,0.98), rgba(18,15,13,0.98))" }}
                   >
                     <h3 className="text-lg font-semibold text-white/85 mb-1">
                       {shareToken ? "Update Client Portal" : "Share with Client"}
@@ -1230,7 +1252,7 @@ function QuoteItemRow({
   const dims = dimStr(item);
 
   return (
-    <div className={`px-5 py-3.5 hover:bg-white/[0.015] transition-colors group border-b border-white/[0.03] last:border-b-0 ${
+    <div className={`px-5 py-4 hover:bg-white/[0.02] transition-colors group border-b border-white/[0.03] last:border-b-0 ${
       clientFeedback?.status === "approved" ? "border-l-2 border-l-emerald-500/40" :
       clientFeedback?.status === "change" ? "border-l-2 border-l-amber-500/40" :
       clientFeedback?.status === "rejected" ? "border-l-2 border-l-red-500/40" : ""
@@ -1242,7 +1264,8 @@ function QuoteItemRow({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => { if (!item.portal_url && !item.product_url) e.preventDefault(); }}
-          className={`flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-white/[0.06] bg-white sm:mx-0 mx-auto block ${(item.portal_url || item.product_url) ? "cursor-pointer hover:border-gold/30 transition-colors" : ""}`}
+          className={`flex-shrink-0 w-28 h-28 rounded-[20px] overflow-hidden border border-white/[0.06] sm:mx-0 mx-auto block ${(item.portal_url || item.product_url) ? "cursor-pointer hover:border-gold/30 transition-colors" : ""}`}
+          style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}
           title={item.portal_url || item.product_url ? "Open vendor product page" : ""}
         >
           {item.image_url ? (
@@ -1267,7 +1290,7 @@ function QuoteItemRow({
                 href={item.portal_url || item.product_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium text-white/80 truncate hover:text-gold transition-colors"
+                className="text-base font-medium text-white/88 truncate hover:text-gold transition-colors"
                 title="Open vendor product page — check pricing"
               >
                 {item.product_name}
@@ -1287,9 +1310,9 @@ function QuoteItemRow({
               </a>
             )}
           </div>
-          <div className="text-[11px] text-gold/60 truncate">{item.manufacturer_name}</div>
-          {item.sku && <div className="text-[10px] text-white/20 mt-0.5">SKU: {item.sku}</div>}
-          {dims && <div className="text-[10px] text-white/20">{dims}</div>}
+          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-gold/60 truncate">{item.manufacturer_name}</div>
+          {item.sku && <div className="text-[10px] text-white/22 mt-1">SKU: {item.sku}</div>}
+          {dims && <div className="text-[11px] text-white/28 mt-0.5">{dims}</div>}
 
           {/* Client Feedback Badge */}
           {clientFeedback && (
@@ -1319,18 +1342,18 @@ function QuoteItemRow({
           )}
 
           {/* Quantity & Price */}
-          <div className="flex items-center gap-4 mt-2 flex-wrap">
-            <div className="flex items-center gap-0.5 border border-white/[0.08] rounded-md">
+          <div className="flex items-center gap-4 mt-3 flex-wrap">
+            <div className="flex items-center gap-0.5 border border-white/[0.08] rounded-xl bg-white/[0.02]">
               <button
                 onClick={() => onQuantity(-1)}
-                className="px-2 py-1 text-white/25 hover:text-white/50 transition-colors"
+                className="px-2.5 py-1.5 text-white/25 hover:text-white/50 transition-colors"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="text-xs text-white/60 w-6 text-center">{item.quantity || 1}</span>
+              <span className="text-xs text-white/60 w-7 text-center">{item.quantity || 1}</span>
               <button
                 onClick={() => onQuantity(1)}
-                className="px-2 py-1 text-white/25 hover:text-white/50 transition-colors"
+                className="px-2.5 py-1.5 text-white/25 hover:text-white/50 transition-colors"
               >
                 <Plus className="h-3 w-3" />
               </button>
