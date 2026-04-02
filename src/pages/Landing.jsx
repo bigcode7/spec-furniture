@@ -556,7 +556,7 @@ export default function Landing() {
               Source
               <br />
               <span className="text-gold">
-                beautifully
+                confidently
               </span>{" "}
               with intent
             </motion.h1>
