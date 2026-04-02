@@ -962,7 +962,7 @@ export default function SearchPage() {
       clearInterval(stepTimer);
       setLoading(false);
       setLoadingStep(0);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo(0, 0);
     }
   };
 
@@ -1422,7 +1422,7 @@ export default function SearchPage() {
       className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
     >
       <AnimatedGradientBackground
-        Breathing
+        Breathing={!loading}
         gradientColors={moodTheme.gradient}
         gradientStops={[0, 25, 50, 80, 100]}
         breathingRange={6}
@@ -1651,34 +1651,26 @@ export default function SearchPage() {
                 <div className="paper-grain mb-5 rounded-[24px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
                   <div className="flex items-center gap-2.5">
                     <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
                     </div>
                     <span className="text-[11px] uppercase tracking-[0.2em] text-gold/58">Curating</span>
                   </div>
                   <div className="mt-2 text-[13px] text-white/46">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
                 </div>
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                  <span className="text-[11px] text-white/25">Assembling presentation-ready results</span>
-                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                  {Array.from({ length: IS_MOBILE ? 8 : 15 }, (_, i) => (
+                  {Array.from({ length: IS_MOBILE ? 6 : 10 }, (_, i) => (
                     <div key={i} className="product-card overflow-hidden" style={{ contain: "layout style paint" }}>
                       <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "rgba(196,168,130,0.03)" }}>
-                        <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(196,168,130,0.06) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s ease-in-out infinite" }} />
+                        <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(196,168,130,0.05)" }} />
                       </div>
                       <div className="h-px bg-gradient-to-r from-transparent via-gold/15 to-transparent" />
                       <div className="p-3 sm:p-4 space-y-2">
-                        <div className="h-2.5 w-16 rounded" style={{ backgroundColor: "rgba(196,168,130,0.08)" }} />
-                        <div className="h-3 w-full rounded" style={{ backgroundColor: "rgba(196,168,130,0.04)" }} />
-                        <div className="h-3 w-2/3 rounded" style={{ backgroundColor: "rgba(196,168,130,0.03)" }} />
-                        <div className="h-3 w-10 rounded" style={{ backgroundColor: "rgba(196,168,130,0.06)" }} />
+                        <div className="h-2.5 w-16 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.08)" }} />
+                        <div className="h-3 w-full rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.04)" }} />
+                        <div className="h-3 w-2/3 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.03)" }} />
+                        <div className="h-3 w-10 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.06)" }} />
                       </div>
                     </div>
                   ))}
@@ -1997,9 +1989,9 @@ export default function SearchPage() {
                   {visibleProducts.map((item, idx) => (
                     <motion.div
                       key={item.id || idx}
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.5) }}
+                      transition={{ duration: 0.18, delay: Math.min(idx * 0.01, 0.08) }}
                       className={viewMode === "studio" ? getStudioSpanClass(idx) : ""}
                     >
                       <ProductCard
@@ -2344,7 +2336,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
       }}
     >
       {/* Image — landscape for studio shots, tall for lifestyle */}
-      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "#ffffff" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
@@ -2550,7 +2542,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           <div className="flex flex-col gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
-              <div className={`relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04] ${presentationMode ? "paper-grain" : ""}`} style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+              <div className={`relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04] ${presentationMode ? "paper-grain" : ""}`} style={{ background: "#ffffff" }}>
                 {productImages.length > 0 ? (
                   <>
                     {!imgLoaded && (
