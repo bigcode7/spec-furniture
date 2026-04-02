@@ -1447,23 +1447,23 @@ export default function SearchPage() {
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
-        <div className="relative z-10 page-wrap-wide pt-12 pb-16 md:pt-20 md:pb-24">
-          <div className="mx-auto max-w-6xl atelier-panel px-5 py-8 sm:px-8 md:px-12 md:py-12">
-            <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+        <div className="relative z-10 page-wrap-wide pt-8 pb-12 sm:pt-12 sm:pb-16 md:pt-20 md:pb-24">
+          <div className="mx-auto max-w-6xl atelier-panel px-4 py-6 sm:px-8 sm:py-8 md:px-12 md:py-12">
+            <div className="grid gap-5 sm:gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
               <div>
-                <div className="workspace-kicker mb-6">Interior search atelier</div>
+                <div className="workspace-kicker mb-4 sm:mb-6">Interior search atelier</div>
                 <h1 className="workspace-heading max-w-4xl">
                   The sourcing workspace that feels designed for designers.
                 </h1>
-                <p className="workspace-subhead mt-5">
+                <p className="workspace-subhead mt-4 sm:mt-5">
                   Search by mood, silhouette, material, room intent, or visual reference.
                 </p>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.22em]" style={{ background: moodTheme.chip, color: moodTheme.accent, border: `1px solid ${moodTheme.glow}` }}>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: moodTheme.chip, color: moodTheme.accent, border: `1px solid ${moodTheme.glow}` }}>
                   Current mood
                   <span className="h-2 w-2 rounded-full" style={{ background: moodTheme.accent, boxShadow: `0 0 20px ${moodTheme.glow}` }} />
                   {moodTheme.name}
                 </div>
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="atelier-panel-soft px-4 py-4">
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
                     <div className="mt-2 text-2xl font-semibold text-white/92">40k+</div>
@@ -1477,7 +1477,7 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              <div className="editorial-card p-5 sm:p-6">
+              <div className="editorial-card p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-[0.22em] text-gold/75">Search brief</span>
                   <span className="text-[11px] text-white/28">Natural language</span>
@@ -1498,34 +1498,36 @@ export default function SearchPage() {
             </div>
 
             {/* Search bar */}
-            <form ref={searchFormRef} onSubmit={handleSubmit} className="mx-auto mt-8 max-w-5xl">
+            <form ref={searchFormRef} onSubmit={handleSubmit} className="mx-auto mt-6 sm:mt-8 max-w-5xl">
               <div className="relative">
                 <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
-                  <div className="flex items-start">
-                    <div className="ml-4 mt-[18px] flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:ml-5 sm:mt-[18px]">
-                      <img src="/logo.png" alt="" className="h-5 w-5 object-contain opacity-70" />
+                  <div className="flex flex-col sm:flex-row sm:items-start">
+                    <div className="flex flex-1 items-start">
+                      <div className="ml-4 mt-[18px] flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:ml-5 sm:mt-[18px]">
+                        <img src="/logo.png" alt="" className="h-5 w-5 object-contain opacity-70" />
+                      </div>
+                      <textarea
+                        ref={inputRef}
+                        value={inputValue}
+                        onChange={(e) => {
+                          handleInputChange(e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey && !inputValue.includes("\n")) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                          }
+                        }}
+                        onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
+                        onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                        placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
+                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] text-white/84 placeholder:text-white/26 outline-none resize-none overflow-hidden"
+                        rows={1}
+                      />
                     </div>
-                    <textarea
-                      ref={inputRef}
-                      value={inputValue}
-                      onChange={(e) => {
-                        handleInputChange(e.target.value);
-                        e.target.style.height = "auto";
-                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey && !inputValue.includes("\n")) {
-                          e.preventDefault();
-                          handleSubmit(e);
-                        }
-                      }}
-                      onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
-                      onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-                      placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
-                      className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] text-white/84 placeholder:text-white/26 outline-none resize-none overflow-hidden"
-                      rows={1}
-                    />
-                    <div className="flex items-center gap-1.5 pr-3 mt-4 shrink-0 sm:pr-4">
+                    <div className="flex items-center gap-1.5 px-4 pb-4 sm:pr-4 sm:pl-0 sm:pb-0 sm:mt-4 shrink-0">
                       {inputValue && (
                         <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); if (inputRef.current) { inputRef.current.style.height = "auto"; } }}
                           className="flex h-10 w-10 items-center justify-center rounded-2xl text-white/24 hover:bg-white/5 hover:text-white/56 transition-colors">
@@ -1542,7 +1544,7 @@ export default function SearchPage() {
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917", boxShadow: "0 18px 40px rgba(198,161,106,0.28)" }}>
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917", boxShadow: "0 18px 40px rgba(198,161,106,0.28)" }}>
                         Find Pieces <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1586,8 +1588,8 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-          <div className="sticky top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
-            <div className="page-wrap-wide py-3 flex items-center gap-3">
+            <div className="sticky top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
+            <div className="page-wrap-wide py-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
                   <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
@@ -1598,7 +1600,7 @@ export default function SearchPage() {
                 </div>
               </div>
               {/* Inline compact search input */}
-              <form onSubmit={handleSubmit} className="flex-1 max-w-xl">
+              <form onSubmit={handleSubmit} className="order-3 w-full sm:order-2 sm:flex-1 sm:max-w-xl">
                 <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
                     <Search className="ml-4 h-3.5 w-3.5 text-white/20 shrink-0" />
@@ -1618,7 +1620,7 @@ export default function SearchPage() {
                 </div>
               </form>
               <button onClick={handleNewSearch}
-                className="flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] text-white/30 hover:bg-white/5 hover:text-gold/60 transition-colors shrink-0">
+                className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] text-white/30 hover:bg-white/5 hover:text-gold/60 transition-colors shrink-0">
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
@@ -2051,7 +2053,7 @@ export default function SearchPage() {
 
             {/* Refinement chips */}
             {hasConversation && !loading && allResults.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex gap-2 pt-6 pb-4 overflow-x-auto sm:flex-wrap scrollbar-hide">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex gap-2 pt-4 sm:pt-6 pb-4 overflow-x-auto sm:flex-wrap scrollbar-hide">
                 {REFINEMENT_CHIPS.map((chip) => (
                   <button key={chip} onClick={() => handleChipClick(chip)}
                     className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-1.5 text-[11px] text-white/30 transition-all hover:border-gold/20 hover:text-gold/60 hover:bg-gold/5">
@@ -2237,8 +2239,8 @@ export default function SearchPage() {
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
 function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, viewMode, setViewMode, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme }) {
   return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[145px] z-20 mb-5">
-      <div className="atelier-panel-soft flex items-center justify-between gap-3 px-4 py-3">
+    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
+      <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[12px]" style={{ color: "#a89880" }}>
             <span style={{ color: moodTheme.accent }}>"{query}"</span>
@@ -2249,7 +2251,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 overflow-x-auto sm:w-auto">
           <PricingToggle />
           <button
             onClick={() => setPresentationMode(!presentationMode)}
@@ -2260,7 +2262,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             <Eye className="h-3 w-3" />
             {presentationMode ? "Presentation" : "Workspace"}
           </button>
-          <div className="control-chip hidden sm:flex items-center gap-1 p-1">
+          <div className="control-chip flex items-center gap-1 p-1">
             {VIEW_MODES.map((mode) => (
               <button
                 key={mode.key}

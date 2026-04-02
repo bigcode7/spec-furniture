@@ -489,11 +489,11 @@ export default function Quotes() {
           animate={{ opacity: 1, y: 0 }}
           className="atelier-panel paper-grain mb-10 px-6 py-8 sm:px-8 md:px-10"
         >
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="workspace-kicker mb-5">Quote studio</div>
+              <div className="workspace-kicker mb-4 sm:mb-5">Quote studio</div>
               <h1 className="workspace-heading max-w-4xl">Build polished client-facing quotes without leaving the sourcing flow.</h1>
-              <p className="workspace-subhead mt-4">
+              <p className="workspace-subhead mt-3 sm:mt-4">
                 Organize saved pieces into rooms, generate PDFs, and share approval links from a workspace that stays calm under detail.
               </p>
             </div>
@@ -511,7 +511,7 @@ export default function Quotes() {
             </div>
           </div>
           {totalItems > 0 && (
-            <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_0.65fr]">
+            <div className="mt-5 sm:mt-6 grid gap-3 lg:grid-cols-[1fr_0.65fr]">
               <div className="atelier-panel-soft paper-grain px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Quote Overview</div>
                 <p className="mt-2 text-[13px] leading-6 text-white/62">
@@ -564,7 +564,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4"
             >
               {favorites.map((fav) => {
                 const priceInfo = getPrice(fav);
@@ -675,8 +675,8 @@ export default function Quotes() {
             animate={{ opacity: 1, y: 0 }}
             className="atelier-panel overflow-hidden mb-4"
           >
-            <div className="px-6 py-5 border-b border-white/[0.06]">
-              <div className="flex items-center justify-between mb-4">
+            <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-white/[0.06]">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-[10px] text-white/20">
                   {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
@@ -710,7 +710,7 @@ export default function Quotes() {
                 />
 
                 {/* Client name */}
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <div className="flex-1">
                     <label className="text-[9px] uppercase tracking-[0.2em] text-white/25 font-semibold">Client</label>
                     <input
@@ -726,7 +726,7 @@ export default function Quotes() {
             </div>
 
             {/* Designer Info — always visible */}
-            <div className="px-6 py-4 border-b border-white/[0.06]" style={{ background: "rgba(196,168,130,0.03)" }}>
+            <div className="px-4 py-4 sm:px-6 border-b border-white/[0.06]" style={{ background: "rgba(196,168,130,0.03)" }}>
               <div className="text-[9px] uppercase tracking-[0.2em] text-gold/40 font-semibold mb-3">
                 Your Info (appears on PDF)
               </div>
@@ -758,7 +758,7 @@ export default function Quotes() {
               </div>
 
               {/* Logo upload — always visible */}
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 {settings.logo_data_url ? (
                   <>
                     <div className="h-10 w-20 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center overflow-hidden p-1">
@@ -849,8 +849,8 @@ export default function Quotes() {
                 >
                   {/* Room Header */}
                   <div className="border-b border-white/[0.04]">
-                    <div className="px-5 pt-5 pb-4" style={{ background: `linear-gradient(135deg, ${roomTheme.wash}, rgba(255,255,255,0.015))` }}>
-                      <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="px-4 pt-4 pb-4 sm:px-5 sm:pt-5" style={{ background: `linear-gradient(135deg, ${roomTheme.wash}, rgba(255,255,255,0.015))` }}>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full" style={{ background: roomTheme.accent, boxShadow: `0 0 20px ${roomTheme.wash}` }} />
                           <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: roomTheme.accent }}>
@@ -859,7 +859,7 @@ export default function Quotes() {
                         </div>
                         <span className="text-[10px] text-white/24">{room.items.length} curated selections</span>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         <button
                           onClick={() => setExpandedRooms((prev) => ({ ...prev, [room.id]: !prev[room.id] }))}
                           className="text-white/30 hover:text-white/60 transition-colors"
@@ -885,12 +885,12 @@ export default function Quotes() {
                           ) : (
                             <button
                               onClick={() => setEditingRoomId(room.id)}
-                              className="text-left"
-                            >
-                              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-white/72 transition-colors hover:text-white/88">
+                            className="text-left"
+                          >
+                              <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] text-white/72 transition-colors hover:text-white/88">
                                 {room.name}
                               </div>
-                              <div className="mt-1 text-[12px] text-white/34">
+                              <div className="mt-1 text-[11px] sm:text-[12px] text-white/34 leading-5">
                                 Saved items, pricing, notes, and export-ready details for this room.
                               </div>
                             </button>
@@ -916,7 +916,7 @@ export default function Quotes() {
                     </div>
 
                     {room.items.length > 0 && (
-                      <div className="grid gap-2 border-t border-white/[0.04] px-5 py-3 sm:grid-cols-3">
+                      <div className="grid gap-2 border-t border-white/[0.04] px-4 py-3 sm:px-5 sm:grid-cols-3">
                         <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
                           <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Pieces</div>
                           <div className="mt-1 text-xl font-semibold text-white/86">{room.items.length}</div>
@@ -994,7 +994,7 @@ export default function Quotes() {
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex gap-2 max-w-sm"
+                    className="flex max-w-sm flex-col gap-2 sm:flex-row"
                   >
                     <input
                       autoFocus
@@ -1035,11 +1035,11 @@ export default function Quotes() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="atelier-panel paper-grain px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px]"
+                className="atelier-panel paper-grain mt-4 space-y-4 px-4 py-4 sm:px-6 sm:py-5"
                 style={{ backdropFilter: "blur(12px)" }}
               >
                 {/* Markup toggle */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <button
                     onClick={() => setShowMarkup(!showMarkup)}
                     className="flex items-center gap-2 text-[10px] text-white/25 hover:text-white/40 uppercase tracking-wider transition-colors"
@@ -1063,7 +1063,7 @@ export default function Quotes() {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="flex items-center gap-3 py-1">
+                      <div className="flex flex-col items-start gap-2 py-1 sm:flex-row sm:items-center sm:gap-3">
                         <span className="text-[10px] text-white/30">Markup %</span>
                         <input
                           type="number"
@@ -1121,7 +1121,7 @@ export default function Quotes() {
                 )}
 
                 <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.2em] text-gold/48">Presentation Export</div>
                       <p className="mt-1 text-[12px] leading-5 text-white/40">

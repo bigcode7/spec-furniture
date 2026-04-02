@@ -535,20 +535,20 @@ export default function Landing() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
-              className="mb-8 flex flex-col items-center gap-4"
+              className="mb-6 flex flex-col items-center gap-3 sm:mb-8 sm:gap-4"
             >
               <div className="relative">
                 <div className="absolute -inset-6 rounded-full pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(196,168,130,0.12) 0%, transparent 70%)", filter: "blur(20px)" }} />
-                <img src="/logo.png" alt="SPEKD" className="relative h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain rounded-[20%]" style={{ boxShadow: "0 0 40px rgba(196,168,130,0.15), 0 8px 32px rgba(0,0,0,0.4)" }} />
+                <img src="/logo.png" alt="SPEKD" className="relative h-16 w-16 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain rounded-[20%]" style={{ boxShadow: "0 0 40px rgba(196,168,130,0.15), 0 8px 32px rgba(0,0,0,0.4)" }} />
               </div>
-              <span className="font-brand text-2xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
+              <span className="font-brand text-xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
                 SPEKD
               </span>
             </motion.div>
 
             {/* Headline */}
             <motion.h1
-              className="font-display text-[34px] sm:text-6xl md:text-7xl lg:text-[88px] leading-[0.98] text-white"
+              className="font-display text-[30px] sm:text-6xl md:text-7xl lg:text-[88px] leading-[0.98] text-white"
               initial={{ clipPath: "inset(0 100% 0 0)" }}
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
@@ -560,7 +560,7 @@ export default function Landing() {
 
             {/* Subtitle — live numbers */}
             <motion.p
-              className="mt-6 sm:mt-8 mx-auto max-w-3xl text-[15px] sm:text-lg md:text-[22px] leading-relaxed"
+              className="mt-5 sm:mt-8 mx-auto max-w-3xl text-[14px] sm:text-lg md:text-[22px] leading-relaxed"
               style={{ color: "var(--warm-gray)" }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -577,7 +577,7 @@ export default function Landing() {
             {/* Search Bar */}
             <motion.form
               onSubmit={handleSearch}
-              className="mt-14 mx-auto max-w-4xl relative"
+              className="mt-10 sm:mt-14 mx-auto max-w-4xl relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 1.2, ease: EASE }}
@@ -585,30 +585,34 @@ export default function Landing() {
               <div className="absolute -inset-10 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
               />
-              <div className="luxe-input search-bar-glow relative flex h-16 sm:h-[72px] md:h-[78px] items-center rounded-[30px] px-4 sm:px-6 group">
-                <div className="relative mr-3 sm:mr-4 hidden sm:block">
-                  <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+              <div className="luxe-input search-bar-glow relative rounded-[30px] px-4 py-4 sm:flex sm:h-[72px] sm:items-center sm:px-6 sm:py-0 md:h-[78px] group">
+                <div className="flex items-center gap-3 sm:flex-1">
+                  <div className="relative hidden sm:block">
+                    <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+                  </div>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
+                    className="min-h-[44px] flex-1 bg-transparent text-white/84 text-base sm:text-[15px] placeholder:text-white/25 focus:outline-none"
+                  />
                 </div>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
-                  className="flex-1 bg-transparent text-white/84 text-base sm:text-[15px] placeholder:text-white/25 focus:outline-none"
-                />
-                <button type="button" onClick={handleVoiceSearch}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
-                  title={isListening ? "Stop listening" : "Voice search"}>
-                  <Mic className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={handleVisualSearch}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
-                  title="Search by image">
-                  <Camera className="h-4 w-4" />
-                </button>
-                <button type="submit" className="btn-gold ml-1 sm:ml-2 h-11 sm:h-12 px-6 sm:px-8 rounded-full text-sm shrink-0">
-                  Explore
-                </button>
+                <div className="mt-3 flex items-center gap-2 sm:mt-0 sm:ml-3">
+                  <button type="button" onClick={handleVoiceSearch}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
+                    title={isListening ? "Stop listening" : "Voice search"}>
+                    <Mic className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={handleVisualSearch}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
+                    title="Search by image">
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <button type="submit" className="btn-gold h-11 flex-1 px-5 rounded-full text-sm shrink-0 sm:ml-1 sm:h-12 sm:px-8 sm:flex-none">
+                    Explore
+                  </button>
+                </div>
               </div>
             </motion.form>
 
@@ -648,7 +652,7 @@ export default function Landing() {
       </motion.section>
 
       {/* ═══════════ BRAND MARQUEE ═══════════ */}
-      <section className="relative py-14 border-y border-white/[0.04]" style={{ background: "rgba(16,14,12,0.5)" }}>
+      <section className="relative py-10 sm:py-14 border-y border-white/[0.04]" style={{ background: "rgba(16,14,12,0.5)" }}>
         <Reveal className="text-center mb-8">
           <span className="label-caps text-gold/50 tracking-[0.25em]">Trusted by the Trade</span>
         </Reveal>
@@ -667,18 +671,18 @@ export default function Landing() {
       </section>
 
       {/* ═══════════ HOW IT WORKS ═══════════ */}
-      <section className="relative py-24 md:py-32">
+      <section className="relative py-16 sm:py-20 md:py-32">
         <div className="page-wrap-wide">
           <Reveal className="text-center mb-6">
             <span className="label-caps text-gold/50 tracking-[0.25em]">How It Works</span>
           </Reveal>
-          <Reveal delay={0.1} className="text-center mb-16">
+          <Reveal delay={0.1} className="text-center mb-10 sm:mb-16">
             <h2 className="font-display text-3xl md:text-5xl text-white">
               Three steps to <span className="text-gold">finding the right piece</span>
             </h2>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8 max-w-5xl mx-auto">
             {[
               {
                 step: "01",
@@ -700,7 +704,7 @@ export default function Landing() {
               },
             ].map((item, i) => (
               <Reveal key={item.step} delay={i * 0.1}>
-                <div className="relative text-center p-8 editorial-card hover:-translate-y-1 transition-all duration-300">
+                <div className="relative text-center p-6 sm:p-8 editorial-card hover:-translate-y-1 transition-all duration-300">
                   <div className="text-[64px] font-display font-bold text-white/[0.03] absolute top-4 right-6 leading-none">{item.step}</div>
                   <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gold/10 border border-gold/15 flex items-center justify-center">
                     <item.icon className="w-6 h-6 text-gold/70" />
@@ -753,7 +757,7 @@ export default function Landing() {
       />
 
       {/* ═══════════ STATS — LIVE FROM CATALOG ═══════════ */}
-      <section className="relative py-28 md:py-36">
+      <section className="relative py-20 sm:py-24 md:py-36">
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(200,169,126,0.04) 0%, transparent 60%)", filter: "blur(80px)" }}
         />
@@ -828,7 +832,7 @@ export default function Landing() {
         />
         <div className="page-wrap-wide text-center relative z-10">
           <Reveal>
-            <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent mb-20 max-w-xl mx-auto" />
+            <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent mb-12 sm:mb-20 max-w-xl mx-auto" />
           </Reveal>
           <Reveal delay={0.05}>
             <span className="label-caps text-gold/50 tracking-[0.25em]">Get Started</span>
@@ -844,33 +848,37 @@ export default function Landing() {
             </p>
           </Reveal>
 
-          <Reveal delay={0.2} className="mt-12">
+          <Reveal delay={0.2} className="mt-8 sm:mt-12">
             <form onSubmit={handleSearch} className="mx-auto max-w-3xl relative">
               <div className="absolute -inset-8 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
               />
-              <div className="luxe-input search-bar-glow relative flex h-16 items-center rounded-[28px] px-5 group">
-                <Search className="w-4 h-4 text-white/20 mr-3 shrink-0" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={isListening ? "Listening..." : "What are you looking for?"}
-                  className="flex-1 bg-transparent text-white/82 text-sm placeholder:text-white/25 focus:outline-none"
-                />
-                <button type="button" onClick={handleVoiceSearch}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
-                  title={isListening ? "Stop listening" : "Voice search"}>
-                  <Mic className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={handleVisualSearch}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
-                  title="Search by image">
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
-                <button type="submit" className="btn-gold ml-1 h-10 px-7 rounded-full text-xs shrink-0">
-                  Explore
-                </button>
+              <div className="luxe-input search-bar-glow relative rounded-[28px] px-4 py-4 sm:flex sm:h-16 sm:items-center sm:px-5 sm:py-0 group">
+                <div className="flex items-center gap-3 sm:flex-1">
+                  <Search className="w-4 h-4 text-white/20 shrink-0" />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={isListening ? "Listening..." : "What are you looking for?"}
+                    className="min-h-[44px] flex-1 bg-transparent text-white/82 text-sm placeholder:text-white/25 focus:outline-none"
+                  />
+                </div>
+                <div className="mt-3 flex items-center gap-2 sm:mt-0 sm:ml-3">
+                  <button type="button" onClick={handleVoiceSearch}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
+                    title={isListening ? "Stop listening" : "Voice search"}>
+                    <Mic className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="button" onClick={handleVisualSearch}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
+                    title="Search by image">
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                  <button type="submit" className="btn-gold h-10 flex-1 px-7 rounded-full text-xs shrink-0 sm:ml-1 sm:flex-none">
+                    Explore
+                  </button>
+                </div>
               </div>
             </form>
           </Reveal>

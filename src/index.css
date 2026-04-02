@@ -1408,6 +1408,26 @@ button:active, a:active, [role="button"]:active {
   .search-bar-glow:focus-within {
     box-shadow: 0 0 15px rgba(196,168,130,0.1);
   }
+
+  .workspace-heading {
+    font-size: clamp(2.1rem, 9vw, 3rem);
+    line-height: 0.98;
+  }
+
+  .workspace-subhead {
+    font-size: 0.95rem;
+    line-height: 1.65;
+  }
+
+  .atelier-panel,
+  .editorial-card,
+  .atelier-panel-soft {
+    border-radius: 22px;
+  }
+
+  .control-chip {
+    white-space: nowrap;
+  }
 }
 
 /* ── Page transition ── */

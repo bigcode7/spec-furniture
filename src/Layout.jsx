@@ -304,17 +304,17 @@ export default function Layout({ children, currentPageName }) {
 
       <header className="glass-header sticky top-0 z-40">
         <div className="page-wrap-wide">
-          <div className="flex h-[72px] items-center justify-between gap-4">
+          <div className="flex h-[68px] sm:h-[72px] items-center justify-between gap-3 sm:gap-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#c6a16a]/20 bg-white/[0.03] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-                <img src="/logo.png" alt="SPEKD" className="h-7 w-7 object-contain rounded-lg" />
+            <Link to="/" className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl border border-[#c6a16a]/20 bg-white/[0.03] shadow-[0_10px_30px_rgba(0,0,0,0.18)] shrink-0">
+                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 sm:h-7 sm:w-7 object-contain rounded-lg" />
               </div>
-              <div className="flex flex-col">
-                <span className="font-brand text-lg tracking-[0.28em] text-white/95 font-medium">
+              <div className="flex min-w-0 flex-col">
+                <span className="font-brand text-base sm:text-lg tracking-[0.24em] sm:tracking-[0.28em] text-white/95 font-medium truncate">
                   SPEKD
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.24em] text-white/30">
+                <span className="hidden sm:block text-[10px] uppercase tracking-[0.24em] text-white/30">
                   Interior sourcing studio
                 </span>
               </div>
@@ -362,7 +362,7 @@ export default function Layout({ children, currentPageName }) {
             </nav>
 
             {/* Right side — account + trial CTA */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
               {currentPageName === "Quotes" && (
                 <Link
                   to={createPageUrl("Search")}
@@ -413,7 +413,7 @@ export default function Layout({ children, currentPageName }) {
               ) : (
                 <button
                   onClick={() => navigateToLogin("signup")}
-                  className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all hover:brightness-110"
+                  className="flex items-center gap-2 rounded-full px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-semibold transition-all hover:brightness-110"
                   style={{
                     background: "linear-gradient(135deg, rgba(196,168,130,0.2), rgba(196,168,130,0.1))",
                     border: "1px solid rgba(196,168,130,0.3)",
