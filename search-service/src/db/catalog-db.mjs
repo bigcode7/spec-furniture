@@ -482,7 +482,13 @@ async function downloadCatalogIfMissing() {
     for (let i = 0; i < urls.length; i++) {
       const url = urls[i];
       console.log(`[catalog-db] Downloading part ${i + 1}/${urls.length}...`);
-      const resp = await fetch(url, { redirect: "follow" });
+      const fetchHeaders = {};
+      // Private repo: use GitHub token if available
+      if (process.env.GITHUB_TOKEN) {
+        fetchHeaders["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+        fetchHeaders["Accept"] = "application/octet-stream";
+      }
+      const resp = await fetch(url, { redirect: "follow", headers: fetchHeaders });
       if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
       let buffer = Buffer.from(await resp.arrayBuffer());
       // Auto-detect gzip (magic bytes 1f 8b)
