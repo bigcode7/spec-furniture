@@ -489,8 +489,8 @@ export default function Landing() {
       {!user && (
         <button
           onClick={() => navigateToLogin("login")}
-          className="fixed top-5 right-6 z-50 text-sm font-medium px-5 py-2 rounded-full transition-all hover:bg-[#c4a882]/10"
-          style={{ color: "#c4a882", border: "1px solid rgba(196,168,130,0.4)" }}
+          className="fixed right-6 z-50 text-sm font-medium px-5 py-2 rounded-full transition-all hover:bg-[#c4a882]/10"
+          style={{ color: "#c4a882", border: "1px solid rgba(196,168,130,0.4)", top: "max(20px, env(safe-area-inset-top, 20px))" }}
         >
           Sign In
         </button>
@@ -592,31 +592,29 @@ export default function Landing() {
               <div className="absolute -inset-10 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
               />
-              <div className="luxe-input search-bar-glow relative rounded-[30px] px-4 py-4 sm:flex sm:h-[72px] sm:items-center sm:px-6 sm:py-0 md:h-[78px] group">
-                <div className="flex items-center gap-3 sm:flex-1">
-                  <div className="relative hidden sm:block">
-                    <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
-                  </div>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
-                    className="min-h-[44px] flex-1 bg-transparent text-white/84 text-base sm:text-[15px] placeholder:text-white/25 focus:outline-none"
-                  />
+              <div className="luxe-input search-bar-glow relative flex h-14 sm:h-[72px] md:h-[78px] items-center rounded-full px-3 sm:px-6 group">
+                <div className="relative mr-2 sm:mr-3 hidden sm:block">
+                  <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
                 </div>
-                <div className="mt-3 flex items-center gap-2 sm:mt-0 sm:ml-3">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
+                  className="flex-1 min-w-0 bg-transparent text-white/84 text-[15px] sm:text-base placeholder:text-white/25 focus:outline-none"
+                />
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
                   <button type="button" onClick={handleVoiceSearch}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
                     title={isListening ? "Stop listening" : "Voice search"}>
                     <Mic className="h-4 w-4" />
                   </button>
                   <button type="button" onClick={handleVisualSearch}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
                     title="Search by image">
                     <Camera className="h-4 w-4" />
                   </button>
-                  <button type="submit" className="btn-gold h-11 flex-1 px-5 rounded-full text-sm shrink-0 sm:ml-1 sm:h-12 sm:px-8 sm:flex-none">
+                  <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 sm:h-12 px-5 sm:px-8 rounded-full text-sm shrink-0">
                     Explore
                   </button>
                 </div>
@@ -860,18 +858,16 @@ export default function Landing() {
               <div className="absolute -inset-8 pointer-events-none"
                 style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
               />
-              <div className="luxe-input search-bar-glow relative rounded-[28px] px-4 py-4 sm:flex sm:h-16 sm:items-center sm:px-5 sm:py-0 group">
-                <div className="flex items-center gap-3 sm:flex-1">
-                  <Search className="w-4 h-4 text-white/20 shrink-0" />
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={isListening ? "Listening..." : "What are you looking for?"}
-                    className="min-h-[44px] flex-1 bg-transparent text-white/82 text-sm placeholder:text-white/25 focus:outline-none"
-                  />
-                </div>
-                <div className="mt-3 flex items-center gap-2 sm:mt-0 sm:ml-3">
+              <div className="luxe-input search-bar-glow relative flex h-14 sm:h-16 items-center rounded-full px-3 sm:px-5 group">
+                <Search className="w-4 h-4 text-white/20 shrink-0 mr-2 sm:mr-3" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={isListening ? "Listening..." : "What are you looking for?"}
+                  className="flex-1 min-w-0 bg-transparent text-white/82 text-[15px] sm:text-sm placeholder:text-white/25 focus:outline-none"
+                />
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
                   <button type="button" onClick={handleVoiceSearch}
                     className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
                     title={isListening ? "Stop listening" : "Voice search"}>
@@ -882,7 +878,7 @@ export default function Landing() {
                     title="Search by image">
                     <Camera className="h-3.5 w-3.5" />
                   </button>
-                  <button type="submit" className="btn-gold h-10 flex-1 px-7 rounded-full text-xs shrink-0 sm:ml-1 sm:flex-none">
+                  <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 px-5 sm:px-7 rounded-full text-xs shrink-0">
                     Explore
                   </button>
                 </div>
