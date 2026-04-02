@@ -43,10 +43,10 @@ function formatUsd(n) {
 }
 
 const ROOM_ACCENTS = [
-  { accent: "#c6a16a", wash: "rgba(198,161,106,0.12)", label: "Amber" },
-  { accent: "#8ea6b9", wash: "rgba(142,166,185,0.12)", label: "Mist" },
-  { accent: "#8f9779", wash: "rgba(143,151,121,0.12)", label: "Sage" },
-  { accent: "#b5897b", wash: "rgba(181,137,123,0.12)", label: "Clay" },
+  { accent: "#c6a16a", wash: "rgba(198,161,106,0.12)" },
+  { accent: "#8ea6b9", wash: "rgba(142,166,185,0.12)" },
+  { accent: "#8f9779", wash: "rgba(143,151,121,0.12)" },
+  { accent: "#b5897b", wash: "rgba(181,137,123,0.12)" },
 ];
 
 /* ─── main page ───────────────────────────────────────────── */
@@ -109,9 +109,6 @@ export default function Quotes() {
 
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [showMarkup, setShowMarkup] = useState(false);
-  const [presentationMode, setPresentationMode] = useState(() => {
-    try { return localStorage.getItem("spekd_quote_presentation_mode") !== "0"; } catch { return true; }
-  });
   const [generating, setGenerating] = useState(false);
   const [generatingLabel, setGeneratingLabel] = useState("");
   const [actionToast, setActionToast] = useState(null);
@@ -220,10 +217,6 @@ export default function Quotes() {
   const totalItems = quote.rooms.reduce((s, r) => s + r.items.length, 0);
   const grandTotal = quote.rooms.reduce((s, r) => s + getRoomTotal(r), 0);
   const itemsWithoutPrice = quote.rooms.flatMap((r) => r.items).filter((i) => !getItemPrice(i));
-
-  useEffect(() => {
-    try { localStorage.setItem("spekd_quote_presentation_mode", presentationMode ? "1" : "0"); } catch {}
-  }, [presentationMode]);
 
   /* ── quote actions ────────────────────────────────────────── */
 
@@ -489,17 +482,17 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className={`min-h-screen bg-[#120f0d] text-white ${presentationMode ? "presentation-mode" : ""}`}>
+    <div className="min-h-screen bg-[#120f0d] text-white presentation-mode">
       <div className="page-wrap-wide py-10 pb-48 sm:pb-10">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`atelier-panel mb-10 px-6 py-8 sm:px-8 md:px-10 ${presentationMode ? "paper-grain" : ""}`}
+          className="atelier-panel paper-grain mb-10 px-6 py-8 sm:px-8 md:px-10"
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="workspace-kicker mb-5">Quote studio</div>
-              <h1 className="workspace-heading max-w-4xl">Build polished client-facing presentations without leaving the sourcing flow.</h1>
+              <h1 className="workspace-heading max-w-4xl">Build polished client-facing quotes without leaving the sourcing flow.</h1>
               <p className="workspace-subhead mt-4">
                 Organize saved pieces into rooms, generate PDFs, and share approval links from a workspace that stays calm under detail.
               </p>
@@ -508,33 +501,21 @@ export default function Quotes() {
               <div className="atelier-panel-soft px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Rooms</div>
                 <div className="mt-2 text-2xl font-semibold text-white/92">{quote.rooms.length}</div>
-                <div className="mt-1 text-xs text-white/40">Presentation groupings</div>
+                <div className="mt-1 text-xs text-white/40">Organized quote sections</div>
               </div>
               <div className="atelier-panel-soft px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Quote total</div>
-                <div className="mt-2 text-2xl font-semibold text-white/92">{showPricing && grandTotal > 0 ? formatUsd(grandTotal) : "POR"}</div>
+                <div className="mt-2 text-2xl font-semibold text-white/92">{showPricing && grandTotal > 0 ? formatUsd(grandTotal) : "Price on request"}</div>
                 <div className="mt-1 text-xs text-white/40">Live estimate</div>
               </div>
             </div>
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setPresentationMode(!presentationMode)}
-              className={`control-chip flex items-center gap-2 px-3 py-1.5 text-[11px] transition-all ${presentationMode ? "bg-gold text-[#161413]" : "text-white/46 hover:text-white/74"}`}
-            >
-              <Star className="h-3 w-3" />
-              {presentationMode ? "Presentation Mode" : "Workspace Mode"}
-            </button>
-            <span className="text-[11px] text-white/28">
-              {presentationMode ? "Cleaner room boards, calmer chrome, client-ready detail." : "Full editing surfaces and utility controls."}
-            </span>
-          </div>
           {totalItems > 0 && (
             <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_0.65fr]">
               <div className="atelier-panel-soft paper-grain px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Presentation Direction</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Quote Overview</div>
                 <p className="mt-2 text-[13px] leading-6 text-white/62">
-                  This quote now reads like a compact design deck with stronger room framing and cleaner export rhythm.
+                  Rooms, totals, notes, and exports are grouped here so the quote stays easy to scan and easy to share.
                 </p>
               </div>
               <div className="atelier-panel-soft px-4 py-4">
@@ -863,7 +844,7 @@ export default function Quotes() {
                   key={room.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`atelier-panel overflow-hidden ${presentationMode ? "linen-surface" : ""}`}
+                  className="atelier-panel overflow-hidden linen-surface"
                   style={{ background: "rgba(255,255,255,0.015)" }}
                 >
                   {/* Room Header */}
@@ -873,7 +854,7 @@ export default function Quotes() {
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full" style={{ background: roomTheme.accent, boxShadow: `0 0 20px ${roomTheme.wash}` }} />
                           <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: roomTheme.accent }}>
-                            {roomTheme.label} room story
+                            Room
                           </span>
                         </div>
                         <span className="text-[10px] text-white/24">{room.items.length} curated selections</span>
@@ -910,7 +891,7 @@ export default function Quotes() {
                                 {room.name}
                               </div>
                               <div className="mt-1 text-[12px] text-white/34">
-                                A presentation layer for this room with sourcing notes, pricing, and client-ready narrative.
+                                Saved items, pricing, notes, and export-ready details for this room.
                               </div>
                             </button>
                           )}
@@ -946,7 +927,7 @@ export default function Quotes() {
                         </div>
                         <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
                           <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Direction</div>
-                          <div className="mt-1 text-xl font-semibold text-white/86">{roomTheme.label}</div>
+                          <div className="mt-1 text-xl font-semibold text-white/86">Active</div>
                         </div>
                       </div>
                     )}
@@ -981,7 +962,7 @@ export default function Quotes() {
                             onWhyThisPiece={() => handleWhyThisPiece(item, room)}
                             onUpdateJustification={handleUpdateJustification}
                             clientFeedback={getItemFeedback(item.id)}
-                            presentationMode={presentationMode}
+                            presentationMode
                           />
                         ))}
                         {/* Generate All Justifications */}
@@ -1054,7 +1035,7 @@ export default function Quotes() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`atelier-panel px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px] ${presentationMode ? "paper-grain" : ""}`}
+                className="atelier-panel paper-grain px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px]"
                 style={{ backdropFilter: "blur(12px)" }}
               >
                 {/* Markup toggle */}
