@@ -68,7 +68,7 @@ import { think as designBrainThink } from "./lib/design-brain.mjs";
 import { translateQuery, applyAIFilter, getAIQueryStats, translateFollowUp, localParseFollowUp, localParse } from "./lib/ai-query-translator.mjs";
 import { askSearchBrain } from "./lib/search-brain.mjs";
 import { registerUser, loginUser, getUserFromToken, updateUser, extractToken, changePassword, deleteUser, exportUserData, generateVerificationToken, verifyEmail, generateResetToken, resetPassword, checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getAllUsers, initDatabase } from "./lib/auth-store.mjs";
-import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getActiveVisitors, getFunnelMetrics, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
+import { initSubscriptionStore, getGuestUsage, incrementGuestSearch, incrementGuestQuote, incrementGuestQuoteItems, getSubscription, getAllSubscriptions, setSubscription, getUserStatus, checkAccess, logSubscriptionEvent, getRevenueDashboard, generateGuestToken, verifyGuestToken, linkFingerprintToUser, checkMultiAccountAbuse, getActiveVisitors, getFunnelMetrics, getEarlyBirdStatus, FREE_SEARCH_LIMIT, createSession, validateSession, trackActivity, checkSharingViolation, createTeam, getTeam, getTeamByUser, inviteMember, removeMember, addSeat, getTeamMembers, isAdminEmail } from "./lib/subscription-store.mjs";
 import { initStripe, createCheckoutSession, verifyWebhook, cancelSubscription, reactivateSubscription, createReactivationSession, getStripeSubscription, createPortalSession, createTeamSeatCheckout } from "./lib/stripe-integration.mjs";
 import { initSearchEnhancer, expandAllSynonyms, findProductsBySynonymExpansion, computeEnhancedScore, getMatchingVendors, getEnhancerStats } from "./lib/search-enhancer.mjs";
 import { initAdminStore, logCompAction, getCompLog, getActiveComps, logAdminAction, getActivityLog, saveHealthCheckResult, getHealthCheckResults, getHealthAlerts, dismissAlert, createAlert, runCatalogHealthCheck, getVendorHealthSummary, getLastHealthRun, setLastHealthRun, persistAdminStore } from "./lib/admin-store.mjs";
@@ -1395,6 +1395,11 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
     // ── SUBSCRIPTION ENDPOINTS ──────────────────────────────────
 
+    // Early-bird pricing status — public endpoint, no auth required
+    if (req.method === "GET" && req.url === "/subscribe/early-bird") {
+      return json(res, 200, getEarlyBirdStatus());
+    }
+
     if (req.method === "GET" && req.url === "/subscribe/status") {
       const identity = await getRequestIdentity(req, {});
 
@@ -1425,12 +1430,14 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
           trial_end: sub?.trial_end || null,
           trial_days_remaining: trialDaysRemaining,
           stripe_subscription_id: sub?.stripe_subscription_id || null,
+          is_early_bird: sub?.plan === "early_bird",
+          early_bird: getEarlyBirdStatus(),
         });
       }
 
       // Guest
       const usage = getGuestUsage(identity.fingerprint, identity.ip, identity.localStorageId);
-      return json(res, 200, usage);
+      return json(res, 200, { ...usage, early_bird: getEarlyBirdStatus() });
     }
 
     // Verify checkout session directly with Stripe — fallback when webhook is delayed
@@ -1562,9 +1569,22 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
 
       const appUrl = (process.env.APP_URL || "https://spekd.ai").replace(/\/$/, "");
 
+      // Auto-route to early-bird pricing if plan is "early_bird" and spots available
+      let effectivePlan = plan || "monthly";
+      if (effectivePlan === "early_bird") {
+        const eb = getEarlyBirdStatus();
+        if (!eb.available) {
+          // No spots left — fall back to regular monthly
+          effectivePlan = "monthly";
+          console.log(`[early-bird] No spots remaining (${eb.total}/${eb.cap}), falling back to monthly for user ${userId}`);
+        } else {
+          console.log(`[early-bird] Spot ${eb.total + 1}/${eb.cap} claimed by user ${userId}`);
+        }
+      }
+
       try {
         const checkout = await createCheckoutSession(
-          plan || "monthly",
+          effectivePlan,
           userEmail || email,
           userId,
           `${appUrl}/Search?subscription=success&session_id={CHECKOUT_SESSION_ID}`,

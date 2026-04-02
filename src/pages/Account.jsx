@@ -922,11 +922,14 @@ function SubscriptionSection({ toast }) {
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold)]/70 mb-1">
-              {isActive ? "SPEKD Pro" : isTrialing ? "SPEKD Pro — Trial" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
+              {sub?.plan === "early_bird" ? "SPEKD Pro — Early Bird" : isActive ? "SPEKD Pro" : isTrialing ? "SPEKD Pro — Trial" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
             </div>
             <div className="text-xl font-semibold text-white">
-              {isTrialing ? "Free Trial" : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
+              {isTrialing ? "Free Trial" : sub?.plan === "early_bird" ? "$49/month" : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
             </div>
+            {sub?.plan === "early_bird" && (isActive || isTrialing) && (
+              <div className="text-xs text-emerald-400/70 mt-0.5 font-medium">Locked in for life</div>
+            )}
             {isTrialing && trialEnd && (
               <div className="text-xs text-white/40 mt-0.5">
                 Trial ends {trialEnd}{trialDays != null && ` (${trialDays} day${trialDays !== 1 ? "s" : ""} remaining)`}
@@ -967,7 +970,7 @@ function SubscriptionSection({ toast }) {
             <button onClick={handleReactivate}
               className="flex items-center gap-2 rounded-lg bg-[var(--gold)]/10 border border-[var(--gold)]/20 px-4 py-2.5 text-xs font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/15 transition-all">
               <ArrowRight className="h-3.5 w-3.5" />
-              {isExpired ? "Reactivate Pro — $99/mo" : "Reactivate Subscription"}
+              {isExpired ? (sub?.plan === "early_bird" ? "Reactivate Pro — $49/mo" : "Reactivate Pro — $99/mo") : "Reactivate Subscription"}
             </button>
           )}
         </div>

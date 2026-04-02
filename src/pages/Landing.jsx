@@ -438,6 +438,7 @@ export default function Landing() {
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [vendorNames, setVendorNames] = useState([]);
+  const [earlyBird, setEarlyBird] = useState(null);
 
   // ── Fetch catalog stats + vendors on mount ──
   useEffect(() => {
@@ -453,6 +454,11 @@ export default function Landing() {
         setVendors(v);
         setVendorNames(v.map((x) => x.name));
       })
+      .catch(() => {});
+
+    fetch(`${SEARCH_URL}/subscribe/early-bird`)
+      .then((r) => r.json())
+      .then((data) => setEarlyBird(data))
       .catch(() => {});
 
     // Clean up old demo caches
@@ -580,6 +586,27 @@ export default function Landing() {
               <br />
               A sourcing platform that looks and feels aligned with the designers using it.
             </motion.p>
+
+            {/* Early Bird Banner */}
+            {earlyBird?.available && (
+              <motion.div
+                className="mt-6 sm:mt-8 mx-auto max-w-xl"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 1.1, ease: EASE }}
+              >
+                <div className="rounded-full px-5 py-2.5 flex items-center justify-center gap-3"
+                  style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)" }}>
+                  <span className="text-emerald-400 text-xs sm:text-sm font-semibold">
+                    Early Access — $49/mo for life
+                  </span>
+                  <span className="text-white/30 text-xs">|</span>
+                  <span className="text-white/50 text-xs">
+                    {earlyBird.remaining} of {earlyBird.cap} spots remaining
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Search Bar */}
             <motion.form

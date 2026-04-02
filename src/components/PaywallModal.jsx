@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, X, Loader2, Check, Sparkles } from "lucide-react";
+import { Zap, Search, ArrowRight, Layers, FileText, Star, Lock, X, Loader2, Check, Sparkles, Clock } from "lucide-react";
 
 const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 
@@ -36,7 +36,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
   const isLoggedIn = !!(existingToken && existingToken.length > 10 && !existingToken.startsWith("g."));
 
   const [step, setStep] = useState("intro"); // intro | signup | login | forgot
-  const [billing, setBilling] = useState("monthly");
+  const [billing, setBilling] = useState("early_bird");
   const [email, setEmail] = useState(existingUser?.email || "");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState(existingUser?.full_name || "");
@@ -44,6 +44,18 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [earlyBird, setEarlyBird] = useState(null);
+
+  useEffect(() => {
+    if (!show) return;
+    fetch(`${SEARCH_SERVICE}/subscribe/early-bird`)
+      .then(r => r.json())
+      .then(data => {
+        setEarlyBird(data);
+        if (!data.available) setBilling("monthly");
+      })
+      .catch(() => {});
+  }, [show]);
 
   if (!show) return null;
 
@@ -53,8 +65,9 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
   })();
   const hadPriorSubscription = ["cancelled", "past_due", "trial_expired"].includes(priorSubStatus);
   const isUpgrade = (initialMode === "upgrade" || initialMode === "feature") && hadPriorSubscription;
-  const planValue = billing === "annual" ? "annual" : "monthly";
-  const priceLabel = billing === "annual" ? "$990/yr" : "$99/mo";
+  const ebAvailable = earlyBird?.available;
+  const planValue = billing === "early_bird" ? "early_bird" : billing === "annual" ? "annual" : "monthly";
+  const priceLabel = billing === "early_bird" ? "$49/mo" : billing === "annual" ? "$990/yr" : "$99/mo";
 
   const inputClass =
     "w-full rounded-lg px-3.5 py-3 text-base sm:text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
@@ -247,39 +260,68 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 </div>
               </div>
 
-              {isLoggedIn ? (
-                isUpgrade ? (
-                  <>
-                    <h2 className="text-xl font-semibold text-white text-center mb-2">
-                      Reactivate Pro
-                    </h2>
-                    <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                      {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-semibold text-white text-center mb-2">
-                      Try SPEKD Pro free for 7 days
-                    </h2>
-                    <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                      Start your free trial — no charge for 7 days. Cancel anytime before the trial ends and you won't pay a thing.
-                    </p>
-                  </>
-                )
+              {isUpgrade ? (
+                <>
+                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                    Reactivate Pro
+                  </h2>
+                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                    {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
+                  </p>
+                </>
+              ) : ebAvailable ? (
+                <>
+                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                    Early Access — $49/mo for life
+                  </h2>
+                  <p className="text-sm text-white/50 text-center mb-2 leading-relaxed">
+                    {isLoggedIn
+                      ? "Lock in $49/month forever as one of our first 200 members. This price never goes up."
+                      : "Be one of the first 200 members and lock in $49/month forever. Regular price is $99/month — your early-bird rate never increases."}
+                  </p>
+                  {earlyBird && (
+                    <div className="flex items-center justify-center gap-1.5 mb-5">
+                      <Clock className="h-3 w-3" style={{ color: GOLD }} />
+                      <span className="text-xs font-semibold" style={{ color: GOLD }}>
+                        {earlyBird.remaining} of {earlyBird.cap} spots left
+                      </span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <h2 className="text-xl font-semibold text-white text-center mb-2">
-                    Try SPEKD Pro free for 7 days
+                    {isLoggedIn ? "Try SPEKD Pro free for 7 days" : "Try SPEKD Pro free for 7 days"}
                   </h2>
                   <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
-                    You've used your 7 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days.
+                    {isLoggedIn
+                      ? "Start your free trial — no charge for 7 days. Cancel anytime before the trial ends and you won't pay a thing."
+                      : "You've used your 7 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days."}
                   </p>
                 </>
               )}
 
               {/* Billing toggle */}
               <div className="flex items-center justify-center gap-3 mb-5">
+                {ebAvailable && (
+                  <button
+                    onClick={() => setBilling("early_bird")}
+                    className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
+                    style={{
+                      background: billing === "early_bird" ? "rgba(196,168,130,0.08)" : "transparent",
+                      border: `1px solid ${billing === "early_bird" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
+                      color: billing === "early_bird" ? GOLD : "rgba(255,255,255,0.4)",
+                    }}
+                  >
+                    $49/mo
+                    <span
+                      className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "rgba(16,185,129,0.2)", color: "#10b981" }}
+                    >
+                      Forever
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={() => setBilling("monthly")}
                   className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
@@ -335,11 +377,13 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     style={goldBtnStyle}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : "Start your 7-day free trial"}
+                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? "Lock in $49/mo forever" : "Start your 7-day free trial"}
                   </button>
                   <p className="text-[11px] text-white/30 text-center mt-2">
                     {isUpgrade
                       ? `Signed in as ${existingUser?.email || ""}.`
+                      : billing === "early_bird"
+                      ? `Signed in as ${existingUser?.email || ""}. 7-day free trial, then $49/mo locked in for life.`
                       : `Signed in as ${existingUser?.email || ""}. You won't be charged for 7 days.`}
                   </p>
                 </>
@@ -366,7 +410,9 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     </button>
                   </div>
                   <p className="text-[11px] text-white/30 text-center mt-2">
-                    You won't be charged for 7 days. Cancel anytime.
+                    {billing === "early_bird"
+                      ? "7-day free trial, then $49/mo locked in for life. Cancel anytime."
+                      : "You won't be charged for 7 days. Cancel anytime."}
                   </p>
                 </>
               )}
@@ -386,7 +432,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
             <motion.div key="signup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
               <p className="text-xs text-white/40 mb-1">
-                {isUpgrade ? `Reactivate Pro — ${priceLabel}` : `7-day free trial — then ${priceLabel}`}
+                {isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? "7-day free trial — then $49/mo locked in forever" : `7-day free trial — then ${priceLabel}`}
               </p>
               <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
 

@@ -19,6 +19,7 @@ const TEAMS_FILE = path.join(DATA_DIR, "teams.json");
 const FREE_SEARCH_LIMIT = 7;
 const FREE_QUOTE_LIMIT = 1;
 const FREE_QUOTE_ITEM_LIMIT = 5;
+const EARLY_BIRD_CAP = 200;
 
 // Admin/founder emails — permanent full Pro, no paywall, no Stripe required
 // Override via ADMIN_EMAILS env var (comma-separated), defaults to tyler@spekd.ai
@@ -344,6 +345,8 @@ function getRevenueDashboard() {
       mrr += 249 + (49 * extraSeats);
     } else if (sub.plan === "annual") {
       mrr += 990 / 12;
+    } else if (sub.plan === "early_bird") {
+      mrr += 49;
     } else {
       mrr += 99;
     }
@@ -666,6 +669,24 @@ function getTeamMembers(teamId) {
   return team.members;
 }
 
+// ─── EARLY BIRD ───
+
+/**
+ * Count how many early-bird subscribers exist.
+ * Returns { total, remaining, available }
+ */
+function getEarlyBirdStatus() {
+  const earlyBirdCount = Object.values(subscriptions).filter(
+    s => s.plan === "early_bird" && (s.status === "active" || s.status === "trialing" || s.status === "cancelled")
+  ).length;
+  return {
+    total: earlyBirdCount,
+    cap: EARLY_BIRD_CAP,
+    remaining: Math.max(0, EARLY_BIRD_CAP - earlyBirdCount),
+    available: earlyBirdCount < EARLY_BIRD_CAP,
+  };
+}
+
 // ─── FUNNEL METRICS ───
 
 /**
@@ -789,9 +810,11 @@ export {
   getTeamMembers,
   getActiveVisitors,
   getFunnelMetrics,
+  getEarlyBirdStatus,
   FREE_SEARCH_LIMIT,
   FREE_QUOTE_LIMIT,
   FREE_QUOTE_ITEM_LIMIT,
+  EARLY_BIRD_CAP,
   isAdminEmail,
   ADMIN_EMAILS,
 };

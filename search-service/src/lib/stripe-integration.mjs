@@ -8,6 +8,7 @@
  * Pricing tier env vars:
  *   STRIPE_PRO_MONTHLY_PRICE_ID  — $99/month
  *   STRIPE_PRO_ANNUAL_PRICE_ID   — $990/year
+ *   STRIPE_EARLY_BIRD_PRICE_ID   — $49/month (first 200 users, locked for life)
  *   STRIPE_TEAM_MONTHLY_PRICE_ID — $249/month (5 seats included)
  *   STRIPE_TEAM_ANNUAL_PRICE_ID  — $2,490/year (5 seats included)
  *   STRIPE_TEAM_SEAT_PRICE_ID    — $49/month per additional seat
@@ -58,6 +59,8 @@ async function ensureStripe() {
  */
 function resolvePriceId(plan) {
   switch (plan) {
+    case "early_bird":
+      return process.env.STRIPE_EARLY_BIRD_PRICE_ID;
     case "pro_monthly":
     case "monthly":
       return (
