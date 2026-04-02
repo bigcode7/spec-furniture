@@ -53,9 +53,15 @@ const SEARCH_SERVICE = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.
 // Build proxy URL for an image
 function proxyUrl(url, productId) {
   if (!url) return "";
+  // Shopify CDN supports on-the-fly resizing — cap at 800px to avoid loading 4000px originals
+  let optimized = url;
+  if (url.includes("cdn.shopify.com")) {
+    const sep = url.includes("?") ? "&" : "?";
+    if (!url.includes("width=")) optimized = `${url}${sep}width=800`;
+  }
   // Always proxy through the URL-based endpoint so each gallery image loads correctly.
   // The /images/:id endpoint only returns the hero — not suitable for gallery images.
-  return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(url)}`;
+  return `${SEARCH_SERVICE}/proxy-image?url=${encodeURIComponent(optimized)}`;
 }
 
 // Image component: always uses server-side proxy to bypass vendor hotlink protection
