@@ -128,11 +128,6 @@ const SORT_OPTIONS = [
   { key: "popular", label: "Most Popular" },
 ];
 
-const VIEW_MODES = [
-  { key: "studio", label: "Studio" },
-  { key: "gallery", label: "Gallery" },
-];
-
 // Smaller initial load on mobile for faster paint
 const IS_MOBILE = typeof window !== "undefined" && (window.matchMedia("(max-width: 768px)").matches || navigator.maxTouchPoints > 0);
 const INITIAL_PAGE_SIZE = IS_MOBILE ? 20 : 48;
@@ -258,12 +253,6 @@ function sortProducts(products, sortKey) {
   }
 }
 
-function getStudioSpanClass(index) {
-  if (index === 0) return "sm:col-span-2 lg:col-span-2";
-  if (index > 0 && index % 7 === 0) return "lg:col-span-2";
-  return "";
-}
-
 // Promote the best-image product from the top results into the hero (index 0) position.
 // The hero card is col-span-2 and visually dominant, so it should always have a clean image.
 function promoteHeroImage(products) {
@@ -364,7 +353,7 @@ export default function SearchPage() {
   // Sort, pagination
 
   const [sortKey, setSortKey] = useState("relevance");
-  const [viewMode, setViewMode] = useState("studio");
+  const viewMode = "gallery";
   const [presentationMode, setPresentationMode] = useState(() => {
     try { return localStorage.getItem("spekd_presentation_mode") === "1"; } catch { return false; }
   });
@@ -1722,8 +1711,6 @@ export default function SearchPage() {
                 vendorCount={facets ? facets.vendors.length : 0}
                 sortKey={sortKey}
                 setSortKey={setSortKey}
-                viewMode={viewMode}
-                setViewMode={setViewMode}
                 presentationMode={presentationMode}
                 setPresentationMode={setPresentationMode}
                 showSortMenu={showSortMenu}
@@ -1827,7 +1814,7 @@ export default function SearchPage() {
                       {/* Product cards for this bucket */}
                       <div className="px-4 py-3">
                         {visibleItems.length > 0 ? (
-                          <div className={`grid gap-3 ${viewMode === "studio" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                             {visibleItems.map((product, pIdx) => (
                               <div key={product.id || pIdx} className="relative">
                                 {/* Selection highlight */}
@@ -1843,7 +1830,6 @@ export default function SearchPage() {
                                 <ProductCard
                                   item={product}
                                   index={pIdx}
-                                  viewMode={viewMode}
                                   presentationMode={presentationMode}
                                   isFavorited={isFavorited(product.id)}
                                   isInQuote={quoteIds.has(product.id)}
@@ -2001,27 +1987,20 @@ export default function SearchPage() {
                       <span className="block text-xs text-white/34 ml-3 whitespace-nowrap">
                         {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
                       </span>
-                      {viewMode === "studio" && (
-                        <span className="block mt-1 text-[10px] uppercase tracking-[0.18em] text-white/20">
-                          Editorial layout
-                        </span>
-                      )}
                     </div>
                   </div>
                 )}
-                <div className={`grid ${viewMode === "studio" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3"}`}>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {visibleProducts.map((item, idx) => (
                     <motion.div
                       key={item.id || idx}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.18, delay: Math.min(idx * 0.01, 0.08) }}
-                      className={viewMode === "studio" ? getStudioSpanClass(idx) : ""}
                     >
                       <ProductCard
                         item={item}
                         index={idx}
-                        viewMode={viewMode}
                         presentationMode={presentationMode}
                         isFavorited={isFavorited(item.id)}
                         isInQuote={quoteIds.has(item.id)}
@@ -2243,7 +2222,7 @@ export default function SearchPage() {
 
 
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
-function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, viewMode, setViewMode, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme }) {
+function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2268,18 +2247,6 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             <Eye className="h-3 w-3" />
             {presentationMode ? "Presentation" : "Workspace"}
           </button>
-          <div className="control-chip flex items-center gap-1 p-1">
-            {VIEW_MODES.map((mode) => (
-              <button
-                key={mode.key}
-                onClick={() => setViewMode(mode.key)}
-                className={`rounded-full px-3 py-1.5 text-[11px] transition-all ${viewMode === mode.key ? "text-black" : "text-white/40 hover:text-white/70"}`}
-                style={viewMode === mode.key ? { background: moodTheme.accent } : {}}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
 
           {/* Sort dropdown */}
           <div className="relative">
@@ -2336,7 +2303,7 @@ function PricingToggle() {
 }
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
-const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "gallery", presentationMode = false, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
+const ProductCard = React.memo(function ProductCard({ item, index, presentationMode = false, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -2346,12 +2313,12 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
   const priceInfo = getPrice(item);
   const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
-  const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, viewMode === "studio" ? 3 : 1);
+  const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, 1);
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`product-card group cursor-pointer flex flex-col ${viewMode === "studio" ? "min-h-[440px]" : ""} ${presentationMode ? "paper-grain" : ""}`}
+      className={`product-card group cursor-pointer flex flex-col ${presentationMode ? "paper-grain" : ""}`}
       style={{ contain: "layout style paint", height: "100%" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
@@ -2359,7 +2326,6 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
         onPreview();
       }}
     >
-      {/* Image — landscape for studio shots, tall for lifestyle */}
       <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "#ffffff" }}>
         {item.image_url && !imgError ? (
           <>
@@ -2411,7 +2377,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
       <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
 
       {/* Card meta */}
-      <div className={`card-meta ${viewMode === "studio" ? "p-5 sm:p-6 pb-5" : "p-4 sm:p-5 pb-4"} flex-1 flex flex-col`}>
+      <div className="card-meta p-4 sm:p-5 pb-4 flex-1 flex flex-col">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold/72 truncate">{item.manufacturer_name}</div>
           {item.result_quality && (
@@ -2420,7 +2386,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
             </span>
           )}
         </div>
-        <h3 className={`product-name text-white/94 line-clamp-2 mb-2 ${presentationMode && viewMode === "studio" ? "text-[18px] sm:text-[20px]" : "text-[15px] sm:text-[17px]"} min-h-[2.6em]`}>{item.product_name}</h3>
+        <h3 className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</h3>
         <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && !presentationMode && (
           <div className="mb-4 flex flex-wrap gap-1.5">
@@ -2430,11 +2396,6 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
               </span>
             ))}
           </div>
-        )}
-        {viewMode === "studio" && (
-          <p className="mb-4 line-clamp-3 text-[12px] leading-6 text-white/42">
-            {item.reasoning || item.description || item.snippet || "Curated trade result selected for style, silhouette, and sourcing fit."}
-          </p>
         )}
         <div className="mt-auto flex items-end justify-between gap-2">
           {priceStr && (
