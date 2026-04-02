@@ -290,7 +290,22 @@
     pointer-events: none;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.035), transparent 22%),
-      radial-gradient(circle at top right, rgba(198, 161, 106, 0.12), transparent 28%);
+      radial-gradient(circle at top right, rgba(198, 161, 106, 0.12), transparent 28%),
+      radial-gradient(circle at 25% 20%, rgba(255,255,255,0.02) 0, transparent 30%),
+      linear-gradient(125deg, rgba(255,255,255,0.014) 0%, transparent 24%, rgba(255,255,255,0.01) 48%, transparent 72%);
+  }
+
+  .atelier-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.55) 0.8px, transparent 0.9px),
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.4) 0.8px, transparent 0.9px);
+    background-size: 18px 18px, 24px 24px;
+    mix-blend-mode: soft-light;
   }
 
   .atelier-panel-soft {
@@ -298,6 +313,19 @@
     border: 1px solid var(--panel-border);
     border-radius: 24px;
     box-shadow: 0 20px 56px rgba(0, 0, 0, 0.22);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .atelier-panel-soft::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.024), transparent 30%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 28px);
+    opacity: 0.45;
   }
 
   .editorial-card {
@@ -306,6 +334,19 @@
     border-radius: 26px;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
     overflow: hidden;
+    position: relative;
+  }
+
+  .editorial-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.03), transparent 24%),
+      radial-gradient(circle at top right, rgba(198,161,106,0.08), transparent 30%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 20px);
+    opacity: 0.65;
   }
 
   .editorial-card:hover {
@@ -357,6 +398,19 @@
     border: 1px solid rgba(255, 240, 222, 0.08);
     border-radius: 24px;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .luxe-input::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%),
+      linear-gradient(110deg, rgba(255,255,255,0.035), transparent 24%, rgba(255,255,255,0.012) 50%, transparent 75%);
+    opacity: 0.7;
   }
 
   .luxe-input:focus-within {
@@ -553,6 +607,19 @@
     overflow: hidden;
     border-radius: 24px;
     transition: transform var(--transition-card), border-color var(--transition-card), box-shadow var(--transition-card);
+    position: relative;
+  }
+
+  .product-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.026), transparent 22%),
+      radial-gradient(circle at top right, rgba(198,161,106,0.08), transparent 26%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 18px);
+    opacity: 0.7;
   }
 
   /* Hover effects only on non-touch devices */
@@ -735,6 +802,18 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(198, 161, 106, 0.15), transparent);
     opacity: 0.8;
+  }
+
+  .control-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 239, 216, 0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 22px rgba(0,0,0,0.12);
+  }
+
+  .control-chip:hover {
+    border-color: rgba(198, 161, 106, 0.24);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(198,161,106,0.04));
   }
 }
 

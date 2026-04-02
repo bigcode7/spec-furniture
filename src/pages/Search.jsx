@@ -27,7 +27,7 @@ import {
   Link2,
   Share2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch, getProduct } from "@/api/searchClient";
 import {
@@ -250,6 +250,22 @@ function sortProducts(products, sortKey) {
     default: // relevance
       return sorted;
   }
+}
+
+function getStudioSpanClass(index) {
+  if (index === 0) return "sm:col-span-2 lg:col-span-2";
+  if (index > 0 && index % 7 === 0) return "lg:col-span-2";
+  return "";
+}
+
+function getCardLayoutIds(id) {
+  const safe = id || "unknown";
+  return {
+    shell: `product-shell-${safe}`,
+    image: `product-image-${safe}`,
+    title: `product-title-${safe}`,
+    meta: `product-meta-${safe}`,
+  };
 }
 
 function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) {
@@ -1358,6 +1374,7 @@ export default function SearchPage() {
   // ──────────────────────────────────────────────
 
   return (
+    <LayoutGroup id="search-stage">
     <div className="relative min-h-screen">
       <AnimatedGradientBackground
         Breathing
@@ -1923,7 +1940,7 @@ export default function SearchPage() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.5) }}
-                      className={viewMode === "studio" && idx === 0 ? "sm:col-span-2 lg:col-span-2" : ""}
+                      className={viewMode === "studio" ? getStudioSpanClass(idx) : ""}
                     >
                       <ProductCard
                         item={item}
@@ -2143,6 +2160,7 @@ export default function SearchPage() {
       )}
 
     </div>
+    </LayoutGroup>
   );
 }
 
@@ -2164,7 +2182,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
 
         <div className="flex items-center gap-3">
           <PricingToggle />
-          <div className="hidden sm:flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+          <div className="control-chip hidden sm:flex items-center gap-1 p-1">
             {VIEW_MODES.map((mode) => (
               <button
                 key={mode.key}
@@ -2180,7 +2198,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           {/* Sort dropdown */}
           <div className="relative">
             <button onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] border border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-white/60 transition-all">
+              className="control-chip flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/40 hover:text-white/60 transition-all">
               <ArrowUpDown className="h-3 w-3" />
               {SORT_OPTIONS.find(s => s.key === sortKey)?.label}
             </button>
@@ -2243,9 +2261,12 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
   const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
   const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, viewMode === "studio" ? 3 : 1);
+  const layoutIds = getCardLayoutIds(item.id);
 
   return (
-    <div
+    <motion.div
+      layoutId={layoutIds.shell}
+      layout
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`product-card group cursor-pointer flex flex-col ${viewMode === "studio" ? "min-h-[440px]" : ""}`}
@@ -2257,7 +2278,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
       }}
     >
       {/* Image — landscape for studio shots, tall for lifestyle */}
-      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+      <motion.div layoutId={layoutIds.image} className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
@@ -2302,7 +2323,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
             {isInQuote || justAdded ? <ClipboardCheck className="h-4 w-4 sm:h-3 sm:w-3" /> : <FileText className="h-4 w-4 sm:h-3 sm:w-3" />}
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Gold hairline */}
       <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
@@ -2317,7 +2338,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
             </span>
           )}
         </div>
-        <h3 className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</h3>
+        <motion.h3 layoutId={layoutIds.title} className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</motion.h3>
         <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-1.5">
@@ -2353,7 +2374,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
           </a>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 });
 
@@ -2431,6 +2452,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
   if (product.height) dims.push(`${product.height}" H`);
   const dimStr = dims.join(" × ") || product.dimensions || null;
   const previewTheme = getSearchMoodTheme(product.product_name || "", [product], false);
+  const layoutIds = getCardLayoutIds(product.id);
 
   return (
     <>
@@ -2445,6 +2467,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
 
       {/* Panel — right-sliding */}
       <motion.div
+        layoutId={layoutIds.shell}
         initial={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
         animate={IS_MOBILE ? { opacity: 1 } : { opacity: 1, x: 0 }}
         exit={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
@@ -2464,7 +2487,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           <div className="flex flex-col gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
-              <div className="relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04]" style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+              <motion.div layoutId={layoutIds.image} className="relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04]" style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
                 {productImages.length > 0 ? (
                   <>
                     {!imgLoaded && (
@@ -2499,7 +2522,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     {(product.manufacturer_name || "?")[0]}
                   </div>
                 )}
-              </div>
+              </motion.div>
               {productImages.length > 1 && (
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {productImages.map((src, i) => (
@@ -2526,9 +2549,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               </div>
 
               {/* Product name */}
-              <h2 className="font-display text-[32px] text-white/92 leading-tight">
+              <motion.h2 layoutId={layoutIds.title} className="font-display text-[32px] text-white/92 leading-tight">
                 {product.product_name}
-              </h2>
+              </motion.h2>
 
               <div className="rounded-[24px] border px-4 py-4" style={{ borderColor: previewTheme.glow, background: `linear-gradient(135deg, ${previewTheme.chip}, rgba(255,255,255,0.02))` }}>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: previewTheme.accent }}>
