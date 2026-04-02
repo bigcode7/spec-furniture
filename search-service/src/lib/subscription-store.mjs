@@ -676,7 +676,7 @@ function getTeamMembers(teamId) {
  * Returns { total, remaining, available }
  */
 // Pre-existing early-bird claims (users who signed up before the tracking system)
-const EARLY_BIRD_PRE_CLAIMED = parseInt(process.env.EARLY_BIRD_PRE_CLAIMED || "37", 10);
+const EARLY_BIRD_PRE_CLAIMED = parseInt(process.env.EARLY_BIRD_PRE_CLAIMED || "0", 10);
 
 function getEarlyBirdStatus() {
   const earlyBirdCount = Object.values(subscriptions).filter(
