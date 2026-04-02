@@ -20,14 +20,26 @@ async function fetchQuoteNarratives(items, projectName) {
 }
 
 const COLORS = {
-  black: [10, 10, 15],
-  darkGray: [30, 30, 38],
-  mediumGray: [80, 80, 90],
-  lightGray: [160, 160, 170],
-  white: [255, 255, 255],
-  gold: [201, 169, 110],
-  cardBg: [20, 20, 28],
+  black: [18, 15, 13],
+  darkGray: [34, 29, 25],
+  mediumGray: [118, 106, 95],
+  lightGray: [191, 181, 170],
+  white: [244, 237, 227],
+  gold: [198, 161, 106],
+  cream: [236, 226, 212],
+  taupe: [83, 71, 61],
+  sage: [133, 146, 121],
+  blueGray: [148, 164, 178],
+  cardBg: [28, 24, 21],
+  cardSoft: [38, 33, 29],
 };
+
+const ROOM_PAGE_TONES = [
+  [198, 161, 106],
+  [148, 164, 178],
+  [133, 146, 121],
+  [181, 137, 123],
+];
 
 /**
  * Draw an image preserving its aspect ratio within a bounding box.
@@ -62,6 +74,37 @@ function drawImageContained(doc, imgData, boxX, boxY, boxW, boxH) {
   doc.addImage(imgData.dataUrl, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
 }
 
+function drawGradientBand(doc, x, y, w, h, rgb, alphaSteps = 8) {
+  for (let i = 0; i < alphaSteps; i++) {
+    const stepY = y + (h / alphaSteps) * i;
+    const stepH = h / alphaSteps + 0.2;
+    const factor = 0.18 - i * (0.14 / alphaSteps);
+    const fill = rgb.map((value) => Math.min(255, Math.round(COLORS.black[0] + (value - COLORS.black[0]) * Math.max(0.2, factor * 4))));
+    doc.setFillColor(...fill);
+    doc.rect(x, stepY, w, stepH, "F");
+  }
+}
+
+function drawLuxePanel(doc, x, y, w, h, fill = COLORS.cardBg, radius = 6) {
+  doc.setFillColor(...fill);
+  doc.roundedRect(x, y, w, h, radius, radius, "F");
+  doc.setDrawColor(...COLORS.taupe);
+  doc.setLineWidth(0.25);
+  doc.roundedRect(x, y, w, h, radius, radius, "S");
+}
+
+function drawSectionEyebrow(doc, text, x, y, color = COLORS.gold) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...color);
+  doc.text(text.toUpperCase(), x, y);
+}
+
+function drawRule(doc, x, y, w, color = COLORS.gold, thickness = 0.8) {
+  doc.setFillColor(...color);
+  doc.rect(x, y, w, thickness, "F");
+}
+
 /**
  * Generate a professional PDF quote from the current quote builder state.
  */
@@ -78,6 +121,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   // ── Page 1: Cover ─────────────────────────────────────────
   doc.setFillColor(...COLORS.black);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
+  drawGradientBand(doc, 0, 0, pageWidth, 92, COLORS.gold);
+  drawGradientBand(doc, 0, pageHeight - 80, pageWidth, 80, COLORS.taupe, 6);
 
   // Designer logo (top-right) — fit proportionally in a max 50x25mm box
   if (settings.logo_data_url) {
@@ -94,16 +139,15 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
     }
   }
 
-  // Gold accent line
-  doc.setFillColor(...COLORS.gold);
-  doc.rect(margin, 36, 40, 1, "F");
+  drawSectionEyebrow(doc, "Presentation quote", margin, 24);
+  drawRule(doc, margin, 30, 48, COLORS.gold, 1.1);
 
   // Designer business name (if set)
   if (settings.business_name) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFont("times", "bold");
+    doc.setFontSize(16);
     doc.setTextColor(...COLORS.white);
-    doc.text(settings.business_name, margin, 52);
+    doc.text(settings.business_name, margin, 50);
   }
 
   // Designer info line
@@ -112,24 +156,24 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.mediumGray);
-    doc.text(designerParts.join("  |  "), margin, settings.business_name ? 60 : 52);
+    doc.text(designerParts.join("  |  "), margin, settings.business_name ? 58 : 50);
   }
 
-  const titleY = settings.business_name ? 85 : 75;
+  const titleY = settings.business_name ? 84 : 76;
 
   // Project title
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(28);
+  doc.setFont("times", "bold");
+  doc.setFontSize(31);
   doc.setTextColor(...COLORS.white);
-  const titleLines = doc.splitTextToSize(projectName, contentWidth);
+  const titleLines = doc.splitTextToSize(projectName, contentWidth - 10);
   doc.text(titleLines, margin, titleY);
 
   // Client name
   let subtitleY = titleY + titleLines.length * 12 + 6;
   if (quote.client_name) {
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "italic");
     doc.setFontSize(14);
-    doc.setTextColor(...COLORS.lightGray);
+    doc.setTextColor(...COLORS.cream);
     doc.text(`Prepared for ${quote.client_name}`, margin, subtitleY);
     subtitleY += 10;
   }
@@ -138,7 +182,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text(pdfMode === "trade" ? "Internal Trade Pricing" : "Product Selection & Quote", margin, subtitleY);
+  doc.text(pdfMode === "trade" ? "Internal trade presentation" : "Curated furniture presentation", margin, subtitleY);
 
   // Date
   subtitleY += 10;
@@ -152,9 +196,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   doc.text(dateStr, margin, subtitleY);
 
   // Summary stats card
-  const statsY = 165;
-  doc.setFillColor(...COLORS.cardBg);
-  doc.roundedRect(margin, statsY, contentWidth, 30, 4, 4, "F");
+  const statsY = 166;
+  drawLuxePanel(doc, margin, statsY, contentWidth, 34, COLORS.cardBg, 7);
 
   const vendorCount = new Set(items.map((i) => i.manufacturer_name)).size;
   const totalQuantity = items.reduce((sum, i) => sum + (i._quantity || 1), 0);
@@ -174,20 +217,23 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   stats.forEach((stat, i) => {
     const colWidth = contentWidth / stats.length;
     const x = margin + 12 + i * colWidth;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
+    doc.setFont("times", "bold");
+    doc.setFontSize(18);
     doc.setTextColor(...COLORS.white);
     doc.text(stat.value, x, statsY + 14);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.mediumGray);
-    doc.text(stat.label, x, statsY + 22);
+    doc.text(stat.label, x, statsY + 24);
   });
 
-  // Powered by Spekd
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text("Powered by Spekd", margin, pageHeight - 15);
+  doc.text("Crafted with Spekd", margin, pageHeight - 18);
+  doc.setFont("times", "italic");
+  doc.setTextColor(...COLORS.lightGray);
+  doc.text("A sourcing presentation designed for refined client review.", margin, pageHeight - 11);
 
   // ── Preload images ──────────────────────────────────────────
   const [narrativesData, imageCache] = await Promise.all([
@@ -216,17 +262,18 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   for (const [roomName, roomItems] of rooms) {
     // Room divider page if multiple rooms
     if (rooms.size > 1) {
+      const roomTone = ROOM_PAGE_TONES[(pageNum - 2) % ROOM_PAGE_TONES.length];
       doc.addPage();
       doc.setFillColor(...COLORS.black);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawGradientBand(doc, 0, 0, pageWidth, pageHeight, roomTone, 10);
+      drawSectionEyebrow(doc, "Room presentation", margin, 42, roomTone);
+      drawRule(doc, margin, 48, 44, roomTone, 1.1);
 
-      doc.setFillColor(...COLORS.gold);
-      doc.rect(margin, pageHeight / 2 - 20, 40, 1, "F");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(28);
+      doc.setFont("times", "bold");
+      doc.setFontSize(30);
       doc.setTextColor(...COLORS.white);
-      doc.text(roomName, margin, pageHeight / 2);
+      doc.text(roomName, margin, pageHeight / 2 - 6);
 
       const roomTotal = roomItems.reduce(
         (sum, i) => sum + (Number(i.retail_price) || 0) * (i._quantity || 1), 0
@@ -235,8 +282,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.setFontSize(12);
       doc.setTextColor(...COLORS.mediumGray);
       doc.text(
-        `${roomItems.length} ${roomItems.length === 1 ? "item" : "items"}${roomTotal > 0 ? ` — $${roomTotal.toLocaleString()}` : ""}`,
-        margin, pageHeight / 2 + 14
+        `${roomItems.length} ${roomItems.length === 1 ? "selection" : "selections"}${roomTotal > 0 ? ` — $${roomTotal.toLocaleString()}` : ""}`,
+        margin, pageHeight / 2 + 10
       );
 
       drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
@@ -248,10 +295,11 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.addPage();
       doc.setFillColor(...COLORS.black);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
+      drawGradientBand(doc, 0, 0, pageWidth, 40, COLORS.gold, 6);
 
       // Header
-      doc.setFillColor(...COLORS.gold);
-      doc.rect(margin, 18, 30, 0.8, "F");
+      drawSectionEyebrow(doc, rooms.size > 1 ? roomName : "Product presentation", margin, 16);
+      drawRule(doc, margin, 20, 30, COLORS.gold, 0.9);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
@@ -259,14 +307,14 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       const headerText = rooms.size > 1
         ? `${roomName.toUpperCase()} — ITEM ${globalIdx + 1} OF ${items.length}`
         : `PRODUCT ${globalIdx + 1} OF ${items.length}`;
-      doc.text(headerText, margin, 14);
+      doc.text(headerText, margin, 26);
 
       // Quantity badge (if >1)
       if ((item._quantity || 1) > 1) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.gold);
-        doc.text(`QTY: ${item._quantity}`, pageWidth - margin, 14, { align: "right" });
+        doc.text(`QTY: ${item._quantity}`, pageWidth - margin, 26, { align: "right" });
       }
 
       // Product image — aspect-ratio-preserving
@@ -297,8 +345,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
       // Product name
       y += 10;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
+      doc.setFont("times", "bold");
+      doc.setFontSize(21);
       doc.setTextColor(...COLORS.white);
       const nameLines = doc.splitTextToSize(item.product_name || "Untitled Product", contentWidth);
       doc.text(nameLines, margin, y);
@@ -311,12 +359,13 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       // AI Narrative — short one-liner
       const narrative = narrativeMap.get(item.id);
       if (narrative?.narrative) {
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(9);
-        doc.setTextColor(...COLORS.lightGray);
-        const narrativeLines = doc.splitTextToSize(narrative.narrative, contentWidth).slice(0, 2);
+        drawLuxePanel(doc, margin, y - 2, contentWidth, 18, COLORS.cardSoft, 5);
+        doc.setFont("times", "italic");
+        doc.setFontSize(10);
+        doc.setTextColor(...COLORS.cream);
+        const narrativeLines = doc.splitTextToSize(narrative.narrative, contentWidth - 12).slice(0, 2);
         doc.text(narrativeLines, margin, y);
-        y += narrativeLines.length * 4.5 + 5;
+        y += 20;
       }
 
       // Description fallback (only if no AI narrative)
@@ -335,19 +384,19 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       // Design justification (Why This Piece)
       const itemJustification = justifications[item.id];
       if (itemJustification) {
-        doc.setFont("helvetica", "italic");
+        drawLuxePanel(doc, margin, y - 1, contentWidth, 20, COLORS.cardSoft, 5);
+        doc.setFont("times", "italic");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.gold);
         const justLines = doc.splitTextToSize(itemJustification, contentWidth - 16).slice(0, 4);
         doc.text(justLines, margin + 8, y);
-        y += justLines.length * 4.5 + 5;
+        y += 22;
       }
 
       // Specs card
-      doc.setFillColor(...COLORS.cardBg);
       const specRows = buildSpecRows(item);
       const specHeight = specRows.length * 10 + 12;
-      doc.roundedRect(margin, y, contentWidth, specHeight, 3, 3, "F");
+      drawLuxePanel(doc, margin, y, contentWidth, specHeight, COLORS.cardBg, 5);
 
       specRows.forEach((row, i) => {
         const rowY = y + 10 + i * 10;
@@ -355,7 +404,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
         doc.setFontSize(8);
         doc.setTextColor(...COLORS.mediumGray);
         doc.text(row.label, margin + 8, rowY);
-        doc.setFont("helvetica", "bold");
+        doc.setFont("times", "bold");
         doc.setTextColor(...COLORS.white);
         doc.text(String(row.value), margin + 55, rowY);
       });
@@ -374,9 +423,8 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
       // Vendor link button
       if (item.portal_url && y < pageHeight - 35) {
-        doc.setFillColor(...COLORS.cardBg);
-        doc.roundedRect(margin, y, contentWidth, 12, 3, 3, "F");
-        doc.setFont("helvetica", "bold");
+        drawLuxePanel(doc, margin, y, contentWidth, 12, COLORS.cardSoft, 4);
+        doc.setFont("times", "bold");
         doc.setFontSize(9);
         doc.setTextColor(...COLORS.gold);
         const linkText = `View on ${item.manufacturer_name || "vendor"} website`;
@@ -394,21 +442,16 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   doc.addPage();
   doc.setFillColor(...COLORS.black);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
-
-  doc.setFillColor(...COLORS.gold);
-  doc.rect(margin, 30, 30, 0.8, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.gold);
-  doc.text("QUOTE SUMMARY", margin, 26);
+  drawGradientBand(doc, 0, 0, pageWidth, 56, COLORS.gold, 7);
+  drawSectionEyebrow(doc, "Quote summary", margin, 24);
+  drawRule(doc, margin, 30, 30, COLORS.gold, 0.9);
 
   let sy = 44;
 
   // Room-by-room summary
   for (const [roomName, roomItems] of rooms) {
     if (rooms.size > 1) {
-      doc.setFont("helvetica", "bold");
+      doc.setFont("times", "bold");
       doc.setFontSize(12);
       doc.setTextColor(...COLORS.white);
       doc.text(roomName, margin, sy);
@@ -455,7 +498,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
       doc.setLineWidth(0.3);
       doc.line(pageWidth - margin - 60, sy, pageWidth - margin, sy);
       sy += 5;
-      doc.setFont("helvetica", "bold");
+      doc.setFont("times", "bold");
       doc.setFontSize(9);
       doc.setTextColor(...COLORS.white);
       doc.text(`${roomName} Subtotal`, margin + 6, sy);
@@ -470,7 +513,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   doc.setLineWidth(0.5);
   doc.line(margin, sy, pageWidth - margin, sy);
   sy += 8;
-  doc.setFont("helvetica", "bold");
+  doc.setFont("times", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...COLORS.white);
   doc.text("Total", margin, sy);
@@ -484,7 +527,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
 
   // Terms
   sy += 16;
-  const terms = quote.terms || "Prices valid for 30 days from quote date. Lead times are estimates and may vary. All items subject to availability.";
+  const terms = quote.terms || "Prices valid for 30 days from quote date. Lead times are estimates and may vary. All items remain subject to availability and vendor confirmation.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...COLORS.mediumGray);
@@ -539,11 +582,15 @@ function buildSpecRows(item) {
 }
 
 function drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight) {
+  doc.setDrawColor(...COLORS.taupe);
+  doc.setLineWidth(0.2);
+  doc.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...COLORS.mediumGray);
-  doc.text(`Powered by Spekd`, margin, pageHeight - 12);
-  doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 12, { align: "right" });
+  doc.text(`Spekd presentation`, margin, pageHeight - 11);
+  doc.text(projectName.slice(0, 48), pageWidth / 2, pageHeight - 11, { align: "center" });
+  doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 11, { align: "right" });
 }
 
 function drawImagePlaceholder(doc, x, y, w, h, item) {

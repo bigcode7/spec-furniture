@@ -1904,9 +1904,16 @@ export default function SearchPage() {
                         {visualSearchThumb ? "Visual Search Results" : displayQuery}
                       </h2>
                     </div>
-                    <span className="text-xs text-white/34 ml-3 whitespace-nowrap shrink-0">
-                      {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span className="block text-xs text-white/34 ml-3 whitespace-nowrap">
+                        {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
+                      </span>
+                      {viewMode === "studio" && (
+                        <span className="block mt-1 text-[10px] uppercase tracking-[0.18em] text-white/20">
+                          Editorial layout
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className={`grid ${viewMode === "studio" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3"}`}>
@@ -1916,6 +1923,7 @@ export default function SearchPage() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.5) }}
+                      className={viewMode === "studio" && idx === 0 ? "sm:col-span-2 lg:col-span-2" : ""}
                     >
                       <ProductCard
                         item={item}
