@@ -408,7 +408,7 @@ export default function Landing() {
       if (event.results[event.results.length - 1].isFinal && transcript.trim()) {
         setTimeout(() => {
           setIsListening(false);
-          navigate(`${createPageUrl("Search")}?q=${encodeURIComponent(transcript.trim())}`);
+          goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(transcript.trim())}`);
         }, 300);
       }
     };
@@ -428,7 +428,7 @@ export default function Landing() {
     const reader = new FileReader();
     reader.onload = () => {
       sessionStorage.setItem("spekd_visual_search", reader.result);
-      navigate(`${createPageUrl("Search")}?visual=true`);
+      goToSearch(`${createPageUrl("Search")}?visual=true`);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -463,9 +463,9 @@ export default function Landing() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (query.trim()) {
-      navigate(`${createPageUrl("Search")}?q=${encodeURIComponent(query.trim())}`);
+      goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(query.trim())}`);
     } else {
-      navigate(createPageUrl("Search"));
+      goToSearch(createPageUrl("Search"));
     }
   };
 
@@ -955,3 +955,9 @@ export default function Landing() {
     </div>
   );
 }
+  const goToSearch = (url) => {
+    try {
+      sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() }));
+    } catch {}
+    navigate(url);
+  };

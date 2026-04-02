@@ -321,6 +321,16 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [inputValue, setInputValue] = useState("");
+  const [entryTransition, setEntryTransition] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("spekd_search_entry");
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return parsed?.from === "landing" && Date.now() - (parsed?.ts || 0) < 15000;
+    } catch {
+      return false;
+    }
+  });
   const [allResults, setAllResults] = useState([]); // full result set from server
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -458,6 +468,15 @@ export default function SearchPage() {
       });
     };
   }, []);
+
+  useEffect(() => {
+    if (!entryTransition) return;
+    const timer = setTimeout(() => {
+      setEntryTransition(false);
+      try { sessionStorage.removeItem("spekd_search_entry"); } catch {}
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [entryTransition]);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -1375,7 +1394,12 @@ export default function SearchPage() {
 
   return (
     <LayoutGroup id="search-stage">
-    <div className="relative min-h-screen">
+    <motion.div
+      initial={entryTransition ? { opacity: 0, scale: 0.985, y: 18 } : false}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+      className="relative min-h-screen"
+    >
       <AnimatedGradientBackground
         Breathing
         gradientColors={moodTheme.gradient}
@@ -2159,7 +2183,7 @@ export default function SearchPage() {
         </div>
       )}
 
-    </div>
+    </motion.div>
     </LayoutGroup>
   );
 }

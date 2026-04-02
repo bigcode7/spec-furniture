@@ -100,7 +100,7 @@
       radial-gradient(circle at top left, rgba(198, 161, 106, 0.16), transparent 28%),
       radial-gradient(circle at 80% 15%, rgba(120, 89, 52, 0.18), transparent 30%),
       linear-gradient(180deg, #181411 0%, #110f0d 100%);
-    font-family: "DM Sans", "Plus Jakarta Sans", "Inter", sans-serif;
+    font-family: "Manrope", "DM Sans", "Plus Jakarta Sans", "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv11", "ss01";
@@ -196,10 +196,10 @@
 
   /* ── Typography ── */
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "Cormorant Garamond", "Playfair Display", Georgia, serif;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    font-weight: 500;
+    font-weight: 600;
   }
 }
 
@@ -355,10 +355,10 @@
   }
 
   .workspace-heading {
-    font-family: "Playfair Display", Georgia, serif;
-    font-size: clamp(2.6rem, 4vw, 4.5rem);
-    line-height: 0.96;
-    letter-spacing: -0.04em;
+    font-family: "Cormorant Garamond", "Playfair Display", Georgia, serif;
+    font-size: clamp(3rem, 4.6vw, 5rem);
+    line-height: 0.9;
+    letter-spacing: -0.05em;
     color: var(--warm-white);
   }
 
@@ -366,7 +366,8 @@
     max-width: 56rem;
     color: rgba(244, 237, 227, 0.62);
     font-size: 15px;
-    line-height: 1.8;
+    line-height: 1.9;
+    font-family: "Manrope", "DM Sans", sans-serif;
   }
 
   .workspace-kicker {
@@ -474,19 +475,19 @@
   }
 
   .label-caps {
-    font-family: "DM Sans", "Plus Jakarta Sans", sans-serif;
-    font-size: 11px;
-    font-weight: 600;
+    font-family: "Manrope", "DM Sans", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.24em;
     color: var(--warm-gray);
   }
 
   .product-name {
-    font-family: "Playfair Display", Georgia, serif;
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 1.25;
+    font-family: "Cormorant Garamond", "Playfair Display", Georgia, serif;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.08;
   }
 
   /* ════════ CARDS ════════ */
