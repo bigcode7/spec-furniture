@@ -1794,19 +1794,20 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       if (!sub?.stripe_subscription_id) return json(res, 400, { error: "No active subscription" });
 
       try {
-        // If still in trial, cancel immediately — no reason to let it convert to a paid sub
-        const immediate = sub.status === "trialing";
-        await cancelSubscription(sub.stripe_subscription_id, immediate);
+        // Always cancel at period end — user keeps access through remaining trial/billing period
+        // Stripe won't charge when the trial ends because cancel_at_period_end prevents renewal
+        await cancelSubscription(sub.stripe_subscription_id, false);
+        const accessUntil = sub.status === "trialing" ? sub.trial_end : sub.current_period_end;
         setSubscription(identity.userId, {
           status: "cancelled",
           cancelled_at: new Date().toISOString(),
+          current_period_end: accessUntil,
         });
         logSubscriptionEvent("cancellation", {
           user_id: identity.userId,
           reason: body.reason || "not specified",
-          immediate,
         });
-        return json(res, 200, { ok: true, access_until: immediate ? new Date().toISOString() : sub.current_period_end });
+        return json(res, 200, { ok: true, access_until: accessUntil });
       } catch (err) {
         return json(res, 500, { error: err.message });
       }
