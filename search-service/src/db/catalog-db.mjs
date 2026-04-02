@@ -962,7 +962,7 @@ export async function initCatalogDB() {
     console.log("[catalog-db] No existing database found, starting fresh");
   }
 
-  // SAFETY NET: If we have too few products and CATALOG_URL is available, force download
+  // SAFETY NET: If catalog is undersized, delete stale file and force re-download from GitHub release
   if (products.size < 10000) {
     console.log(`[catalog-db] SAFETY NET: Only ${products.size} products loaded — forcing re-download`);
     try { if (fs.existsSync(DB_PATH)) fs.unlinkSync(DB_PATH); } catch {}
