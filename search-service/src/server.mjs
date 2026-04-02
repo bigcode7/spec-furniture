@@ -42,6 +42,7 @@ import { runPhotoAnalysis, getPhotoAnalysisStatus, stopPhotoAnalysis } from "./j
 import { runEnrichment, getEnrichmentStatus, stopEnrichment } from "./jobs/enrichment-job.mjs";
 import { runVisualTagger, getVisualTaggerStatus, stopVisualTagger } from "./jobs/visual-tagger.mjs";
 import { runImageFixer, getImageFixerStatus, stopImageFixer } from "./jobs/image-fixer.mjs";
+import { runHeroOptimizer, getHeroOptimizerStatus, stopHeroOptimizer } from "./jobs/hero-optimizer.mjs";
 import { runDeepEnrichment, getDeepEnrichmentStatus, stopDeepEnrichment } from "./jobs/deep-enrichment-job.mjs";
 import { importBernhardt, getBernhardtStatus, stopBernhardt } from "./importers/bernhardt-importer.mjs";
 import { runCatalogCleanup, getCatalogCleanupStatus, stopCatalogCleanup } from "./jobs/catalog-cleanup-job.mjs";
@@ -4404,6 +4405,32 @@ Return JSON array:
         vendorFilter: body.vendor_filter || null,
       }).catch(err => console.error("[image-fixer] Scan error:", err.message));
       return json(res, 202, { ok: true, message: "Image scan started (dry run).", status_url: "/admin/image-fixer/status" });
+    }
+
+    // ── Hero Optimizer ──
+    if (req.method === "POST" && req.url === "/admin/hero-optimizer/start") {
+      const body = await collectBody(req);
+      runHeroOptimizer(catalogDBInterface, {
+        batchSize: body.batch_size || 15,
+        delayMs: body.delay_ms || 300,
+        vendorFilter: body.vendor_filter || null,
+        skipPhase1: body.skip_phase1 || false,
+        skipPhase2: body.skip_phase2 || false,
+        skipPhase3: body.skip_phase3 || false,
+      }).then(() => {
+        clearSearchCache();
+        console.log("[hero-optimizer] Search cache cleared after optimization");
+      }).catch(err => console.error("[hero-optimizer] Error:", err.message));
+      return json(res, 202, { ok: true, message: "Hero optimizer started. 3 phases: gallery swap → crawl fix → verify unchecked.", status_url: "/admin/hero-optimizer/status" });
+    }
+
+    if (req.method === "GET" && (req.url === "/admin/hero-optimizer/status" || req.url === "/admin/hero-optimizer/status?")) {
+      return json(res, 200, getHeroOptimizerStatus());
+    }
+
+    if (req.method === "POST" && req.url === "/admin/hero-optimizer/stop") {
+      stopHeroOptimizer();
+      return json(res, 200, { ok: true, message: "Hero optimizer stop requested." });
     }
 
     // ── Bernhardt Importer ──
