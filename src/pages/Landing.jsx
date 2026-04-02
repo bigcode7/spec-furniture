@@ -17,17 +17,6 @@ const EXAMPLE_SEARCHES = [
   "statement accent chair",
 ];
 
-// ── Helper: fetch search results (landing page — no auth, skip paywall) ──
-function searchProducts(query, maxVendors = 20, perVendor = 5) {
-  return fetch(`${SEARCH_URL}/search`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, max_vendors: maxVendors, per_vendor: perVendor, landing_demo: true }),
-  }).then((r) => {
-    if (!r.ok) return { products: [] };
-    return r.json();
-  });
-}
 
 // ── Reusable scroll reveal ──
 function Reveal({ children, className = "" }) {
@@ -178,10 +167,17 @@ function MockVendorUI({ vendors }) {
   );
 }
 
-// ── Mock Search UI — REAL PRODUCTS from catalog, typing animation ──
-function MockSearchUI({ demoProducts }) {
+// ── Hardcoded demo products — no live search needed ──
+const DEMO_PRODUCTS = [
+  { id: "caracole_lean-on-me", product_name: "Lean On Me", manufacturer_name: "Caracole", image_url: "https://cdn.shopify.com/s/files/1/0710/9299/4095/files/f39ucdyxymdpjaqwzcnr.jpg?v=1773686507", retail_price: 2715 },
+  { id: "hooker_caleigh-recliner", product_name: "Caleigh Recliner", manufacturer_name: "Hooker Furniture", image_url: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg", retail_price: 2835 },
+  { id: "gabby_nantucket-recliner-sch-r1492", product_name: "Nantucket Recliner", manufacturer_name: "Gabby", image_url: "https://cdn.shopify.com/s/files/1/0625/1007/1895/files/image_e9v65lq92l5a9fk9oshjlr0f09.jpg?v=1772795521", retail_price: 5299 },
+];
+
+// ── Mock Search UI — typing animation with hardcoded products ──
+function MockSearchUI() {
   const demoQuery = "recliner that doesn't look like a recliner";
-  const products = demoProducts || [];
+  const products = DEMO_PRODUCTS;
   const [typedLength, setTypedLength] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const ref = useRef(null);
@@ -445,17 +441,14 @@ export default function Landing() {
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [vendorNames, setVendorNames] = useState([]);
-  const [demoProducts, setDemoProducts] = useState(null);
 
-  // ── Fetch all real data on mount ──
+  // ── Fetch catalog stats + vendors on mount ──
   useEffect(() => {
-    // 1. Catalog stats
     fetch(`${SEARCH_URL}/catalog/stats`)
       .then((r) => r.json())
       .then((data) => setCatalogStats(data.catalog || data))
       .catch(() => {});
 
-    // 2. Vendor list with real product counts
     fetch(`${SEARCH_URL}/vendors`)
       .then((r) => r.json())
       .then((data) => {
@@ -465,35 +458,9 @@ export default function Landing() {
       })
       .catch(() => {});
 
-    // 3. Demo search — real recliner products for landing page demo widget
-    const DEMO_CACHE_KEY = "spekd_demo_v2"; // bump version to bust stale coastal cache
-    const cachedDemo = sessionStorage.getItem(DEMO_CACHE_KEY);
-    sessionStorage.removeItem("spekd_demo_products"); // clear old key
-    if (cachedDemo) {
-      try {
-        const parsed = JSON.parse(cachedDemo);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setDemoProducts(parsed);
-        } else {
-          fetchDemoProducts();
-        }
-      } catch {
-        fetchDemoProducts();
-      }
-    } else {
-      fetchDemoProducts();
-    }
-
-    function fetchDemoProducts() {
-      searchProducts("recliner that doesn't look like a recliner", 20, 3).then((data) => {
-        const products = (data.products || []).filter((p) => p.image_url);
-        const top3 = products.slice(0, 3);
-        if (top3.length > 0) {
-          setDemoProducts(top3);
-          sessionStorage.setItem(DEMO_CACHE_KEY, JSON.stringify(top3));
-        }
-      }).catch(() => {});
-    }
+    // Clean up old demo caches
+    sessionStorage.removeItem("spekd_demo_products");
+    sessionStorage.removeItem("spekd_demo_v2");
   }, []);
 
   const handleSearch = (e) => {
@@ -505,9 +472,9 @@ export default function Landing() {
     }
   };
 
-  // Live stats from catalog
-  const totalProducts = catalogStats?.total_products || 0;
-  const totalVendors = vendors.length || 0;
+  // Live stats from catalog — floor at known minimums so we never show low numbers during cold start
+  const totalProducts = Math.max(catalogStats?.total_products || 0, 42000);
+  const totalVendors = Math.max(vendors.length || 0, 20);
   const marqueeNames = vendorNames.length > 0 ? vendorNames : [
     "Bernhardt", "Hooker Furniture", "Century Furniture", "Vanguard",
     "Caracole", "Baker Furniture", "Theodore Alexander", "Stickley",
@@ -787,7 +754,7 @@ export default function Landing() {
         kicker="Search Your Way"
         title={<>Describe the vision,<br /><span className="text-gold">we find the pieces</span></>}
         description="Search the way you'd describe a project to a colleague. Spekd understands design intent — materials, styles, and budgets — then surfaces exactly the right pieces from every vendor at once."
-        mockUI={<MockSearchUI demoProducts={demoProducts} />}
+        mockUI={<MockSearchUI />}
         icon={Search}
       />
 
