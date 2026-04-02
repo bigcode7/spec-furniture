@@ -258,6 +258,31 @@ function getStudioSpanClass(index) {
   return "";
 }
 
+// Promote the best-image product from the top results into the hero (index 0) position.
+// The hero card is col-span-2 and visually dominant, so it should always have a clean image.
+function promoteHeroImage(products) {
+  if (products.length < 2) return products;
+  const SCAN = Math.min(products.length, 12);
+  const qualityRank = { "verified-hq": 3, "verified": 2 };
+  let bestIdx = 0;
+  let bestScore = -1;
+  for (let i = 0; i < SCAN; i++) {
+    const p = products[i];
+    if (!p.image_url) continue;
+    let score = qualityRank[p.image_quality] || 0;
+    // Prefer products with known high-res images
+    if (p.image_width >= 800) score += 2;
+    else if (p.image_width >= 400) score += 1;
+    // Slight relevance bias — prefer items closer to original rank
+    score -= i * 0.05;
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  if (bestIdx === 0) return products;
+  const result = [...products];
+  [result[0], result[bestIdx]] = [result[bestIdx], result[0]];
+  return result;
+}
+
 function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) {
   const text = `${query} ${(products[0]?.ai_visual_tags || "")} ${(products[0]?.material || "")} ${(products[0]?.style || "")}`.toLowerCase();
   if (hasVisualSearch) {
@@ -416,9 +441,9 @@ export default function SearchPage() {
 
   const hasConversation = messages.length > 0;
 
-  // Derived: sorted + paginated results
+  // Derived: sorted + paginated results, with best-image product promoted to hero position
   const sorted = sortProducts(allResults, sortKey);
-  const visibleProducts = sorted.slice(0, visibleCount);
+  const visibleProducts = promoteHeroImage(sorted.slice(0, visibleCount));
   const hasMoreLocal = visibleCount < sorted.length;
   const hasMoreServer = allResults.length < MAX_RESULTS;
   const facets = allResults.length > 0 ? extractFacets(allResults) : null;
@@ -1628,13 +1653,24 @@ export default function SearchPage() {
             {/* Loading — skeleton product cards */}
             {loading && (
               <div className="pt-4">
+                <div className="paper-grain mb-5 rounded-[24px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-gold/58">Curating</span>
+                  </div>
+                  <div className="mt-2 text-[13px] text-white/46">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
+                </div>
                 <div className="flex items-center gap-2.5 mb-4">
                   <div className="flex gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
                     <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
-                  <span className="text-[11px] text-white/25">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</span>
+                  <span className="text-[11px] text-white/25">Assembling presentation-ready results</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {Array.from({ length: IS_MOBILE ? 8 : 15 }, (_, i) => (
@@ -1657,8 +1693,13 @@ export default function SearchPage() {
 
             {error && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-3 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500/10"><AlertCircle className="h-3.5 w-3.5 text-red-400" /></div>
-                <p className="text-sm text-red-400/80 pt-1">{error}</p>
+                <div className="paper-grain flex items-start gap-3 rounded-[24px] border border-red-400/10 bg-red-400/[0.04] px-4 py-4">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500/10"><AlertCircle className="h-3.5 w-3.5 text-red-400" /></div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-red-300/70">Search Interrupted</div>
+                    <p className="pt-1 text-sm text-red-400/80">{error}</p>
+                  </div>
+                </div>
               </motion.div>
             )}
 

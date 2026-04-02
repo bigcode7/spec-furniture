@@ -105,6 +105,15 @@ function drawRule(doc, x, y, w, color = COLORS.gold, thickness = 0.8) {
   doc.rect(x, y, w, thickness, "F");
 }
 
+function drawInfoPill(doc, text, x, y, w, fill = COLORS.cardSoft, textColor = COLORS.cream) {
+  doc.setFillColor(...fill);
+  doc.roundedRect(x, y, w, 10, 5, 5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...textColor);
+  doc.text(text.toUpperCase(), x + w / 2, y + 6.4, { align: "center" });
+}
+
 /**
  * Generate a professional PDF quote from the current quote builder state.
  */
@@ -194,6 +203,7 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
     day: "numeric",
   });
   doc.text(dateStr, margin, subtitleY);
+  drawInfoPill(doc, pdfMode === "trade" ? "trade presentation" : "client presentation", pageWidth - margin - 42, subtitleY - 6, 42, COLORS.cardSoft, COLORS.gold);
 
   // Summary stats card
   const statsY = 166;
@@ -285,6 +295,11 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
         `${roomItems.length} ${roomItems.length === 1 ? "selection" : "selections"}${roomTotal > 0 ? ` — $${roomTotal.toLocaleString()}` : ""}`,
         margin, pageHeight / 2 + 10
       );
+      drawLuxePanel(doc, margin, pageHeight / 2 + 24, 94, 18, COLORS.cardSoft, 5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...COLORS.cream);
+      doc.text("Composed for room-level review and pricing clarity.", margin + 8, pageHeight / 2 + 35);
 
       drawFooter(doc, projectName, pageNum, margin, pageWidth, pageHeight);
       pageNum++;
@@ -447,6 +462,12 @@ export async function generateQuotePdf(items, projectName = "Untitled Quote", op
   drawRule(doc, margin, 30, 30, COLORS.gold, 0.9);
 
   let sy = 44;
+  drawLuxePanel(doc, margin, sy, contentWidth, 18, COLORS.cardSoft, 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.cream);
+  doc.text("Executive summary by room, followed by terms and signature.", margin + 8, sy + 11);
+  sy += 28;
 
   // Room-by-room summary
   for (const [roomName, roomItems] of rooms) {

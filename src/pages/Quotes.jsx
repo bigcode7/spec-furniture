@@ -113,6 +113,8 @@ export default function Quotes() {
     try { return localStorage.getItem("spekd_quote_presentation_mode") !== "0"; } catch { return true; }
   });
   const [generating, setGenerating] = useState(false);
+  const [generatingLabel, setGeneratingLabel] = useState("");
+  const [actionToast, setActionToast] = useState(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [showAddRoom, setShowAddRoom] = useState(false);
 
@@ -297,6 +299,7 @@ export default function Quotes() {
       return;
     }
     setGenerating(true);
+    setGeneratingLabel(pdfMode === "trade" ? "Building trade presentation..." : "Building client presentation...");
     try {
       const allItems = quote.rooms.flatMap((r) =>
         r.items.map((item) => {
@@ -316,10 +319,15 @@ export default function Quotes() {
         })
       );
       await generateQuotePdf(allItems, quote.name || "Untitled Quote", { pdfMode, justifications });
+      setActionToast(pdfMode === "trade" ? "Trade presentation downloaded" : "Client presentation downloaded");
+      setTimeout(() => setActionToast(null), 2600);
     } catch (err) {
       console.error("PDF generation failed:", err);
+      setActionToast("Could not generate the PDF");
+      setTimeout(() => setActionToast(null), 2600);
     }
     setGenerating(false);
+    setGeneratingLabel("");
   };
 
   const handleClear = () => {
@@ -458,6 +466,8 @@ export default function Quotes() {
       const url = `${window.location.origin}/Approve?token=${token}`;
       await navigator.clipboard.writeText(url);
       setShareCopied(true);
+      setActionToast(shareToken ? "Client portal refreshed and copied" : "Client portal copied");
+      setTimeout(() => setActionToast(null), 2600);
       setShowShareModal(false);
       setShareNote("");
       // Clear old feedback on new version
@@ -468,6 +478,8 @@ export default function Quotes() {
       setTimeout(() => setShareCopied(false), 3000);
     } catch (err) {
       console.error("Share link error:", err);
+      setActionToast("Could not create the client portal");
+      setTimeout(() => setActionToast(null), 2600);
     } finally {
       setShareLoading(false);
     }
@@ -522,6 +534,27 @@ export default function Quotes() {
               {presentationMode ? "Cleaner room boards, calmer chrome, client-ready detail." : "Full editing surfaces and utility controls."}
             </span>
           </div>
+          {totalItems > 0 && (
+            <div className="mt-6 grid gap-3 lg:grid-cols-[1.35fr_0.65fr]">
+              <div className="atelier-panel-soft paper-grain px-4 py-4">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Presentation Direction</div>
+                <p className="mt-2 text-[13px] leading-6 text-white/62">
+                  This quote now reads like a compact design deck: stronger room framing, cleaner executive totals, and more composed export rhythm for client review.
+                </p>
+              </div>
+              <div className="atelier-panel-soft px-4 py-4">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Export readiness</div>
+                <div className="mt-2 flex items-end justify-between gap-3">
+                  <div className="text-2xl font-semibold text-white/92">{Math.round(((quote.rooms.filter((r) => r.items.length > 0).length > 0 ? 1 : 0) + (quote.name ? 1 : 0) + (settings.designer_name ? 1 : 0) + (settings.business_name ? 1 : 0)) / 4 * 100)}%</div>
+                  <div className="text-right text-[11px] leading-5 text-white/34">
+                    Add project, designer, and room detail
+                    <br />
+                    for the strongest export.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* ═══════════════════════════════════════════════════
@@ -549,7 +582,7 @@ export default function Quotes() {
             >
               <HeartOff className="h-8 w-8 text-white/10 mb-3" />
               <p className="text-sm text-white/30 mb-1">No saved products yet</p>
-              <p className="text-xs text-white/15">Save products by clicking the heart icon while browsing search results.</p>
+              <p className="text-xs text-white/15">Save products while browsing and this board becomes your staging area for room stories, spec review, and client-ready quote export.</p>
             </motion.div>
           ) : (
             <motion.div
@@ -1111,6 +1144,23 @@ export default function Quotes() {
                   </div>
                 )}
 
+                <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-gold/48">Presentation Export</div>
+                      <p className="mt-1 text-[12px] leading-5 text-white/40">
+                        Client PDFs are designed for review. Trade PDFs preserve internal pricing context for your team.
+                      </p>
+                    </div>
+                    {generating && (
+                      <div className="flex items-center gap-2 text-[11px] text-gold/70">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {generatingLabel || "Preparing export..."}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Action buttons */}
                 <div className="flex flex-wrap gap-2 pt-1 sm:flex-row flex-col">
                   <button
@@ -1125,7 +1175,7 @@ export default function Quotes() {
                     title="Client-facing PDF with retail/marked-up prices"
                   >
                     <Download className="h-4 w-4" />
-                    {generating ? "Generating..." : "Client PDF"}
+                    {generating && generatingLabel ? "Preparing..." : "Client PDF"}
                   </button>
 
                   {mode === "trade" && hasDiscounts && (
@@ -1216,9 +1266,15 @@ export default function Quotes() {
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="w-full max-w-md rounded-[28px] border border-white/[0.08] p-6"
+                    className="paper-grain w-full max-w-md rounded-[28px] border border-white/[0.08] p-6"
                     style={{ background: "linear-gradient(180deg, rgba(28,24,21,0.98), rgba(18,15,13,0.98))" }}
                   >
+                    <div className="mb-5 rounded-[22px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+                      <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Client Portal</div>
+                      <p className="mt-2 text-[12px] leading-6 text-white/46">
+                        Share a composed approval link where clients can review rooms, comment on pieces, and respond without creating an account.
+                      </p>
+                    </div>
                     <h3 className="text-lg font-semibold text-white/85 mb-1">
                       {shareToken ? "Update Client Portal" : "Share with Client"}
                     </h3>
@@ -1270,6 +1326,21 @@ export default function Quotes() {
                       </button>
                     </div>
                   </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {actionToast && (
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 24 }}
+                  className="fixed bottom-6 left-1/2 z-[85] -translate-x-1/2 rounded-2xl border border-gold/20 bg-[#161310]/95 px-4 py-3 shadow-2xl backdrop-blur-xl"
+                >
+                  <div className="flex items-center gap-2 text-[12px] text-white/78">
+                    <Check className="h-3.5 w-3.5 text-gold" />
+                    {actionToast}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
