@@ -1519,9 +1519,9 @@ export default function SearchPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
                   <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
                 </div>
-                <div className="hidden sm:block">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Results Studio</div>
-                  <div className="text-[12px] text-white/32">Refine, review, and quote</div>
+                  <div className="hidden sm:block">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Search Results</div>
+                  <div className="text-[12px] text-white/32">Refine, review, and save</div>
                 </div>
               </div>
               {/* Inline compact search input */}
@@ -2150,7 +2150,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
           </p>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/24">
-            {vendorCount} vendor buckets · {viewMode} mode
+            {vendorCount} brands shown · {viewMode} mode
           </p>
         </div>
 
