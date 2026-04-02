@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, HeartOff, Plus, Minus, Trash2, FileText, ChevronDown, ChevronRight,
   Edit3, Download, FolderPlus, Package, DollarSign, MessageSquare, Settings,
-  ArrowRightLeft, Search, XCircle, ShoppingBag, Star, ImagePlus, X, Link2, Check, ExternalLink,
+  ArrowRightLeft, Search, XCircle, ShoppingBag, ImagePlus, X, Link2, Check, ExternalLink,
   Sparkles, Loader2, RefreshCw,
 } from "lucide-react";
 import {
@@ -558,7 +558,7 @@ export default function Quotes() {
             >
               <HeartOff className="h-8 w-8 text-white/10 mb-3" />
               <p className="text-sm text-white/30 mb-1">No saved products yet</p>
-              <p className="text-xs text-white/15">Save products while browsing and this board becomes your staging area for room stories, spec review, and client-ready quote export.</p>
+              <p className="text-xs text-white/15">Save products while browsing and this board becomes your staging area for room-by-room review, spec notes, and quote export.</p>
             </motion.div>
           ) : (
             <motion.div
@@ -927,7 +927,7 @@ export default function Quotes() {
                         </div>
                         <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
                           <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Direction</div>
-                          <div className="mt-1 text-xl font-semibold text-white/86">Active</div>
+                          <div className="mt-1 text-xl font-semibold text-white/86">Ready</div>
                         </div>
                       </div>
                     )}
