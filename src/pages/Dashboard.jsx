@@ -66,10 +66,10 @@ export default function Dashboard() {
         >
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div>
-              <div className="workspace-kicker mb-5">Dashboard</div>
-              <h1 className="workspace-heading max-w-4xl">Your interior sourcing command center.</h1>
+              <div className="workspace-kicker mb-5">Home</div>
+              <h1 className="workspace-heading max-w-4xl">Start every sourcing session from one calm, useful launch page.</h1>
               <p className="workspace-subhead mt-4">
-                Start a search, jump back into quotes, and pick up the strongest directions without hunting through the app.
+                Launch a search, jump back into quotes, and re-enter the strongest directions without hunting through the app.
               </p>
 
               <form onSubmit={handleSearch} className="mt-8">
@@ -136,13 +136,13 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-gold/55">
               <Sparkles className="h-3.5 w-3.5" />
-              Jump Back In
+              Continue Working
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
                 { to: "Search", icon: Search, label: "Search Workspace", desc: "Run a new sourcing brief or continue refining a result set." },
                 { to: "Quotes", icon: FileText, label: "Quote Studio", desc: "Review rooms, export PDFs, and share client-ready presentations." },
-                { to: "Landing", icon: Compass, label: "Marketing Home", desc: "See the branded entry experience and hero search flow." },
+                { to: "Landing", icon: Compass, label: "Landing Page", desc: "See the branded entry experience and hero search flow." },
                 { to: "Account", icon: Heart, label: "Account", desc: "Manage your profile, preferences, and trade-facing settings." },
               ].map((item) => (
                 <Link key={item.label} to={createPageUrl(item.to)} className="editorial-card px-4 py-4 transition-all hover:border-gold/20">

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Menu, X, Sparkles } from "lucide-react";
+import { House, Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Sparkles } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
@@ -10,6 +10,7 @@ import { checkSubscriptionStatus } from "@/lib/fingerprint";
 const EASE = [0.22, 1, 0.36, 1];
 
 const NAV_ITEMS = [
+  { label: "Home", path: "Dashboard", icon: House },
   { label: "Search", path: "Search", icon: Search },
   { label: "Quotes", path: "Quotes", icon: FileText },
 ];
@@ -333,10 +334,11 @@ export default function Layout({ children, currentPageName }) {
                       active ? "text-white" : "text-white/35 hover:text-white/70"
                     }`}
                   >
-                    {item.label}
+                    <item.icon className="h-3.5 w-3.5 relative z-[1]" />
+                    <span className="relative z-[1]">{item.label}</span>
                     {item.path === "Quotes" && quoteCount > 0 && (
                       <span
-                        className="flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1"
+                        className="relative z-[1] flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1"
                         style={{ background: "rgba(196,168,130,0.25)", color: "#c4a882" }}
                       >
                         {quoteCount}
@@ -361,6 +363,20 @@ export default function Layout({ children, currentPageName }) {
 
             {/* Right side — account + trial CTA */}
             <div className="flex items-center gap-2.5">
+              {currentPageName === "Quotes" && (
+                <Link
+                  to={createPageUrl("Search")}
+                  className="hidden sm:flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all hover:brightness-110"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(198,161,106,0.18), rgba(198,161,106,0.08))",
+                    border: "1px solid rgba(198,161,106,0.28)",
+                    color: "#c4a882",
+                  }}
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  Start Search
+                </Link>
+              )}
               {/* Trial countdown — shown when user has active trial */}
               {user && subStatus === "trialing" && trialDaysLeft != null && (
                 <div
@@ -450,6 +466,13 @@ export default function Layout({ children, currentPageName }) {
       {/* Mobile bottom tab bar */}
       <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-white/[0.06] bg-[rgba(18,15,13,0.95)] backdrop-blur-xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-around h-16">
+          <Link
+            to={createPageUrl("Dashboard")}
+            className={`flex flex-col items-center gap-1 px-4 py-2 ${currentPageName === "Dashboard" ? "text-gold" : "text-white/35"}`}
+          >
+            <House className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Home</span>
+          </Link>
           <Link
             to={createPageUrl("Search")}
             className={`flex flex-col items-center gap-1 px-4 py-2 ${currentPageName === "Search" ? "text-gold" : "text-white/35"}`}
