@@ -178,10 +178,32 @@ function MockVendorUI({ vendors }) {
   );
 }
 
-// ── Mock Search UI — REAL PRODUCTS from catalog ──
+// ── Mock Search UI — REAL PRODUCTS from catalog, typing animation ──
 function MockSearchUI({ demoProducts }) {
   const demoQuery = "recliner that doesn't look like a recliner";
   const products = demoProducts || [];
+  const [typedLength, setTypedLength] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (!inView) return;
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      if (i > demoQuery.length) {
+        clearInterval(timer);
+        // Brief pause then reveal results
+        setTimeout(() => setShowResults(true), 400);
+        return;
+      }
+      setTypedLength(i);
+    }, 50);
+    return () => clearInterval(timer);
+  }, [inView]);
+
+  const typingDone = typedLength >= demoQuery.length;
 
   return (
     <div className="mock-ui">
@@ -190,60 +212,91 @@ function MockSearchUI({ demoProducts }) {
         <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai</div>
       </div>
       <div className="p-4">
-        {/* Search bar */}
-        <div className="flex items-center gap-3 rounded-full bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 mb-4">
+        {/* Search bar with typing */}
+        <div ref={ref} className="flex items-center gap-3 rounded-full bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 mb-4">
           <img src="/logo.png" alt="" className="h-4 w-4 object-contain shrink-0" />
-          <span className="text-[12px] text-white/50 truncate flex-1">{demoQuery}</span>
-          <div className="h-7 px-3 rounded-full bg-gold/20 text-gold text-[10px] font-semibold flex items-center shrink-0">Search</div>
+          <span className="text-[12px] text-white/50 truncate flex-1">
+            {demoQuery.slice(0, typedLength)}
+            {!typingDone && <span className="animate-pulse text-gold/40">|</span>}
+          </span>
+          <div
+            className="h-7 px-3 rounded-full text-[10px] font-semibold flex items-center shrink-0 transition-all duration-300"
+            style={{
+              background: typingDone ? "rgba(201,169,110,0.3)" : "rgba(201,169,110,0.1)",
+              color: typingDone ? "#c4a882" : "rgba(201,169,110,0.4)",
+            }}
+          >
+            Search
+          </div>
         </div>
 
-        {/* Product cards grid — mirrors real Search.jsx ProductCard */}
-        <div className="grid grid-cols-3 gap-2.5">
-          {products.length > 0 ? products.map((item, i) => (
-            <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
-              {/* Image */}
-              <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
-                {item.image_url ? (
-                  <img
-                    src={`${SEARCH_URL}/images/${encodeURIComponent(item.id)}`}
-                    alt={item.product_name}
-                    className="h-full w-full"
-                    style={{ objectFit: "contain", padding: "8px" }}
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-white/10">
-                    <div className="text-xl font-display">{(item.manufacturer_name || "?")[0]}</div>
-                  </div>
-                )}
-              </div>
-              {/* Gold hairline */}
-              <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
-              {/* Meta */}
-              <div className="p-2.5">
-                <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-0.5 truncate">{item.manufacturer_name}</div>
-                <div className="text-[11px] text-white/90 line-clamp-2 mb-1 leading-tight">{item.product_name}</div>
-                {item.retail_price && (
-                  <div className="text-[11px] font-semibold text-gold/80">${Number(item.retail_price).toLocaleString()}</div>
-                )}
-              </div>
-            </div>
-          )) : (
-            /* Loading skeleton */
-            [0, 1, 2].map((i) => (
-              <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
-                <div style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }} />
-                <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
-                <div className="p-2.5 space-y-1.5">
-                  <div className="h-2 w-12 rounded bg-white/[0.06]" />
-                  <div className="h-3 w-full rounded bg-white/[0.04]" />
-                  <div className="h-3 w-8 rounded bg-white/[0.06]" />
+        {/* Loading indicator — shows briefly between typing done and results */}
+        {typingDone && !showResults && (
+          <div className="flex items-center justify-center gap-2 py-6">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+        )}
+
+        {/* Product cards grid — staggered reveal */}
+        {showResults && (
+          <div className="grid grid-cols-3 gap-2.5">
+            {products.length > 0 ? products.map((item, i) => (
+              <div
+                key={i}
+                className="rounded-xl overflow-hidden border border-white/[0.06] transition-all duration-500"
+                style={{
+                  background: "#2a251f",
+                  opacity: showResults ? 1 : 0,
+                  transform: showResults ? "translateY(0)" : "translateY(12px)",
+                  transitionDelay: `${i * 120}ms`,
+                }}
+              >
+                {/* Image */}
+                <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
+                  {item.image_url ? (
+                    <img
+                      src={`${SEARCH_URL}/images/${encodeURIComponent(item.id)}`}
+                      alt={item.product_name}
+                      className="h-full w-full"
+                      style={{ objectFit: "contain", padding: "8px" }}
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-white/10">
+                      <div className="text-xl font-display">{(item.manufacturer_name || "?")[0]}</div>
+                    </div>
+                  )}
+                </div>
+                {/* Gold hairline */}
+                <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
+                {/* Meta */}
+                <div className="p-2.5">
+                  <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-0.5 truncate">{item.manufacturer_name}</div>
+                  <div className="text-[11px] text-white/90 line-clamp-2 mb-1 leading-tight">{item.product_name}</div>
+                  {item.retail_price && (
+                    <div className="text-[11px] font-semibold text-gold/80">${Number(item.retail_price).toLocaleString()}</div>
+                  )}
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            )) : (
+              /* Loading skeleton */
+              [0, 1, 2].map((i) => (
+                <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
+                  <div style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }} />
+                  <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
+                  <div className="p-2.5 space-y-1.5">
+                    <div className="h-2 w-12 rounded bg-white/[0.06]" />
+                    <div className="h-3 w-full rounded bg-white/[0.04]" />
+                    <div className="h-3 w-8 rounded bg-white/[0.06]" />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
