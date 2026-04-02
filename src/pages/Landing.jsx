@@ -180,7 +180,7 @@ function MockVendorUI({ vendors }) {
 
 // ── Mock Search UI — REAL PRODUCTS from catalog ──
 function MockSearchUI({ demoProducts }) {
-  const demoQuery = "my client is furnishing a beach house, show me coastal pieces";
+  const demoQuery = "recliner that doesn't look like a recliner";
   const products = demoProducts || [];
 
   return (
@@ -433,7 +433,7 @@ export default function Landing() {
     }
 
     function fetchDemoProducts() {
-      searchProducts("my client is furnishing a beach house, show me coastal pieces", 20, 3).then((data) => {
+      searchProducts("recliner that doesn't look like a recliner", 20, 3).then((data) => {
         const products = (data.products || []).filter((p) => p.image_url);
         const top3 = products.slice(0, 3);
         if (top3.length > 0) {
