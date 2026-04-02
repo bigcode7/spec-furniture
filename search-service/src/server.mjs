@@ -1650,15 +1650,30 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
           }
 
           case "customer.subscription.updated": {
-            // Handles trial → active transition and other status changes
+            // Handles trial → active transition, cancellation, and other status changes
             const subscription = event.data.object;
             const subId = subscription.id;
             const allSubs = getAllSubscriptions();
             const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
             if (sub) {
+              // If Stripe says cancel_at_period_end, respect the cancellation
+              // Don't override a local "cancelled" status back to "active"
+              if (subscription.cancel_at_period_end) {
+                const updates = { status: "cancelled" };
+                if (subscription.current_period_end) {
+                  updates.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+                }
+                setSubscription(sub.user_id, updates);
+                console.log(`[stripe webhook] Subscription ${subId} marked cancelled (cancel_at_period_end)`);
+                break;
+              }
+
+              // If locally cancelled but Stripe says active and NOT cancel_at_period_end,
+              // that means user reactivated via Stripe portal — allow the override
               const newStatus = subscription.status === "active" ? "active"
                 : subscription.status === "trialing" ? "trialing"
                 : subscription.status === "past_due" ? "past_due"
+                : subscription.status === "canceled" ? "cancelled"
                 : subscription.status;
               const updates = { status: newStatus };
               if (subscription.current_period_end) {
@@ -1688,13 +1703,27 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
             const allSubs = getAllSubscriptions();
             const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
             if (sub) {
+              // Don't override cancelled status — if user cancelled, respect it
+              // The invoice may fire for the final period before Stripe deletes the sub
+              if (sub.status === "cancelled") {
+                console.log(`[stripe webhook] invoice.paid for cancelled sub ${subId} — not overriding status`);
+                break;
+              }
               // Get subscription details for period end
               try {
                 const stripeSub = await getStripeSubscription(subId);
-                setSubscription(sub.user_id, {
-                  status: "active",
-                  current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
-                });
+                // Double-check Stripe's view — if cancel_at_period_end, don't set active
+                if (stripeSub.cancel_at_period_end) {
+                  setSubscription(sub.user_id, {
+                    status: "cancelled",
+                    current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
+                  });
+                } else {
+                  setSubscription(sub.user_id, {
+                    status: "active",
+                    current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
+                  });
+                }
                 // Log renewal (not first payment)
                 if (invoice.billing_reason === "subscription_cycle") {
                   logSubscriptionEvent("renewal", {
@@ -1732,12 +1761,18 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
           }
 
           case "customer.subscription.deleted": {
+            // Subscription fully deleted by Stripe — access should end now
             const subscription = event.data.object;
             const subId = subscription.id;
             const allSubs = getAllSubscriptions();
             const sub = Object.values(allSubs).find(s => s.stripe_subscription_id === subId);
             if (sub) {
-              setSubscription(sub.user_id, { status: "cancelled" });
+              setSubscription(sub.user_id, {
+                status: "cancelled",
+                current_period_end: new Date().toISOString(), // End access immediately
+                cancelled_at: sub.cancelled_at || new Date().toISOString(),
+              });
+              console.log(`[stripe webhook] Subscription ${subId} deleted — access ended for user ${sub.user_id}`);
             }
             break;
           }
@@ -1759,13 +1794,19 @@ document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{i
       if (!sub?.stripe_subscription_id) return json(res, 400, { error: "No active subscription" });
 
       try {
-        await cancelSubscription(sub.stripe_subscription_id, false); // Cancel at period end
-        setSubscription(identity.userId, { status: "cancelled" });
+        // If still in trial, cancel immediately — no reason to let it convert to a paid sub
+        const immediate = sub.status === "trialing";
+        await cancelSubscription(sub.stripe_subscription_id, immediate);
+        setSubscription(identity.userId, {
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+        });
         logSubscriptionEvent("cancellation", {
           user_id: identity.userId,
           reason: body.reason || "not specified",
+          immediate,
         });
-        return json(res, 200, { ok: true, access_until: sub.current_period_end });
+        return json(res, 200, { ok: true, access_until: immediate ? new Date().toISOString() : sub.current_period_end });
       } catch (err) {
         return json(res, 500, { error: err.message });
       }
