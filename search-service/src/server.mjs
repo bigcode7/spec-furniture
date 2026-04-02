@@ -4417,6 +4417,7 @@ Return JSON array:
         skipPhase1: body.skip_phase1 || false,
         skipPhase2: body.skip_phase2 || false,
         skipPhase3: body.skip_phase3 || false,
+        resume: body.resume || false,
       }).then(() => {
         clearSearchCache();
         console.log("[hero-optimizer] Search cache cleared after optimization");
@@ -5558,6 +5559,17 @@ server.listen(port, host, () => {
       runCatalogHealthCheck(getAllProducts);
       console.log("[admin] Scheduled health check complete.");
     }, 6 * 60 * 60 * 1000);
+
+    // Auto-resume hero optimizer if it was interrupted by a restart
+    setTimeout(() => {
+      const heroStatus = getHeroOptimizerStatus();
+      if (heroStatus.phase !== "idle" && heroStatus.phase !== "done" && heroStatus.started_at) {
+        console.log(`[hero-optimizer] Detected interrupted run (phase: ${heroStatus.phase}). Auto-resuming...`);
+        runHeroOptimizer(catalogDBInterface, { batchSize: 20, delayMs: 200, resume: true })
+          .then(() => { clearSearchCache(); console.log("[hero-optimizer] Resumed run complete"); })
+          .catch(err => console.error("[hero-optimizer] Resume error:", err.message));
+      }
+    }, 45_000); // 45s after startup to let everything settle
   }).catch((err) => {
     console.error(`[server] Heavy init failed: ${err.message}`);
   });

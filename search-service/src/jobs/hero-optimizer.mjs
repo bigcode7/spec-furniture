@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROGRESS_PATH = path.resolve(__dirname, "../../data/hero-optimizer-progress.json");
+const PROCESSED_PATH = path.resolve(__dirname, "../../data/hero-optimizer-processed.json");
 
 // Quality thresholds
 const MIN_WIDTH = 400;
@@ -76,14 +77,51 @@ let stats = {
   examples: { swapped: [], crawl_replaced: [], stuck: [], broken: [] },
 };
 
+// Persistent set of processed product IDs (survives restarts)
+let processedIds = new Set();
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function loadProgress() {
+  try {
+    if (fs.existsSync(PROGRESS_PATH)) {
+      const saved = JSON.parse(fs.readFileSync(PROGRESS_PATH, "utf8"));
+      // Only restore if the run isn't "done" (i.e., it was interrupted)
+      if (saved && saved.phase !== "done" && saved.phase !== "idle" && saved.started_at) {
+        Object.assign(stats, saved);
+        stats.running = false; // Will be set to true when resumed
+        console.log(`[hero-optimizer] Loaded progress from disk: phase=${saved.phase} p1_checked=${saved.phase1_checked} p1_swapped=${saved.phase1_swapped}`);
+      }
+    }
+  } catch {}
+  try {
+    if (fs.existsSync(PROCESSED_PATH)) {
+      const ids = JSON.parse(fs.readFileSync(PROCESSED_PATH, "utf8"));
+      if (Array.isArray(ids)) {
+        processedIds = new Set(ids);
+        console.log(`[hero-optimizer] Loaded ${processedIds.size} processed IDs from disk`);
+      }
+    }
+  } catch {}
 }
 
 function saveStats() {
   try {
     fs.writeFileSync(PROGRESS_PATH, JSON.stringify(stats, null, 2));
   } catch { /* non-critical */ }
+}
+
+function saveProcessedIds() {
+  try {
+    fs.writeFileSync(PROCESSED_PATH, JSON.stringify([...processedIds]));
+  } catch {}
+}
+
+function clearProcessedIds() {
+  processedIds = new Set();
+  try { fs.unlinkSync(PROCESSED_PATH); } catch {}
 }
 
 // ── Image dimension fetching ──
@@ -313,21 +351,37 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
     skipPhase1 = false,
     skipPhase2 = false,
     skipPhase3 = false,
+    resume = false,
   } = options;
 
   running = true;
-  stats = {
-    total: 0,
-    phase: "starting",
-    phase1_checked: 0, phase1_swapped: 0, phase1_already_best: 0, phase1_no_alternates: 0,
-    phase2_flagged: 0, phase2_crawled: 0, phase2_replaced: 0, phase2_stuck: 0,
-    phase3_checked: 0, phase3_verified_hq: 0, phase3_verified: 0, phase3_low_quality: 0, phase3_broken: 0,
-    started_at: new Date().toISOString(),
-    finished_at: null,
-    running: true,
-    current_product: null,
-    examples: { swapped: [], crawl_replaced: [], stuck: [], broken: [] },
-  };
+
+  // Resume from saved progress or start fresh
+  if (resume) {
+    loadProgress();
+    if (processedIds.size > 0) {
+      console.log(`[hero-optimizer] Resuming: ${processedIds.size} products already processed`);
+      stats.running = true;
+    } else {
+      resume === false; // nothing to resume, fresh start
+    }
+  }
+
+  if (!resume || processedIds.size === 0) {
+    clearProcessedIds();
+    stats = {
+      total: 0,
+      phase: "starting",
+      phase1_checked: 0, phase1_swapped: 0, phase1_already_best: 0, phase1_no_alternates: 0,
+      phase2_flagged: 0, phase2_crawled: 0, phase2_replaced: 0, phase2_stuck: 0,
+      phase3_checked: 0, phase3_verified_hq: 0, phase3_verified: 0, phase3_low_quality: 0, phase3_broken: 0,
+      started_at: new Date().toISOString(),
+      finished_at: null,
+      running: true,
+      current_product: null,
+      examples: { swapped: [], crawl_replaced: [], stuck: [], broken: [] },
+    };
+  }
 
   console.log("[hero-optimizer] Starting full catalog hero image optimization...");
 
@@ -366,6 +420,7 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
       const batch = candidatesForSwap.slice(i, i + batchSize);
 
       await Promise.all(batch.map(async (product) => {
+        if (processedIds.has(`p1_${product.id}`)) return; // already processed
         stats.phase1_checked++;
         stats.current_product = product.id;
 
@@ -465,12 +520,14 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
             });
           }
         }
+        processedIds.add(`p1_${product.id}`);
       }));
 
       const done = Math.min(i + batchSize, candidatesForSwap.length);
       if (done % 100 < batchSize || done === candidatesForSwap.length) {
         console.log(`[hero-optimizer] Phase 1: ${done}/${candidatesForSwap.length} | swapped:${stats.phase1_swapped} best:${stats.phase1_already_best}`);
         saveStats();
+        saveProcessedIds();
       }
       if (delayMs > 0) await sleep(delayMs);
     }
@@ -507,11 +564,13 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
       const batch = needsFix.slice(i, i + batchSize);
 
       await Promise.all(batch.map(async (product) => {
+        if (processedIds.has(`p2_${product.id}`)) return;
         stats.current_product = product.id;
 
         if (!product.product_url) {
           stats.phase2_stuck++;
           catalogDB.updateProductDirect(product.id, { needs_better_image: true });
+          processedIds.add(`p2_${product.id}`);
           return;
         }
 
@@ -589,12 +648,14 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
           stats.phase2_stuck++;
           catalogDB.updateProductDirect(product.id, { needs_better_image: true });
         }
+        processedIds.add(`p2_${product.id}`);
       }));
 
       const done = Math.min(i + batchSize, needsFix.length);
       if (done % 50 < batchSize || done === needsFix.length) {
         console.log(`[hero-optimizer] Phase 2: ${done}/${needsFix.length} | replaced:${stats.phase2_replaced} stuck:${stats.phase2_stuck}`);
         saveStats();
+        saveProcessedIds();
       }
       if (delayMs > 0) await sleep(delayMs);
     }
@@ -620,6 +681,7 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
       const batch = unchecked.slice(i, i + batchSize);
 
       await Promise.all(batch.map(async (product) => {
+        if (processedIds.has(`p3_${product.id}`)) return;
         stats.phase3_checked++;
         stats.current_product = product.id;
 
@@ -668,12 +730,14 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
           image_height: h || null,
           image_checked_at: new Date().toISOString(),
         });
+        processedIds.add(`p3_${product.id}`);
       }));
 
       const done = Math.min(i + batchSize, unchecked.length);
       if (done % 200 < batchSize || done === unchecked.length) {
         console.log(`[hero-optimizer] Phase 3: ${done}/${unchecked.length} | hq:${stats.phase3_verified_hq} ok:${stats.phase3_verified} low:${stats.phase3_low_quality} broken:${stats.phase3_broken}`);
         saveStats();
+        saveProcessedIds();
       }
       if (delayMs > 0) await sleep(delayMs);
     }
@@ -688,6 +752,7 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
   stats.current_product = null;
   running = false;
   saveStats();
+  clearProcessedIds(); // clean up — job is complete
 
   console.log(`[hero-optimizer] ═══ COMPLETE ═══`);
   console.log(`[hero-optimizer]   Total products: ${stats.total}`);
@@ -699,6 +764,10 @@ export async function runHeroOptimizer(catalogDB, options = {}) {
 }
 
 export function getHeroOptimizerStatus() {
+  // On first call, try loading from disk if stats are idle
+  if (stats.phase === "idle" && !stats.started_at) {
+    loadProgress();
+  }
   return { ...stats };
 }
 
