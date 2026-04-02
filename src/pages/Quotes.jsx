@@ -42,6 +42,13 @@ function formatUsd(n) {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
+const ROOM_ACCENTS = [
+  { accent: "#c6a16a", wash: "rgba(198,161,106,0.12)", label: "Amber" },
+  { accent: "#8ea6b9", wash: "rgba(142,166,185,0.12)", label: "Mist" },
+  { accent: "#8f9779", wash: "rgba(143,151,121,0.12)", label: "Sage" },
+  { accent: "#b5897b", wash: "rgba(181,137,123,0.12)", label: "Clay" },
+];
+
 /* ─── main page ───────────────────────────────────────────── */
 
 export default function Quotes() {
@@ -802,7 +809,9 @@ export default function Quotes() {
           ) : (
             <>
             <div className="space-y-2">
-              {quote.rooms.map((room) => (
+              {quote.rooms.map((room, roomIndex) => {
+                const roomTheme = ROOM_ACCENTS[roomIndex % ROOM_ACCENTS.length];
+                return (
                 <motion.div
                   key={room.id}
                   initial={{ opacity: 0, y: 6 }}
@@ -811,55 +820,88 @@ export default function Quotes() {
                   style={{ background: "rgba(255,255,255,0.015)" }}
                 >
                   {/* Room Header */}
-                  <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.04]">
-                    <button
-                      onClick={() => setExpandedRooms((prev) => ({ ...prev, [room.id]: !prev[room.id] }))}
-                      className="text-white/30 hover:text-white/60 transition-colors"
-                    >
-                      {expandedRooms[room.id] ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </button>
+                  <div className="border-b border-white/[0.04]">
+                    <div className="px-5 pt-5 pb-4" style={{ background: `linear-gradient(135deg, ${roomTheme.wash}, rgba(255,255,255,0.015))` }}>
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: roomTheme.accent, boxShadow: `0 0 20px ${roomTheme.wash}` }} />
+                          <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: roomTheme.accent }}>
+                            {roomTheme.label} room story
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-white/24">{room.items.length} curated selections</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setExpandedRooms((prev) => ({ ...prev, [room.id]: !prev[room.id] }))}
+                          className="text-white/30 hover:text-white/60 transition-colors"
+                        >
+                          {expandedRooms[room.id] ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
 
-                    {editingRoomId === room.id ? (
-                      <input
-                        autoFocus
-                        defaultValue={room.name}
-                        className="flex-1 bg-white/[0.04] border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-gold/30"
-                        onBlur={(e) => handleRenameRoom(room.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleRenameRoom(room.id, e.target.value);
-                        }}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setEditingRoomId(room.id)}
-                        className="flex-1 text-left text-xs font-semibold text-white/60 uppercase tracking-wider hover:text-white/80 transition-colors"
-                      >
-                        {room.name}
-                      </button>
-                    )}
+                        <div className="flex-1 min-w-0">
+                          {editingRoomId === room.id ? (
+                            <input
+                              autoFocus
+                              defaultValue={room.name}
+                              className="w-full bg-white/[0.04] border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-gold/30"
+                              onBlur={(e) => handleRenameRoom(room.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRenameRoom(room.id, e.target.value);
+                              }}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setEditingRoomId(room.id)}
+                              className="text-left"
+                            >
+                              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-white/72 transition-colors hover:text-white/88">
+                                {room.name}
+                              </div>
+                              <div className="mt-1 text-[12px] text-white/34">
+                                A presentation layer for this room with sourcing notes, pricing, and client-ready narrative.
+                              </div>
+                            </button>
+                          )}
+                        </div>
 
-                    <span className="text-[10px] text-white/20">
-                      {room.items.length} {room.items.length === 1 ? "item" : "items"}
-                    </span>
+                        {showPricing && getRoomTotal(room) > 0 && (
+                          <span className="rounded-full px-3 py-1.5 text-[10px] font-medium" style={{ background: roomTheme.wash, color: roomTheme.accent, border: `1px solid ${roomTheme.wash}` }}>
+                            {formatUsd(getRoomTotal(room))}
+                          </span>
+                        )}
 
-                    {showPricing && getRoomTotal(room) > 0 && (
-                      <span className="text-[10px] text-gold/60 font-medium">
-                        {formatUsd(getRoomTotal(room))}
-                      </span>
-                    )}
+                        {quote.rooms.length > 1 && room.items.length === 0 && (
+                          <button
+                            onClick={() => handleDeleteRoom(room.id)}
+                            className="p-1 text-white/15 hover:text-red-400/60 transition-colors"
+                            title="Delete room"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-                    {quote.rooms.length > 1 && room.items.length === 0 && (
-                      <button
-                        onClick={() => handleDeleteRoom(room.id)}
-                        className="p-1 text-white/15 hover:text-red-400/60 transition-colors"
-                        title="Delete room"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                    {room.items.length > 0 && (
+                      <div className="grid gap-2 border-t border-white/[0.04] px-5 py-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Pieces</div>
+                          <div className="mt-1 text-xl font-semibold text-white/86">{room.items.length}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Vendors</div>
+                          <div className="mt-1 text-xl font-semibold text-white/86">{new Set(room.items.map((i) => i.manufacturer_name).filter(Boolean)).size}</div>
+                        </div>
+                        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-white/24">Direction</div>
+                          <div className="mt-1 text-xl font-semibold text-white/86">{roomTheme.label}</div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -915,7 +957,7 @@ export default function Quotes() {
                     )}
                   </AnimatePresence>
                 </motion.div>
-              ))}
+              )})}
 
               {/* Add Room */}
               <div className="pt-1">

@@ -122,6 +122,11 @@ const SORT_OPTIONS = [
   { key: "popular", label: "Most Popular" },
 ];
 
+const VIEW_MODES = [
+  { key: "studio", label: "Studio" },
+  { key: "gallery", label: "Gallery" },
+];
+
 // Smaller initial load on mobile for faster paint
 const IS_MOBILE = typeof window !== "undefined" && (window.matchMedia("(max-width: 768px)").matches || navigator.maxTouchPoints > 0);
 const INITIAL_PAGE_SIZE = IS_MOBILE ? 20 : 48;
@@ -247,6 +252,53 @@ function sortProducts(products, sortKey) {
   }
 }
 
+function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) {
+  const text = `${query} ${(products[0]?.ai_visual_tags || "")} ${(products[0]?.material || "")} ${(products[0]?.style || "")}`.toLowerCase();
+  if (hasVisualSearch) {
+    return {
+      name: "visual",
+      accent: "#d8ae79",
+      glow: "rgba(216,174,121,0.22)",
+      gradient: ["#120f0d", "#1f1815", "#3a2b22", "#d8ae79", "#f0dcc3"],
+      chip: "rgba(216,174,121,0.14)",
+    };
+  }
+  if (/(walnut|oak|wood|teak|natural|linen|boucle|organic|warm)/.test(text)) {
+    return {
+      name: "organic",
+      accent: "#d6af7b",
+      glow: "rgba(214,175,123,0.2)",
+      gradient: ["#120f0d", "#201815", "#3a2c22", "#d6af7b", "#efe0cb"],
+      chip: "rgba(214,175,123,0.12)",
+    };
+  }
+  if (/(coastal|cream|ivory|light|air|soft)/.test(text)) {
+    return {
+      name: "light",
+      accent: "#b8c9d6",
+      glow: "rgba(184,201,214,0.2)",
+      gradient: ["#120f0d", "#1b1817", "#2b3237", "#b8c9d6", "#ecf1f4"],
+      chip: "rgba(184,201,214,0.12)",
+    };
+  }
+  if (/(modern|black|charcoal|sculptural|minimal|contemporary)/.test(text)) {
+    return {
+      name: "modern",
+      accent: "#c8b39b",
+      glow: "rgba(200,179,155,0.18)",
+      gradient: ["#120f0d", "#171515", "#2a2624", "#c8b39b", "#f1e8de"],
+      chip: "rgba(200,179,155,0.12)",
+    };
+  }
+  return {
+    name: "default",
+    accent: "#c6a16a",
+    glow: "rgba(198,161,106,0.18)",
+    gradient: ["#120f0d", "#1d1714", "#33261f", "#c6a16a", "#eedbc1"],
+    chip: "rgba(198,161,106,0.12)",
+  };
+}
+
 // ────────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
@@ -265,6 +317,7 @@ export default function SearchPage() {
   // Sort, pagination
 
   const [sortKey, setSortKey] = useState("relevance");
+  const [viewMode, setViewMode] = useState("studio");
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -350,6 +403,7 @@ export default function SearchPage() {
   const hasMoreLocal = visibleCount < sorted.length;
   const hasMoreServer = allResults.length < MAX_RESULTS;
   const facets = allResults.length > 0 ? extractFacets(allResults) : null;
+  const moodTheme = getSearchMoodTheme(displayQuery || lastQueryRef.current || inputValue, allResults, Boolean(visualSearchThumb));
 
   // Close autocomplete on outside click
   useEffect(() => {
@@ -1307,7 +1361,7 @@ export default function SearchPage() {
     <div className="relative min-h-screen">
       <AnimatedGradientBackground
         Breathing
-        gradientColors={["#1c1917", "#242018", "#2a251f", "#3d3730", "#c4a882"]}
+        gradientColors={moodTheme.gradient}
         gradientStops={[0, 25, 50, 80, 100]}
         breathingRange={6}
         animationSpeed={0.012}
@@ -1326,6 +1380,11 @@ export default function SearchPage() {
                 <p className="workspace-subhead mt-5">
                   Search by mood, silhouette, material, room intent, or visual reference. The workflow stays intact. The interface now leads with calm hierarchy, richer materials, and a stronger sense of curation.
                 </p>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.22em]" style={{ background: moodTheme.chip, color: moodTheme.accent, border: `1px solid ${moodTheme.glow}` }}>
+                  Current mood
+                  <span className="h-2 w-2 rounded-full" style={{ background: moodTheme.accent, boxShadow: `0 0 20px ${moodTheme.glow}` }} />
+                  {moodTheme.name}
+                </div>
                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
                   <div className="atelier-panel-soft px-4 py-4">
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
@@ -1574,8 +1633,11 @@ export default function SearchPage() {
                 vendorCount={facets ? facets.vendors.length : 0}
                 sortKey={sortKey}
                 setSortKey={setSortKey}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
                 showSortMenu={showSortMenu}
                 setShowSortMenu={setShowSortMenu}
+                moodTheme={moodTheme}
               />
             )}
 
@@ -1673,7 +1735,7 @@ export default function SearchPage() {
                       {/* Product cards for this bucket */}
                       <div className="px-4 py-3">
                         {visibleItems.length > 0 ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-2.5">
+                          <div className={`grid gap-3 ${viewMode === "studio" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"}`}>
                             {visibleItems.map((product, pIdx) => (
                               <div key={product.id || pIdx} className="relative">
                                 {/* Selection highlight */}
@@ -1689,6 +1751,7 @@ export default function SearchPage() {
                                 <ProductCard
                                   item={product}
                                   index={pIdx}
+                                  viewMode={viewMode}
                                   isFavorited={isFavorited(product.id)}
                                   isInQuote={quoteIds.has(product.id)}
                                   onToggleFavorite={() => handleToggleFavorite(product)}
@@ -1846,7 +1909,7 @@ export default function SearchPage() {
                     </span>
                   </div>
                 )}
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+                <div className={`grid ${viewMode === "studio" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3"}`}>
                   {visibleProducts.map((item, idx) => (
                     <motion.div
                       key={item.id || idx}
@@ -1857,6 +1920,7 @@ export default function SearchPage() {
                       <ProductCard
                         item={item}
                         index={idx}
+                        viewMode={viewMode}
                         isFavorited={isFavorited(item.id)}
                         isInQuote={quoteIds.has(item.id)}
                         onToggleFavorite={() => handleToggleFavorite(item)}
@@ -2076,17 +2140,34 @@ export default function SearchPage() {
 
 
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
-function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, showSortMenu, setShowSortMenu }) {
+function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, viewMode, setViewMode, showSortMenu, setShowSortMenu, moodTheme }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex items-center justify-between gap-3 px-4 py-3">
-        <p className="text-[12px]" style={{ color: "#a89880" }}>
-          <span style={{ color: "#c6a16a" }}>"{query}"</span>
-          {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
-        </p>
+        <div className="min-w-0">
+          <p className="text-[12px]" style={{ color: "#a89880" }}>
+            <span style={{ color: moodTheme.accent }}>"{query}"</span>
+            {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
+          </p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/24">
+            {vendorCount} vendor buckets · {viewMode} mode
+          </p>
+        </div>
 
         <div className="flex items-center gap-3">
           <PricingToggle />
+          <div className="hidden sm:flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+            {VIEW_MODES.map((mode) => (
+              <button
+                key={mode.key}
+                onClick={() => setViewMode(mode.key)}
+                className={`rounded-full px-3 py-1.5 text-[11px] transition-all ${viewMode === mode.key ? "text-black" : "text-white/40 hover:text-white/70"}`}
+                style={viewMode === mode.key ? { background: moodTheme.accent } : {}}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
 
           {/* Sort dropdown */}
           <div className="relative">
@@ -2143,7 +2224,7 @@ function PricingToggle() {
 }
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
-const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
+const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "gallery", isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -2153,12 +2234,13 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
   const priceInfo = getPrice(item);
   const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
+  const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, viewMode === "studio" ? 3 : 1);
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="product-card group cursor-pointer flex flex-col"
+      className={`product-card group cursor-pointer flex flex-col ${viewMode === "studio" ? "min-h-[440px]" : ""}`}
       style={{ contain: "layout style paint", height: "100%" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
@@ -2218,7 +2300,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
       <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
 
       {/* Card meta */}
-      <div className="card-meta p-4 sm:p-5 pb-3 sm:pb-4 flex-1 flex flex-col">
+      <div className={`card-meta ${viewMode === "studio" ? "p-5 sm:p-6 pb-5" : "p-4 sm:p-5 pb-4"} flex-1 flex flex-col`}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold/72 truncate">{item.manufacturer_name}</div>
           {item.result_quality && (
@@ -2229,6 +2311,20 @@ const ProductCard = React.memo(function ProductCard({ item, index, isFavorited, 
         </div>
         <h3 className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</h3>
         <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
+        {detailChips.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {detailChips.map((chip) => (
+              <span key={chip} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-white/40">
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+        {viewMode === "studio" && (
+          <p className="mb-4 line-clamp-3 text-[12px] leading-6 text-white/42">
+            {item.reasoning || item.description || item.snippet || "Curated trade result selected for style, silhouette, and sourcing fit."}
+          </p>
+        )}
         <div className="mt-auto flex items-end justify-between gap-2">
           {priceStr && (
             <span className={`text-[14px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/90"}`}>
@@ -2326,6 +2422,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
   if (product.depth) dims.push(`${product.depth}" D`);
   if (product.height) dims.push(`${product.height}" H`);
   const dimStr = dims.join(" × ") || product.dimensions || null;
+  const previewTheme = getSearchMoodTheme(product.product_name || "", [product], false);
 
   return (
     <>
@@ -2424,6 +2521,15 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               <h2 className="font-display text-[32px] text-white/92 leading-tight">
                 {product.product_name}
               </h2>
+
+              <div className="rounded-[24px] border px-4 py-4" style={{ borderColor: previewTheme.glow, background: `linear-gradient(135deg, ${previewTheme.chip}, rgba(255,255,255,0.02))` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: previewTheme.accent }}>
+                  Why it stands out
+                </div>
+                <p className="mt-2 text-[13px] leading-6 text-white/62">
+                  {product.reasoning || product.ai_visual_analysis || product.description || "A strong editorial fit with clear sourcing potential, balanced proportions, and a tone that feels intentional in high-end residential work."}
+                </p>
+              </div>
 
               {/* Price */}
               {priceInfo.price && (
