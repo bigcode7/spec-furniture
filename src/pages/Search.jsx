@@ -26,6 +26,7 @@ import {
   Mic,
   Link2,
   Share2,
+  Store,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
@@ -436,12 +437,33 @@ export default function SearchPage() {
 
   const hasConversation = messages.length > 0;
 
+  // My Vendors filter — reads from user preferences saved in Account settings
+  const [myVendorsOnly, setMyVendorsOnly] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("spec_auth_user") || "null");
+      return u?.preferences?.my_vendors_only && (u?.preferences?.my_vendors?.length > 0);
+    } catch { return false; }
+  });
+  const myVendorIds = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("spec_auth_user") || "null");
+      return u?.preferences?.my_vendors || [];
+    } catch { return []; }
+  })();
+
   // Derived: sorted + paginated results, with best-image product promoted to hero position
-  const sorted = sortProducts(allResults, sortKey);
+  const filteredResults = myVendorsOnly && myVendorIds.length > 0
+    ? allResults.filter(p => {
+        const vid = (p.vendor_id || "").toLowerCase();
+        const vname = (p.manufacturer_name || p.vendor_name || "").toLowerCase();
+        return myVendorIds.some(id => vid.includes(id) || vname.toLowerCase().includes(id));
+      })
+    : allResults;
+  const sorted = sortProducts(filteredResults, sortKey);
   const visibleProducts = promoteHeroImage(sorted.slice(0, visibleCount));
   const hasMoreLocal = visibleCount < sorted.length;
   const hasMoreServer = allResults.length < MAX_RESULTS;
-  const facets = allResults.length > 0 ? extractFacets(allResults) : null;
+  const facets = filteredResults.length > 0 ? extractFacets(filteredResults) : null;
   const moodTheme = getSearchMoodTheme(displayQuery || lastQueryRef.current || inputValue, allResults, Boolean(visualSearchThumb));
 
   // Close autocomplete on outside click
@@ -1707,7 +1729,7 @@ export default function SearchPage() {
             {!loading && allResults.length > 0 && (
               <ResultsSummaryBar
                 query={lastQueryRef.current}
-                totalCount={allResults.length}
+                totalCount={filteredResults.length}
                 vendorCount={facets ? facets.vendors.length : 0}
                 sortKey={sortKey}
                 setSortKey={setSortKey}
@@ -1716,6 +1738,9 @@ export default function SearchPage() {
                 showSortMenu={showSortMenu}
                 setShowSortMenu={setShowSortMenu}
                 moodTheme={moodTheme}
+                myVendorsOnly={myVendorsOnly}
+                setMyVendorsOnly={setMyVendorsOnly}
+                myVendorCount={myVendorIds.length}
               />
             )}
 
@@ -2222,7 +2247,7 @@ export default function SearchPage() {
 
 
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
-function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme }) {
+function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme, myVendorsOnly, setMyVendorsOnly, myVendorCount }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2232,11 +2257,25 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
           </p>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/24">
-            {vendorCount} brands shown
+            {vendorCount} brands shown{myVendorsOnly ? " (My Vendors)" : ""}
           </p>
         </div>
 
         <div className="flex w-full items-center gap-2 overflow-x-auto sm:w-auto">
+          {myVendorCount > 0 && (
+            <button
+              onClick={() => setMyVendorsOnly(!myVendorsOnly)}
+              className={`control-chip flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all ${
+                myVendorsOnly
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                  : "border-white/[0.06] bg-white/[0.02] text-white/30 hover:text-white/50"
+              }`}
+              title={myVendorsOnly ? "Showing only your vendors" : "Show only your vendors"}
+            >
+              <Store className="h-3 w-3" />
+              My Vendors{myVendorsOnly ? ` (${myVendorCount})` : ""}
+            </button>
+          )}
           <PricingToggle />
           <button
             onClick={() => setPresentationMode(!presentationMode)}

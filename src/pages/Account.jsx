@@ -407,7 +407,19 @@ function PreferencesSection({ user, onSave, saving }) {
     results_per_page: prefs.results_per_page || 20,
     default_sort: prefs.default_sort || "best_match",
     image_preference: prefs.image_preference || "no_preference",
+    my_vendors: prefs.my_vendors || [],
+    my_vendors_only: prefs.my_vendors_only ?? false,
   });
+
+  const toggleVendor = (vendorId) => {
+    setForm(f => {
+      const current = f.my_vendors || [];
+      const next = current.includes(vendorId)
+        ? current.filter(v => v !== vendorId)
+        : [...current, vendorId];
+      return { ...f, my_vendors: next };
+    });
+  };
 
   const sortOptions = [
     { value: "best_match", label: "Best Match" },
@@ -477,6 +489,56 @@ function PreferencesSection({ user, onSave, saving }) {
           </div>
         </Field>
       </div>
+
+      <Field label="My Vendors">
+          <p className="text-xs text-white/30 mb-3 -mt-1">
+            Select the vendors you have trade accounts with. When enabled, search results will only show products from these vendors.
+          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => setForm(f => ({ ...f, my_vendors_only: !f.my_vendors_only }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                form.my_vendors_only && form.my_vendors.length > 0 ? "bg-[var(--gold)]" : "bg-white/10"
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                form.my_vendors_only && form.my_vendors.length > 0 ? "translate-x-6" : "translate-x-1"
+              }`} />
+            </button>
+            <span className="text-xs text-white/50">
+              {form.my_vendors_only && form.my_vendors.length > 0
+                ? `Showing only my vendors (${form.my_vendors.length} selected)`
+                : "Showing all vendors"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {CATALOG_VENDORS.map(v => {
+              const selected = (form.my_vendors || []).includes(v.id);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => toggleVendor(v.id)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all ${
+                    selected
+                      ? "bg-[var(--gold)]/10 border border-[var(--gold)]/25"
+                      : "bg-white/[0.02] border border-white/[0.04] hover:border-white/10"
+                  }`}
+                >
+                  <div className={`flex h-4 w-4 items-center justify-center rounded border transition-all shrink-0 ${
+                    selected
+                      ? "bg-[var(--gold)] border-[var(--gold)]"
+                      : "border-white/20"
+                  }`}>
+                    {selected && <Check className="h-2.5 w-2.5 text-white" />}
+                  </div>
+                  <span className={`text-sm truncate ${selected ? "text-[var(--gold)]" : "text-white/50"}`}>
+                    {v.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
 
       <button
         onClick={() => onSave({ preferences: form })}
