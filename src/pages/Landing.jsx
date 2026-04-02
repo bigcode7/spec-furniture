@@ -598,7 +598,7 @@ export default function Landing() {
                 <div className="rounded-full px-5 py-2.5 flex items-center justify-center gap-3"
                   style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)" }}>
                   <span className="text-emerald-400 text-xs sm:text-sm font-semibold">
-                    Early Access — $49/mo for life
+                    Early Access — <span className="line-through opacity-50">$99</span> $49/mo for life
                   </span>
                   <span className="text-white/30 text-xs">|</span>
                   <span className="text-white/50 text-xs">

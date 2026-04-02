@@ -313,7 +313,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                       color: billing === "early_bird" ? GOLD : "rgba(255,255,255,0.4)",
                     }}
                   >
-                    $49/mo
+                    <span className="line-through opacity-50 mr-1">$99</span>$49/mo
                     <span
                       className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                       style={{ background: "rgba(16,185,129,0.2)", color: "#10b981" }}
@@ -377,7 +377,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     style={goldBtnStyle}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? "Lock in $49/mo forever" : "Start your 7-day free trial"}
+                    {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? <><span className="line-through opacity-50">$99</span>&nbsp;Lock in $49/mo forever</> : "Start your 7-day free trial"}
                   </button>
                   <p className="text-[11px] text-white/30 text-center mt-2">
                     {isUpgrade

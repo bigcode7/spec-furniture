@@ -8,10 +8,13 @@
  * Pricing tier env vars:
  *   STRIPE_PRO_MONTHLY_PRICE_ID  — $99/month
  *   STRIPE_PRO_ANNUAL_PRICE_ID   — $990/year
- *   STRIPE_EARLY_BIRD_PRICE_ID   — $49/month (first 200 users, locked for life)
  *   STRIPE_TEAM_MONTHLY_PRICE_ID — $249/month (5 seats included)
  *   STRIPE_TEAM_ANNUAL_PRICE_ID  — $2,490/year (5 seats included)
  *   STRIPE_TEAM_SEAT_PRICE_ID    — $49/month per additional seat
+ *
+ * Early-bird pricing uses the $99/month price + a "forever" coupon ($50 off)
+ * so Stripe checkout shows the $99 crossed out with $49 underneath.
+ * The coupon is auto-created on first use if it doesn't exist.
  *
  * Legacy / backward-compat (used as fallback for pro plans):
  *   STRIPE_MONTHLY_PRICE_ID — falls back for pro_monthly if new var not set
@@ -56,11 +59,17 @@ async function ensureStripe() {
  *
  * Legacy "monthly" / "annual" values are treated as pro plans for backward
  * compatibility.
+ *
+ * "early_bird" uses the monthly price + a coupon (handled in createCheckoutSession).
  */
 function resolvePriceId(plan) {
   switch (plan) {
     case "early_bird":
-      return process.env.STRIPE_EARLY_BIRD_PRICE_ID;
+      // Early bird uses the regular monthly price — the discount comes from the coupon
+      return (
+        process.env.STRIPE_PRO_MONTHLY_PRICE_ID ||
+        process.env.STRIPE_MONTHLY_PRICE_ID
+      );
     case "pro_monthly":
     case "monthly":
       return (
@@ -82,9 +91,44 @@ function resolvePriceId(plan) {
   }
 }
 
+// ── Early-bird coupon management ──
+const EARLY_BIRD_COUPON_ID = "spekd_early_bird_50_off_forever";
+let earlyBirdCouponVerified = false;
+
+/**
+ * Ensure the early-bird coupon exists in Stripe.
+ * Creates it if missing: $50 off, forever duration, named "Early Bird — 50% Off for Life".
+ */
+async function ensureEarlyBirdCoupon() {
+  if (earlyBirdCouponVerified) return EARLY_BIRD_COUPON_ID;
+  if (!await ensureStripe()) throw new Error("Stripe not configured");
+
+  try {
+    await stripe.coupons.retrieve(EARLY_BIRD_COUPON_ID);
+    earlyBirdCouponVerified = true;
+    console.log("[stripe] Early-bird coupon verified");
+  } catch (err) {
+    if (err.statusCode === 404 || err.code === "resource_missing") {
+      // Create the coupon
+      await stripe.coupons.create({
+        id: EARLY_BIRD_COUPON_ID,
+        name: "Early Bird — 50% Off for Life",
+        amount_off: 5000, // $50.00 off in cents
+        currency: "usd",
+        duration: "forever",
+      });
+      earlyBirdCouponVerified = true;
+      console.log("[stripe] Early-bird coupon created: $50 off forever");
+    } else {
+      throw err;
+    }
+  }
+  return EARLY_BIRD_COUPON_ID;
+}
+
 /**
  * Create a Stripe Checkout session for subscription.
- * @param {string} plan - "pro_monthly", "pro_annual", "team_monthly", "team_annual",
+ * @param {string} plan - "early_bird", "pro_monthly", "pro_annual", "team_monthly", "team_annual",
  *                        or legacy "monthly" / "annual"
  * @param {string} email - customer email
  * @param {string} userId - internal user ID
@@ -122,7 +166,7 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
     throw new Error(`Stripe price ID not configured for plan: ${plan}`);
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams = {
     mode: "subscription",
     payment_method_types: ["card"],
     customer_email: email,
@@ -134,7 +178,18 @@ async function createCheckoutSession(plan, email, userId, successUrl, cancelUrl)
       trial_period_days: 7,
       metadata: { user_id: userId, plan },
     },
-  });
+  };
+
+  // Early-bird: apply the forever coupon so Stripe shows $99 crossed out → $49
+  if (plan === "early_bird") {
+    const couponId = await ensureEarlyBirdCoupon();
+    sessionParams.discounts = [{ coupon: couponId }];
+    // Can't combine discounts with trial_period_days on subscription_data,
+    // so set trial on the subscription via the coupon's trial instead
+    // Actually Stripe allows both — trial + coupon works fine
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   return { checkout_url: session.url, session_id: session.id };
 }
@@ -255,4 +310,5 @@ export {
   createReactivationSession,
   getStripeSubscription,
   createPortalSession,
+  ensureEarlyBirdCoupon,
 };

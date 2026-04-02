@@ -925,7 +925,7 @@ function SubscriptionSection({ toast }) {
               {sub?.plan === "early_bird" ? "SPEKD Pro — Early Bird" : isActive ? "SPEKD Pro" : isTrialing ? "SPEKD Pro — Trial" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
             </div>
             <div className="text-xl font-semibold text-white">
-              {isTrialing ? "Free Trial" : sub?.plan === "early_bird" ? "$49/month" : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
+              {isTrialing ? "Free Trial" : sub?.plan === "early_bird" ? <><span className="line-through text-white/30 text-base mr-2">$99</span>$49/month</> : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
             </div>
             {sub?.plan === "early_bird" && (isActive || isTrialing) && (
               <div className="text-xs text-emerald-400/70 mt-0.5 font-medium">Locked in for life</div>
