@@ -262,6 +262,52 @@
     backdrop-filter: blur(18px);
   }
 
+  .paper-grain {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .paper-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.16;
+    border-radius: inherit;
+    background-image:
+      radial-gradient(rgba(255, 243, 226, 0.08) 0.7px, transparent 0.8px),
+      radial-gradient(rgba(198, 161, 106, 0.05) 0.7px, transparent 0.8px);
+    background-position: 0 0, 12px 12px;
+    background-size: 18px 18px, 22px 22px;
+    mix-blend-mode: soft-light;
+    z-index: 0;
+  }
+
+  .linen-surface {
+    position: relative;
+    background-image:
+      linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+      repeating-linear-gradient(0deg, rgba(255, 243, 226, 0.018) 0px, rgba(255, 243, 226, 0.018) 1px, transparent 1px, transparent 5px),
+      repeating-linear-gradient(90deg, rgba(255, 243, 226, 0.014) 0px, rgba(255, 243, 226, 0.014) 1px, transparent 1px, transparent 6px);
+  }
+
+  .presentation-mode .atelier-panel,
+  .presentation-mode .atelier-panel-soft,
+  .presentation-mode .editorial-card,
+  .presentation-mode .product-card {
+    box-shadow: 0 26px 88px rgba(0, 0, 0, 0.34);
+  }
+
+  .presentation-mode .control-chip {
+    background: rgba(255, 244, 228, 0.045);
+    border-color: rgba(255, 241, 224, 0.08);
+  }
+
+  .presentation-mode .workspace-subhead {
+    max-width: 56rem;
+    color: rgba(255, 246, 233, 0.68);
+  }
+
   .glass-panel {
     @apply glass-surface;
   }

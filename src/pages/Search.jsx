@@ -27,7 +27,7 @@ import {
   Link2,
   Share2,
 } from "lucide-react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch, getProduct } from "@/api/searchClient";
 import {
@@ -258,16 +258,6 @@ function getStudioSpanClass(index) {
   return "";
 }
 
-function getCardLayoutIds(id) {
-  const safe = id || "unknown";
-  return {
-    shell: `product-shell-${safe}`,
-    image: `product-image-${safe}`,
-    title: `product-title-${safe}`,
-    meta: `product-meta-${safe}`,
-  };
-}
-
 function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) {
   const text = `${query} ${(products[0]?.ai_visual_tags || "")} ${(products[0]?.material || "")} ${(products[0]?.style || "")}`.toLowerCase();
   if (hasVisualSearch) {
@@ -344,6 +334,9 @@ export default function SearchPage() {
 
   const [sortKey, setSortKey] = useState("relevance");
   const [viewMode, setViewMode] = useState("studio");
+  const [presentationMode, setPresentationMode] = useState(() => {
+    try { return localStorage.getItem("spekd_presentation_mode") === "1"; } catch { return false; }
+  });
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -477,6 +470,10 @@ export default function SearchPage() {
     }, 1200);
     return () => clearTimeout(timer);
   }, [entryTransition]);
+
+  useEffect(() => {
+    try { localStorage.setItem("spekd_presentation_mode", presentationMode ? "1" : "0"); } catch {}
+  }, [presentationMode]);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
@@ -1393,12 +1390,11 @@ export default function SearchPage() {
   // ──────────────────────────────────────────────
 
   return (
-    <LayoutGroup id="search-stage">
     <motion.div
       initial={entryTransition ? { opacity: 0, scale: 0.985, y: 18 } : false}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-      className="relative min-h-screen"
+      className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
     >
       <AnimatedGradientBackground
         Breathing
@@ -1562,7 +1558,7 @@ export default function SearchPage() {
                 </div>
                   <div className="hidden sm:block">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Search Results</div>
-                  <div className="text-[12px] text-white/32">Refine, review, and save</div>
+                  <div className="text-[12px] text-white/32">{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
                 </div>
               </div>
               {/* Inline compact search input */}
@@ -1676,6 +1672,8 @@ export default function SearchPage() {
                 setSortKey={setSortKey}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                presentationMode={presentationMode}
+                setPresentationMode={setPresentationMode}
                 showSortMenu={showSortMenu}
                 setShowSortMenu={setShowSortMenu}
                 moodTheme={moodTheme}
@@ -1706,10 +1704,11 @@ export default function SearchPage() {
             {/* ── Empty search fallback (no results, no server guidance) ── */}
             {!loading && !listMode && messages.length > 0 && allResults.length === 0 && !zeroResultGuidance && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                <div className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                  <Search className="h-4 w-4 text-white/30 mt-0.5 shrink-0" />
+                <div className="paper-grain flex items-start gap-3 rounded-[24px] border border-white/[0.06] bg-white/[0.02] px-5 py-4">
+                  <Search className="h-4 w-4 text-gold/50 mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] text-white/50 leading-relaxed">No results found. Try broadening your search — use fewer keywords, a different product type, or remove brand names.</p>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-gold/50">Search direction</div>
+                    <p className="mt-2 text-[12px] text-white/56 leading-relaxed">Nothing strong surfaced for that brief. Try broadening the material or style language, or remove vendor-specific terms so the system can widen the sourcing field.</p>
                   </div>
                 </div>
               </motion.div>
@@ -1793,6 +1792,7 @@ export default function SearchPage() {
                                   item={product}
                                   index={pIdx}
                                   viewMode={viewMode}
+                                  presentationMode={presentationMode}
                                   isFavorited={isFavorited(product.id)}
                                   isInQuote={quoteIds.has(product.id)}
                                   onToggleFavorite={() => handleToggleFavorite(product)}
@@ -1970,6 +1970,7 @@ export default function SearchPage() {
                         item={item}
                         index={idx}
                         viewMode={viewMode}
+                        presentationMode={presentationMode}
                         isFavorited={isFavorited(item.id)}
                         isInQuote={quoteIds.has(item.id)}
                         onToggleFavorite={() => handleToggleFavorite(item)}
@@ -2078,6 +2079,7 @@ export default function SearchPage() {
             alternativeProducts={alternativeProducts}
             alternativeLoading={alternativeLoading}
             alternativeLabel={alternativeLabel}
+            presentationMode={presentationMode}
           />
         )}
       </AnimatePresence>
@@ -2184,13 +2186,12 @@ export default function SearchPage() {
       )}
 
     </motion.div>
-    </LayoutGroup>
   );
 }
 
 
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
-function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, viewMode, setViewMode, showSortMenu, setShowSortMenu, moodTheme }) {
+function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, viewMode, setViewMode, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme }) {
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex items-center justify-between gap-3 px-4 py-3">
@@ -2206,6 +2207,15 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
 
         <div className="flex items-center gap-3">
           <PricingToggle />
+          <button
+            onClick={() => setPresentationMode(!presentationMode)}
+            className={`control-chip hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] transition-all ${presentationMode ? "text-[#161413]" : "text-white/44 hover:text-white/72"}`}
+            style={presentationMode ? { background: moodTheme.accent } : {}}
+            title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
+          >
+            <Eye className="h-3 w-3" />
+            {presentationMode ? "Presentation" : "Workspace"}
+          </button>
           <div className="control-chip hidden sm:flex items-center gap-1 p-1">
             {VIEW_MODES.map((mode) => (
               <button
@@ -2274,7 +2284,7 @@ function PricingToggle() {
 }
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
-const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "gallery", isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
+const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "gallery", presentationMode = false, isFavorited, isInQuote, onToggleFavorite, onAddToQuote, onPreview }) {
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -2285,15 +2295,11 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
   const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
   const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, viewMode === "studio" ? 3 : 1);
-  const layoutIds = getCardLayoutIds(item.id);
-
   return (
-    <motion.div
-      layoutId={layoutIds.shell}
-      layout
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`product-card group cursor-pointer flex flex-col ${viewMode === "studio" ? "min-h-[440px]" : ""}`}
+      className={`product-card group cursor-pointer flex flex-col ${viewMode === "studio" ? "min-h-[440px]" : ""} ${presentationMode ? "paper-grain" : ""}`}
       style={{ contain: "layout style paint", height: "100%" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
@@ -2302,7 +2308,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
       }}
     >
       {/* Image — landscape for studio shots, tall for lifestyle */}
-      <motion.div layoutId={layoutIds.image} className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
@@ -2347,7 +2353,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
             {isInQuote || justAdded ? <ClipboardCheck className="h-4 w-4 sm:h-3 sm:w-3" /> : <FileText className="h-4 w-4 sm:h-3 sm:w-3" />}
           </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Gold hairline */}
       <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
@@ -2362,9 +2368,9 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
             </span>
           )}
         </div>
-        <motion.h3 layoutId={layoutIds.title} className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</motion.h3>
+        <h3 className={`product-name text-white/94 line-clamp-2 mb-2 ${presentationMode && viewMode === "studio" ? "text-[18px] sm:text-[20px]" : "text-[15px] sm:text-[17px]"} min-h-[2.6em]`}>{item.product_name}</h3>
         <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
-        {detailChips.length > 0 && (
+        {detailChips.length > 0 && !presentationMode && (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {detailChips.map((chip) => (
               <span key={chip} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-white/40">
@@ -2398,13 +2404,13 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
           </a>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 });
 
 
 // ─── PRODUCT PREVIEW PANEL ──────────────────────────────────
-function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview, onFindAlternative, alternativeProducts, alternativeLoading, alternativeLabel }) {
+function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts, similarLoading, onToggleFavorite, onAddToQuote, isFavorited, onOpenPreview, onFindAlternative, alternativeProducts, alternativeLoading, alternativeLabel, presentationMode = false }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -2476,8 +2482,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
   if (product.height) dims.push(`${product.height}" H`);
   const dimStr = dims.join(" × ") || product.dimensions || null;
   const previewTheme = getSearchMoodTheme(product.product_name || "", [product], false);
-  const layoutIds = getCardLayoutIds(product.id);
-
   return (
     <>
       {/* Backdrop */}
@@ -2491,12 +2495,11 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
 
       {/* Panel — right-sliding */}
       <motion.div
-        layoutId={layoutIds.shell}
-        initial={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
-        animate={IS_MOBILE ? { opacity: 1 } : { opacity: 1, x: 0 }}
-        exit={IS_MOBILE ? { opacity: 0 } : { opacity: 0, x: "100%" }}
-        transition={IS_MOBILE ? { duration: 0.15 } : { type: "spring", damping: 30, stiffness: 400 }}
-        className="fixed top-0 right-0 bottom-0 z-[61] w-full md:w-[600px] overflow-y-auto md:rounded-l-[32px] border-l border-white/[0.08] bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl shadow-2xl overscroll-contain"
+        initial={IS_MOBILE ? { opacity: 0, y: 10 } : { opacity: 0, x: 56, scale: 0.985 }}
+        animate={IS_MOBILE ? { opacity: 1, y: 0 } : { opacity: 1, x: 0, scale: 1 }}
+        exit={IS_MOBILE ? { opacity: 0, y: 10 } : { opacity: 0, x: 36, scale: 0.99 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] border-l border-white/[0.08] bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl shadow-2xl overscroll-contain`}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
@@ -2511,7 +2514,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           <div className="flex flex-col gap-6">
             {/* Image gallery */}
             <div className="flex flex-col gap-2">
-              <motion.div layoutId={layoutIds.image} className="relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04]" style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+              <div className={`relative aspect-[4/3] rounded-[24px] overflow-hidden border border-white/[0.04] ${presentationMode ? "paper-grain" : ""}`} style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
                 {productImages.length > 0 ? (
                   <>
                     {!imgLoaded && (
@@ -2546,7 +2549,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     {(product.manufacturer_name || "?")[0]}
                   </div>
                 )}
-              </motion.div>
+              </div>
               {productImages.length > 1 && (
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {productImages.map((src, i) => (
@@ -2573,11 +2576,11 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               </div>
 
               {/* Product name */}
-              <motion.h2 layoutId={layoutIds.title} className="font-display text-[32px] text-white/92 leading-tight">
+              <h2 className={`font-display ${presentationMode ? "text-[38px]" : "text-[32px]"} text-white/92 leading-tight`}>
                 {product.product_name}
-              </motion.h2>
+              </h2>
 
-              <div className="rounded-[24px] border px-4 py-4" style={{ borderColor: previewTheme.glow, background: `linear-gradient(135deg, ${previewTheme.chip}, rgba(255,255,255,0.02))` }}>
+              <div className={`rounded-[24px] border px-4 py-4 ${presentationMode ? "paper-grain" : ""}`} style={{ borderColor: previewTheme.glow, background: `linear-gradient(135deg, ${previewTheme.chip}, rgba(255,255,255,0.02))` }}>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: previewTheme.accent }}>
                   Why it stands out
                 </div>
@@ -2721,7 +2724,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       key={alt}
                       onClick={() => onFindAlternative(product, alt)}
                       disabled={alternativeLoading}
-                      className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
+                      className={`flex items-center gap-1 rounded-[999px] border px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
                         alternativeLabel === alt && alternativeProducts.length > 0
                           ? "border-gold/30 bg-gold/10 text-gold/90"
                           : "border-white/[0.06] text-white/40 hover:text-gold/70 hover:border-gold/20 hover:bg-gold/[0.04]"

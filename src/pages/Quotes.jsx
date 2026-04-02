@@ -109,6 +109,9 @@ export default function Quotes() {
 
   const [editingRoomId, setEditingRoomId] = useState(null);
   const [showMarkup, setShowMarkup] = useState(false);
+  const [presentationMode, setPresentationMode] = useState(() => {
+    try { return localStorage.getItem("spekd_quote_presentation_mode") !== "0"; } catch { return true; }
+  });
   const [generating, setGenerating] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [showAddRoom, setShowAddRoom] = useState(false);
@@ -215,6 +218,10 @@ export default function Quotes() {
   const totalItems = quote.rooms.reduce((s, r) => s + r.items.length, 0);
   const grandTotal = quote.rooms.reduce((s, r) => s + getRoomTotal(r), 0);
   const itemsWithoutPrice = quote.rooms.flatMap((r) => r.items).filter((i) => !getItemPrice(i));
+
+  useEffect(() => {
+    try { localStorage.setItem("spekd_quote_presentation_mode", presentationMode ? "1" : "0"); } catch {}
+  }, [presentationMode]);
 
   /* ── quote actions ────────────────────────────────────────── */
 
@@ -470,12 +477,12 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#120f0d] text-white">
+    <div className={`min-h-screen bg-[#120f0d] text-white ${presentationMode ? "presentation-mode" : ""}`}>
       <div className="page-wrap-wide py-10 pb-48 sm:pb-10">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="atelier-panel mb-10 px-6 py-8 sm:px-8 md:px-10"
+          className={`atelier-panel mb-10 px-6 py-8 sm:px-8 md:px-10 ${presentationMode ? "paper-grain" : ""}`}
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -503,6 +510,18 @@ export default function Quotes() {
               </div>
             </div>
           </div>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setPresentationMode(!presentationMode)}
+              className={`control-chip flex items-center gap-2 px-3 py-1.5 text-[11px] transition-all ${presentationMode ? "bg-gold text-[#161413]" : "text-white/46 hover:text-white/74"}`}
+            >
+              <Star className="h-3 w-3" />
+              {presentationMode ? "Presentation Mode" : "Workspace Mode"}
+            </button>
+            <span className="text-[11px] text-white/28">
+              {presentationMode ? "Cleaner room boards, calmer chrome, client-ready detail." : "Full editing surfaces and utility controls."}
+            </span>
+          </div>
         </motion.div>
 
         {/* ═══════════════════════════════════════════════════
@@ -525,7 +544,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="editorial-card py-14 flex flex-col items-center justify-center"
+              className="editorial-card paper-grain py-14 flex flex-col items-center justify-center"
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <HeartOff className="h-8 w-8 text-white/10 mb-3" />
@@ -797,13 +816,13 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="editorial-card py-20 flex flex-col items-center justify-center"
+              className="editorial-card linen-surface py-20 flex flex-col items-center justify-center"
               style={{ background: "rgba(255,255,255,0.01)" }}
             >
               <Package className="h-12 w-12 text-white/10 mb-4" />
-              <p className="text-sm text-white/40 mb-1">No quotes yet</p>
+              <p className="text-sm text-white/40 mb-1">No quote boards yet</p>
               <p className="text-xs text-white/20">
-                Search for products, save your favorites, and add them here to start your first quote.
+                Save standout pieces from search, arrange them into rooms, and this space becomes your client-ready presentation deck.
               </p>
             </motion.div>
           ) : (
@@ -816,7 +835,7 @@ export default function Quotes() {
                   key={room.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="atelier-panel overflow-hidden"
+                  className={`atelier-panel overflow-hidden ${presentationMode ? "linen-surface" : ""}`}
                   style={{ background: "rgba(255,255,255,0.015)" }}
                 >
                   {/* Room Header */}
@@ -934,6 +953,7 @@ export default function Quotes() {
                             onWhyThisPiece={() => handleWhyThisPiece(item, room)}
                             onUpdateJustification={handleUpdateJustification}
                             clientFeedback={getItemFeedback(item.id)}
+                            presentationMode={presentationMode}
                           />
                         ))}
                         {/* Generate All Justifications */}
@@ -1006,7 +1026,7 @@ export default function Quotes() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="atelier-panel px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px]"
+                className={`atelier-panel px-6 py-5 mt-4 space-y-4 sm:relative sm:bottom-auto sm:z-auto fixed bottom-0 left-0 right-0 z-40 rounded-b-none sm:rounded-[28px] ${presentationMode ? "paper-grain" : ""}`}
                 style={{ backdropFilter: "blur(12px)" }}
               >
                 {/* Markup toggle */}
@@ -1283,6 +1303,7 @@ function QuoteItemRow({
   onWhyThisPiece,
   onUpdateJustification,
   clientFeedback,
+  presentationMode = false,
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
@@ -1298,7 +1319,7 @@ function QuoteItemRow({
       clientFeedback?.status === "approved" ? "border-l-2 border-l-emerald-500/40" :
       clientFeedback?.status === "change" ? "border-l-2 border-l-amber-500/40" :
       clientFeedback?.status === "rejected" ? "border-l-2 border-l-red-500/40" : ""
-    }`}>
+    } ${presentationMode ? "paper-grain" : ""}`}>
       <div className="flex gap-4 sm:flex-row flex-col">
         {/* Thumbnail — clicks through to vendor product page */}
         <a
@@ -1332,7 +1353,7 @@ function QuoteItemRow({
                 href={item.portal_url || item.product_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-base font-medium text-white/88 truncate hover:text-gold transition-colors"
+                className={`truncate hover:text-gold transition-colors ${presentationMode ? "text-[18px] font-semibold text-white/92" : "text-base font-medium text-white/88"}`}
                 title="Open vendor product page — check pricing"
               >
                 {item.product_name}
