@@ -169,9 +169,9 @@ function MockVendorUI({ vendors }) {
 
 // ── Hardcoded demo products — no live search needed ──
 const DEMO_PRODUCTS = [
-  { id: "caracole_lean-on-me", product_name: "Lean On Me", manufacturer_name: "Caracole", image_url: "https://cdn.shopify.com/s/files/1/0710/9299/4095/files/f39ucdyxymdpjaqwzcnr.jpg?v=1773686507", retail_price: 2715 },
-  { id: "hooker_caleigh-recliner", product_name: "Caleigh Recliner", manufacturer_name: "Hooker Furniture", image_url: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg", retail_price: 2835 },
-  { id: "gabby_nantucket-recliner-sch-r1492", product_name: "Nantucket Recliner", manufacturer_name: "Gabby", image_url: "https://cdn.shopify.com/s/files/1/0625/1007/1895/files/image_e9v65lq92l5a9fk9oshjlr0f09.jpg?v=1772795521", retail_price: 5299 },
+  { id: "caracole_lean-on-me", product_name: "Lean On Me", manufacturer_name: "Caracole", image_url: "https://cdn.shopify.com/s/files/1/0710/9299/4095/files/f39ucdyxymdpjaqwzcnr.jpg?v=1773686507" },
+  { id: "hooker_caleigh-recliner", product_name: "Caleigh Recliner", manufacturer_name: "Hooker Furniture", image_url: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg" },
+  { id: "gabby_nantucket-recliner-sch-r1492", product_name: "Nantucket Recliner", manufacturer_name: "Gabby", image_url: "https://cdn.shopify.com/s/files/1/0625/1007/1895/files/image_e9v65lq92l5a9fk9oshjlr0f09.jpg?v=1772795521" },
 ];
 
 // ── Mock Search UI — typing animation with hardcoded products ──
@@ -272,10 +272,7 @@ function MockSearchUI() {
                 <div className="p-2.5">
                   <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-0.5 truncate">{item.manufacturer_name}</div>
                   <div className="text-[11px] text-white/90 line-clamp-2 mb-1 leading-tight">{item.product_name}</div>
-                  {item.retail_price && (
-                    <div className="text-[11px] font-semibold text-gold/80">${Number(item.retail_price).toLocaleString()}</div>
-                  )}
-                </div>
+                  </div>
               </div>
             )) : (
               /* Loading skeleton */
