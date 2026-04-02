@@ -159,7 +159,7 @@ function getInitialQuery() {
 }
 
 // ─── SESSION STATE CACHE ─────────────────────────────────────
-// Preserves search results + UI state across navigation (Search → Quotes → back)
+// Preserves search results + UI state across repeated Search ↔ Quotes navigation
 const SEARCH_CACHE_KEY = "spekd_search_cache";
 
 function saveSearchCache(data) {
@@ -467,6 +467,23 @@ export default function SearchPage() {
     cacheableState.current = { allResults, messages, displayQuery, sortKey, visibleCount, totalAvailable };
   }, [allResults, messages, displayQuery, sortKey, visibleCount, totalAvailable]);
 
+  // Persist search state so repeated trips between Search and Quotes keep the same result set.
+  useEffect(() => {
+    const query = lastQueryRef.current;
+    if (!query || !allResults?.length || loading) return;
+    saveSearchCache({
+      _ts: Date.now(),
+      query,
+      scrollY: window.scrollY || 0,
+      allResults,
+      messages,
+      displayQuery,
+      sortKey,
+      visibleCount,
+      totalAvailable,
+    });
+  }, [allResults, messages, displayQuery, sortKey, visibleCount, totalAvailable, loading]);
+
   // Save search state to sessionStorage on unmount so navigating back restores it
   useEffect(() => {
     return () => {
@@ -536,7 +553,6 @@ export default function SearchPage() {
           window.scrollTo(0, cached.scrollY || 0);
         }, 50);
       });
-      clearSearchCache();
       return;
     }
 
