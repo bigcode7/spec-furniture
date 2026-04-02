@@ -553,12 +553,9 @@ export default function Landing() {
               animate={{ clipPath: "inset(0 0% 0 0)" }}
               transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
             >
-              Source
+              Sourcing
               <br />
-              <span className="text-gold">
-                confidently
-              </span>{" "}
-              with intent
+              <span className="text-gold">made simple</span>
             </motion.h1>
 
             {/* Subtitle — live numbers */}
