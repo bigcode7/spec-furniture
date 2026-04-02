@@ -76,7 +76,7 @@ function AccountDropdown({ user, logout }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-64 rounded-xl overflow-hidden shadow-2xl z-50"
+            className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden shadow-2xl z-50"
             style={{
               background: "rgba(42,37,31,0.97)",
               border: "1px solid rgba(255,255,255,0.08)",

@@ -1588,7 +1588,7 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-            <div className="sticky top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
+            <div className="sticky top-[68px] sm:top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
             <div className="page-wrap-wide py-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
@@ -2379,7 +2379,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
         {/* Overlay buttons — always visible on mobile, hover-reveal on desktop */}
         <div className="absolute top-2 left-2 flex gap-1.5">
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
+            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
               isFavorited ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}>
             <Heart className={`h-4 w-4 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
@@ -2392,7 +2392,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, viewMode = "g
                 setTimeout(() => setJustAdded(false), 2000);
               }
             }}
-            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
+            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
               isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
             }`}
             title={isInQuote ? "In quote" : "Add to quote"}>

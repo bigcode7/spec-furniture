@@ -906,7 +906,7 @@ export default function Landing() {
       {/* ═══════════ FOOTER ═══════════ */}
       <footer className="landing-footer">
         <div className="page-wrap py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 mb-14">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                 <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain" />
