@@ -295,7 +295,7 @@
   .presentation-mode .atelier-panel-soft,
   .presentation-mode .editorial-card,
   .presentation-mode .product-card {
-    box-shadow: 0 26px 88px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 22px 72px rgba(0, 0, 0, 0.3);
   }
 
   .presentation-mode .control-chip {
@@ -305,7 +305,7 @@
 
   .presentation-mode .workspace-subhead {
     max-width: 56rem;
-    color: rgba(255, 246, 233, 0.68);
+    color: rgba(255, 246, 233, 0.62);
   }
 
   .glass-panel {

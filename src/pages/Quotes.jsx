@@ -501,15 +501,10 @@ export default function Quotes() {
               <div className="workspace-kicker mb-5">Quote studio</div>
               <h1 className="workspace-heading max-w-4xl">Build polished client-facing presentations without leaving the sourcing flow.</h1>
               <p className="workspace-subhead mt-4">
-                Organize saved pieces into rooms, adjust pricing, generate PDFs, and share approval links from a workspace that feels curated instead of purely transactional.
+                Organize saved pieces into rooms, generate PDFs, and share approval links from a workspace that stays calm under detail.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[440px]">
-              <div className="atelier-panel-soft px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Saved</div>
-                <div className="mt-2 text-2xl font-semibold text-white/92">{favorites.length}</div>
-                <div className="mt-1 text-xs text-white/40">Products ready to spec</div>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[320px]">
               <div className="atelier-panel-soft px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Rooms</div>
                 <div className="mt-2 text-2xl font-semibold text-white/92">{quote.rooms.length}</div>
@@ -535,11 +530,11 @@ export default function Quotes() {
             </span>
           </div>
           {totalItems > 0 && (
-            <div className="mt-6 grid gap-3 lg:grid-cols-[1.35fr_0.65fr]">
+            <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_0.65fr]">
               <div className="atelier-panel-soft paper-grain px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-gold/55">Presentation Direction</div>
                 <p className="mt-2 text-[13px] leading-6 text-white/62">
-                  This quote now reads like a compact design deck: stronger room framing, cleaner executive totals, and more composed export rhythm for client review.
+                  This quote now reads like a compact design deck with stronger room framing and cleaner export rhythm.
                 </p>
               </div>
               <div className="atelier-panel-soft px-4 py-4">

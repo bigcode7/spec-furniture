@@ -68,9 +68,7 @@ export default function Dashboard() {
             <div>
               <div className="workspace-kicker mb-5">Home</div>
               <h1 className="workspace-heading max-w-4xl">Start every sourcing session from one calm, useful launch page.</h1>
-              <p className="workspace-subhead mt-4">
-                Launch a search, jump back into quotes, and re-enter the strongest directions without hunting through the app.
-              </p>
+              <p className="workspace-subhead mt-4">Launch a search and jump back into active work without hunting through the app.</p>
 
               <form onSubmit={handleSearch} className="mt-8">
                 <div className="luxe-input relative">
@@ -107,16 +105,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <div className="atelier-panel-soft px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
                 <div className="mt-2 text-2xl font-semibold text-white/92">{stats.products ? stats.products.toLocaleString() : "40k+"}</div>
                 <div className="mt-1 text-xs text-white/40">{stats.vendors ? `${stats.vendors} brands represented` : "Trade-ready products"}</div>
-              </div>
-              <div className="atelier-panel-soft px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Saved</div>
-                <div className="mt-2 text-2xl font-semibold text-white/92">{favorites.length}</div>
-                <div className="mt-1 text-xs text-white/40">Pieces on your shortlist</div>
               </div>
               <div className="atelier-panel-soft px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Quote Board</div>
@@ -142,8 +135,8 @@ export default function Dashboard() {
               {[
                 { to: "Search", icon: Search, label: "Search Workspace", desc: "Run a new sourcing brief or continue refining a result set." },
                 { to: "Quotes", icon: FileText, label: "Quote Studio", desc: "Review rooms, export PDFs, and share client-ready presentations." },
-                { to: "Landing", icon: Compass, label: "Landing Page", desc: "See the branded entry experience and hero search flow." },
-                { to: "Account", icon: Heart, label: "Account", desc: "Manage your profile, preferences, and trade-facing settings." },
+                { to: "Account", icon: Heart, label: "Account", desc: "Manage profile and trade-facing settings." },
+                { to: "Landing", icon: Compass, label: "Landing Page", desc: "Review the public entry experience." },
               ].map((item) => (
                 <Link key={item.label} to={createPageUrl(item.to)} className="editorial-card px-4 py-4 transition-all hover:border-gold/20">
                   <div className="flex items-center gap-3">

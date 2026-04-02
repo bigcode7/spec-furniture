@@ -1440,28 +1440,23 @@ export default function SearchPage() {
                   The sourcing workspace that feels designed for designers.
                 </h1>
                 <p className="workspace-subhead mt-5">
-                  Search by mood, silhouette, material, room intent, or visual reference. The workflow stays intact. The interface now leads with calm hierarchy, richer materials, and a stronger sense of curation.
+                  Search by mood, silhouette, material, room intent, or visual reference.
                 </p>
                 <div className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.22em]" style={{ background: moodTheme.chip, color: moodTheme.accent, border: `1px solid ${moodTheme.glow}` }}>
                   Current mood
                   <span className="h-2 w-2 rounded-full" style={{ background: moodTheme.accent, boxShadow: `0 0 20px ${moodTheme.glow}` }} />
                   {moodTheme.name}
                 </div>
-                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
                   <div className="atelier-panel-soft px-4 py-4">
                     <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
                     <div className="mt-2 text-2xl font-semibold text-white/92">40k+</div>
                     <div className="mt-1 text-xs text-white/40">Trade-ready products</div>
                   </div>
                   <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Workflow</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Use</div>
                     <div className="mt-2 text-2xl font-semibold text-white/92">Search</div>
-                    <div className="mt-1 text-xs text-white/40">Compare, save, spec, quote</div>
-                  </div>
-                  <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Mode</div>
-                    <div className="mt-2 text-2xl font-semibold text-white/92">Studio</div>
-                    <div className="mt-1 text-xs text-white/40">Quietly premium, highly usable</div>
+                    <div className="mt-1 text-xs text-white/40">Refine, save, and quote</div>
                   </div>
                 </div>
               </div>
@@ -1477,7 +1472,7 @@ export default function SearchPage() {
                   </p>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Warm modern", "Higher back", "Luxury residential", "Accent chair"].map((tag) => (
+                  {["Warm modern", "Higher back", "Accent chair"].map((tag) => (
                     <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/46">
                       {tag}
                     </span>
@@ -2242,11 +2237,11 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
           </p>
           <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/24">
-            {vendorCount} brands shown · {viewMode} mode
+            {vendorCount} brands shown
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <PricingToggle />
           <button
             onClick={() => setPresentationMode(!presentationMode)}

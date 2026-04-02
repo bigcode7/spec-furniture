@@ -321,7 +321,7 @@ export default function Layout({ children, currentPageName }) {
             </Link>
 
             {/* Center nav — hidden on mobile, shown on md+ */}
-            <nav className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
+            <nav className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.05] bg-white/[0.018] px-2 py-1.5 shadow-[0_10px_26px_rgba(0,0,0,0.12)]">
               {NAV_ITEMS.map((item) => {
                 // Hide Quotes nav for guests
                 if (item.path === "Quotes" && !user) return null;
@@ -330,7 +330,7 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     key={item.path}
                     to={createPageUrl(item.path)}
-                    className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                    className={`relative inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors ${
                       active ? "text-white" : "text-white/35 hover:text-white/70"
                     }`}
                   >
@@ -339,7 +339,7 @@ export default function Layout({ children, currentPageName }) {
                     {item.path === "Quotes" && quoteCount > 0 && (
                       <span
                         className="relative z-[1] flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold px-1"
-                        style={{ background: "rgba(196,168,130,0.25)", color: "#c4a882" }}
+                        style={{ background: "rgba(196,168,130,0.2)", color: "#c4a882" }}
                       >
                         {quoteCount}
                       </span>
@@ -368,8 +368,8 @@ export default function Layout({ children, currentPageName }) {
                   to={createPageUrl("Search")}
                   className="hidden sm:flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all hover:brightness-110"
                   style={{
-                    background: "linear-gradient(135deg, rgba(198,161,106,0.18), rgba(198,161,106,0.08))",
-                    border: "1px solid rgba(198,161,106,0.28)",
+                    background: "linear-gradient(135deg, rgba(198,161,106,0.14), rgba(198,161,106,0.06))",
+                    border: "1px solid rgba(198,161,106,0.22)",
                     color: "#c4a882",
                   }}
                 >
