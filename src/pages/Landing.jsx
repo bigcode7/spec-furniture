@@ -1,29 +1,214 @@
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Search, ArrowRight, ChevronDown, Sparkles, Brain, FolderOpen, Shield, FileText, Send, Mic, Camera } from "lucide-react";
-import { motion, useInView, useScroll, useTransform } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
-// Subtle texture background — replaces particle field
-import { useAuth } from "@/lib/AuthContext";
+import {
+  Search, ArrowRight, Brain, Shield,
+  FileText, Send,
+} from "lucide-react";
+import {
+  motion, useInView,
+} from "framer-motion";
+import { useRef, useState, useEffect, useCallback } from "react";
+import ScrollExperience from "@/components/ScrollExperience";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
 
+// ── THE DIGITAL SHOWROOM — Palette ──
+const P = {
+  cream:        "#F5F0E8",
+  creamDark:    "#EBE4D8",
+  white:        "#FEFCF9",
+  green:        "#2C3E2D",
+  greenLight:   "#3D5240",
+  greenMuted:   "#5A7A5E",
+  sage:         "#C2CCBA",
+  sageDark:     "#8A9A8A",
+  brass:        "#B8956A",
+  brassLight:   "#D4B88A",
+  brassDark:    "#96744D",
+  brassRgb:     "184,149,106",
+  greenRgb:     "44,62,45",
+  sageRgb:      "194,204,186",
+  textPrimary:  "#2A2622",
+  textSecondary:"#7A746B",
+  textMuted:    "#9B9590",
+};
+
 const EXAMPLE_SEARCHES = [
-  "leather sofa transitional",
-  "coastal accent chair",
-  "walnut dining table",
-  "upholstered sectional",
+  "curved bouclé sofa",
+  "mid-century teak credenza",
+  "marble coffee table",
   "statement accent chair",
+  "woven rattan pendant",
 ];
 
+// ════════════════════════════════════════════════════════
+// 3D WIREFRAME CANVAS — Architectural Chair
+// Lightweight canvas-based renderer, no Three.js needed
+// ════════════════════════════════════════════════════════
+function WireframeCanvas() {
+  const canvasRef = useRef(null);
+  const frameRef = useRef(null);
+  const angleRef = useRef(0);
+  const mouseRef = useRef({ x: 0, y: 0 });
 
-// ── Reusable scroll reveal ──
-function Reveal({ children, className = "" }) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const resize = () => {
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      if (!rect) return;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Subtle mouse parallax
+    const handleMouse = (e) => {
+      mouseRef.current = {
+        x: (e.clientX / window.innerWidth - 0.5) * 0.15,
+        y: (e.clientY / window.innerHeight - 0.5) * 0.10,
+      };
+    };
+    window.addEventListener("mousemove", handleMouse, { passive: true });
+
+    // Chair wireframe vertices (normalized -1 to 1)
+    const verts = [
+      // Seat
+      [-0.5,0,-0.4],[0.5,0,-0.4],[0.5,0,0.4],[-0.5,0,0.4],
+      [-0.5,0.05,-0.4],[0.5,0.05,-0.4],[0.5,0.05,0.4],[-0.5,0.05,0.4],
+      // Legs
+      [-0.45,-0.7,0.35],[0.45,-0.7,0.35],[-0.45,-0.7,-0.35],[0.45,-0.7,-0.35],
+      // Backrest
+      [-0.48,0.85,-0.38],[0.48,0.85,-0.38],[-0.48,0.55,-0.38],[0.48,0.55,-0.38],
+      // Backrest inner
+      [-0.38,0.78,-0.36],[0.38,0.78,-0.36],[-0.38,0.15,-0.36],[0.38,0.15,-0.36],
+      // Armrests
+      [-0.52,0.35,0.15],[0.52,0.35,0.15],[-0.52,0.45,-0.35],[0.52,0.45,-0.35],
+    ];
+
+    const edges = [
+      [4,5],[5,6],[6,7],[7,4],[0,1],[1,2],[2,3],[3,0],
+      [0,4],[1,5],[2,6],[3,7],[2,9],[3,8],[0,10],[1,11],
+      [0,14],[14,12],[1,15],[15,13],[12,13],[14,15],
+      [16,17],[17,19],[19,18],[18,16],
+      [20,22],[22,14],[21,23],[23,15],[7,20],[6,21],
+    ];
+
+    // Floating architectural particles
+    const particles = Array.from({ length: 22 }, () => ({
+      x: (Math.random() - 0.5) * 3.5,
+      y: (Math.random() - 0.5) * 3,
+      z: (Math.random() - 0.5) * 2,
+      size: 1 + Math.random() * 2.5,
+      speed: 0.001 + Math.random() * 0.003,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    const project = (v, w, h, angle) => {
+      const mx = mouseRef.current.x;
+      const my = mouseRef.current.y;
+      const cosA = Math.cos(angle), sinA = Math.sin(angle);
+      const cosM = Math.cos(mx), sinM = Math.sin(mx);
+      // Y-axis rotation (main) + subtle mouse tilt
+      let x = v[0] * cosA - v[2] * sinA;
+      let z = v[0] * sinA + v[2] * cosA;
+      let y = v[1] + my * 0.3;
+      // Apply slight X-rotation from mouse
+      const x2 = x * cosM - z * sinM;
+      const z2 = x * sinM + z * cosM;
+      x = x2; z = z2;
+      const perspective = 3.5;
+      const scale = perspective / (perspective + z + 1.5);
+      return [w * 0.5 + x * scale * w * 0.28, h * 0.52 - y * scale * h * 0.32, scale];
+    };
+
+    const draw = () => {
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!prefersReduced) angleRef.current += 0.002;
+      const angle = angleRef.current;
+
+      // Particles
+      const t = Date.now() * 0.001;
+      particles.forEach((p) => {
+        const px = p.x + Math.sin(t * p.speed * 60 + p.phase) * 0.3;
+        const py = p.y + Math.cos(t * p.speed * 42 + p.phase) * 0.2;
+        const [sx, sy, sc] = project([px, py, p.z], w, h, angle * 0.3);
+        ctx.beginPath();
+        ctx.arc(sx, sy, p.size * sc, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${P.brassRgb}, ${0.10 * sc})`;
+        ctx.fill();
+      });
+
+      // Edges
+      edges.forEach(([a, b]) => {
+        const [x1, y1, s1] = project(verts[a], w, h, angle);
+        const [x2, y2, s2] = project(verts[b], w, h, angle);
+        const avg = (s1 + s2) / 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = `rgba(${P.brassRgb}, ${0.18 + avg * 0.14})`;
+        ctx.lineWidth = 1.1 * avg;
+        ctx.stroke();
+      });
+
+      // Vertices — small brass dots
+      verts.forEach((v) => {
+        const [sx, sy, sc] = project(v, w, h, angle);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.8 * sc, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${P.brassRgb}, ${0.30 * sc})`;
+        ctx.fill();
+      });
+
+      frameRef.current = requestAnimationFrame(draw);
+    };
+
+    frameRef.current = requestAnimationFrame(draw);
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", handleMouse);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
   return (
-    <div className={className}>
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ opacity: 0.80 }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// ── Scroll-triggered reveal ──
+function Reveal({ children, className = "", delay = 0 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 32 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, delay, ease: EASE }}
+      className={className}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -46,18 +231,31 @@ function AnimatedCounter({ target, suffix = "", prefix = "" }) {
   return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
 }
 
-// ── Gradient atmosphere ──
-function Atmosphere() {
+// ── Glass Card — tonal layering, ghost borders per Stitch design system ──
+function GlassCard({ children, className = "", hover = true }) {
   return (
-    <div className="landing-atmosphere">
-      <div className="glow" style={{ background: "radial-gradient(circle, rgba(198,161,106,0.2) 0%, transparent 70%)" }} />
-      <div className="glow" style={{ background: "radial-gradient(circle, rgba(132,98,63,0.18) 0%, transparent 70%)" }} />
-      <div className="glow" style={{ background: "radial-gradient(circle, rgba(92,71,56,0.18) 0%, transparent 70%)" }} />
-    </div>
+    <motion.div
+      className={`relative overflow-hidden rounded-2xl ${className}`}
+      style={{
+        background: "rgba(255,255,255,0.75)",
+        backdropFilter: "blur(20px) saturate(1.2)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.2)",
+        border: `1px solid rgba(${P.greenRgb},0.06)`,
+        boxShadow: "0 4px 24px rgba(44,62,45,0.05), 0 1px 3px rgba(0,0,0,0.03)",
+      }}
+      whileHover={hover ? {
+        y: -3,
+        boxShadow: "0 12px 40px rgba(44,62,45,0.09), 0 4px 12px rgba(0,0,0,0.05)",
+        borderColor: `rgba(${P.brassRgb}, 0.15)`,
+      } : {}}
+      transition={{ duration: 0.3, ease: EASE }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
-// ── Design Intent Decoder — shows how AI parses natural language ──
+// ── Design Intent Decoder ──
 function IntentDecoder() {
   const inputPhrase = "modern high back swivel chair";
   const [typedLength, setTypedLength] = useState(0);
@@ -76,60 +274,52 @@ function IntentDecoder() {
   }, [inView]);
 
   const decoded = [
-    { label: "Category", value: "Accent Chair", color: "text-gold" },
-    { label: "Back Style", value: "High Back", color: "text-emerald-400" },
-    { label: "Feature", value: "Swivel Base", color: "text-purple-400" },
-    { label: "Style", value: "Modern / Contemporary", color: "text-gold" },
-    { label: "Silhouette", value: "Upright, Structured", color: "text-emerald-400" },
-    { label: "Intent", value: "Statement seating with support", color: "text-purple-400" },
+    { label: "Category", value: "Accent Chair", color: P.green },
+    { label: "Back Style", value: "High Back", color: P.brass },
+    { label: "Feature", value: "Swivel Base", color: P.greenMuted },
+    { label: "Style", value: "Modern / Contemporary", color: P.green },
+    { label: "Silhouette", value: "Upright, Structured", color: P.brass },
+    { label: "Intent", value: "Statement seating with support", color: P.greenMuted },
   ];
 
   return (
-    <div className="mock-ui">
-      <div className="mock-titlebar">
-        <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai</div>
+    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai</span>
       </div>
       <div className="p-6">
-        {/* Input */}
-        <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+        <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl" style={{ background: `rgba(${P.sageRgb},0.12)` }}>
           <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
-          <span ref={ref} className="text-sm text-white/50 italic">"{inputPhrase.slice(0, typedLength)}{typedLength < inputPhrase.length ? <span className="animate-pulse text-gold/40">|</span> : ""}"</span>
+          <span ref={ref} className="text-sm italic" style={{ color: P.textSecondary }}>
+            "{inputPhrase.slice(0, typedLength)}{typedLength < inputPhrase.length ? <span className="animate-pulse" style={{ color: P.brass }}>|</span> : ""}"
+          </span>
         </div>
-
-        {/* Decoded arrow */}
         <div className="flex items-center gap-2 mb-5 px-1">
-          <div className="h-px flex-1 bg-gradient-to-r from-gold/20 to-transparent" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/40">Spekd understands</span>
-          <div className="h-px flex-1 bg-gradient-to-l from-gold/20 to-transparent" />
+          <div className="h-px flex-1" style={{ background: `linear-gradient(to right, ${P.brass}33, transparent)` }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: P.brass }}>Spekd understands</span>
+          <div className="h-px flex-1" style={{ background: `linear-gradient(to left, ${P.brass}33, transparent)` }} />
         </div>
-
-        {/* Structured output */}
         <div className="grid grid-cols-2 gap-2.5">
           {decoded.map((attr, i) => (
-            <div
-              key={attr.label}
-              className="rounded-lg bg-white/[0.03] border border-white/[0.04] px-3 py-2.5 transition-all duration-500"
+            <div key={attr.label}
+              className="rounded-lg px-3 py-2.5 transition-all duration-500"
               style={{
+                background: `rgba(${P.sageRgb},0.10)`,
                 opacity: typedLength >= inputPhrase.length ? 1 : 0,
                 transform: typedLength >= inputPhrase.length ? "translateY(0)" : "translateY(8px)",
                 transitionDelay: `${i * 100}ms`,
-              }}
-            >
-              <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 mb-1">
-                {attr.label}
-              </div>
-              <div className={`text-[13px] font-medium ${attr.color}`}>
-                {attr.value}
-              </div>
+              }}>
+              <div className="text-[9px] font-semibold uppercase tracking-[0.15em] mb-1" style={{ color: P.textMuted }}>{attr.label}</div>
+              <div className="text-[13px] font-medium" style={{ color: attr.color }}>{attr.value}</div>
             </div>
           ))}
         </div>
-
-        {/* Bottom insight */}
-        <div className="mt-4 px-3 py-2.5 rounded-lg bg-gold/[0.04] border border-gold/[0.08]">
-          <div className="text-[10px] text-white/30 leading-relaxed">
-            <span className="text-gold/60 font-semibold">→</span> Matches back style, base type, and silhouette as hard filters across 20 vendors — returns only chairs that are high back + swivel + modern
+        <div className="mt-4 px-3 py-2.5 rounded-lg" style={{ background: `rgba(${P.brassRgb},0.06)` }}>
+          <div className="text-[10px] leading-relaxed" style={{ color: P.textSecondary }}>
+            <span style={{ color: P.brass }} className="font-semibold">&rarr;</span> Matches back style, base type, and silhouette as hard filters across 20 vendors
           </div>
         </div>
       </div>
@@ -137,29 +327,39 @@ function IntentDecoder() {
   );
 }
 
-// ── Mock Vendor UI — REAL DATA ──
+// ── Hardcoded featured vendors (fallback while API loads — no fake counts) ──
+const FEATURED_VENDORS = [
+  { name: "Hooker Furniture" },
+  { name: "Caracole" },
+  { name: "Century Furniture" },
+];
+
+// ── Mock Vendor UI ──
 function MockVendorUI({ vendors }) {
-  const topVendors = vendors.slice(0, 3);
+  const topVendors = vendors.length >= 3 ? vendors.slice(0, 3) : FEATURED_VENDORS;
   return (
-    <div className="mock-ui">
-      <div className="mock-titlebar">
-        <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai/vendors</div>
+    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai/vendors</span>
       </div>
       <div className="p-5 space-y-3">
         {topVendors.map((v) => (
-          <div key={v.name} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
-            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center text-gold font-display text-sm">
+          <div key={v.name} className="flex items-center gap-3 p-3 rounded-xl transition-colors" style={{ background: `rgba(${P.sageRgb},0.08)` }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-sm" style={{ background: `rgba(${P.brassRgb},0.12)`, color: P.brass }}>
               {v.name[0]}
             </div>
             <div className="flex-1">
-              <div className="text-sm text-white/70 font-medium">{v.name}</div>
-              <div className="text-[10px] text-white/30">
-                {(v.product_count || v.active_skus || 0).toLocaleString()} products
-                {v.lead_time_min_weeks ? ` · ${v.lead_time_min_weeks}–${v.lead_time_max_weeks} wks` : ""}
+              <div className="text-sm font-medium" style={{ color: P.textPrimary }}>{v.name}</div>
+              <div className="text-[10px]" style={{ color: P.textMuted }}>
+                {(v.product_count || v.active_skus) > 0
+                  ? `${(v.product_count || v.active_skus).toLocaleString()} products`
+                  : "Trade-only catalog"}
               </div>
             </div>
-            <ArrowRight className="w-3 h-3 text-white/15" />
+            <ArrowRight className="w-3 h-3" style={{ color: P.textMuted }} />
           </div>
         ))}
       </div>
@@ -167,14 +367,14 @@ function MockVendorUI({ vendors }) {
   );
 }
 
-// ── Hardcoded demo products — no live search needed ──
+// ── Hardcoded demo products ──
 const DEMO_PRODUCTS = [
   { id: "caracole_lean-on-me", product_name: "Lean On Me", manufacturer_name: "Caracole", image_url: "https://cdn.shopify.com/s/files/1/0710/9299/4095/files/f39ucdyxymdpjaqwzcnr.jpg?v=1773686507" },
   { id: "hooker_caleigh-recliner", product_name: "Caleigh Recliner", manufacturer_name: "Hooker Furniture", image_url: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg" },
   { id: "gabby_nantucket-recliner-sch-r1492", product_name: "Nantucket Recliner", manufacturer_name: "Gabby", image_url: "https://cdn.shopify.com/s/files/1/0625/1007/1895/files/image_e9v65lq92l5a9fk9oshjlr0f09.jpg?v=1772795521" },
 ];
 
-// ── Mock Search UI — typing animation with hardcoded products ──
+// ── Mock Search UI ──
 function MockSearchUI() {
   const demoQuery = "recliner that doesn't look like a recliner";
   const products = DEMO_PRODUCTS;
@@ -183,6 +383,16 @@ function MockSearchUI() {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
 
+  // Preload product images immediately on mount so they're cached before typing ends
+  useEffect(() => {
+    DEMO_PRODUCTS.forEach((p) => {
+      if (p.image_url) {
+        const img = new Image();
+        img.src = `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(p.image_url)}`;
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (!inView) return;
     let i = 0;
@@ -190,7 +400,6 @@ function MockSearchUI() {
       i++;
       if (i > demoQuery.length) {
         clearInterval(timer);
-        // Brief pause then reveal results
         setTimeout(() => setShowResults(true), 400);
         return;
       }
@@ -202,92 +411,52 @@ function MockSearchUI() {
   const typingDone = typedLength >= demoQuery.length;
 
   return (
-    <div className="mock-ui">
-      <div className="mock-titlebar">
-        <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai</div>
+    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
+        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai</span>
       </div>
       <div className="p-4">
-        {/* Search bar with typing */}
-        <div ref={ref} className="flex items-center gap-3 rounded-full bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 mb-4">
+        <div ref={ref} className="flex items-center gap-3 rounded-full px-4 py-2.5 mb-4" style={{ background: `rgba(${P.sageRgb},0.10)` }}>
           <img src="/logo.png" alt="" className="h-4 w-4 object-contain shrink-0" />
-          <span className="text-[12px] text-white/50 truncate flex-1">
+          <span className="text-[12px] truncate flex-1" style={{ color: P.textMuted }}>
             {demoQuery.slice(0, typedLength)}
-            {!typingDone && <span className="animate-pulse text-gold/40">|</span>}
+            {!typingDone && <span className="animate-pulse" style={{ color: P.brass }}>|</span>}
           </span>
-          <div
-            className="h-7 px-3 rounded-full text-[10px] font-semibold flex items-center shrink-0 transition-all duration-300"
-            style={{
-              background: typingDone ? "rgba(201,169,110,0.3)" : "rgba(201,169,110,0.1)",
-              color: typingDone ? "#c4a882" : "rgba(201,169,110,0.4)",
-            }}
-          >
+          <div className="h-7 px-3 rounded-full text-[10px] font-semibold flex items-center shrink-0 transition-all duration-300"
+            style={{ background: typingDone ? P.green : `rgba(${P.greenRgb},0.08)`, color: typingDone ? "#fff" : P.textMuted }}>
             Search
           </div>
         </div>
-
-        {/* Loading indicator — shows briefly between typing done and results */}
         {typingDone && !showResults && (
           <div className="flex items-center justify-center gap-2 py-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-gold/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "0ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "150ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "300ms" }} />
           </div>
         )}
-
-        {/* Product cards grid — staggered reveal */}
         {showResults && (
           <div className="grid grid-cols-3 gap-2.5">
-            {products.length > 0 ? products.map((item, i) => (
-              <div
-                key={i}
-                className="rounded-xl overflow-hidden border border-white/[0.06] transition-all duration-500"
-                style={{
-                  background: "#2a251f",
-                  opacity: showResults ? 1 : 0,
-                  transform: showResults ? "translateY(0)" : "translateY(12px)",
-                  transitionDelay: `${i * 120}ms`,
-                }}
-              >
-                {/* Image */}
-                <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#ffffff" }}>
+            {products.map((item, i) => (
+              <div key={i} className="rounded-xl overflow-hidden transition-all duration-500"
+                style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.05)`, opacity: showResults ? 1 : 0, transform: showResults ? "translateY(0)" : "translateY(12px)", transitionDelay: `${i * 120}ms` }}>
+                <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#faf8f5" }}>
                   {item.image_url ? (
-                    <img
-                      src={`${SEARCH_URL}/images/${encodeURIComponent(item.id)}`}
-                      alt={item.product_name}
-                      className="h-full w-full"
-                      style={{ objectFit: "contain", padding: "8px" }}
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                    />
+                    <img src={`${SEARCH_URL}/proxy-image?url=${encodeURIComponent(item.image_url)}`} alt={item.product_name} className="h-full w-full" style={{ objectFit: "contain", padding: "8px" }} referrerPolicy="no-referrer" loading="eager" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-white/10">
+                    <div className="flex h-full w-full items-center justify-center" style={{ color: P.textMuted }}>
                       <div className="text-xl font-display">{(item.manufacturer_name || "?")[0]}</div>
                     </div>
                   )}
                 </div>
-                {/* Gold hairline */}
-                <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
-                {/* Meta */}
                 <div className="p-2.5">
-                  <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-gold/70 mb-0.5 truncate">{item.manufacturer_name}</div>
-                  <div className="text-[11px] text-white/90 line-clamp-2 mb-1 leading-tight">{item.product_name}</div>
-                  </div>
-              </div>
-            )) : (
-              /* Loading skeleton */
-              [0, 1, 2].map((i) => (
-                <div key={i} className="rounded-xl overflow-hidden border border-white/[0.06]" style={{ background: "#2a251f" }}>
-                  <div style={{ aspectRatio: "4/3", backgroundColor: "rgba(255,255,255,0.03)" }} />
-                  <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent" />
-                  <div className="p-2.5 space-y-1.5">
-                    <div className="h-2 w-12 rounded bg-white/[0.06]" />
-                    <div className="h-3 w-full rounded bg-white/[0.04]" />
-                    <div className="h-3 w-8 rounded bg-white/[0.06]" />
-                  </div>
+                  <div className="text-[8px] font-bold uppercase tracking-[0.18em] mb-0.5 truncate" style={{ color: P.brass }}>{item.manufacturer_name}</div>
+                  <div className="text-[11px] line-clamp-2 mb-1 leading-tight" style={{ color: P.textPrimary }}>{item.product_name}</div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -295,194 +464,74 @@ function MockSearchUI() {
   );
 }
 
-// ── Mock Project UI ──
-function MockProjectUI() {
-  const items = [
-    { name: "Living Room Sofa", status: "Sourced", color: "text-[#8b9e6e] bg-[#8b9e6e]/10" },
-    { name: "Dining Table", status: "In Review", color: "text-amber-400 bg-amber-500/10" },
-    { name: "Accent Chair ×2", status: "Searching", color: "text-[#c4a882] bg-[#c4a882]/10" },
-  ];
-  return (
-    <div className="mock-ui">
-      <div className="mock-titlebar">
-        <div className="mock-dot" /><div className="mock-dot" /><div className="mock-dot" />
-        <div className="ml-auto text-[9px] text-white/15 font-mono">spekd.ai/projects</div>
-      </div>
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <FolderOpen className="w-4 h-4 text-gold/50" />
-          <span className="text-sm text-white/60 font-medium">Park Ave Residence</span>
-          <span className="text-[9px] text-white/20 ml-auto">$45,000 budget</span>
-        </div>
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.name} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04]" />
-              <div className="flex-1">
-                <div className="text-xs text-white/60">{item.name}</div>
-              </div>
-              <span className={`text-[9px] font-medium px-2 py-0.5 rounded-full ${item.color}`}>
-                {item.status}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 h-2 bg-white/[0.04] rounded-full overflow-hidden">
-          <div className="h-full w-[65%] rounded-full bg-gradient-to-r from-gold/60 to-gold" />
-        </div>
-        <div className="text-[10px] text-white/20 mt-1.5">65% sourced</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Feature section — no scroll-triggered opacity, always visible once rendered ──
+// ── Feature section ──
 function FeatureSection({ kicker, title, description, mockUI, reverse = false, icon: Icon }) {
   return (
     <div className="py-24 md:py-32">
       <div className="page-wrap">
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-          <div className={reverse ? "lg:order-2" : ""}>
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/15 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-gold/70" />
+          <Reveal className={reverse ? "lg:order-2" : ""}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
+                <Icon className="w-5 h-5" style={{ color: P.green }} />
               </div>
-              <span className="label-caps text-gold/60">{kicker}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: P.brass }}>{kicker}</span>
             </div>
-            <h3 className="font-display text-3xl md:text-4xl lg:text-[42px] text-white leading-[1.1] mb-5">
-              {title}
-            </h3>
-            <p className="text-base leading-7 max-w-lg" style={{ color: "var(--warm-gray)" }}>
-              {description}
-            </p>
-          </div>
-          <div className={reverse ? "lg:order-1" : ""}>
-            {mockUI}
-          </div>
+            <h3 className="font-display text-3xl md:text-4xl lg:text-[42px] leading-[1.08] mb-5" style={{ color: P.textPrimary }}>{title}</h3>
+            <p className="text-base leading-7 max-w-lg" style={{ color: P.textSecondary }}>{description}</p>
+          </Reveal>
+          <Reveal delay={0.15} className={reverse ? "lg:order-1" : ""}>
+            <motion.div
+              whileHover={{ y: -4, boxShadow: "0 16px 48px rgba(44,62,45,0.10), 0 4px 16px rgba(0,0,0,0.05)" }}
+              transition={{ duration: 0.4, ease: EASE }}
+              className="rounded-2xl overflow-hidden"
+              style={{ boxShadow: "0 4px 24px rgba(44,62,45,0.06), 0 1px 3px rgba(0,0,0,0.04)" }}
+            >
+              {mockUI}
+            </motion.div>
+          </Reveal>
         </div>
       </div>
     </div>
   );
 }
 
-// ════════════════════════════════════════════════════════
-// LANDING PAGE
-// ════════════════════════════════════════════════════════
 
+// ════════════════════════════════════════════════════════
+// THE DIGITAL SHOWROOM — LANDING PAGE
+// ════════════════════════════════════════════════════════
 export default function Landing() {
-  const [query, setQuery] = useState("");
   const navigate = useNavigate();
-  const { user, navigateToLogin } = useAuth();
-  const heroRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.6, 1], [1, 1, 0.97]);
+  const [query, setQuery] = useState("");
 
-  // ── Voice & visual search ──
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const goToSearch = useCallback((url) => {
+    try { sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() })); } catch {}
+    navigate(url);
+  }, [navigate]);
 
-  const handleVoiceSearch = () => {
-    if (!voiceSupported) return;
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-      setQuery(transcript);
-      if (event.results[event.results.length - 1].isFinal && transcript.trim()) {
-        setTimeout(() => {
-          setIsListening(false);
-          goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(transcript.trim())}`);
-        }, 300);
-      }
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(query.trim())}`);
+    else goToSearch(createPageUrl("Search"));
   };
 
-  const handleVisualSearch = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onFileSelected = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Store the file in sessionStorage as base64 and navigate to Search
-    const reader = new FileReader();
-    reader.onload = () => {
-      sessionStorage.setItem("spekd_visual_search", reader.result);
-      goToSearch(`${createPageUrl("Search")}?visual=true`);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  // ── Live data state ──
+  // ── Live data ──
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [vendorNames, setVendorNames] = useState([]);
-  const [earlyBird, setEarlyBird] = useState(null);
 
-  // ── Fetch catalog stats + vendors on mount ──
   useEffect(() => {
-    fetch(`${SEARCH_URL}/catalog/stats`)
-      .then((r) => r.json())
-      .then((data) => setCatalogStats(data.catalog || data))
-      .catch(() => {});
-
-    fetch(`${SEARCH_URL}/vendors`)
-      .then((r) => r.json())
-      .then((data) => {
-        const v = (data.vendors || []).sort((a, b) => (b.product_count || 0) - (a.product_count || 0));
-        setVendors(v);
-        setVendorNames(v.map((x) => x.name));
-      })
-      .catch(() => {});
-
-    fetch(`${SEARCH_URL}/subscribe/early-bird`)
-      .then((r) => r.json())
-      .then((data) => setEarlyBird(data))
-      .catch(() => {});
-
-    // Clean up old demo caches
+    fetch(`${SEARCH_URL}/catalog/stats`).then((r) => r.json()).then((data) => setCatalogStats(data.catalog || data)).catch(() => {});
+    fetch(`${SEARCH_URL}/vendors`).then((r) => r.json()).then((data) => {
+      const v = (data.vendors || []).sort((a, b) => (b.product_count || 0) - (a.product_count || 0));
+      setVendors(v);
+      setVendorNames(v.map((x) => x.name));
+    }).catch(() => {});
     sessionStorage.removeItem("spekd_demo_products");
     sessionStorage.removeItem("spekd_demo_v2");
   }, []);
 
-  const goToSearch = (url) => {
-    try {
-      sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() }));
-    } catch {}
-    navigate(url);
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (query.trim()) {
-      goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(query.trim())}`);
-    } else {
-      goToSearch(createPageUrl("Search"));
-    }
-  };
-
-  // Live stats from catalog — floor at known minimums so we never show low numbers during cold start
   const totalProducts = Math.max(catalogStats?.total_products || 0, 42000);
   const totalVendors = Math.max(vendors.length || 0, 20);
   const marqueeNames = vendorNames.length > 0 ? vendorNames : [
@@ -491,502 +540,258 @@ export default function Landing() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {!user && (
-        <button
-          onClick={() => navigateToLogin("login")}
-          className="fixed right-6 z-50 text-sm font-medium px-5 py-2 rounded-full transition-all hover:bg-[#c4a882]/10"
-          style={{ color: "#c4a882", border: "1px solid rgba(196,168,130,0.4)", top: "max(20px, env(safe-area-inset-top, 20px))" }}
-        >
-          Sign In
-        </button>
-      )}
-      {/* Hidden file input for visual search */}
-      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFileSelected} />
-      <Atmosphere />
+    <div className="relative min-h-screen" style={{ background: P.cream }}>
 
-      {/* ═══════════ HERO ═══════════ */}
-      <motion.section
-        ref={heroRef}
-        style={{ opacity: heroOpacity, scale: heroScale }}
-        className="relative min-h-screen flex items-center justify-center"
-      >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[700px] pointer-events-none z-0"
-          style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.05) 0%, transparent 65%)", filter: "blur(80px)" }}
-        />
+      {/* ── Warm ambient gradient (tonal layering) ── */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        background: `
+          radial-gradient(ellipse at 25% 15%, rgba(${P.brassRgb},0.05) 0%, transparent 55%),
+          radial-gradient(ellipse at 75% 25%, rgba(${P.greenRgb},0.03) 0%, transparent 45%),
+          radial-gradient(ellipse at 50% 85%, rgba(${P.brassRgb},0.03) 0%, transparent 55%)
+        `,
+        zIndex: 0,
+      }} />
 
-        <div className="relative z-10 page-wrap-wide w-full py-20 md:py-28">
-          <div className="mx-auto max-w-6xl atelier-panel px-6 py-10 text-center sm:px-10 md:px-14 md:py-14">
-            {/* Kicker */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
-              className="flex items-center justify-center gap-4 mb-10"
-            >
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.5, delay: 0.4, ease: EASE }}
-                className="h-px flex-1 max-w-[80px] bg-gradient-to-r from-transparent to-gold/30"
-                style={{ transformOrigin: "right" }}
-              />
-              <span className="font-brand text-[11px] font-semibold uppercase tracking-[0.22em] text-gold gold-glow-text">
-                Interior Design Sourcing
-              </span>
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.5, delay: 0.4, ease: EASE }}
-                className="h-px flex-1 max-w-[80px] bg-gradient-to-l from-transparent to-gold/30"
-                style={{ transformOrigin: "left" }}
-              />
-            </motion.div>
+      {/* ═══════════════════════════════════════════
+          SCROLL EXPERIENCE — The Digital Showroom
+          ═══════════════════════════════════════════ */}
+      <ScrollExperience />
 
-            {/* Logo mark + brand name */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
-              className="mb-6 flex flex-col items-center gap-3 sm:mb-8 sm:gap-4"
-            >
-              <div className="relative">
-                <div className="absolute -inset-6 rounded-full pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(196,168,130,0.12) 0%, transparent 70%)", filter: "blur(20px)" }} />
-                <img src="/logo.png" alt="SPEKD" className="relative h-16 w-16 sm:h-24 sm:w-24 md:h-28 md:w-28 object-contain rounded-[20%]" style={{ boxShadow: "0 0 40px rgba(196,168,130,0.15), 0 8px 32px rgba(0,0,0,0.4)" }} />
-              </div>
-              <span className="font-brand text-xl sm:text-3xl md:text-5xl tracking-[0.3em] text-gold gold-glow-text font-semibold">
-                SPEKD
-              </span>
-            </motion.div>
-
-            {/* Headline */}
-            <motion.h1
-              className="font-display text-[30px] sm:text-6xl md:text-7xl lg:text-[88px] leading-[0.98] text-white"
-              initial={{ clipPath: "inset(0 100% 0 0)" }}
-              animate={{ clipPath: "inset(0 0% 0 0)" }}
-              transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
-            >
-              Sourcing
-              <br />
-              <span className="text-gold">made simple</span>
-            </motion.h1>
-
-            {/* Subtitle — live numbers */}
-            <motion.p
-              className="mt-5 sm:mt-8 mx-auto max-w-3xl text-[14px] sm:text-lg md:text-[22px] leading-relaxed"
-              style={{ color: "var(--warm-gray)" }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 1.0, ease: EASE }}
-            >
-              {totalProducts > 0
-                ? `Search ${totalProducts.toLocaleString()}+ products across ${totalVendors} trade vendors.`
-                : "Search thousands of products across trade vendors."
-              }
-              <br />
-              A sourcing platform that looks and feels aligned with the designers using it.
-            </motion.p>
-
-            {/* Early Bird Banner */}
-            {earlyBird?.available && (
-              <motion.div
-                className="mt-6 sm:mt-8 mx-auto max-w-xl"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 1.1, ease: EASE }}
-              >
-                <div className="rounded-full px-5 py-2.5 flex items-center justify-center gap-3"
-                  style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)" }}>
-                  <span className="text-emerald-400 text-xs sm:text-sm font-semibold">
-                    Early Access — <span className="line-through opacity-50">$99</span> $49/mo for life
-                  </span>
-                  <span className="text-white/30 text-xs">|</span>
-                  <span className="text-white/50 text-xs">
-                    {earlyBird.remaining} of {earlyBird.cap} spots remaining
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Search Bar */}
-            <motion.form
-              onSubmit={handleSearch}
-              className="mt-10 sm:mt-14 mx-auto max-w-4xl relative"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 1.2, ease: EASE }}
-            >
-              <div className="absolute -inset-10 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.08) 0%, transparent 70%)", filter: "blur(40px)" }}
-              />
-              <div className="luxe-input search-bar-glow relative flex h-14 sm:h-[72px] md:h-[78px] items-center rounded-full px-3 sm:px-6 group">
-                <div className="relative mr-2 sm:mr-3 hidden sm:block">
-                  <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
-                </div>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={isListening ? 'Listening...' : 'Describe what you need...'}
-                  className="flex-1 min-w-0 bg-transparent text-white/84 text-[15px] sm:text-base placeholder:text-white/25 focus:outline-none"
-                />
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
-                  <button type="button" onClick={handleVoiceSearch}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
-                    title={isListening ? "Stop listening" : "Voice search"}>
-                    <Mic className="h-4 w-4" />
-                  </button>
-                  <button type="button" onClick={handleVisualSearch}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
-                    title="Search by image">
-                    <Camera className="h-4 w-4" />
-                  </button>
-                  <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 sm:h-12 px-5 sm:px-8 rounded-full text-sm shrink-0">
-                    Explore
-                  </button>
-                </div>
-              </div>
-            </motion.form>
-
-            {/* Suggested searches */}
-            <motion.div
-              className="mt-6 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.4, ease: EASE }}
-            >
-              <div className="flex items-center justify-start sm:justify-center gap-x-3 sm:gap-x-4 whitespace-nowrap">
-                {EXAMPLE_SEARCHES.map((s, i) => (
-                  <span key={s} className="flex items-center gap-2 shrink-0">
-                    {i > 0 && <span className="text-gold/30 text-xs">·</span>}
-                    <Link
-                      to={`${createPageUrl("Search")}?q=${encodeURIComponent(s)}`}
-                      className="text-sm transition-colors hover:text-gold/70 gold-hover-underline"
-                      style={{ color: "var(--warm-gray)" }}
-                    >
-                      {s}
-                    </Link>
-                  </span>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8, ease: EASE }}
-        >
-          <ChevronDown className="w-5 h-5 text-gold/40 animate-chevron-pulse" />
-        </motion.div>
-      </motion.section>
-
-      {/* ═══════════ BRAND MARQUEE ═══════════ */}
-      <section className="relative py-10 sm:py-14 border-y border-white/[0.04]" style={{ background: "rgba(16,14,12,0.5)" }}>
+      {/* ═══════════════════════════════════════════
+          VENDOR MARQUEE — "Trusted by the Trade"
+          ═══════════════════════════════════════════ */}
+      <section className="relative py-14 sm:py-18 z-10" style={{ background: `rgba(${P.sageRgb},0.06)` }}>
         <Reveal className="text-center mb-8">
-          <span className="label-caps text-gold/50 tracking-[0.25em]">Trusted by the Trade</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>Trusted by the Trade</span>
         </Reveal>
         <div className="relative overflow-hidden">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-r from-[#1c1917] to-transparent" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10 bg-gradient-to-l from-[#1c1917] to-transparent" />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to right, rgba(${P.sageRgb},0.06) 0%, ${P.cream}, transparent)` }} />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to left, rgba(${P.sageRgb},0.06) 0%, ${P.cream}, transparent)` }} />
           <div className="brand-marquee whitespace-nowrap">
             {[...marqueeNames, ...marqueeNames].map((name, i) => (
               <span key={`${name}-${i}`} className="inline-flex items-center mx-6 sm:mx-10">
-                <span className="text-sm sm:text-base font-display text-white/[0.18] tracking-[0.08em] uppercase whitespace-nowrap" style={{ fontWeight: 500 }}>{name}</span>
-                <span className="ml-6 sm:ml-10 text-gold/15">·</span>
+                <span className="text-sm sm:text-base tracking-[0.08em] uppercase whitespace-nowrap" style={{ fontWeight: 600, color: `rgba(${P.greenRgb},0.20)`, fontFamily: "'DM Sans', sans-serif" }}>{name}</span>
+                <span className="ml-6 sm:ml-10" style={{ color: `rgba(${P.brassRgb},0.25)` }}>·</span>
               </span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════ HOW IT WORKS ═══════════ */}
-      <section className="relative py-16 sm:py-20 md:py-32">
+      {/* ═══════════════════════════════════════════
+          STATS RIBBON
+          ═══════════════════════════════════════════ */}
+      <section className="relative py-16 sm:py-20 md:py-28 z-10">
         <div className="page-wrap-wide">
-          <Reveal className="text-center mb-6">
-            <span className="label-caps text-gold/50 tracking-[0.25em]">How It Works</span>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-10 sm:mb-16">
-            <h2 className="font-display text-3xl md:text-5xl text-white">
-              Three steps to <span className="text-gold">finding the right piece</span>
-            </h2>
-          </Reveal>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
             {[
-              {
-                step: "01",
-                icon: Search,
-                title: "Search",
-                desc: "Describe what you need in your own words. Spekd searches across every vendor catalog simultaneously — materials, styles, budgets, and dimensions.",
-              },
-              {
-                step: "02",
-                icon: FileText,
-                title: "Quote",
-                desc: "Save your favorites, build quotes organized by room, apply your designer markup, and generate polished client-ready PDFs in seconds.",
-              },
-              {
-                step: "03",
-                icon: Send,
-                title: "Present",
-                desc: "Share professional proposals with your clients. Every product links back to the vendor for seamless ordering through your trade accounts.",
-              },
-            ].map((item, i) => (
-              <Reveal key={item.step} delay={i * 0.1}>
-                <div className="relative text-center p-6 sm:p-8 editorial-card hover:-translate-y-1 transition-all duration-300">
-                  <div className="text-[64px] font-display font-bold text-white/[0.03] absolute top-4 right-6 leading-none">{item.step}</div>
-                  <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gold/10 border border-gold/15 flex items-center justify-center">
-                    <item.icon className="w-6 h-6 text-gold/70" />
-                  </div>
-                  <h3 className="font-display text-xl text-white mb-3">{item.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--warm-gray)" }}>{item.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="page-wrap-wide">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-      </div>
-
-      {/* ═══════════ FEATURE SECTIONS ═══════════ */}
-      <FeatureSection
-        kicker="Design Language"
-        title={<>Search the way<br /><span className="text-gold">you actually think</span></>}
-        description="Type the way you'd brief a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
-        mockUI={<IntentDecoder />}
-        icon={Brain}
-      />
-
-      <div className="page-wrap-wide">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-      </div>
-
-      <FeatureSection
-        kicker="Vendor Network"
-        title={<>Every vendor,<br /><span className="text-gold">verified at source</span></>}
-        description={`${totalVendors || "20+"} trade-only manufacturer catalogs, curated and kept current. Every product links directly to the vendor — real images, real pricing, verified at source.`}
-        mockUI={<MockVendorUI vendors={vendors} />}
-        icon={Shield}
-        reverse
-      />
-
-      <div className="page-wrap-wide">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-      </div>
-
-      <FeatureSection
-        kicker="Search Your Way"
-        title={<>Describe the vision,<br /><span className="text-gold">we find the pieces</span></>}
-        description="Search the way you'd describe a project to a colleague. Spekd understands design intent — materials, styles, and budgets — then surfaces exactly the right pieces from every vendor at once."
-        mockUI={<MockSearchUI />}
-        icon={Search}
-      />
-
-      {/* ═══════════ STATS — LIVE FROM CATALOG ═══════════ */}
-      <section className="relative py-20 sm:py-24 md:py-36">
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(200,169,126,0.04) 0%, transparent 60%)", filter: "blur(80px)" }}
-        />
-        <div className="page-wrap-wide">
-          <Reveal className="text-center mb-6">
-            <span className="label-caps text-gold/50 tracking-[0.25em]">By the Numbers</span>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-5xl text-white">
-              The catalog at your <span className="text-gold">fingertips</span>
-            </h2>
-          </Reveal>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {[
-              { value: totalProducts, suffix: "+", label: "Products Indexed", sublabel: "Across all vendor catalogs" },
+              { value: totalProducts, suffix: "+", label: "Products", sublabel: "Trade-only pieces indexed" },
               { value: totalVendors, suffix: "", label: "Trade Vendors", sublabel: "Manufacturer-direct sources" },
-              { value: 100, suffix: "%", label: "Source Verified", sublabel: "Every link goes to the vendor" },
+              { value: 100, suffix: "%", label: "Verified", sublabel: "Every source authenticated" },
             ].map((stat, i) => (
-              <Reveal key={stat.label} delay={i * 0.1} className="text-center">
-                <div className="atelier-panel-soft py-8 px-6">
-                  <div className="font-display text-5xl md:text-6xl lg:text-7xl text-white mb-3"
-                    style={{ textShadow: "0 0 40px rgba(200,169,126,0.2)" }}
-                  >
+              <Reveal key={stat.label} delay={i * 0.08}>
+                <GlassCard className="p-6 sm:p-8 text-center cursor-default">
+                  <div className="text-4xl sm:text-5xl font-semibold tracking-tight" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
                     <AnimatedCounter target={stat.value} suffix={stat.suffix} />
                   </div>
-                  <div className="label-caps text-gold/70 mb-1">{stat.label}</div>
-                  <div className="text-xs text-white/25">{stat.sublabel}</div>
-                </div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.25em] mt-3" style={{ color: P.brass }}>{stat.label}</div>
+                  <div className="text-[11px] mt-1.5" style={{ color: P.textSecondary }}>{stat.sublabel}</div>
+                </GlassCard>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════ BUILT FOR THE TRADE ═══════════ */}
-      <section className="relative py-24 md:py-32">
+      {/* ═══════════════════════════════════════════
+          HOW IT WORKS — Three cards with green left accent
+          ═══════════════════════════════════════════ */}
+      <section className="relative py-20 sm:py-24 md:py-32 z-10">
         <div className="page-wrap-wide">
-          <Reveal className="text-center mb-6">
-            <span className="label-caps text-gold/50 tracking-[0.25em]">Why SPEKD</span>
+          <Reveal className="text-center mb-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>How It Works</span>
           </Reveal>
-          <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-5xl text-white">
-              Built for designers, <span className="text-gold">by designers</span>
+          <Reveal delay={0.1} className="text-center mb-14 sm:mb-20">
+            <h2 className="text-3xl md:text-5xl lg:text-6xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
+              Three steps to the <span style={{ color: P.green }}>right piece</span>
             </h2>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
             {[
-              "Search across 40,000+ products from 20 trade vendors in seconds — no more browsing vendor sites one by one.",
-              "Understands design language. Say 'warm transitional accent chair' and get exactly what you mean.",
-              "Quote builder with polished PDF export — organize specs and pricing, ready for client review.",
-            ].map((text, i) => (
-              <Reveal key={i} delay={i * 0.1}>
-                <div className="p-6 editorial-card h-full flex flex-col">
-                  <p className="text-sm text-white/50 leading-relaxed flex-1">{text}</p>
-                </div>
+              { step: "01", icon: Search, title: "Describe", desc: "Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language." },
+              { step: "02", icon: FileText, title: "Curate", desc: "Save your finds, organize by room, apply trade pricing. Build a complete project." },
+              { step: "03", icon: Send, title: "Present", desc: "Generate polished PDFs and shareable client links. Professional presentations in seconds." },
+            ].map((item, i) => (
+              <Reveal key={item.step} delay={i * 0.12}>
+                <GlassCard className="p-7 sm:p-8 cursor-default overflow-visible">
+                  {/* Green left accent bar */}
+                  <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})` }} />
+                  {/* Oversized step number watermark */}
+                  <div className="absolute top-2 right-4 text-[80px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.15)`, fontFamily: "'Playfair Display', serif" }}>{item.step}</div>
+                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>{item.step}</div>
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                    style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}
+                  >
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <item.icon className="w-5 h-5" style={{ color: P.green }} />
+                    </motion.div>
+                  </div>
+                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>{item.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{item.desc}</p>
+                </GlassCard>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="page-wrap-wide">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
+      {/* Subtle divider — tonal shift, not a line */}
+      <div className="page-wrap-wide z-10 relative"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+
+      {/* ═══════════════════════════════════════════
+          FEATURE SECTIONS
+          ═══════════════════════════════════════════ */}
+      <div className="relative z-10">
+        <FeatureSection
+          kicker="Natural Language"
+          title={<>Search the way you <span style={{ color: P.green }}>actually think</span></>}
+          description="Type the way you'd brief a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
+          mockUI={<IntentDecoder />}
+          icon={Brain}
+        />
+
+        <div className="page-wrap-wide"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+
+        <FeatureSection
+          kicker="Verified Sources"
+          title={<>Every vendor, <span style={{ color: P.green }}>verified at source</span></>}
+          description={`${totalVendors} trade-only manufacturer catalogs, curated and kept current. Every product links directly to the vendor.`}
+          mockUI={<MockVendorUI vendors={vendors} />}
+          icon={Shield}
+          reverse
+        />
+
+        <div className="page-wrap-wide"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+
+        <FeatureSection
+          kicker="Intelligent Search"
+          title={<>Describe the vision, <span style={{ color: P.green }}>we find the pieces</span></>}
+          description="Spekd understands design intent — materials, styles, budgets — then surfaces exactly the right pieces from every vendor at once."
+          mockUI={<MockSearchUI />}
+          icon={Search}
+        />
       </div>
 
-      {/* ═══════════ BOTTOM CTA ═══════════ */}
-      <section className="relative py-28 md:py-36">
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(200,169,126,0.06) 0%, transparent 55%)", filter: "blur(100px)" }}
-        />
+      {/* ═══════════════════════════════════════════
+          CTA — Forest green background section
+          ═══════════════════════════════════════════ */}
+      <section className="relative py-28 md:py-40 z-10" style={{ background: `linear-gradient(135deg, ${P.green}, #1E2E1F)` }}>
+        {/* Subtle texture overlay */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: `radial-gradient(circle at 30% 50%, rgba(${P.brassRgb},0.06) 0%, transparent 50%), radial-gradient(circle at 70% 50%, rgba(255,255,255,0.03) 0%, transparent 40%)`,
+        }} />
         <div className="page-wrap-wide text-center relative z-10">
           <Reveal>
-            <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent mb-12 sm:mb-20 max-w-xl mx-auto" />
+            <div className="h-px max-w-md mx-auto mb-16" style={{ background: `linear-gradient(90deg, transparent, rgba(${P.brassRgb},0.30), transparent)` }} />
           </Reveal>
-          <Reveal delay={0.05}>
-            <span className="label-caps text-gold/50 tracking-[0.25em]">Get Started</span>
-          </Reveal>
-          <Reveal delay={0.1} className="mt-5">
-            <h2 className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-7xl text-white">
-              Start sourcing <span className="text-gold">smarter</span>
+          <Reveal delay={0.1}>
+            <h2 className="text-4xl sm:text-5xl md:text-7xl mb-6" style={{ color: "#fff", fontFamily: "'Playfair Display', serif" }}>
+              Start sourcing{" "}<br className="hidden sm:block" />
+              <span style={{ color: P.brassLight }}>smarter</span>
             </h2>
-          </Reveal>
-          <Reveal delay={0.15} className="mt-5">
-            <p className="text-base md:text-lg max-w-lg mx-auto" style={{ color: "var(--warm-gray)" }}>
-              Join the designers already using Spekd to find the perfect piece, faster than ever.
+            <p className="text-base md:text-lg max-w-md mx-auto mb-10" style={{ color: "rgba(255,255,255,0.65)", fontFamily: "'DM Sans', sans-serif" }}>
+              Join the designers already using Spekd to find the perfect piece, faster.
             </p>
           </Reveal>
-
-          <Reveal delay={0.2} className="mt-8 sm:mt-12">
-            <form onSubmit={handleSearch} className="mx-auto max-w-3xl relative">
-              <div className="absolute -inset-8 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse, rgba(200,169,126,0.06) 0%, transparent 70%)", filter: "blur(30px)" }}
-              />
-              <div className="luxe-input search-bar-glow relative flex h-14 sm:h-16 items-center rounded-full px-3 sm:px-5 group">
-                <Search className="w-4 h-4 text-white/20 shrink-0 mr-2 sm:mr-3" />
+          <Reveal delay={0.2}>
+            <form onSubmit={handleSearch} className="mx-auto max-w-xl relative mb-10">
+              <div
+                className="relative flex items-center gap-2 sm:gap-3 rounded-full group"
+                style={{
+                  height: "58px",
+                  padding: "0 12px 0 22px",
+                  background: "rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: `1px solid rgba(${P.brassRgb},0.20)`,
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                }}
+              >
+                <Search className="h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.5)" }} />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={isListening ? "Listening..." : "What are you looking for?"}
-                  className="flex-1 min-w-0 bg-transparent text-white/82 text-[15px] sm:text-sm placeholder:text-white/25 focus:outline-none"
+                  placeholder="Describe what you're looking for..."
+                  className="flex-1 min-w-0 bg-transparent text-sm sm:text-base focus:outline-none placeholder:text-white/30"
+                  style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif" }}
                 />
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
-                  <button type="button" onClick={handleVoiceSearch}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0 ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/25 hover:bg-white/5 hover:text-gold/50"}`}
-                    title={isListening ? "Stop listening" : "Voice search"}>
-                    <Mic className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="button" onClick={handleVisualSearch}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-white/25 hover:bg-white/5 hover:text-gold/50 transition-colors shrink-0"
-                    title="Search by image">
-                    <Camera className="h-3.5 w-3.5" />
-                  </button>
-                  <button type="submit" className="btn-gold ml-1 sm:ml-2 h-10 px-5 sm:px-7 rounded-full text-xs shrink-0">
-                    Explore
-                  </button>
-                </div>
+                <motion.button
+                  type="submit"
+                  className="cursor-pointer flex items-center gap-1.5 shrink-0"
+                  style={{
+                    height: "42px",
+                    padding: "0 24px",
+                    borderRadius: "999px",
+                    background: `linear-gradient(135deg, ${P.brass}, ${P.brassLight})`,
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    fontFamily: "'DM Sans', sans-serif",
+                    boxShadow: `0 4px 16px rgba(${P.brassRgb},0.30)`,
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <span>Search</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </motion.button>
               </div>
             </form>
-          </Reveal>
-
-          <Reveal delay={0.25} className="mt-8">
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link to={createPageUrl("Search")} className="pill-button btn-gold gap-2 text-sm">
-                <Sparkles className="h-4 w-4" /> Start Searching
-              </Link>
-              <Link to={createPageUrl("Quotes")} className="pill-button btn-outline gap-2 text-sm">
-                Quote Builder <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
           </Reveal>
         </div>
       </section>
 
-      {/* ═══════════ FOOTER ═══════════ */}
-      <footer className="landing-footer">
-        <div className="page-wrap py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 mb-14">
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain" />
-                <span className="font-brand text-lg tracking-[0.2em] text-white/80 font-medium">SPEKD</span>
-              </div>
-              <p className="text-xs text-white/25 leading-relaxed max-w-[200px]">
-                Curated trade furniture sourcing for designers.
-              </p>
-              <div className="flex items-center gap-3 mt-4">
-                <a href="https://linkedin.com/company/spekd" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors" title="LinkedIn">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                </a>
-                <a href="https://instagram.com/spekd.ai" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-colors" title="Instagram">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                </a>
-              </div>
+      {/* ═══════════════════════════════════════════
+          FOOTER — Clean, minimal, warm
+          ═══════════════════════════════════════════ */}
+      <footer className="relative py-16 sm:py-20 z-10" style={{ background: P.cream }}>
+        <div className="page-wrap-wide">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain rounded-lg" />
+              <span className="text-sm font-semibold tracking-[0.05em]" style={{ color: P.textPrimary, fontFamily: "'DM Sans', sans-serif" }}>SPEKD</span>
             </div>
-            <div>
-              <h4 className="label-caps text-white/40 mb-4 text-[10px]">Product</h4>
-              <div className="space-y-2.5">
-                <Link to={createPageUrl("Search")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Search</Link>
-                <Link to={createPageUrl("Quotes")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Quote Builder</Link>
-              </div>
+            <div className="flex items-center gap-6">
+              {[
+                { label: "About", path: "About" },
+                { label: "Privacy", path: "Privacy" },
+                { label: "Terms", path: "Terms" },
+              ].map((link) => (
+                <Link
+                  key={link.label}
+                  to={createPageUrl(link.path)}
+                  className="text-xs transition-colors duration-200 cursor-pointer"
+                  style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = P.green; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = P.textMuted; }}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
-            <div>
-              <h4 className="label-caps text-white/40 mb-4 text-[10px]">Company</h4>
-              <div className="space-y-2.5">
-                <Link to={createPageUrl("About")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">About</Link>
-                <a href="mailto:support@spekd.ai" className="block text-sm text-white/40 hover:text-white/70 transition-colors">Contact</a>
-              </div>
-            </div>
-            <div>
-              <h4 className="label-caps text-white/40 mb-4 text-[10px]">Legal</h4>
-              <div className="space-y-2.5">
-                <Link to={createPageUrl("Privacy")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Privacy Policy</Link>
-                <Link to={createPageUrl("Terms")} className="block text-sm text-white/40 hover:text-white/70 transition-colors">Terms of Service</Link>
-              </div>
+            <div className="text-[11px]" style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+              &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
             </div>
           </div>
-          <div className="h-px bg-gradient-to-r from-transparent via-gold/10 to-transparent mb-6" />
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-white/20">
-            <span>&copy; {new Date().getFullYear()} SPEKD. All rights reserved.</span>
-            <nav className="flex items-center gap-4">
-              <Link to={createPageUrl("About")} className="hover:text-white/40 transition-colors">About</Link>
-              <span className="text-white/10">·</span>
-              <a href="mailto:support@spekd.ai" className="hover:text-white/40 transition-colors">Contact</a>
-              <span className="text-white/10">·</span>
-              <Link to={createPageUrl("Privacy")} className="hover:text-white/40 transition-colors">Privacy Policy</Link>
-              <span className="text-white/10">·</span>
-              <Link to={createPageUrl("Terms")} className="hover:text-white/40 transition-colors">Terms of Service</Link>
-            </nav>
-          </div>
-          <p className="text-[10px] text-white/10 text-center mt-4 max-w-xl mx-auto leading-relaxed">
-            All product images and content are property of their respective vendors. Spekd.ai is a discovery platform and does not claim ownership of any vendor assets.
-          </p>
         </div>
       </footer>
+
     </div>
   );
 }

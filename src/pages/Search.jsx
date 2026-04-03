@@ -29,7 +29,6 @@ import {
   Store,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
 import { searchProducts, smartSearch, visualSearch, getAutocomplete, findSimilarProducts, listSearch, trackProductClick, crossMatchProducts, prefetchSearch, getProduct } from "@/api/searchClient";
 import {
   getRecentSearches,
@@ -284,18 +283,18 @@ function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) 
   if (hasVisualSearch) {
     return {
       name: "visual",
-      accent: "#d8ae79",
+      accent: "#D4B878",
       glow: "rgba(216,174,121,0.22)",
-      gradient: ["#120f0d", "#1f1815", "#3a2b22", "#d8ae79", "#f0dcc3"],
+      gradient: ["#120f0d", "#1f1815", "#3a2b22", "#D4B878", "#f0dcc3"],
       chip: "rgba(216,174,121,0.14)",
     };
   }
   if (/(walnut|oak|wood|teak|natural|linen|boucle|organic|warm)/.test(text)) {
     return {
       name: "organic",
-      accent: "#d6af7b",
+      accent: "#D4B878",
       glow: "rgba(214,175,123,0.2)",
-      gradient: ["#120f0d", "#201815", "#3a2c22", "#d6af7b", "#efe0cb"],
+      gradient: ["#120f0d", "#201815", "#3a2c22", "#D4B878", "#efe0cb"],
       chip: "rgba(214,175,123,0.12)",
     };
   }
@@ -319,10 +318,10 @@ function getSearchMoodTheme(query = "", products = [], hasVisualSearch = false) 
   }
   return {
     name: "default",
-    accent: "#c6a16a",
-    glow: "rgba(198,161,106,0.18)",
-    gradient: ["#120f0d", "#1d1714", "#33261f", "#c6a16a", "#eedbc1"],
-    chip: "rgba(198,161,106,0.12)",
+    accent: "#C4A265",
+    glow: "rgba(196,162,101,0.18)",
+    gradient: ["#120f0d", "#1d1714", "#33261f", "#C4A265", "#E8DDD0"],
+    chip: "rgba(196,162,101,0.12)",
   };
 }
 
@@ -605,7 +604,7 @@ export default function SearchPage() {
             setListMode(true);
             setListResults({ overview_message: summaryText, items: roomItems });
             setBucketColors(roomItems.map((_, i) => {
-              const COLORS = ["#c4a882", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#c4a882", "#a882c4", "#c48282"];
+              const COLORS = ["#C4A265", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#C4A265", "#a882c4", "#c48282"];
               return COLORS[i % COLORS.length];
             }));
             setExpandedBuckets(new Set([0]));
@@ -1209,7 +1208,7 @@ export default function SearchPage() {
         setListMode(true);
         setListResults({ overview_message: summaryText, items: roomItems });
         setBucketColors(roomItems.map((_, i) => {
-          const COLORS = ["#c4a882", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#c4a882", "#a882c4", "#c48282"];
+          const COLORS = ["#C4A265", "#82a8c4", "#a8c482", "#c482a8", "#82c4a8", "#C4A265", "#a882c4", "#c48282"];
           return COLORS[i % COLORS.length];
         }));
         setExpandedBuckets(new Set([0]));
@@ -1454,13 +1453,7 @@ export default function SearchPage() {
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
     >
-      <AnimatedGradientBackground
-        Breathing={!loading}
-        gradientColors={moodTheme.gradient}
-        gradientStops={[0, 25, 50, 80, 100]}
-        breathingRange={6}
-        animationSpeed={0.012}
-      />
+      {/* Cream background — inherited from body */}
 
       {/* ── LANDING STATE ── */}
       {!hasConversation && !loading && (
@@ -1468,45 +1461,45 @@ export default function SearchPage() {
           <div className="mx-auto max-w-6xl atelier-panel px-4 py-6 sm:px-8 sm:py-8 md:px-12 md:py-12">
             <div className="grid gap-5 sm:gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
               <div>
-                <div className="workspace-kicker mb-4 sm:mb-6">Interior search atelier</div>
+                <div className="workspace-kicker mb-4 sm:mb-6">Describe it. We'll find it.</div>
                 <h1 className="workspace-heading max-w-4xl">
-                  The sourcing workspace that feels designed for designers.
+                  The sourcing workspace<br /><span style={{ color: "#2C3E2D" }}>designed for designers.</span>
                 </h1>
                 <p className="workspace-subhead mt-4 sm:mt-5">
-                  Search by mood, silhouette, material, room intent, or visual reference.
+                  Search by mood, silhouette, material, room intent, or visual reference — across 40,000+ trade products.
                 </p>
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: moodTheme.chip, color: moodTheme.accent, border: `1px solid ${moodTheme.glow}` }}>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: "rgba(44,62,45,0.06)", color: "#2C3E2D", border: "1px solid rgba(44,62,45,0.12)" }}>
                   Current mood
-                  <span className="h-2 w-2 rounded-full" style={{ background: moodTheme.accent, boxShadow: `0 0 20px ${moodTheme.glow}` }} />
+                  <span className="h-2 w-2 rounded-full" style={{ background: "#2C3E2D", boxShadow: "0 0 12px rgba(44,62,45,0.3)" }} />
                   {moodTheme.name}
                 </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Catalog</div>
-                    <div className="mt-2 text-2xl font-semibold text-white/92">40k+</div>
-                    <div className="mt-1 text-xs text-white/40">Trade-ready products</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Catalog</div>
+                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>40k+</div>
+                    <div className="mt-1 text-xs" style={{ color: "#9B9590" }}>Trade-ready products</div>
                   </div>
                   <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-white/30">Use</div>
-                    <div className="mt-2 text-2xl font-semibold text-white/92">Search</div>
-                    <div className="mt-1 text-xs text-white/40">Refine, save, and quote</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Use</div>
+                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>Search</div>
+                    <div className="mt-1 text-xs" style={{ color: "#9B9590" }}>Refine, save, and quote</div>
                   </div>
                 </div>
               </div>
 
               <div className="editorial-card p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold/75">Search brief</span>
-                  <span className="text-[11px] text-white/28">Natural language</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#2C3E2D" }}>Search brief</span>
+                  <span className="text-[11px]" style={{ color: "#9B9590" }}>Natural language</span>
                 </div>
-                <div className="mt-4 rounded-[22px] border border-white/[0.06] bg-white/[0.02] px-5 py-5">
-                  <p className="text-sm leading-7 text-white/70">
-                    “I need a sculptural, warm modern accent chair with a higher back and a refined silhouette for a luxury residential living room.”
+                <div className="mt-4 rounded-[22px] px-5 py-5" style={{ background: "rgba(44,62,45,0.03)", border: "1px solid rgba(44,62,45,0.06)" }}>
+                  <p className="text-sm leading-7" style={{ color: "#6B6560" }}>
+                    "I need a sculptural, warm modern accent chair with a higher back and a refined silhouette for a luxury residential living room."
                   </p>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {["Warm modern", "Higher back", "Accent chair"].map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/46">
+                    <span key={tag} className="rounded-full px-3 py-1.5 text-[11px]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
                       {tag}
                     </span>
                   ))}
@@ -1540,29 +1533,32 @@ export default function SearchPage() {
                         onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                         onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                         placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
-                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] text-white/84 placeholder:text-white/26 outline-none resize-none overflow-hidden"
+                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden"
+                        style={{ color: "#1A1A18" }}
                         rows={1}
                       />
                     </div>
                     <div className="flex items-center gap-1.5 px-4 pb-4 sm:pr-4 sm:pl-0 sm:pb-0 sm:mt-4 shrink-0">
                       {inputValue && (
                         <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); if (inputRef.current) { inputRef.current.style.height = "auto"; } }}
-                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-white/24 hover:bg-white/5 hover:text-white/56 transition-colors">
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors" style={{ color: "#9B9590" }}>
                           <X className="h-4 w-4" />
                         </button>
                       )}
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
-                        className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/70"}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
+                        style={!isListening ? { color: "#9B9590" } : {}}
                         title={isListening ? "Stop listening" : "Voice search"}>
-                        <Mic className={isListening ? "h-4 w-4" : "h-4 w-4"} />
+                        <Mic className="h-4 w-4" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/70"
+                        className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors"
+                        style={{ color: "#9B9590" }}
                         title="Visual search — upload a photo to find matching furniture">
-                        {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin text-gold/60" /> : <Camera className="h-4 w-4" />}
+                        {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#B8956A" }} /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917", boxShadow: "0 18px 40px rgba(198,161,106,0.28)" }}>
-                        Find Pieces <ArrowRight className="h-3.5 w-3.5" />
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "#2C3E2D", color: "#FFFFFF", boxShadow: "0 2px 8px rgba(44,62,45,0.15), 0 8px 24px rgba(44,62,45,0.10)" }}>
+                        Search <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1580,7 +1576,10 @@ export default function SearchPage() {
                   onClick={() => runSearch(suggestion)}
                   onMouseEnter={() => { clearTimeout(window._prefetchTimer); window._prefetchTimer = setTimeout(() => prefetchSearch(suggestion), 300); }}
                   onMouseLeave={() => clearTimeout(window._prefetchTimer)}
-                  className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[12px] text-white/38 hover:text-gold/80 hover:border-gold/25 hover:bg-gold/[0.05] transition-all duration-200"
+                  className="rounded-full px-4 py-2 text-[12px] transition-all duration-200 cursor-pointer"
+                  style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590", background: "transparent" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}
                 >
                   {suggestion}
                 </button>
@@ -1605,31 +1604,32 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-            <div className="sticky top-[68px] sm:top-[72px] z-30 border-b border-white/[0.04] bg-[#120f0d]/92 backdrop-blur-xl">
+            <div className="sticky top-[68px] sm:top-[72px] z-30" style={{ background: "rgba(245,240,232,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(44,62,45,0.06)" }}>
             <div className="page-wrap-wide py-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.08)" }}>
                   <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
                 </div>
                   <div className="hidden sm:block">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/70">Search Results</div>
-                  <div className="text-[12px] text-white/32">{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>Search Results</div>
+                  <div className="text-[12px]" style={{ color: "#9B9590" }}>{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
                 </div>
               </div>
               {/* Inline compact search input */}
               <form onSubmit={handleSubmit} className="order-3 w-full sm:order-2 sm:flex-1 sm:max-w-xl">
                 <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <Search className="ml-4 h-3.5 w-3.5 text-white/20 shrink-0" />
+                    <Search className="ml-4 h-3.5 w-3.5 shrink-0" style={{ color: "#9B9590" }} />
                     <input
                       value={inputValue}
                       onChange={(e) => handleInputChange(e.target.value)}
                       placeholder="Search..."
-                      className="h-12 w-full bg-transparent pl-3 pr-10 text-[14px] text-white/74 placeholder:text-white/22 outline-none"
+                      className="h-12 w-full bg-transparent pl-3 pr-10 text-[14px] outline-none"
+                      style={{ color: "#1A1A18" }}
                       disabled={loading}
                     />
                     {inputValue.trim() && (
-                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded text-white/30 hover:text-gold/60 transition-colors">
+                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded transition-colors" style={{ color: "#9B9590" }}>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -1637,7 +1637,10 @@ export default function SearchPage() {
                 </div>
               </form>
               <button onClick={handleNewSearch}
-                className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-[11px] text-white/30 hover:bg-white/5 hover:text-gold/60 transition-colors shrink-0">
+                className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] transition-colors shrink-0 cursor-pointer"
+                style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
@@ -1663,16 +1666,16 @@ export default function SearchPage() {
                   {messages.slice(0, -1).map((msg, i) => (
                     msg.role === "user" ? (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="inline-flex items-center rounded-full px-3 py-1 text-[11px] border cursor-default"
-                        style={{ background: "rgba(200,169,126,0.06)", borderColor: "rgba(200,169,126,0.12)", color: "rgba(255,255,255,0.5)" }}>
+                        className="inline-flex items-center rounded-full px-3 py-1 text-[11px] cursor-default"
+                        style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
                         {msg.content.length > 50 ? msg.content.slice(0, 50) + "…" : msg.content}
                       </motion.span>
                     ) : (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="inline-flex items-center gap-1.5 text-[11px] text-white/20">
+                        className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "#9B9590" }}>
                         <img src="/logo.png" alt="" className="h-3 w-3 object-contain" />
                         {(msg.content || "").length > 60 ? msg.content.slice(0, 60) + "…" : msg.content}
-                        <span className="text-white/10 mx-1">→</span>
+                        <span className="mx-1" style={{ color: "#C2CCBA" }}>→</span>
                       </motion.span>
                     )
                   ))}
@@ -1683,29 +1686,28 @@ export default function SearchPage() {
             {/* Loading — skeleton product cards */}
             {loading && (
               <div className="pt-4">
-                <div className="paper-grain mb-5 rounded-[24px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+                <div className="mb-5 rounded-[24px] px-4 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
                   <div className="flex items-center gap-2.5">
                     <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-gold/60 animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D" }} />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D", animationDelay: "0.15s" }} />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D", animationDelay: "0.3s" }} />
                     </div>
-                    <span className="text-[11px] uppercase tracking-[0.2em] text-gold/58">Curating</span>
+                    <span className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>Curating</span>
                   </div>
-                  <div className="mt-2 text-[13px] text-white/46">{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
+                  <div className="mt-2 text-[13px]" style={{ color: "#6B6560" }}>{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {Array.from({ length: IS_MOBILE ? 6 : 10 }, (_, i) => (
                     <div key={i} className="product-card overflow-hidden" style={{ contain: "layout style paint" }}>
-                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "rgba(196,168,130,0.03)" }}>
-                        <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(196,168,130,0.05)" }} />
+                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "#f8f6f2" }}>
+                        <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(44,62,45,0.04)" }} />
                       </div>
-                      <div className="h-px bg-gradient-to-r from-transparent via-gold/15 to-transparent" />
+                      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(44,62,45,0.06), transparent)" }} />
                       <div className="p-3 sm:p-4 space-y-2">
-                        <div className="h-2.5 w-16 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.08)" }} />
-                        <div className="h-3 w-full rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.04)" }} />
-                        <div className="h-3 w-2/3 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.03)" }} />
-                        <div className="h-3 w-10 rounded animate-pulse" style={{ backgroundColor: "rgba(196,168,130,0.06)" }} />
+                        <div className="h-2.5 w-16 rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.06)" }} />
+                        <div className="h-3 w-full rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.04)" }} />
+                        <div className="h-3 w-2/3 rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.03)" }} />
                       </div>
                     </div>
                   ))}
@@ -1715,11 +1717,11 @@ export default function SearchPage() {
 
             {error && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-3 py-4">
-                <div className="paper-grain flex items-start gap-3 rounded-[24px] border border-red-400/10 bg-red-400/[0.04] px-4 py-4">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500/10"><AlertCircle className="h-3.5 w-3.5 text-red-400" /></div>
+                <div className="flex items-start gap-3 rounded-[24px] px-4 py-4 w-full" style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(239,68,68,0.08)" }}><AlertCircle className="h-3.5 w-3.5 text-red-500" /></div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-red-300/70">Search Interrupted</div>
-                    <p className="pt-1 text-sm text-red-400/80">{error}</p>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-red-500/70">Search Interrupted</div>
+                    <p className="pt-1 text-sm text-red-600/80">{error}</p>
                   </div>
                 </div>
               </motion.div>
@@ -1747,14 +1749,14 @@ export default function SearchPage() {
             {/* ── Zero-result guidance ── */}
             {!loading && zeroResultGuidance && allResults.length < 3 && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/10 bg-amber-500/[0.03] px-4 py-3">
-                  <AlertTriangle className="h-4 w-4 text-amber-400/60 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.12)" }}>
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] text-white/60 leading-relaxed">{zeroResultGuidance.suggestion}</p>
+                    <p className="text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>{zeroResultGuidance.suggestion}</p>
                     {zeroResultGuidance.searched_for?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {zeroResultGuidance.searched_for.map((term, i) => (
-                          <span key={i} className="rounded-full bg-amber-500/10 border border-amber-500/15 px-2 py-0.5 text-[9px] text-amber-300/60">
+                          <span key={i} className="rounded-full px-2 py-0.5 text-[9px]" style={{ background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", color: "#B45309" }}>
                             {term}
                           </span>
                         ))}
@@ -1768,11 +1770,11 @@ export default function SearchPage() {
             {/* ── Empty search fallback (no results, no server guidance) ── */}
             {!loading && !listMode && messages.length > 0 && allResults.length === 0 && !zeroResultGuidance && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                <div className="paper-grain flex items-start gap-3 rounded-[24px] border border-white/[0.06] bg-white/[0.02] px-5 py-4">
-                  <Search className="h-4 w-4 text-gold/50 mt-0.5 shrink-0" />
+                <div className="flex items-start gap-3 rounded-[24px] px-5 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
+                  <Search className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#B8956A" }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-gold/50">Search direction</div>
-                    <p className="mt-2 text-[12px] text-white/56 leading-relaxed">Nothing strong surfaced for that brief. Try broadening the material or style language, or remove vendor-specific terms so the system can widen the sourcing field.</p>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#2C3E2D" }}>Search direction</div>
+                    <p className="mt-2 text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>Nothing strong surfaced for that brief. Try broadening the material or style language, or remove vendor-specific terms so the system can widen the sourcing field.</p>
                   </div>
                 </div>
               </motion.div>
@@ -1782,7 +1784,7 @@ export default function SearchPage() {
             {!loading && listMode && listResults?.items?.length > 0 && (
               <motion.div key="list-results" {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {listResults.items.map((item, itemIdx) => {
-                  const bucketColor = bucketColors[itemIdx] || "#c4a882";
+                  const bucketColor = bucketColors[itemIdx] || "#C4A265";
                   const isExpanded = expandedBuckets.has(itemIdx);
                   const selectedProduct = bucketSelections.get(itemIdx);
                   const maxCollapsed = 6;
@@ -1807,14 +1809,14 @@ export default function SearchPage() {
                           {item.item_number || itemIdx + 1}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                          <div className="text-sm font-medium text-white/80 truncate">{item.original_text}</div>
+                          <div className="text-sm font-medium truncate" style={{ color: "#1A1A18" }}>{item.original_text}</div>
                           {item.summary && item.summary !== item.original_text && (
-                            <div className="text-[11px] text-white/30 mt-0.5">{item.summary}</div>
+                            <div className="text-[11px] mt-0.5" style={{ color: "#9B9590" }}>{item.summary}</div>
                           )}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {item.dimension_notes && (
-                            <span className="text-[10px] text-white/20 border border-white/[0.06] rounded px-1.5 py-0.5">{item.dimension_notes}</span>
+                            <span className="text-[10px] rounded px-1.5 py-0.5" style={{ color: "#9B9590", border: "1px solid rgba(44,62,45,0.10)" }}>{item.dimension_notes}</span>
                           )}
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${bucketColor}15`, color: bucketColor }}>
                             {item.original_text?.split(/\s+/)?.[0] || "Item"} ({item.total || item.products.length} results)
@@ -1824,7 +1826,7 @@ export default function SearchPage() {
                               <Check className="h-2.5 w-2.5" /> Selected
                             </span>
                           )}
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "#9B9590" }} /> : <ChevronDown className="h-3.5 w-3.5" style={{ color: "#9B9590" }} />}
                         </div>
                       </button>
 
@@ -1868,9 +1870,9 @@ export default function SearchPage() {
                                   className={`w-full mt-1 flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-all ${
                                     selectedProduct?.id === product.id
                                       ? "text-white"
-                                      : "border border-white/[0.08] text-white/40 hover:border-white/20 hover:text-white/60"
+                                      : ""
                                   }`}
-                                  style={selectedProduct?.id === product.id ? { background: bucketColor, borderColor: bucketColor } : {}}
+                                  style={selectedProduct?.id === product.id ? { background: bucketColor, borderColor: bucketColor, color: "#fff" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#9B9590" }}
                                 >
                                   {selectedProduct?.id === product.id ? <><Check className="h-2.5 w-2.5" /> Selected</> : "Select"}
                                 </button>
@@ -1878,8 +1880,8 @@ export default function SearchPage() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-lg border border-white/[0.04] bg-white/[0.01] p-4 text-center">
-                            <span className="text-[11px] text-white/20">No matching products in our catalog yet</span>
+                          <div className="rounded-lg p-4 text-center" style={{ border: "1px solid rgba(44,62,45,0.06)", background: "rgba(245,240,232,0.5)" }}>
+                            <span className="text-[11px]" style={{ color: "#9B9590" }}>No matching products in our catalog yet</span>
                           </div>
                         )}
 
@@ -1887,7 +1889,8 @@ export default function SearchPage() {
                         {hasMore && !isExpanded && (
                           <button
                             onClick={() => setExpandedBuckets(prev => new Set([...prev, itemIdx]))}
-                            className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[11px] text-white/30 hover:text-white/50 hover:border-white/10 transition-colors"
+                            className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-[11px] transition-colors"
+                            style={{ border: "1px solid rgba(44,62,45,0.10)", color: "#9B9590" }}
                           >
                             Show all {item.products.length} results <ChevronDown className="h-3 w-3" />
                           </button>
@@ -1899,25 +1902,25 @@ export default function SearchPage() {
 
                 {/* Bucket selection summary + Add Room buttons (Changes 9-11) */}
                 {bucketSelections.size > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-4 rounded-xl border border-gold/15 bg-gold/[0.03] p-4">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-gold/50 mb-3">Room Selections</div>
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-4 rounded-xl p-4" style={{ border: "1px solid rgba(44,62,45,0.12)", background: "rgba(44,62,45,0.03)" }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#9B9590" }}>Room Selections</div>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {listResults.items.map((item, idx) => {
                         const sel = bucketSelections.get(idx);
-                        const color = bucketColors[idx] || "#c4a882";
+                        const color = bucketColors[idx] || "#C4A265";
                         return (
                           <div key={idx} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"
-                            style={{ background: sel ? `${color}15` : "rgba(255,255,255,0.02)", border: `1px solid ${sel ? color + "40" : "rgba(255,255,255,0.06)"}` }}>
-                            <span style={{ color: sel ? color : "rgba(255,255,255,0.3)" }}>
+                            style={{ background: sel ? `${color}15` : "rgba(245,240,232,0.6)", border: `1px solid ${sel ? color + "40" : "rgba(44,62,45,0.08)"}` }}>
+                            <span style={{ color: sel ? color : "#9B9590" }}>
                               {item.original_text?.split(/\s/).slice(0, 2).join(" ") || `Item ${idx + 1}`}:
                             </span>
                             {sel ? (
-                              <span className="text-white/60 truncate max-w-[120px]">
+                              <span className="truncate max-w-[120px]" style={{ color: "#6B6560" }}>
                                 {sel.product_name} {sel.retail_price ? `$${Number(sel.retail_price).toLocaleString()}` : ""}
-                                <Check className="inline h-2.5 w-2.5 ml-1 text-green-400/70" />
+                                <Check className="inline h-2.5 w-2.5 ml-1" style={{ color: "#2C3E2D" }} />
                               </span>
                             ) : (
-                              <span className="text-white/20 italic">not yet selected</span>
+                              <span className="italic" style={{ color: "#9B9590" }}>not yet selected</span>
                             )}
                           </div>
                         );
@@ -1928,7 +1931,7 @@ export default function SearchPage() {
                     {(() => {
                       const total = [...bucketSelections.values()].reduce((sum, p) => sum + (Number(p.retail_price) || 0), 0);
                       return total > 0 ? (
-                        <div className="text-sm text-gold/70 font-semibold mb-3">
+                        <div className="text-sm font-semibold mb-3" style={{ color: "#B8956A" }}>
                           Running total: ${total.toLocaleString()}
                         </div>
                       ) : null;
@@ -1947,7 +1950,8 @@ export default function SearchPage() {
                           setTimeout(() => setQuoteToast(null), 2200);
                           window.dispatchEvent(new CustomEvent("spec-quote-change"));
                         }}
-                        className="flex items-center gap-1.5 rounded-lg border border-gold/25 bg-gold/10 px-4 py-2 text-[11px] font-semibold text-gold/80 hover:bg-gold/15 transition-all"
+                        className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
+                        style={{ border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }}
                       >
                         <FileText className="h-3 w-3" />
                         Add Room to Quote ({bucketSelections.size}/{listResults.items.length})
@@ -1966,7 +1970,8 @@ export default function SearchPage() {
                             setTimeout(() => setQuoteToast(null), 2200);
                             window.dispatchEvent(new CustomEvent("spec-quote-change"));
                           }}
-                          className="flex items-center gap-1.5 rounded-lg bg-gold px-4 py-2 text-[11px] font-semibold text-black hover:bg-gold/90 transition-all"
+                          className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
+                          style={{ background: "#2C3E2D", color: "#FFFFFF" }}
                         >
                           <ClipboardCheck className="h-3 w-3" />
                           Add Complete Room to Quote
@@ -1977,8 +1982,8 @@ export default function SearchPage() {
                 )}
 
                 {/* List summary */}
-                <div className="mt-4 mb-8 rounded-xl border border-gold/10 bg-gold/[0.02] p-4">
-                  <div className="flex items-center gap-2 text-xs text-gold/50">
+                <div className="mt-4 mb-8 rounded-xl p-4" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(44,62,45,0.02)" }}>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#9B9590" }}>
                     <ClipboardList className="h-3.5 w-3.5" />
                     <span className="font-semibold">
                       {listResults.total_items} items sourced — {listResults.total_products} total products found
@@ -1993,23 +1998,23 @@ export default function SearchPage() {
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {/* Search query header */}
                 {displayQuery && (
-                  <div className="mb-5 flex items-center justify-between gap-3 rounded-[26px] border border-white/[0.06] bg-white/[0.02] px-4 py-4">
+                  <div className="mb-5 flex items-center justify-between gap-3 rounded-[26px] px-4 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
                     <div className="flex items-center gap-3 min-w-0">
                       {visualSearchThumb && (
                         <div className="relative shrink-0">
-                          <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover border border-white/10" />
+                          <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover" style={{ border: "1px solid rgba(44,62,45,0.10)" }} />
                           <button onClick={() => { setVisualSearchThumb(null); setDisplayQuery(""); setAllResults([]); }}
-                            className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-stone-800 border border-white/20 flex items-center justify-center hover:bg-red-900/60 transition-colors">
-                            <X className="h-2.5 w-2.5 text-white/60" />
+                            className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center transition-colors" style={{ background: "#fff", border: "1px solid rgba(44,62,45,0.12)" }}>
+                            <X className="h-2.5 w-2.5" style={{ color: "#9B9590" }} />
                           </button>
                         </div>
                       )}
-                      <h2 className="text-base sm:text-xl font-medium text-white/88 truncate">
+                      <h2 className="text-base sm:text-xl font-medium truncate" style={{ fontFamily: "'Playfair Display', serif", color: "#1A1A18" }}>
                         {visualSearchThumb ? "Visual Search Results" : displayQuery}
                       </h2>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="block text-xs text-white/34 ml-3 whitespace-nowrap">
+                      <span className="block text-xs ml-3 whitespace-nowrap" style={{ color: "#9B9590" }}>
                         {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
                       </span>
                     </div>
@@ -2044,10 +2049,10 @@ export default function SearchPage() {
                 {loadingMore && (
                   <div className="flex justify-center py-8">
                     <div className="flex items-center gap-3">
-                      <div className="h-1 w-1 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="h-1 w-1 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="h-1 w-1 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      <span className="text-[10px] text-white/20 ml-1">Loading more...</span>
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "0ms" }} />
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "150ms" }} />
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "300ms" }} />
+                      <span className="text-[10px] ml-1" style={{ color: "#9B9590" }}>Loading more...</span>
                     </div>
                   </div>
                 )}
@@ -2055,7 +2060,7 @@ export default function SearchPage() {
                 {/* End of results */}
                 {!hasMoreLocal && !hasMoreServer && sorted.length > INITIAL_PAGE_SIZE && (
                   <div className="text-center py-8">
-                    <span className="text-[10px] text-white/15">Showing all {sorted.length} results</span>
+                    <span className="text-[10px]" style={{ color: "#9B9590" }}>Showing all {sorted.length} results</span>
                   </div>
                 )}
               </motion.div>
@@ -2066,7 +2071,10 @@ export default function SearchPage() {
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex gap-2 pt-4 sm:pt-6 pb-4 overflow-x-auto sm:flex-wrap scrollbar-hide">
                 {REFINEMENT_CHIPS.map((chip) => (
                   <button key={chip} onClick={() => handleChipClick(chip)}
-                    className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-1.5 text-[11px] text-white/30 transition-all hover:border-gold/20 hover:text-gold/60 hover:bg-gold/5">
+                    className="rounded-full px-3.5 py-1.5 text-[11px] transition-all shrink-0 cursor-pointer"
+                    style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
                     {chip}
                   </button>
                 ))}
@@ -2077,34 +2085,37 @@ export default function SearchPage() {
           </div>
 
           {/* Sticky input bar */}
-          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40 border-t border-white/[0.04] bg-[#120f0d]/94 backdrop-blur-xl"
-            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40"
+            style={{ background: "rgba(245,240,232,0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(44,62,45,0.06)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="page-wrap-wide py-3">
               <form onSubmit={handleSubmit} className="relative">
                 <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <div className="ml-3.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]"><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
+                    <div className="ml-3.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.08)" }}><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
-                      className="h-14 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm text-white/82 placeholder:text-white/20 outline-none"
+                      className="h-14 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm outline-none"
+                      style={{ color: "#1A1A18" }}
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
-                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : "text-white/20 hover:bg-white/5 hover:text-gold/70"}`}
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
+                        style={!isListening ? { color: "#9B9590" } : {}}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors text-white/20 hover:bg-white/5 hover:text-gold/70"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
+                        style={{ color: "#9B9590" }}
                         title="Visual search">
-                        {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gold/60" /> : <Camera className="h-3.5 w-3.5" />}
+                        {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "#2C3E2D" }} /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
                         className="flex h-9 items-center justify-center gap-1 rounded-xl px-3.5 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                        style={{ background: "linear-gradient(135deg, #c6a16a, #e0bb85)", color: "#1c1917" }}>
+                        style={{ background: "#2C3E2D", color: "#FFFFFF" }}>
                         <Send className="h-3 w-3" />
                       </button>
                     </div>
@@ -2149,25 +2160,31 @@ export default function SearchPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed z-[71] w-52 rounded-xl border border-white/[0.1] bg-[#2a251f] shadow-2xl overflow-hidden"
-              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left }}
+              className="fixed z-[71] w-52 rounded-xl shadow-xl overflow-hidden"
+              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left, background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)" }}
             >
-              <div className="px-3 py-2 border-b border-white/[0.06]">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Add to room</span>
+              <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(44,62,45,0.06)" }}>
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#9B9590" }}>Add to room</span>
               </div>
               {getQuote().rooms.map((room) => (
                 <button
                   key={room.id}
                   onClick={() => handleQuoteRoomSelect(quoteDropdownProduct, room.id, room.name)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-white/60 hover:bg-white/[0.05] hover:text-white/80 transition-colors"
+                  className="flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors cursor-pointer"
+                  style={{ color: "#6B6560" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(44,62,45,0.04)"; e.currentTarget.style.color = "#2C3E2D"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B6560"; }}
                 >
                   <span className="truncate">{room.name}</span>
-                  <span className="text-[10px] text-white/20 tabular-nums ml-2 shrink-0">{room.items.length} items</span>
+                  <span className="text-[10px] tabular-nums ml-2 shrink-0" style={{ color: "#9B9590" }}>{room.items.length} items</span>
                 </button>
               ))}
               <button
                 onClick={() => handleQuoteNewRoom(quoteDropdownProduct)}
-                className="flex w-full items-center gap-1.5 px-3 py-2 text-[12px] text-gold/70 hover:bg-gold/5 border-t border-white/[0.06] transition-colors"
+                className="flex w-full items-center gap-1.5 px-3 py-2 text-[12px] transition-colors cursor-pointer"
+                style={{ borderTop: "1px solid rgba(44,62,45,0.06)", color: "#B8956A" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(184,149,106,0.05)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <Plus className="h-3 w-3" /> New Room
               </button>
@@ -2183,15 +2200,16 @@ export default function SearchPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
-              background: "rgba(12, 13, 20, 0.95)",
-              border: "1px solid rgba(196,168,130,0.25)",
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid rgba(44,62,45,0.12)",
               backdropFilter: "blur(20px)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           >
-            <ClipboardCheck className="h-4 w-4 text-gold" />
-            <span className="text-sm text-white/80 max-w-[300px] truncate">{quoteToast}</span>
+            <ClipboardCheck className="h-4 w-4" style={{ color: "#2C3E2D" }} />
+            <span className="text-sm max-w-[300px] truncate" style={{ color: "#1A1A18" }}>{quoteToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2203,15 +2221,16 @@ export default function SearchPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-2xl"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
-              background: "rgba(12, 13, 20, 0.95)",
-              border: "1px solid rgba(196,168,130,0.25)",
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid rgba(44,62,45,0.12)",
               backdropFilter: "blur(20px)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           >
-            <Heart className="h-4 w-4 text-gold" />
-            <span className="text-sm text-white/80">{favoriteToast}</span>
+            <Heart className="h-4 w-4" style={{ color: "#B8956A" }} />
+            <span className="text-sm" style={{ color: "#1A1A18" }}>{favoriteToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2234,7 +2253,7 @@ export default function SearchPage() {
       {subscriptionStatus === "activating" && (
         <div
           className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-2 text-xs font-medium"
-          style={{ background: "rgba(196,168,130,0.15)", color: "#c4a882", borderBottom: "1px solid rgba(196,168,130,0.2)" }}
+          style={{ background: "rgba(196,162,101,0.15)", color: "#C4A265", borderBottom: "1px solid rgba(196,162,101,0.2)" }}
         >
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Your subscription is activating — refreshing momentarily...
@@ -2252,11 +2271,11 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[12px]" style={{ color: "#a89880" }}>
-            <span style={{ color: moodTheme.accent }}>"{query}"</span>
+          <p className="text-[12px]" style={{ color: "#6B6560" }}>
+            <span style={{ color: "#2C3E2D" }}>"{query}"</span>
             {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
           </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/24">
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em]" style={{ color: "#9B9590" }}>
             {vendorCount} brands shown{myVendorsOnly ? " (My Vendors)" : ""}
           </p>
         </div>
@@ -2265,11 +2284,12 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           {myVendorCount > 0 && (
             <button
               onClick={() => setMyVendorsOnly(!myVendorsOnly)}
-              className={`control-chip flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer ${
                 myVendorsOnly
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                  : "border-white/[0.06] bg-white/[0.02] text-white/30 hover:text-white/50"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                  : ""
               }`}
+              style={!myVendorsOnly ? { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" } : {}}
               title={myVendorsOnly ? "Showing only your vendors" : "Show only your vendors"}
             >
               <Store className="h-3 w-3" />
@@ -2279,8 +2299,10 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           <PricingToggle />
           <button
             onClick={() => setPresentationMode(!presentationMode)}
-            className={`control-chip hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] transition-all ${presentationMode ? "text-[#161413]" : "text-white/44 hover:text-white/72"}`}
-            style={presentationMode ? { background: moodTheme.accent } : {}}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer"
+            style={presentationMode
+              ? { background: "#2C3E2D", color: "#fff", border: "1px solid #2C3E2D" }
+              : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
             title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
           >
             <Eye className="h-3 w-3" />
@@ -2288,22 +2310,25 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           </button>
 
           {/* Sort dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button onClick={() => setShowSortMenu(!showSortMenu)}
-              className="control-chip flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-white/40 hover:text-white/60 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all cursor-pointer"
+              style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}>
               <ArrowUpDown className="h-3 w-3" />
               {SORT_OPTIONS.find(s => s.key === sortKey)?.label}
             </button>
             <AnimatePresence>
               {showSortMenu && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl border border-white/[0.08] bg-[#2a251f] shadow-2xl p-1.5">
+                  className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl shadow-xl p-1.5"
+                  style={{ background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
                   {SORT_OPTIONS.map((opt) => (
                     <button key={opt.key}
                       onClick={() => { setSortKey(opt.key); setShowSortMenu(false); }}
-                      className={`w-full text-left rounded-lg px-3 py-1.5 text-[11px] transition-all ${
-                        sortKey === opt.key ? "bg-gold/10 text-gold" : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
-                      }`}>
+                      className="w-full text-left rounded-lg px-3 py-1.5 text-[11px] transition-all cursor-pointer"
+                      style={sortKey === opt.key
+                        ? { background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }
+                        : { color: "#6B6560" }}>
                       {opt.label}
                     </button>
                   ))}
@@ -2328,11 +2353,10 @@ function PricingToggle() {
   return (
     <button
       onClick={toggleShowPricing}
-      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] border transition-all ${
-        showPricing
-          ? "border-gold/25 bg-gold/10 text-gold/80"
-          : "border-white/[0.06] bg-white/[0.02] text-white/30 hover:text-white/50"
-      }`}
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] border transition-all shrink-0 cursor-pointer"
+      style={showPricing
+        ? { border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }
+        : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
       title={showPricing ? "Hide pricing" : "Show pricing"}
     >
       <span className="text-[11px] font-semibold">$</span>
@@ -2365,35 +2389,36 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
         onPreview();
       }}
     >
-      <div className="relative overflow-hidden rounded-t-[24px]" style={{ aspectRatio: "4/3", background: "#ffffff" }}>
+      <div className="relative overflow-hidden rounded-t-[20px]" style={{ aspectRatio: "4/3", background: "#FFFFFF" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#ffffff" }}>
-                <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 25%, rgba(196,168,130,0.06) 50%, transparent 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.2s ease-in-out infinite" }} />
+              <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#FFFFFF" }}>
+                <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(44,62,45,0.03)" }} />
               </div>
             )}
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
-              className={`h-full w-full transition-all duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"} group-hover:scale-[1.03]`}
-              style={{ objectFit: "contain", padding: "18px" }}
+              className={`h-full w-full transition-all duration-600 ${imgLoaded ? "opacity-100" : "opacity-0"} group-hover:scale-[1.04]`}
+              style={{ objectFit: "contain", padding: "16px" }}
               eager={index < 5}
               fetchPriority={index < 5 ? "high" : undefined}
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-white/10">
-            <div className="text-3xl font-display">{(item.manufacturer_name || "?")[0]}</div>
-            <span className="text-[10px] px-3 text-center line-clamp-2 text-white/15">{item.product_name}</span>
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2" style={{ color: "rgba(44,62,45,0.12)" }}>
+            <div className="text-4xl font-light" style={{ fontFamily: "'Playfair Display', serif" }}>{(item.manufacturer_name || "?")[0]}</div>
+            <span className="text-[10px] px-4 text-center line-clamp-2" style={{ color: "rgba(44,62,45,0.20)" }}>{item.product_name}</span>
           </div>
         )}
 
         {/* Overlay buttons — always visible on mobile, hover-reveal on desktop */}
-        <div className="absolute top-2 left-2 flex gap-1.5">
+        <div className="absolute top-2.5 left-2.5 flex gap-1.5">
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isFavorited ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
-            }`}>
-            <Heart className={`h-4 w-4 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
+            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
+              isFavorited ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
+            }`}
+            style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "#9B9590" }}>
+            <Heart className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
           <button data-action onClick={(ev) => {
               ev.stopPropagation();
@@ -2403,34 +2428,35 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
                 setTimeout(() => setJustAdded(false), 2000);
               }
             }}
-            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-lg transition-all backdrop-blur-sm ${
-              isInQuote || justAdded ? "bg-gold/90 text-black" : "bg-black/50 text-white/60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-black/60"
+            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
+              isInQuote || justAdded ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
+            style={isInQuote || justAdded ? { background: "#2C3E2D", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "#9B9590" }}
             title={isInQuote ? "In quote" : "Add to quote"}>
-            {isInQuote || justAdded ? <ClipboardCheck className="h-4 w-4 sm:h-3 sm:w-3" /> : <FileText className="h-4 w-4 sm:h-3 sm:w-3" />}
+            {isInQuote || justAdded ? <ClipboardCheck className="h-3.5 w-3.5 sm:h-3 sm:w-3" /> : <FileText className="h-3.5 w-3.5 sm:h-3 sm:w-3" />}
           </button>
         </div>
       </div>
 
-      {/* Gold hairline */}
-      <div className="h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
+      {/* Green hairline */}
+      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(44,62,45,0.12), transparent)" }} />
 
       {/* Card meta */}
-      <div className="card-meta p-4 sm:p-5 pb-4 flex-1 flex flex-col">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold/72 truncate">{item.manufacturer_name}</div>
+      <div className="card-meta p-3 sm:p-4 pb-3 flex-1 flex flex-col">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <div className="text-[9px] font-bold uppercase tracking-[0.18em] truncate" style={{ color: "#2C3E2D" }}>{item.manufacturer_name}</div>
           {item.result_quality && (
-            <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-white/34">
+            <span className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.06)", color: "#9B9590" }}>
               {item.result_quality === "verified" ? "Verified" : item.result_quality === "ai-discovered" ? "AI" : "Catalog"}
             </span>
           )}
         </div>
-        <h3 className="product-name text-white/94 line-clamp-2 mb-2 text-[15px] sm:text-[17px] min-h-[2.6em]">{item.product_name}</h3>
-        <div className="text-[12px] text-white/30 truncate mb-3 min-h-[1.2em]">{materialStyle || "\u00A0"}</div>
+        <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#1A1A18" }}>{item.product_name}</h3>
+        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "#9B9590" }}>{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && !presentationMode && (
-          <div className="mb-4 flex flex-wrap gap-1.5">
+          <div className="mb-2 flex flex-wrap gap-1">
             {detailChips.map((chip) => (
-              <span key={chip} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-white/40">
+              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.06)", color: "#6B6560" }}>
                 {chip}
               </span>
             ))}
@@ -2438,20 +2464,20 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
         )}
         <div className="mt-auto flex items-end justify-between gap-2">
           {priceStr && (
-            <span className={`text-[14px] font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/90"}`}>
-              {priceInfo.isTrade && <span className="text-[9px] uppercase tracking-wider mr-1 opacity-70">{priceInfo.label}</span>}
+            <span className="text-[13px] font-semibold" style={{ color: priceInfo.isTrade ? "#2C3E2D" : "#B8956A" }}>
+              {priceInfo.isTrade && <span className="text-[8px] uppercase tracking-wider mr-1 opacity-60">{priceInfo.label}</span>}
               {priceStr}
             </span>
           )}
-          <span className="text-[10px] uppercase tracking-[0.18em] text-white/22">Preview</span>
+          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "#C2CCBA" }}>View</span>
         </div>
       </div>
 
       {/* Hover actions */}
-      <div className="card-link px-4 pb-4 flex items-center justify-end">
+      <div className="card-link px-3 pb-3 flex items-center justify-end">
         {item.portal_url && (
           <a href={item.portal_url} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} data-action
-            className="text-[10px] font-medium text-gold/60 flex items-center gap-1 hover:text-gold/80 transition-colors">
+            className="text-[10px] font-medium flex items-center gap-1 transition-colors" style={{ color: "#B8956A" }}>
             View <ExternalLink className="h-2.5 w-2.5" />
           </a>
         )}
@@ -2551,13 +2577,14 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         animate={IS_MOBILE ? { opacity: 1, y: 0 } : { opacity: 1, x: 0, scale: 1 }}
         exit={IS_MOBILE ? { opacity: 0, y: 10 } : { opacity: 0, x: 36, scale: 0.99 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] border-l border-white/[0.08] bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl shadow-2xl overscroll-contain`}
+        className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] shadow-2xl overscroll-contain`}
+        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(44,62,45,0.08)" }}
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
-        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2 bg-[#14110f] md:bg-[rgba(20,17,15,0.98)] md:backdrop-blur-xl"
-          style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
-          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors">
+        <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2"
+          style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
+          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "#9B9590" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(44,62,45,0.06)"; e.currentTarget.style.color = "#1A1A18"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9B9590"; }}>
             <X className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
         </div>
@@ -2580,18 +2607,18 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       <>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx - 1 + productImages.length) % productImages.length); }}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(245,240,232,0.85)", color: "#1A1A18" }}
                         >
                           ‹
                         </button>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx + 1) % productImages.length); }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-all"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(245,240,232,0.85)", color: "#1A1A18" }}
                         >
                           ›
                         </button>
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1">
-                          <span className="text-[10px] text-white/60 font-medium">{activeImageIdx + 1} / {productImages.length}</span>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(245,240,232,0.85)" }}>
+                          <span className="text-[10px] font-medium" style={{ color: "#6B6560" }}>{activeImageIdx + 1} / {productImages.length}</span>
                         </div>
                       </>
                     )}
@@ -2609,8 +2636,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       key={i}
                       onClick={() => { if (i !== activeImageIdx) { setImgLoaded(false); setActiveImageIdx(i); } }}
                       className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all ${
-                        i === activeImageIdx ? "border-gold/40 ring-1 ring-gold/20" : "border-white/[0.06] hover:border-white/15 opacity-60 hover:opacity-100"
+                        i === activeImageIdx ? "opacity-100" : "opacity-60 hover:opacity-100"
                       }`}
+                      style={{ borderColor: i === activeImageIdx ? "#2C3E2D" : "rgba(44,62,45,0.12)" }}
                       style={{ backgroundColor: "#ffffff" }}
                     >
                       <ProxyImg src={src} productId={product.id} style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
@@ -2623,27 +2651,27 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
             {/* Details */}
             <div className="flex flex-col gap-4">
               {/* Vendor */}
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-gold/70">
+              <div className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: "#2C3E2D" }}>
                 {product.manufacturer_name}
               </div>
 
               {/* Product name */}
-              <h2 className={`font-display ${presentationMode ? "text-[38px]" : "text-[32px]"} text-white/92 leading-tight`}>
+              <h2 className={`font-display ${presentationMode ? "text-[38px]" : "text-[32px]"} leading-tight`} style={{ color: "#1A1A18" }}>
                 {product.product_name}
               </h2>
 
-              <div className={`rounded-[24px] border px-4 py-4 ${presentationMode ? "paper-grain" : ""}`} style={{ borderColor: previewTheme.glow, background: `linear-gradient(135deg, ${previewTheme.chip}, rgba(255,255,255,0.02))` }}>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: previewTheme.accent }}>
+              <div className={`rounded-[24px] border px-4 py-4 ${presentationMode ? "paper-grain" : ""}`} style={{ borderColor: "rgba(194,204,186,0.4)", background: "rgba(194,204,186,0.12)" }}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>
                   Why it stands out
                 </div>
-                <p className="mt-2 text-[13px] leading-6 text-white/62">
+                <p className="mt-2 text-[13px] leading-6" style={{ color: "#6B6560" }}>
                   {product.reasoning || product.ai_visual_analysis || product.description || "A strong editorial fit with clear sourcing potential, balanced proportions, and a tone that feels intentional in high-end residential work."}
                 </p>
               </div>
 
               {/* Price */}
               {priceInfo.price && (
-                <div className={`text-lg font-semibold ${priceInfo.isTrade ? "text-emerald-400/80" : "text-gold/80"}`}>
+                <div className="text-lg font-semibold" style={{ color: priceInfo.isTrade ? "#2C3E2D" : "#B8956A" }}>
                   {priceInfo.isTrade && <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>}
                   {fmtPrice(priceInfo.price)}
                 </div>
@@ -2653,38 +2681,38 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               <div className="grid grid-cols-2 gap-3">
                 {dimStr && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">Dimensions</div>
-                    <div className="text-[12px] text-white/60">{dimStr}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Dimensions</div>
+                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{dimStr}</div>
                   </div>
                 )}
                 {product.material && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">Material</div>
-                    <div className="text-[12px] text-white/60">{product.material}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Material</div>
+                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.material}</div>
                   </div>
                 )}
                 {product.style && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">Style</div>
-                    <div className="text-[12px] text-white/60">{product.style}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Style</div>
+                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.style}</div>
                   </div>
                 )}
                 {product.collection && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">Collection</div>
-                    <div className="text-[12px] text-white/60">{product.collection}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Collection</div>
+                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.collection}</div>
                   </div>
                 )}
                 {product.color && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">Color</div>
-                    <div className="text-[12px] text-white/60">{product.color}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Color</div>
+                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.color}</div>
                   </div>
                 )}
                 {product.sku && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-0.5">SKU</div>
-                    <div className="text-[12px] text-white/60 font-mono">{product.sku}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>SKU</div>
+                    <div className="text-[12px] font-mono" style={{ color: "#6B6560" }}>{product.sku}</div>
                   </div>
                 )}
               </div>
@@ -2692,8 +2720,8 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Description */}
               {(product.description || product.snippet) && (
                 <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-1">Description</div>
-                  <p className="text-[12px] text-white/50 leading-relaxed">{(product.description || product.snippet).slice(0, 500)}</p>
+                  <div className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: "#9B9590" }}>Description</div>
+                  <p className="text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>{(product.description || product.snippet).slice(0, 500)}</p>
                 </div>
               )}
 
@@ -2708,11 +2736,11 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 if (product.ai_silhouette) aiTags.push({ label: "Silhouette", value: product.ai_silhouette });
                 return aiTags.length > 0 ? (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-2">AI Intelligence</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9B9590" }}>AI Intelligence</div>
                     <div className="flex flex-wrap gap-1.5">
                       {aiTags.map(({ label, value }) => (
-                        <span key={label} className="rounded-full bg-gold/[0.04] border border-gold/[0.08] px-2.5 py-0.5 text-[10px] text-gold/50">
-                          <span className="text-gold/30 mr-1">{label}:</span>{value}
+                        <span key={label} className="rounded-full px-2.5 py-0.5 text-[10px]" style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.10)", color: "#6B6560" }}>
+                          <span className="mr-1" style={{ color: "#9B9590" }}>{label}:</span>{value}
                         </span>
                       ))}
                     </div>
@@ -2723,10 +2751,10 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Visual tags */}
               {tags.length > 0 && (
                 <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-wider text-white/25 mb-2">Visual Tags</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9B9590" }}>Visual Tags</div>
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 text-[10px] text-white/40">
+                      <span key={tag} className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: "rgba(245,240,232,0.8)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
                         {tag}
                       </span>
                     ))}
@@ -2737,50 +2765,52 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-gold/20 bg-gold/5 px-4 py-3 text-[11px] font-semibold text-gold/80 hover:bg-gold/10 transition-all disabled:opacity-40 w-full sm:w-auto">
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all disabled:opacity-40 w-full sm:w-auto"
+                  style={{ border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }}>
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
                 <button onClick={(ev) => onAddToQuote(product, ev)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all border-white/[0.08] text-white/40 hover:text-gold hover:border-gold/30 hover:bg-gold/10 w-full sm:w-auto">
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  style={{ border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.30)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.12)"; e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.background = "transparent"; }}>
                   <FileText className="h-3 w-3" />
                   Add to Quote
                 </button>
                 <button onClick={() => onToggleFavorite(product)}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto ${
-                    isFavorited ? "border-gold/30 bg-gold/10 text-gold" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
-                  }`}>
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  style={isFavorited ? { border: "1px solid rgba(184,149,106,0.35)", background: "rgba(184,149,106,0.08)", color: "#B8956A" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
                   <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
                   {isFavorited ? "Saved" : "Save"}
                 </button>
                 {product.portal_url && (
                   <a href={product.portal_url} target="_blank" rel="noopener"
-                    className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] px-4 py-3 text-[11px] font-semibold text-white/40 hover:text-white/60 hover:border-white/15 transition-all">
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all"
+                    style={{ border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
                     <ExternalLink className="h-3 w-3" /> View at {(product.manufacturer_name || "vendor").split(" ")[0]}
                   </a>
                 )}
                 <button onClick={handleShare}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto ${
-                    shareCopied ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
-                  }`}>
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  style={shareCopied ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
                   {shareCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                   {shareCopied ? "Link Copied" : "Share"}
                 </button>
               </div>
               {/* Find Alternatives */}
               <div className="pt-3">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white/25 mb-2.5">Find Alternatives</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] mb-2.5" style={{ color: "#9B9590" }}>Find Alternatives</div>
                 <div className="flex flex-wrap gap-1.5">
                   {["Different Material", "Different Color", "Different Size", "Less Formal", "More Formal", "Lower Price", "Higher End"].map((alt) => (
                     <button
                       key={alt}
                       onClick={() => onFindAlternative(product, alt)}
                       disabled={alternativeLoading}
-                      className={`flex items-center gap-1 rounded-[999px] border px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30 ${
-                        alternativeLabel === alt && alternativeProducts.length > 0
-                          ? "border-gold/30 bg-gold/10 text-gold/90"
-                          : "border-white/[0.06] text-white/40 hover:text-gold/70 hover:border-gold/20 hover:bg-gold/[0.04]"
-                      }`}
+                      className="flex items-center gap-1 rounded-[999px] px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30"
+                      style={alternativeLabel === alt && alternativeProducts.length > 0
+                        ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(44,62,45,0.08)", color: "#2C3E2D" }
+                        : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
                     >
                       {alternativeLoading && alternativeLabel === alt ? (
                         <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -2799,30 +2829,30 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           {alternativeProducts.length > 0 && (
             <div className="mt-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/[0.08]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/50">
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(44,62,45,0.12))" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#9B9590" }}>
                   {alternativeLabel}
                 </span>
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/[0.08]" />
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(44,62,45,0.12))" }} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {alternativeProducts.map((ap) => (
                   <button key={ap.id} onClick={() => onOpenPreview(ap)} className="text-left group">
-                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(44,62,45,0.08)" }}>
                       {ap.image_url ? (
                         <ProxyImg src={ap.image_url} productId={ap.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
+                        <div className="h-full w-full flex items-center justify-center font-display text-lg" style={{ color: "#C2CCBA" }}>
                           {(ap.manufacturer_name || "?")[0]}
                         </div>
                       )}
                     </div>
-                    <div className="text-[9px] font-bold uppercase tracking-wider text-gold/50 truncate">{ap.manufacturer_name}</div>
-                    <div className="text-[11px] text-white/50 truncate group-hover:text-white/70 transition-colors">{ap.product_name}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "#2C3E2D" }}>{ap.manufacturer_name}</div>
+                    <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{ap.product_name}</div>
                     {(() => {
                       const apPrice = getPrice(ap);
                       return apPrice.price ? (
-                        <div className={`text-[10px] ${apPrice.isTrade ? "text-emerald-400/60" : "text-gold/60"}`}>
+                        <div className="text-[10px]" style={{ color: apPrice.isTrade ? "#2C3E2D" : "#B8956A" }}>
                           {apPrice.isTrade ? `${apPrice.label} ` : ""}{fmtPrice(apPrice.price)}
                         </div>
                       ) : null;
@@ -2837,30 +2867,30 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           {similarProducts.length > 0 && (
             <div className="mt-8">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/[0.04]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold/50">
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(44,62,45,0.12))" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#9B9590" }}>
                   Similar from different vendors
                 </span>
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/[0.04]" />
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(44,62,45,0.12))" }} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {similarProducts.map((sp) => (
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
-                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/[0.04] group-hover:border-gold/15 transition-colors mb-1.5" style={{ backgroundColor: "#ffffff" }}>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(44,62,45,0.08)" }}>
                       {sp.image_url ? (
                         <ProxyImg src={sp.image_url} productId={sp.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-white/10 font-display text-lg">
+                        <div className="h-full w-full flex items-center justify-center font-display text-lg" style={{ color: "#C2CCBA" }}>
                           {(sp.manufacturer_name || "?")[0]}
                         </div>
                       )}
                     </div>
-                    <div className="text-[9px] font-bold uppercase tracking-wider text-gold/50 truncate">{sp.manufacturer_name}</div>
-                    <div className="text-[11px] text-white/50 truncate group-hover:text-white/70 transition-colors">{sp.product_name}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "#2C3E2D" }}>{sp.manufacturer_name}</div>
+                    <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{sp.product_name}</div>
                     {(() => {
                       const spPrice = getPrice(sp);
                       return spPrice.price ? (
-                        <div className={`text-[10px] ${spPrice.isTrade ? "text-emerald-400/60" : "text-gold/60"}`}>
+                        <div className="text-[10px]" style={{ color: spPrice.isTrade ? "#2C3E2D" : "#B8956A" }}>
                           {spPrice.isTrade ? `${spPrice.label} ` : ""}{fmtPrice(spPrice.price)}
                         </div>
                       ) : null;
@@ -2886,9 +2916,10 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
           initial={{ opacity: 0, y: position === "above" ? 4 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: position === "above" ? 4 : -4 }}
-          className={`absolute z-50 w-full rounded-[24px] border border-white/[0.08] bg-[rgba(31,27,24,0.98)] shadow-2xl overflow-hidden ${
+          className={`absolute z-50 w-full rounded-[24px] shadow-2xl overflow-hidden ${
             position === "above" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
+          style={{ background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.10)" }}
         >
           {results.map((item, i) => {
             const text = typeof item === "string" ? item : item.text;
@@ -2897,16 +2928,18 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
 
             return (
               <button key={i} type="button" onMouseDown={() => onSelect(item)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.04]">
-                <Search className="h-3 w-3 text-white/15 shrink-0" />
-                <span className="flex-1 text-left text-white/50">{text}</span>
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(44,62,45,0.04)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <Search className="h-3 w-3 shrink-0" style={{ color: "#9B9590" }} />
+                <span className="flex-1 text-left" style={{ color: "#1A1A18" }}>{text}</span>
                 {count != null && (
-                  <span className="text-[10px] tabular-nums text-white/20 shrink-0">
+                  <span className="text-[10px] tabular-nums shrink-0" style={{ color: "#9B9590" }}>
                     {count.toLocaleString()}
                   </span>
                 )}
                 {type === "vendor" && (
-                  <span className="text-[9px] uppercase tracking-wider text-gold/30 shrink-0">vendor</span>
+                  <span className="text-[9px] uppercase tracking-wider shrink-0" style={{ color: "#2C3E2D" }}>vendor</span>
                 )}
               </button>
             );

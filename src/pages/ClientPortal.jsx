@@ -104,43 +104,59 @@ export default function ClientPortal() {
   // ── Loading / Error states ──
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0e0e14] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-[#C9A96E] animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F5F0E8" }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#B8956A" }} />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#0e0e14] flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F0E8" }}>
         <div className="text-center max-w-md">
           <div className="text-5xl mb-4">&#128268;</div>
-          <h1 className="text-xl font-semibold text-white/80 mb-2">Link Not Found</h1>
-          <p className="text-sm text-white/40">{error || "This quote link may have expired or been removed."}</p>
+          <h1 className="text-xl font-semibold mb-2" style={{ color: "#1A1A18", fontFamily: "'Playfair Display', serif" }}>Link Not Found</h1>
+          <p className="text-sm" style={{ color: "#9B9590" }}>{error || "This quote link may have expired or been removed."}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0e0e14]">
+    <div className="min-h-screen" style={{ background: "#F5F0E8" }}>
       {/* ── Header ── */}
-      <header className="border-b border-white/[0.06] bg-[#0e0e14]/80 backdrop-blur-lg sticky top-0 z-30">
+      <header
+        className="sticky top-0 z-30 backdrop-blur-lg"
+        style={{
+          borderBottom: "1px solid rgba(44,62,45,0.08)",
+          background: "rgba(245,240,232,0.80)",
+        }}
+      >
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold tracking-[0.2em] text-[#C9A96E]/60 uppercase">SPEKD</span>
+              <span
+                className="text-[10px] font-bold tracking-[0.2em] uppercase"
+                style={{ color: "rgba(44,62,45,0.55)" }}
+              >SPEKD</span>
               {data.version > 1 && (
-                <span className="ml-2 text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#C9A96E]/10 text-[#C9A96E]/60 border border-[#C9A96E]/20">
+                <span
+                  className="ml-2 text-[9px] font-medium px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(184,149,106,0.10)",
+                    color: "rgba(184,149,106,0.70)",
+                    border: "1px solid rgba(184,149,106,0.20)",
+                  }}
+                >
                   Revision {data.version}
                 </span>
               )}
             </div>
             {reviewedCount > 0 && (
               <div className="flex items-center gap-3 text-[10px]">
-                {approvedCount > 0 && <span className="text-emerald-400/70">{approvedCount} approved</span>}
-                {changeCount > 0 && <span className="text-amber-400/70">{changeCount} changes</span>}
-                {rejectedCount > 0 && <span className="text-red-400/70">{rejectedCount} rejected</span>}
+                {approvedCount > 0 && <span className="text-emerald-600/70">{approvedCount} approved</span>}
+                {changeCount > 0 && <span className="text-amber-600/70">{changeCount} changes</span>}
+                {rejectedCount > 0 && <span className="text-red-600/70">{rejectedCount} rejected</span>}
               </div>
             )}
           </div>
@@ -154,27 +170,36 @@ export default function ClientPortal() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-10"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-white/90 mb-2">
+          <h1
+            className="text-2xl sm:text-3xl font-bold mb-2"
+            style={{ color: "#1A1A18", fontFamily: "'Playfair Display', serif" }}
+          >
             {data.projectName || "Your Selections"}
           </h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/40">
-            {data.designerName && <span>Prepared by <span className="text-[#C9A96E]/70">{data.designerName}</span></span>}
-            {data.designerCompany && <span className="text-white/20">|</span>}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "#9B9590" }}>
+            {data.designerName && <span>Prepared by <span style={{ color: "#B8956A" }}>{data.designerName}</span></span>}
+            {data.designerCompany && <span style={{ color: "rgba(44,62,45,0.20)" }}>|</span>}
             {data.designerCompany && <span>{data.designerCompany}</span>}
-            <span className="text-white/20">|</span>
+            <span style={{ color: "rgba(44,62,45,0.20)" }}>|</span>
             <span>{new Date(data.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
           </div>
 
           {data.clientNote && (
-            <div className="mt-4 p-4 rounded-xl border border-[#C9A96E]/15 bg-[#C9A96E]/[0.04]">
-              <p className="text-sm text-white/50 italic leading-relaxed">"{data.clientNote}"</p>
-              {data.designerName && <p className="text-xs text-[#C9A96E]/50 mt-2">— {data.designerName}</p>}
+            <div
+              className="mt-4 p-4 rounded-xl"
+              style={{
+                border: "1px solid rgba(184,149,106,0.18)",
+                background: "rgba(184,149,106,0.06)",
+              }}
+            >
+              <p className="text-sm italic leading-relaxed" style={{ color: "#6B6560" }}>"{data.clientNote}"</p>
+              {data.designerName && <p className="text-xs mt-2" style={{ color: "rgba(184,149,106,0.65)" }}>— {data.designerName}</p>}
             </div>
           )}
 
           {!submitted && (
-            <p className="mt-6 text-sm text-white/30">
-              Review each piece below. Tap <span className="text-emerald-400/70">Approve</span>, <span className="text-amber-400/70">Request Change</span>, or <span className="text-red-400/70">Reject</span> on each item, then submit your feedback.
+            <p className="mt-6 text-sm" style={{ color: "#9B9590" }}>
+              Review each piece below. Tap <span className="text-emerald-600">Approve</span>, <span className="text-amber-600">Request Change</span>, or <span className="text-red-600">Reject</span> on each item, then submit your feedback.
             </p>
           )}
         </motion.div>
@@ -190,17 +215,29 @@ export default function ClientPortal() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: roomIdx * 0.05 }}
-                className="rounded-2xl border border-white/[0.06] overflow-hidden"
-                style={{ background: "rgba(255,255,255,0.015)" }}
+                className="rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid rgba(44,62,45,0.08)",
+                  background: "rgba(255,255,255,0.80)",
+                }}
               >
                 {/* Room header */}
                 <button
                   onClick={() => setExpandedRooms(prev => ({ ...prev, [roomKey]: !isExpanded }))}
-                  className="flex items-center gap-3 w-full px-5 py-4 border-b border-white/[0.04] text-left"
+                  className="flex items-center gap-3 w-full px-5 py-4 text-left"
+                  style={{ borderBottom: "1px solid rgba(44,62,45,0.06)" }}
                 >
-                  {isExpanded ? <ChevronDown className="h-4 w-4 text-white/30" /> : <ChevronRight className="h-4 w-4 text-white/30" />}
-                  <span className="text-sm font-semibold text-white/70 uppercase tracking-wider flex-1">{room.name}</span>
-                  <span className="text-[10px] text-white/20">{room.items?.length || 0} {(room.items?.length || 0) === 1 ? "piece" : "pieces"}</span>
+                  {isExpanded
+                    ? <ChevronDown className="h-4 w-4" style={{ color: "#9B9590" }} />
+                    : <ChevronRight className="h-4 w-4" style={{ color: "#9B9590" }} />
+                  }
+                  <span
+                    className="text-sm font-semibold uppercase tracking-wider flex-1"
+                    style={{ color: "#2C3E2D" }}
+                  >{room.name}</span>
+                  <span className="text-[10px]" style={{ color: "#9B9590" }}>
+                    {room.items?.length || 0} {(room.items?.length || 0) === 1 ? "piece" : "pieces"}
+                  </span>
                 </button>
 
                 {/* Room items */}
@@ -235,9 +272,15 @@ export default function ClientPortal() {
 
       {/* ── Fixed Submit Bar ── */}
       {!submitted ? (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/[0.06] bg-[#0e0e14]/95 backdrop-blur-lg">
+        <div
+          className="fixed bottom-0 inset-x-0 z-40 backdrop-blur-lg"
+          style={{
+            borderTop: "1px solid rgba(44,62,45,0.08)",
+            background: "rgba(245,240,232,0.92)",
+          }}
+        >
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-            <div className="text-sm text-white/40">
+            <div className="text-sm" style={{ color: "#9B9590" }}>
               {reviewedCount === 0
                 ? `${totalItems} pieces to review`
                 : `${reviewedCount} of ${totalItems} reviewed`
@@ -248,8 +291,8 @@ export default function ClientPortal() {
               disabled={submitting || reviewedCount === 0}
               className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
               style={{
-                background: "linear-gradient(135deg, #C9A96E, #B8944F)",
-                color: "#0A0B10",
+                background: "linear-gradient(135deg, #2C3E2D, #3A5240)",
+                color: "#F5F0E8",
               }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -260,8 +303,8 @@ export default function ClientPortal() {
       ) : (
         <div className="fixed bottom-0 inset-x-0 z-40 border-t border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-lg">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-center gap-3">
-            <Check className="h-5 w-5 text-emerald-400" />
-            <span className="text-sm font-medium text-emerald-400/80">
+            <Check className="h-5 w-5 text-emerald-600" />
+            <span className="text-sm font-medium text-emerald-700/80">
               Feedback submitted — your designer has been notified
             </span>
           </div>
@@ -291,20 +334,26 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
     status === "approved" ? "border-emerald-500/30" :
     status === "change" ? "border-amber-500/30" :
     status === "rejected" ? "border-red-500/30" :
-    "border-white/[0.06]";
+    "";
 
   const bgHighlight =
-    status === "approved" ? "bg-emerald-500/[0.03]" :
-    status === "change" ? "bg-amber-500/[0.03]" :
-    status === "rejected" ? "bg-red-500/[0.03]" :
+    status === "approved" ? "bg-emerald-500/[0.04]" :
+    status === "change" ? "bg-amber-500/[0.04]" :
+    status === "rejected" ? "bg-red-500/[0.04]" :
     "";
 
   return (
-    <div className={`border-b border-white/[0.03] last:border-b-0 ${bgHighlight} transition-colors`}>
+    <div
+      className={`last:border-b-0 ${bgHighlight} transition-colors`}
+      style={{ borderBottom: "1px solid rgba(44,62,45,0.05)" }}
+    >
       <div className="p-5">
         <div className="flex flex-col sm:flex-row gap-5">
           {/* Image with swipe */}
-          <div className="relative flex-shrink-0 w-full sm:w-56 h-56 sm:h-48 rounded-xl overflow-hidden bg-white border border-white/[0.06]">
+          <div
+            className="relative flex-shrink-0 w-full sm:w-56 h-56 sm:h-48 rounded-xl overflow-hidden bg-white"
+            style={{ border: "1px solid rgba(44,62,45,0.08)" }}
+          >
             {images.length > 0 ? (
               <>
                 <img
@@ -316,45 +365,60 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                   <>
                     <button
                       onClick={() => setImgIdx((imgIdx - 1 + images.length) % images.length)}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white/70 hover:text-white transition-colors"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors"
+                      style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.12)", color: "#2C3E2D" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,1)"; e.currentTarget.style.color = "#1A1A18"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.85)"; e.currentTarget.style.color = "#2C3E2D"; }}
                     >
                       <ArrowLeft className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setImgIdx((imgIdx + 1) % images.length)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white/70 hover:text-white transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors"
+                      style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.12)", color: "#2C3E2D" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,1)"; e.currentTarget.style.color = "#1A1A18"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.85)"; e.currentTarget.style.color = "#2C3E2D"; }}
                     >
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                     <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1">
                       {images.slice(0, 8).map((_, i) => (
-                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i === imgIdx ? "bg-[#C9A96E]" : "bg-white/30"}`} />
+                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors`} style={{ background: i === imgIdx ? "#B8956A" : "rgba(44,62,45,0.20)" }} />
                       ))}
                     </div>
                   </>
                 )}
               </>
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-white/[0.03]">
-                <Package className="h-10 w-10 text-white/10" />
+              <div className="h-full w-full flex items-center justify-center" style={{ background: "rgba(44,62,45,0.03)" }}>
+                <Package className="h-10 w-10" style={{ color: "rgba(44,62,45,0.12)" }} />
               </div>
             )}
           </div>
 
           {/* Details */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-white/85 mb-1">{item.product_name}</h3>
-            <p className="text-sm text-[#C9A96E]/60 mb-2">{item.manufacturer_name}</p>
+            <h3
+              className="text-base font-semibold mb-1"
+              style={{ color: "#1A1A18", fontFamily: "'Playfair Display', serif" }}
+            >{item.product_name}</h3>
+            <p className="text-sm mb-2" style={{ color: "#B8956A" }}>{item.manufacturer_name}</p>
 
-            <div className="space-y-1 text-sm text-white/40">
+            <div className="space-y-1 text-sm" style={{ color: "#9B9590" }}>
               {dims && <p>{dims}</p>}
               {item.material && <p>{item.material}</p>}
-              {item.retail_price && <p className="text-white/60 font-medium">{formatUsd(item.retail_price)}</p>}
+              {item.retail_price && <p className="font-medium" style={{ color: "#6B6560" }}>{formatUsd(item.retail_price)}</p>}
             </div>
 
             {justification && (
-              <div className="mt-3 p-3 rounded-lg bg-[#C9A96E]/[0.05] border border-[#C9A96E]/10">
-                <p className="text-[11px] text-white/40 italic leading-relaxed">{justification}</p>
+              <div
+                className="mt-3 p-3 rounded-lg"
+                style={{
+                  background: "rgba(184,149,106,0.06)",
+                  border: "1px solid rgba(184,149,106,0.12)",
+                }}
+              >
+                <p className="text-[11px] italic leading-relaxed" style={{ color: "#6B6560" }}>{justification}</p>
               </div>
             )}
 
@@ -364,9 +428,10 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                 onClick={onApprove}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                   status === "approved"
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                    : "border-white/[0.08] text-white/40 hover:border-emerald-500/25 hover:text-emerald-400/80 hover:bg-emerald-500/[0.06]"
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700"
+                    : "text-emerald-700/50 hover:border-emerald-500/25 hover:text-emerald-700/80 hover:bg-emerald-500/[0.06]"
                 }`}
+                style={status !== "approved" ? { borderColor: "rgba(44,62,45,0.12)" } : {}}
               >
                 <Check className="h-3.5 w-3.5" />
                 {status === "approved" ? "Approved" : "Approve"}
@@ -376,9 +441,10 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                 onClick={() => { setShowChangeInput(true); onChange(comment); }}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                   status === "change"
-                    ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                    : "border-white/[0.08] text-white/40 hover:border-amber-500/25 hover:text-amber-400/80 hover:bg-amber-500/[0.06]"
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-700"
+                    : "text-amber-700/50 hover:border-amber-500/25 hover:text-amber-700/80 hover:bg-amber-500/[0.06]"
                 }`}
+                style={status !== "change" ? { borderColor: "rgba(44,62,45,0.12)" } : {}}
               >
                 <MessageSquare className="h-3.5 w-3.5" />
                 {status === "change" ? "Change Requested" : "Request Change"}
@@ -388,9 +454,10 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                 onClick={onReject}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                   status === "rejected"
-                    ? "bg-red-500/15 border-red-500/30 text-red-400"
-                    : "border-white/[0.08] text-white/40 hover:border-red-500/25 hover:text-red-400/80 hover:bg-red-500/[0.06]"
+                    ? "bg-red-500/15 border-red-500/30 text-red-700"
+                    : "text-red-700/50 hover:border-red-500/25 hover:text-red-700/80 hover:bg-red-500/[0.06]"
                 }`}
+                style={status !== "rejected" ? { borderColor: "rgba(44,62,45,0.12)" } : {}}
               >
                 <X className="h-3.5 w-3.5" />
                 {status === "rejected" ? "Rejected" : "Reject"}
@@ -413,7 +480,13 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                       if (!status || status !== "change") onChange(e.target.value);
                     }}
                     placeholder='What would you change? e.g. "Different fabric", "Too large for the space", "Can we see something less expensive?"'
-                    className="w-full mt-3 bg-white/[0.03] border border-amber-500/15 rounded-xl px-4 py-3 text-sm text-white/60 placeholder:text-white/20 focus:outline-none focus:border-amber-500/30 resize-none"
+                    className="w-full mt-3 rounded-xl px-4 py-3 text-sm focus:outline-none resize-none"
+                    style={{
+                      background: "#FFFFFF",
+                      border: "1px solid rgba(217,163,80,0.25)",
+                      color: "#1A1A18",
+                      "::placeholder": { color: "#9B9590" },
+                    }}
                     rows={2}
                   />
                 </motion.div>
@@ -433,7 +506,12 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
                     value={comment}
                     onChange={(e) => onComment(e.target.value)}
                     placeholder="Optional: why doesn't this work?"
-                    className="w-full mt-3 bg-white/[0.03] border border-red-500/15 rounded-xl px-4 py-3 text-sm text-white/60 placeholder:text-white/20 focus:outline-none focus:border-red-500/30 resize-none"
+                    className="w-full mt-3 rounded-xl px-4 py-3 text-sm focus:outline-none resize-none"
+                    style={{
+                      background: "#FFFFFF",
+                      border: "1px solid rgba(239,68,68,0.20)",
+                      color: "#1A1A18",
+                    }}
                     rows={2}
                   />
                 </motion.div>
