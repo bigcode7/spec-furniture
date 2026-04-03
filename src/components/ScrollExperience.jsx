@@ -209,6 +209,7 @@ export default function ScrollExperience() {
   const recognitionRef = useRef(null);
   const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const [isMobile, setIsMobile] = useState(false);
+  const isMobileRef = useRef(false);
 
   const featuredProduct = SCROLL_PRODUCTS[0];
 
@@ -236,7 +237,11 @@ export default function ScrollExperience() {
   }, []);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
+    const check = () => {
+      const m = window.innerWidth < 768;
+      setIsMobile(m);
+      isMobileRef.current = m;
+    };
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -276,18 +281,66 @@ export default function ScrollExperience() {
   useMotionValueEvent(scrollYProgress, "change", (v) => {
     const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
     const lerp = (s, e) => clamp01((v - s) / (e - s));
+    const mob = isMobileRef.current;
+
+    // ── Phase ranges ──────────────────────────────────────────────
+    // Mobile uses tighter, non-overlapping windows (320vh total).
+    // Desktop uses generous cross-fade windows (450vh total).
+    const R = mob ? {
+      // Phase 1
+      heroOut:   [0.05, 0.16],
+      roomOut:   [0.13, 0.22],
+      // Phase 2
+      searchIn:  [0.22, 0.32],
+      searchOut: [0.46, 0.52],
+      kickerIn:  [0.23, 0.32],
+      submitIn:  [0.25, 0.33],
+      hintIn:    [0.30, 0.38],
+      typedRange:[0.30, 0.44],
+      // Phase 3
+      resIn:     [0.52, 0.60],
+      resOut:    [0.70, 0.76],
+      aiIn:      [0.54, 0.61],
+      aiTyped:   [0.55, 0.64],
+      // Phase 4
+      detIn:     [0.78, 0.86],
+      ctaIn:     [0.88, 0.94],
+      // Labels
+      p2Start: 0.22, p3Start: 0.52, p4Start: 0.78,
+    } : {
+      // Phase 1
+      heroOut:   [0.06, 0.18],
+      roomOut:   [0.12, 0.22],
+      // Phase 2
+      searchIn:  [0.18, 0.28],
+      searchOut: [0.38, 0.44],
+      kickerIn:  [0.20, 0.28],
+      submitIn:  [0.24, 0.32],
+      hintIn:    [0.30, 0.38],
+      typedRange:[0.26, 0.40],
+      // Phase 3
+      resIn:     [0.42, 0.50],
+      resOut:    [0.64, 0.72],
+      aiIn:      [0.44, 0.52],
+      aiTyped:   [0.44, 0.50],
+      // Phase 4
+      detIn:     [0.68, 0.76],
+      ctaIn:     [0.82, 0.90],
+      // Labels
+      p2Start: 0.20, p3Start: 0.42, p4Start: 0.68,
+    };
 
     // Phase 1
-    const roomOp = v < 0.12 ? 1 : 1 - lerp(0.12, 0.22);
+    const roomOp = v < R.roomOut[0] ? 1 : 1 - lerp(...R.roomOut);
     if (phase1Ref.current) phase1Ref.current.style.opacity = roomOp;
     if (heroContentRef.current) {
-      heroContentRef.current.style.opacity = 1 - lerp(0.06, 0.18);
-      heroContentRef.current.style.transform = `translateY(${-lerp(0, 0.22) * 60}px)`;
+      heroContentRef.current.style.opacity = 1 - lerp(...R.heroOut);
+      heroContentRef.current.style.transform = `translateY(${-lerp(...R.roomOut) * 60}px)`;
     }
 
     // Phase 2
-    const searchIn = lerp(0.18, 0.28);
-    const searchOut = v > 0.38 ? lerp(0.38, 0.44) : 0;
+    const searchIn = lerp(...R.searchIn);
+    const searchOut = v > R.searchOut[0] ? lerp(...R.searchOut) : 0;
     const searchOp = Math.min(searchIn, 1 - searchOut);
     if (phase2Ref.current) {
       phase2Ref.current.style.opacity = searchOp;
@@ -300,20 +353,20 @@ export default function ScrollExperience() {
       searchBarRef.current.style.WebkitBackdropFilter = `blur(${blur}px) saturate(${1 + searchIn * 0.3})`;
       searchBarRef.current.style.borderColor = `rgba(${P.sageRgb},${0.1 + searchIn * 0.3})`;
     }
-    if (searchKickerRef.current) searchKickerRef.current.style.opacity = lerp(0.20, 0.28);
-    if (searchSubmitRef.current) searchSubmitRef.current.style.opacity = lerp(0.24, 0.32);
-    if (searchHintRef.current) searchHintRef.current.style.opacity = lerp(0.30, 0.38);
+    if (searchKickerRef.current) searchKickerRef.current.style.opacity = lerp(...R.kickerIn);
+    if (searchSubmitRef.current) searchSubmitRef.current.style.opacity = lerp(...R.submitIn);
+    if (searchHintRef.current) searchHintRef.current.style.opacity = lerp(...R.hintIn);
 
     // Phase 3
-    const resIn = lerp(0.42, 0.50);
-    const resOut = v > 0.64 ? lerp(0.64, 0.72) : 0;
+    const resIn = lerp(...R.resIn);
+    const resOut = v > R.resOut[0] ? lerp(...R.resOut) : 0;
     const resOp = Math.min(resIn, 1 - resOut);
     if (phase3Ref.current) {
       phase3Ref.current.style.opacity = resOp;
       phase3Ref.current.style.pointerEvents = resOp > 0.3 ? "auto" : "none";
     }
     if (aiBoxRef.current) {
-      const aiOp = lerp(0.44, 0.52);
+      const aiOp = lerp(...R.aiIn);
       aiBoxRef.current.style.opacity = aiOp;
       aiBoxRef.current.style.transform = `translateY(${(1 - aiOp) * 20}px)`;
     }
@@ -337,19 +390,21 @@ export default function ScrollExperience() {
     }
 
     // Phase 4
-    const detOp = lerp(0.68, 0.76);
+    const detOp = lerp(...R.detIn);
     if (phase4Ref.current) {
       phase4Ref.current.style.opacity = detOp;
-      phase4Ref.current.style.pointerEvents = v > 0.70 ? "auto" : "none";
+      phase4Ref.current.style.pointerEvents = detOp > 0.5 ? "auto" : "none";
     }
     if (phase4CardRef.current) phase4CardRef.current.style.transform = `translateX(${(1 - detOp) * -40}px)`;
-    if (phase4CtaRef.current) phase4CtaRef.current.style.transform = `translateX(${(1 - detOp) * 60}px)`;
-    if (ctaInnerRef.current) ctaInnerRef.current.style.opacity = lerp(0.82, 0.90);
+    if (phase4CtaRef.current) phase4CtaRef.current.style.transform = mob
+      ? `translateY(${(1 - detOp) * 30}px)`
+      : `translateX(${(1 - detOp) * 60}px)`;
+    if (ctaInnerRef.current) ctaInnerRef.current.style.opacity = lerp(...R.ctaIn);
 
     // Text chars — setState only on actual value change
-    const newTyped = Math.floor(lerp(0.26, 0.40) * TYPED_QUERY.length);
-    const newAi = Math.floor(lerp(0.44, 0.50) * AI_RESPONSE.length);
-    const newPhase = v < 0.20 ? 0 : v < 0.42 ? 1 : v < 0.68 ? 2 : 3;
+    const newTyped = Math.floor(lerp(...R.typedRange) * TYPED_QUERY.length);
+    const newAi = Math.floor(lerp(...R.aiTyped) * AI_RESPONSE.length);
+    const newPhase = v < R.p2Start ? 0 : v < R.p3Start ? 1 : v < R.p4Start ? 2 : 3;
     if (newTyped !== lastTypedRef.current) { lastTypedRef.current = newTyped; setTypedChars(newTyped); }
     if (newAi !== lastAiRef.current) { lastAiRef.current = newAi; setAiResponseChars(newAi); }
     if (newPhase !== lastPhaseRef.current) { lastPhaseRef.current = newPhase; setCurrentPhaseIdx(newPhase); }
