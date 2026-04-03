@@ -411,7 +411,7 @@ export default function SearchPage() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallMode, setPaywallMode] = useState("trial_required");
   const [searchesRemaining, setSearchesRemaining] = useState(null);
-  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("active");
   const [trialDaysRemaining, setTrialDaysRemaining] = useState(null);
   const [isFreeFallback, setIsFreeFallback] = useState(false);
 
