@@ -208,13 +208,14 @@ export default function ScrollExperience() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
   const voiceSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const [isMobile, setIsMobile] = useState(false);
-  const isMobileRef = useRef(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const isMobileRef = useRef(typeof window !== "undefined" && window.innerWidth < 768);
 
   const featuredProduct = SCROLL_PRODUCTS[0];
 
   // ── Preload all product images via <link rel="preload"> + held Image refs ──
   const preloadedImgsRef = useRef([]);
+  const stickyRef = useRef(null);
   useEffect(() => {
     // <link rel="preload"> is the strongest hint — browser fetches immediately
     const links = SCROLL_PRODUCTS.map((p) => {
@@ -245,6 +246,19 @@ export default function ScrollExperience() {
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    const setH = () => {
+      if (stickyRef.current) stickyRef.current.style.height = `${window.innerHeight}px`;
+    };
+    setH();
+    window.addEventListener("resize", setH);
+    window.addEventListener("orientationchange", setH);
+    return () => {
+      window.removeEventListener("resize", setH);
+      window.removeEventListener("orientationchange", setH);
+    };
   }, []);
 
   // ── Scroll tracking ──
@@ -347,11 +361,13 @@ export default function ScrollExperience() {
       phase2Ref.current.style.pointerEvents = searchOp > 0.3 ? "auto" : "none";
     }
     if (searchBarRef.current) {
-      const blur = searchIn * 24;
       searchBarRef.current.style.background = `rgba(255,255,255,${0.3 + searchIn * 0.45})`;
-      searchBarRef.current.style.backdropFilter = `blur(${blur}px) saturate(${1 + searchIn * 0.3})`;
-      searchBarRef.current.style.WebkitBackdropFilter = `blur(${blur}px) saturate(${1 + searchIn * 0.3})`;
       searchBarRef.current.style.borderColor = `rgba(${P.sageRgb},${0.1 + searchIn * 0.3})`;
+      if (!mob) {
+        const blur = searchIn * 24;
+        searchBarRef.current.style.backdropFilter = `blur(${blur}px) saturate(${1 + searchIn * 0.3})`;
+        searchBarRef.current.style.WebkitBackdropFilter = `blur(${blur}px) saturate(${1 + searchIn * 0.3})`;
+      }
     }
     if (searchKickerRef.current) searchKickerRef.current.style.opacity = lerp(...R.kickerIn);
     if (searchSubmitRef.current) searchSubmitRef.current.style.opacity = lerp(...R.submitIn);
@@ -482,7 +498,7 @@ export default function ScrollExperience() {
 
       <div ref={containerRef} className="relative" style={{ height: scrollHeight }}>
         {/* ── Sticky viewport — all animation happens here ── */}
-        <div className="sticky top-0 left-0 w-full overflow-hidden" style={{ height: "100vh", background: P.cream }}>
+        <div ref={stickyRef} className="sticky top-0 left-0 w-full overflow-hidden" style={{ height: "100vh", background: P.cream }}>
 
           {/* ════════ PHASE 1: THE SHOWROOM ════════ */}
           <div
@@ -490,7 +506,7 @@ export default function ScrollExperience() {
             className="absolute inset-0 flex items-center justify-center"
             style={{ opacity: 1, willChange: "opacity" }}
           >
-            <WireframeRoom scrollYProgress={scrollYProgress} />
+            {!isMobile && <WireframeRoom scrollYProgress={scrollYProgress} />}
 
             <div
               ref={heroContentRef}
@@ -573,11 +589,11 @@ export default function ScrollExperience() {
                   ref={searchBarRef}
                   className="relative flex items-center gap-2 sm:gap-3 rounded-full"
                   style={{
-                    height: "68px",
-                    padding: "0 16px 0 28px",
+                    height: isMobile ? "58px" : "68px",
+                    padding: isMobile ? "0 10px 0 20px" : "0 16px 0 28px",
                     background: "rgba(255,255,255,0.30)",
-                    backdropFilter: "blur(0px)",
-                    WebkitBackdropFilter: "blur(0px)",
+                    backdropFilter: isMobile ? "blur(20px)" : "blur(0px)",
+                    WebkitBackdropFilter: isMobile ? "blur(20px)" : "blur(0px)",
                     border: `1px solid rgba(${P.sageRgb},0.1)`,
                     boxShadow: "none",
                   }}
@@ -647,11 +663,14 @@ export default function ScrollExperience() {
               willChange: "opacity",
             }}
           >
-            <div className="h-full px-4 sm:px-8 pt-4 sm:pt-6 pb-16 max-w-6xl mx-auto" style={{ overflowY: isMobile ? "hidden" : "auto" }}>
+            <div className="h-full px-4 sm:px-8 max-w-6xl mx-auto" style={{ overflowY: isMobile ? "hidden" : "auto", paddingTop: isMobile ? "12px" : "24px", paddingBottom: isMobile ? "12px" : "64px" }}>
               {/* Mini search bar (context reminder) */}
               <div
-                className="flex items-center gap-3 rounded-full px-5 py-2.5 mb-3 max-w-2xl"
+                className="flex items-center gap-3 rounded-full px-4 max-w-2xl"
                 style={{
+                  paddingTop: isMobile ? "8px" : "10px",
+                  paddingBottom: isMobile ? "8px" : "10px",
+                  marginBottom: isMobile ? "8px" : "12px",
                   background: "rgba(255,255,255,0.70)",
                   backdropFilter: "blur(20px)",
                   border: `1px solid rgba(${P.sageRgb},0.30)`,
@@ -666,8 +685,10 @@ export default function ScrollExperience() {
               {/* AI Response */}
               <div
                 ref={aiBoxRef}
-                className="rounded-xl px-5 py-4 mb-6 max-w-3xl"
+                className="rounded-xl max-w-3xl"
                 style={{
+                  padding: isMobile ? "10px 14px" : "16px 20px",
+                  marginBottom: isMobile ? "10px" : "24px",
                   background: `rgba(${P.sageRgb},0.12)`,
                   borderLeft: `3px solid ${P.green}`,
                   opacity: 0,
@@ -706,10 +727,10 @@ export default function ScrollExperience() {
                         boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                         opacity: 0,
                         transform: "translateY(30px)",
-                        willChange: "transform, opacity",
+                        willChange: isMobile ? "opacity" : "transform, opacity",
                       }}
                     >
-                      <div className="relative overflow-hidden" style={{ aspectRatio: "1/1", backgroundColor: "#ffffff" }}>
+                      <div className="relative overflow-hidden" style={{ aspectRatio: isMobile ? "4/3" : "1/1", backgroundColor: "#ffffff" }}>
                         {hasImage ? (
                           <img
                             src={proxyUrl(product.image_url)}
