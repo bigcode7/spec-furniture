@@ -35,6 +35,7 @@ import { startCrawlScheduler, crawlForQuery, getCrawlStatus } from "./jobs/crawl
 import { runBulkImport, getImportStatus, importVendor } from "./importers/bulk-importer.mjs";
 import { importFromCsv } from "./importers/csv-importer.mjs";
 import { buildAutocompleteIndex, autocompleteSearch, smartAutocomplete, recordSearch } from "./lib/autocomplete-index.mjs";
+import { IMAGE_FIXES } from "./data/image-fixes-v1.mjs";
 import { initAnalytics, trackSearch, trackClick, trackCompare, trackQuote, getAnalyticsDashboard, getProductClickData, getSearchesByDay, getRecentSearches, getSearchLocations } from "./lib/search-analytics.mjs";
 import { runImageVerification, getImageVerificationStatus, stopImageVerification } from "./jobs/image-verifier.mjs";
 import { runDeduplication, getDedupStatus } from "./jobs/dedup-job.mjs";
@@ -620,6 +621,21 @@ async function runHeavyInit() {
     if (hookerPriceStripped > 0) {
       console.log(`[startup] Stripped retail pricing from ${hookerPriceStripped} Hooker Furniture products (vendor removed public pricing)`);
     }
+  }
+
+  // ── Apply Gabby + Century image fixes (v1) — replace broken heroes, clear dead images ──
+  {
+    let imgFixed = 0, imgCleared = 0;
+    for (const fix of IMAGE_FIXES) {
+      if (!fix.id) continue;
+      const product = getProduct(fix.id);
+      if (!product) continue;
+      const patch = { image_url: fix.image_url, image_verified: fix.image_verified };
+      if (fix.alternate_images !== undefined) patch.alternate_images = fix.alternate_images;
+      updateProductDirect(fix.id, patch);
+      if (fix.image_url) imgFixed++; else imgCleared++;
+    }
+    if (imgFixed || imgCleared) console.log(`[startup] Image fix v1: ${imgFixed} heroes updated, ${imgCleared} fully broken cleared (Gabby + Century)`);
   }
 
   // Initialize project store
