@@ -743,70 +743,45 @@ export default function Landing() {
           </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            {/* Step 01 — Wide card (col-span-2) */}
-            <Reveal delay={0}>
-              <GlassCard className="md:col-span-2 p-8 sm:p-10 cursor-default overflow-visible min-h-[220px]">
-                {/* Green left accent bar */}
-                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})` }} />
-                {/* Oversized step number watermark */}
-                <div className="absolute top-2 right-4 text-[100px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>01</div>
-                <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>01</div>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
-                  <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-                    <Search className="w-5 h-5" style={{ color: P.green }} />
-                  </motion.div>
-                </div>
-                <h3 className="text-3xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Describe</h3>
-                <p className="text-sm leading-relaxed max-w-md" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language.</p>
-              </GlassCard>
-            </Reveal>
-
-            {/* Step 02 — Tall accent card (col-span-1) */}
-            <Reveal delay={0.12}>
-              <GlassCard className="p-7 sm:p-8 cursor-default overflow-visible min-h-[220px] flex flex-col justify-between">
-                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.brass}, ${P.brassLight})` }} />
-                <div className="absolute top-2 right-4 text-[80px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>02</div>
-                <div>
-                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>02</div>
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
-                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}>
-                      <FileText className="w-5 h-5" style={{ color: P.green }} />
-                    </motion.div>
+            {[
+              {
+                num: "01", icon: Search, title: "Describe", delay: 0,
+                accent: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})`,
+                body: "Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language.",
+                tags: [],
+              },
+              {
+                num: "02", icon: FileText, title: "Curate", delay: 0.12,
+                accent: `linear-gradient(to bottom, ${P.brass}, ${P.brassLight})`,
+                body: "Save your finds, organize by room, and apply trade pricing. Everything in one place.",
+                tags: [],
+              },
+              {
+                num: "03", icon: Send, title: "Present", delay: 0.24,
+                accent: `linear-gradient(to bottom, ${P.greenMuted}, ${P.sage})`,
+                body: "Generate polished PDFs and shareable client links in seconds — no manual formatting, no extra tools.",
+                tags: ["PDF Export", "Client Portal", "Trade Pricing"],
+              },
+            ].map(({ num, icon: Icon, title, delay, accent, body, tags }) => (
+              <Reveal key={num} delay={delay}>
+                <GlassCard className="p-7 sm:p-8 cursor-default h-full flex flex-col">
+                  <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: accent }} />
+                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>{num}</div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 shrink-0" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
+                    <Icon className="w-5 h-5" style={{ color: P.green }} />
                   </div>
-                </div>
-                <div>
-                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Curate</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Save your finds, organize by room, apply trade pricing.</p>
-                </div>
-              </GlassCard>
-            </Reveal>
-
-            {/* Step 03 — Full-width horizontal card (col-span-3) */}
-            <Reveal delay={0.24}>
-              <GlassCard className="md:col-span-3 p-7 sm:p-8 cursor-default overflow-visible">
-                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.greenMuted}, ${P.sage})` }} />
-                <div className="absolute top-2 right-4 text-[100px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>03</div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-12">
-                  <div className="flex-shrink-0">
-                    <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>03</div>
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
-                      <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
-                        <Send className="w-5 h-5" style={{ color: P.green }} />
-                      </motion.div>
-                    </div>
-                    <h3 className="text-2xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Present</h3>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Generate polished PDFs and shareable client links. Professional presentations in seconds — no manual formatting, no extra tools.</p>
-                    <div className="mt-4 flex gap-3">
-                      {["PDF Export", "Client Portal", "Room Breakdown", "Trade Pricing"].map((tag) => (
+                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>{title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{body}</p>
+                  {tags.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {tags.map((tag) => (
                         <span key={tag} className="rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.12em]" style={{ background: `rgba(${P.sageRgb},0.20)`, color: P.textSecondary }}>{tag}</span>
                       ))}
                     </div>
-                  </div>
-                </div>
-              </GlassCard>
-            </Reveal>
+                  )}
+                </GlassCard>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
