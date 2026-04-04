@@ -2766,13 +2766,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 )}
               </div>
 
-              {/* Description */}
-              {(product.description || product.snippet) && (
-                <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: "#9B9590" }}>Description</div>
-                  <p className="text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>{(product.description || product.snippet).slice(0, 500)}</p>
-                </div>
-              )}
 
               {/* AI Intelligence Tags */}
               {(() => {
