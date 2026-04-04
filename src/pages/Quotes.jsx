@@ -143,6 +143,8 @@ export default function Quotes() {
   };
 
   const handleWhyThisPiece = async (product, room) => {
+    // Skip if already cached
+    if (justifications[product.id]) return;
     setJustifyLoading(prev => ({ ...prev, [product.id]: true }));
     try {
       const resp = await fetch(`${SEARCH_SERVICE}/why-this-piece`, {
@@ -164,13 +166,16 @@ export default function Quotes() {
 
   const handleGenerateAllJustifications = async (room) => {
     if (room.items.length === 0) return;
+    // Only send products that don't already have cached justifications
+    const missing = room.items.filter(item => !justifications[item.id]);
+    if (missing.length === 0) return;
     setJustifyBatchLoading(room.id);
     try {
       const resp = await fetch(`${SEARCH_SERVICE}/why-this-piece-batch`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          products: room.items,
+          products: missing,
           room_name: room.name,
         }),
       });
@@ -178,7 +183,7 @@ export default function Quotes() {
       const data = await resp.json();
       const updated = { ...justifications };
       for (const j of (data.justifications || [])) {
-        const product = room.items[j.product_index];
+        const product = missing[j.product_index];
         if (product) updated[product.id] = j.justification;
       }
       saveJustifications(updated);

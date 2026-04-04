@@ -9,6 +9,7 @@ import {
 } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
 import ScrollExperience from "@/components/ScrollExperience";
+import SearchDemoHero from "@/components/SearchDemoHero";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
@@ -29,9 +30,15 @@ const P = {
   brassRgb:     "184,149,106",
   greenRgb:     "44,62,45",
   sageRgb:      "194,204,186",
-  textPrimary:  "#2A2622",
-  textSecondary:"#7A746B",
-  textMuted:    "#9B9590",
+  textPrimary:  "#E9E1DD",
+  textSecondary:"#B0A898",
+  textMuted:    "#7A736B",
+  obsidian:     "#161311",
+  surface:      "#1E1B19",
+  surfaceHigh:  "#2D2927",
+  surfaceHigher:"#383432",
+  onSurface:    "#E9E1DD",
+  onSurfaceDim: "#B0A898",
 };
 
 const EXAMPLE_SEARCHES = [
@@ -237,10 +244,10 @@ function GlassCard({ children, className = "", hover = true }) {
     <motion.div
       className={`relative overflow-hidden rounded-2xl ${className}`}
       style={{
-        background: "rgba(255,255,255,0.75)",
+        background: "rgba(30,27,25,0.85)",
         backdropFilter: "blur(20px) saturate(1.2)",
         WebkitBackdropFilter: "blur(20px) saturate(1.2)",
-        border: `1px solid rgba(${P.greenRgb},0.06)`,
+        border: "1px solid rgba(255,255,255,0.06)",
         boxShadow: "0 4px 24px rgba(44,62,45,0.05), 0 1px 3px rgba(0,0,0,0.03)",
       }}
       whileHover={hover ? {
@@ -498,6 +505,135 @@ function FeatureSection({ kicker, title, description, mockUI, reverse = false, i
 }
 
 
+// ── 3D Carousel Showcase ──
+const CAROUSEL_ITEMS = [
+  { name: "Revelin Sofa", vendor: "Hooker Furniture", style: "Transitional", color: "#8B6F47", image: "https://hookerfurnishings.com/media/catalog/product/2/0/203_95_922000_82_silo.jpg" },
+  { name: "Chase Leather Sofa", vendor: "Lexington", style: "Contemporary", color: "#4A3728", image: "https://www.lexington.com/feedcache/productFull/7725_33_02.jpg" },
+  { name: "Brandon Sofa", vendor: "CR Laine", style: "Modern", color: "#6B5B45", image: "https://www.crlaine.com/assets/images/products/xlarge/L1190-00.jpg" },
+  { name: "Flossie Sofa", vendor: "Hancock & Moore", style: "Traditional", color: "#5C4A3A", image: "https://hancockandmoore.com/Documents/prod-images/CJ6815-3_Flossie_TibDoe_MD_1022_HR.jpg" },
+  { name: "Candace Sofa", vendor: "Bernhardt", style: "Transitional", color: "#7A6050", image: "https://s3.amazonaws.com/emuncloud-staticassets/productImages/bh074/medium/7277LFO.jpg" },
+];
+
+const SEARCH_URL_CAROUSEL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
+
+function CarouselShowcase() {
+  const [activeIdx, setActiveIdx] = useState(2);
+  const [dragStart, setDragStart] = useState(null);
+  const n = CAROUSEL_ITEMS.length;
+
+  const prev = () => setActiveIdx((i) => (i - 1 + n) % n);
+  const next = () => setActiveIdx((i) => (i + 1) % n);
+
+  const onDragStart = (e) => setDragStart(e.clientX ?? e.touches?.[0]?.clientX);
+  const onDragEnd = (e) => {
+    if (dragStart === null) return;
+    const end = e.clientX ?? e.changedTouches?.[0]?.clientX ?? dragStart;
+    if (dragStart - end > 50) next();
+    else if (end - dragStart > 50) prev();
+    setDragStart(null);
+  };
+
+  return (
+    <div
+      className="relative w-full cursor-grab active:cursor-grabbing select-none"
+      style={{ perspective: "1200px", height: "380px" }}
+      onMouseDown={onDragStart} onMouseUp={onDragEnd}
+      onTouchStart={onDragStart} onTouchEnd={onDragEnd}
+    >
+      {CAROUSEL_ITEMS.map((item, i) => {
+        const offset = ((i - activeIdx + n) % n);
+        const normalized = offset > n/2 ? offset - n : offset; // -2 to 2
+        const angle = normalized * 38; // degrees
+        const z = Math.abs(normalized) === 0 ? 0 : Math.abs(normalized) === 1 ? -180 : -380;
+        const scale = normalized === 0 ? 1 : Math.abs(normalized) === 1 ? 0.78 : 0.58;
+        const opacity = normalized === 0 ? 1 : Math.abs(normalized) === 1 ? 0.65 : 0.3;
+        const zIndex = normalized === 0 ? 10 : Math.abs(normalized) === 1 ? 5 : 1;
+        const translateX = normalized * 52;
+
+        return (
+          <div
+            key={item.name}
+            onClick={() => normalized !== 0 && setActiveIdx(i)}
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              width: "280px",
+              transform: `translate(-50%, -50%) translateX(${translateX}%) translateZ(${z}px) rotateY(${angle}deg) scale(${scale})`,
+              opacity,
+              zIndex,
+              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1)",
+              cursor: normalized !== 0 ? "pointer" : "default",
+            }}
+          >
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: "#1E1B19",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: normalized === 0
+                  ? `0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(184,149,106,0.15), 0 0 60px rgba(184,149,106,0.08)`
+                  : "0 16px 40px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div style={{ aspectRatio: "4/3", background: "#fff", overflow: "hidden" }}>
+                <img
+                  src={`${SEARCH_URL_CAROUSEL}/proxy-image?url=${encodeURIComponent(item.image)}`}
+                  alt={item.name}
+                  className="h-full w-full object-contain p-4"
+                  loading="lazy"
+                  style={{ transition: "transform 0.4s ease" }}
+                />
+              </div>
+              <div className="p-4">
+                <div className="text-[9px] uppercase tracking-[0.2em] mb-1" style={{ color: "#B8956A" }}>{item.vendor}</div>
+                <div className="text-base font-medium" style={{ color: "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>{item.name}</div>
+                <div className="text-[11px] mt-0.5" style={{ color: "rgba(233,225,221,0.45)" }}>{item.style}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Nav arrows */}
+      <button
+        onClick={prev}
+        className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-all"
+        style={{ background: "rgba(184,149,106,0.12)", border: "1px solid rgba(184,149,106,0.25)", color: "#B8956A" }}
+        onMouseEnter={e => e.currentTarget.style.background = "rgba(184,149,106,0.25)"}
+        onMouseLeave={e => e.currentTarget.style.background = "rgba(184,149,106,0.12)"}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-all"
+        style={{ background: "rgba(184,149,106,0.12)", border: "1px solid rgba(184,149,106,0.25)", color: "#B8956A" }}
+        onMouseEnter={e => e.currentTarget.style.background = "rgba(184,149,106,0.25)"}
+        onMouseLeave={e => e.currentTarget.style.background = "rgba(184,149,106,0.12)"}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </button>
+
+      {/* Dots */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-2">
+        {CAROUSEL_ITEMS.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveIdx(i)}
+            className="cursor-pointer transition-all rounded-full"
+            style={{
+              width: i === activeIdx ? "20px" : "6px",
+              height: "6px",
+              background: i === activeIdx ? "#B8956A" : "rgba(184,149,106,0.3)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════
 // THE DIGITAL SHOWROOM — LANDING PAGE
 // ════════════════════════════════════════════════════════
@@ -540,17 +676,12 @@ export default function Landing() {
   ];
 
   return (
-    <div className="relative min-h-screen" style={{ background: P.cream }}>
+    <div className="relative min-h-screen" style={{ background: "#161311" }}>
 
-      {/* ── Warm ambient gradient (tonal layering) ── */}
-      <div className="fixed inset-0 pointer-events-none" style={{
-        background: `
-          radial-gradient(ellipse at 25% 15%, rgba(${P.brassRgb},0.05) 0%, transparent 55%),
-          radial-gradient(ellipse at 75% 25%, rgba(${P.greenRgb},0.03) 0%, transparent 45%),
-          radial-gradient(ellipse at 50% 85%, rgba(${P.brassRgb},0.03) 0%, transparent 55%)
-        `,
-        zIndex: 0,
-      }} />
+      {/* ══════════════════════════════════════════════
+          HERO — Live AI Search Demo
+          ══════════════════════════════════════════════ */}
+      <SearchDemoHero onSearch={() => goToSearch(createPageUrl("Search"))} />
 
       {/* ═══════════════════════════════════════════
           SCROLL EXPERIENCE — The Digital Showroom
@@ -560,13 +691,13 @@ export default function Landing() {
       {/* ═══════════════════════════════════════════
           VENDOR MARQUEE — "Trusted by the Trade"
           ═══════════════════════════════════════════ */}
-      <section className="relative py-14 sm:py-18 z-10" style={{ background: `rgba(${P.sageRgb},0.06)` }}>
+      <section className="relative py-14 sm:py-18 z-10" style={{ background: "rgba(255,255,255,0.03)" }}>
         <Reveal className="text-center mb-8">
           <span className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>Trusted by the Trade</span>
         </Reveal>
         <div className="relative overflow-hidden">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to right, rgba(${P.sageRgb},0.06) 0%, ${P.cream}, transparent)` }} />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to left, rgba(${P.sageRgb},0.06) 0%, ${P.cream}, transparent)` }} />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to right, rgba(255,255,255,0.03) 0%, #161311, transparent)` }} />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to left, rgba(255,255,255,0.03) 0%, #161311, transparent)` }} />
           <div className="brand-marquee whitespace-nowrap">
             {[...marqueeNames, ...marqueeNames].map((name, i) => (
               <span key={`${name}-${i}`} className="inline-flex items-center mx-6 sm:mx-10">
@@ -618,40 +749,80 @@ export default function Landing() {
           </Reveal>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            {[
-              { step: "01", icon: Search, title: "Describe", desc: "Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language." },
-              { step: "02", icon: FileText, title: "Curate", desc: "Save your finds, organize by room, apply trade pricing. Build a complete project." },
-              { step: "03", icon: Send, title: "Present", desc: "Generate polished PDFs and shareable client links. Professional presentations in seconds." },
-            ].map((item, i) => (
-              <Reveal key={item.step} delay={i * 0.12}>
-                <GlassCard className="p-7 sm:p-8 cursor-default overflow-visible">
-                  {/* Green left accent bar */}
-                  <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})` }} />
-                  {/* Oversized step number watermark */}
-                  <div className="absolute top-2 right-4 text-[80px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.15)`, fontFamily: "'Playfair Display', serif" }}>{item.step}</div>
-                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>{item.step}</div>
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
-                    style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}
-                  >
-                    <motion.div
-                      animate={{ y: [0, -4, 0] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <item.icon className="w-5 h-5" style={{ color: P.green }} />
+            {/* Step 01 — Wide card (col-span-2) */}
+            <Reveal delay={0}>
+              <GlassCard className="md:col-span-2 p-8 sm:p-10 cursor-default overflow-visible min-h-[220px]">
+                {/* Green left accent bar */}
+                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})` }} />
+                {/* Oversized step number watermark */}
+                <div className="absolute top-2 right-4 text-[100px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>01</div>
+                <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>01</div>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
+                  <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+                    <Search className="w-5 h-5" style={{ color: P.green }} />
+                  </motion.div>
+                </div>
+                <h3 className="text-3xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Describe</h3>
+                <p className="text-sm leading-relaxed max-w-md" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language.</p>
+              </GlassCard>
+            </Reveal>
+
+            {/* Step 02 — Tall accent card (col-span-1) */}
+            <Reveal delay={0.12}>
+              <GlassCard className="p-7 sm:p-8 cursor-default overflow-visible min-h-[220px] flex flex-col justify-between">
+                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.brass}, ${P.brassLight})` }} />
+                <div className="absolute top-2 right-4 text-[80px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>02</div>
+                <div>
+                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>02</div>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}>
+                      <FileText className="w-5 h-5" style={{ color: P.green }} />
                     </motion.div>
                   </div>
-                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>{item.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{item.desc}</p>
-                </GlassCard>
-              </Reveal>
-            ))}
+                </div>
+                <div>
+                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Curate</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Save your finds, organize by room, apply trade pricing.</p>
+                </div>
+              </GlassCard>
+            </Reveal>
+
+            {/* Step 03 — Full-width horizontal card (col-span-3) */}
+            <Reveal delay={0.24}>
+              <GlassCard className="md:col-span-3 p-7 sm:p-8 cursor-default overflow-visible">
+                <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: `linear-gradient(to bottom, ${P.greenMuted}, ${P.sage})` }} />
+                <div className="absolute top-2 right-4 text-[100px] font-bold leading-none pointer-events-none select-none" style={{ color: `rgba(${P.sageRgb},0.12)`, fontFamily: "'Playfair Display', serif" }}>03</div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-12">
+                  <div className="flex-shrink-0">
+                    <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>03</div>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
+                      <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+                        <Send className="w-5 h-5" style={{ color: P.green }} />
+                      </motion.div>
+                    </div>
+                    <h3 className="text-2xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>Present</h3>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>Generate polished PDFs and shareable client links. Professional presentations in seconds — no manual formatting, no extra tools.</p>
+                    <div className="mt-4 flex gap-3">
+                      {["PDF Export", "Client Portal", "Room Breakdown", "Trade Pricing"].map((tag) => (
+                        <span key={tag} className="rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.12em]" style={{ background: `rgba(${P.sageRgb},0.20)`, color: P.textSecondary }}>{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </GlassCard>
+            </Reveal>
           </div>
         </div>
       </section>
 
       {/* Subtle divider — tonal shift, not a line */}
-      <div className="page-wrap-wide z-10 relative"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+      <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
+        <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
+          <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
+        </svg>
+      </div>
 
       {/* ═══════════════════════════════════════════
           FEATURE SECTIONS
@@ -665,7 +836,11 @@ export default function Landing() {
           icon={Brain}
         />
 
-        <div className="page-wrap-wide"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+        <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
+          <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
+            <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
+          </svg>
+        </div>
 
         <FeatureSection
           kicker="Verified Sources"
@@ -676,7 +851,11 @@ export default function Landing() {
           reverse
         />
 
-        <div className="page-wrap-wide"><div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${P.sageRgb},0.30), transparent)` }} /></div>
+        <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
+          <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
+            <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
+          </svg>
+        </div>
 
         <FeatureSection
           kicker="Intelligent Search"
@@ -686,6 +865,24 @@ export default function Landing() {
           icon={Search}
         />
       </div>
+
+      {/* ════════════════════════════════════════
+          3D PRODUCT CAROUSEL — The Showroom Wall
+          ════════════════════════════════════════ */}
+      <section className="relative py-24 sm:py-32 z-10 overflow-hidden">
+        <div className="page-wrap-wide">
+          <Reveal className="text-center mb-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>The Collection</span>
+          </Reveal>
+          <Reveal delay={0.1} className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl" style={{ color: P.onSurface || "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>
+              42,000 pieces.<br />
+              <span style={{ color: P.brass }}>One search.</span>
+            </h2>
+          </Reveal>
+        </div>
+        <CarouselShowcase />
+      </section>
 
       {/* ═══════════════════════════════════════════
           CTA — Forest green background section
@@ -760,7 +957,7 @@ export default function Landing() {
       {/* ═══════════════════════════════════════════
           FOOTER — Clean, minimal, warm
           ═══════════════════════════════════════════ */}
-      <footer className="relative py-16 sm:py-20 z-10" style={{ background: P.cream }}>
+      <footer className="relative py-16 sm:py-20 z-10" style={{ background: "#161311" }}>
         <div className="page-wrap-wide">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">

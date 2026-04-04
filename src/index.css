@@ -775,7 +775,7 @@
 
   @media (hover: hover) {
     .product-card .card-meta {
-      opacity: 0.7;
+      opacity: 0.92;
       transition: opacity var(--transition-card);
     }
     .product-card:hover .card-meta {
@@ -1678,4 +1678,138 @@
 @keyframes marquee-smooth {
   0% { transform: translate3d(0, 0, 0); }
   100% { transform: translate3d(-50%, 0, 0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   OBSIDIAN DARK THEME — The Atelier
+   ═══════════════════════════════════════════════════════════ */
+
+/* Holographic card shimmer effect */
+.holo-card {
+  position: relative;
+  isolation: isolate;
+}
+.holo-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at var(--holo-x, 50%) var(--holo-y, 50%),
+      rgba(255,255,255,0.18) 0%,
+      transparent 55%
+    ),
+    conic-gradient(from var(--holo-angle, 0deg) at var(--holo-x, 50%) var(--holo-y, 50%),
+      rgba(255,50,50,0.15) 0deg,
+      rgba(255,180,0,0.12) 60deg,
+      rgba(50,255,100,0.12) 120deg,
+      rgba(50,100,255,0.15) 180deg,
+      rgba(200,0,255,0.12) 240deg,
+      rgba(0,220,255,0.12) 300deg,
+      rgba(255,50,50,0.15) 360deg
+    );
+  mix-blend-mode: color-dodge;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+.holo-card:hover::after {
+  opacity: 1;
+}
+
+/* Specular light shine on cards */
+.specular-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--spec-x, 50%) var(--spec-y, 50%),
+    rgba(255,255,255,0.12) 0%,
+    rgba(255,255,255,0.04) 30%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 2;
+}
+.holo-card:hover .specular-shine {
+  opacity: 1;
+}
+
+/* Text scramble character */
+.scramble-char {
+  display: inline;
+  color: #B8956A;
+  opacity: 0.5;
+}
+
+/* Letter physics animation */
+@keyframes letter-drop {
+  0%   { opacity: 0; transform: translateY(-180px) rotate(-4deg) scale(0.8); }
+  55%  { opacity: 1; transform: translateY(12px) rotate(1.2deg) scale(1.02); }
+  72%  { transform: translateY(-7px) rotate(-0.6deg) scale(0.99); }
+  85%  { transform: translateY(4px) rotate(0.3deg) scale(1.005); }
+  94%  { transform: translateY(-2px) rotate(-0.1deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+@keyframes letter-scatter {
+  0%   { opacity: 1; transform: translateY(0) translateX(0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(var(--sy, -200px)) translateX(var(--sx, 0px)) rotate(var(--sr, 45deg)) scale(0.3); }
+}
+
+@keyframes letter-reassemble {
+  0%   { opacity: 0; transform: translateY(var(--sy, -200px)) translateX(var(--sx, 0px)) rotate(var(--sr, 45deg)) scale(0.3); }
+  100% { opacity: 1; transform: translateY(0) translateX(0) rotate(0deg) scale(1); }
+}
+
+/* Obsidian page backgrounds */
+.dark-atelier {
+  background: #161311;
+  color: #E9E1DD;
+}
+.dark-atelier .page-wrap-wide {
+  /* inherit */
+}
+
+/* Flowing background animation */
+@keyframes atelier-flow-1 {
+  0%   { transform: translate(0%, 0%) rotate(0deg); }
+  33%  { transform: translate(3%, 2%) rotate(120deg); }
+  66%  { transform: translate(-2%, 3%) rotate(240deg); }
+  100% { transform: translate(0%, 0%) rotate(360deg); }
+}
+@keyframes atelier-flow-2 {
+  0%   { transform: translate(0%, 0%) rotate(0deg); }
+  50%  { transform: translate(-4%, -2%) rotate(180deg); }
+  100% { transform: translate(0%, 0%) rotate(360deg); }
+}
+
+/* ══════════════════════════════════════════
+   THE VOID — Animation keyframes
+   ══════════════════════════════════════════ */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scroll-pulse {
+  0%, 100% { transform: scaleY(1); opacity: 0.25; }
+  50%       { transform: scaleY(0.6); opacity: 0.1; }
+}
+
+@keyframes void-scan {
+  0%   { top: -4px; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Space Mono for data labels */
+.font-mono-data {
+  font-family: 'Space Mono', 'Courier New', monospace;
+  letter-spacing: 0.04em;
 }

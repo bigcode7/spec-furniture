@@ -51,6 +51,29 @@ function handle429(response) {
   }
 }
 
+// ── Client-side rate limiter for guest smart-search calls ──
+const _smartSearchTimestamps = [];
+const GUEST_RATE_LIMIT = 3;
+const GUEST_RATE_WINDOW = 60000; // 60 seconds
+
+function checkGuestRateLimit(headers) {
+  const authHeader = headers["Authorization"] || "";
+  const isGuest = !authHeader || authHeader.startsWith("Bearer guest_");
+  if (!isGuest) return;
+  const now = Date.now();
+  while (_smartSearchTimestamps.length && now - _smartSearchTimestamps[0] > GUEST_RATE_WINDOW) {
+    _smartSearchTimestamps.shift();
+  }
+  if (_smartSearchTimestamps.length >= GUEST_RATE_LIMIT) {
+    const retryIn = Math.ceil((GUEST_RATE_WINDOW - (now - _smartSearchTimestamps[0])) / 1000);
+    const err = new Error("rate_limited");
+    err.status = 429;
+    err.retryAfter = retryIn;
+    throw err;
+  }
+  _smartSearchTimestamps.push(now);
+}
+
 export async function smartSearch(conversation) {
   if (!externalSearchServiceUrl) throw new Error("Search service not configured");
 
@@ -63,9 +86,12 @@ export async function smartSearch(conversation) {
     if (cached) return cached;
   }
 
+  const authHeaders = getAuthHeaders();
+  checkGuestRateLimit(authHeaders);
+
   const response = await timedFetch(`${externalSearchServiceUrl.replace(/\/$/, "")}/smart-search`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...getAuthHeaders() },
+    headers: { "content-type": "application/json", ...authHeaders },
     body: JSON.stringify({ conversation }),
   });
   handle429(response);
@@ -135,12 +161,13 @@ export function prefetchSearch(query) {
 function normalizeStandaloneResult(item) {
   const isAiDiscovery = item.ingestion_source === "ai-discovery";
   const isLiveResult = item.ingestion_source === "live-crawler" || item.ingestion_source === "live-discovery";
-  const isVendorHostedImage = isLiveResult && item.image_verified && Boolean(item.image_url);
   const hasTrustedVendorUrl = isLiveResult && item.product_url_verified && isVendorAssetUrl(item.product_url, item.vendor_domain);
   const confidence = Number(item.retrieval_quality_score || 0);
 
-  // For AI discovery, seed/fallback results, pass through image & URL if present
-  const hasImage = isVendorHostedImage || isAiDiscovery || (!isLiveResult && Boolean(item.image_url));
+  // Pass image through if URL exists — let ProxyImg's onError handle actual load failures.
+  // Previously required image_verified for live results, but this caused verified-false products
+  // (e.g. Gabby) to show placeholder instead of attempting to load a real image.
+  const hasImage = Boolean(item.image_url);
   const hasUrl = hasTrustedVendorUrl || isAiDiscovery || (!isLiveResult && Boolean(item.product_url));
 
   return {
@@ -164,7 +191,7 @@ function normalizeStandaloneResult(item) {
     criteria_matched: item.tags || [],
     criteria_missed: [],
     reasoning: item.reasoning || item.description || "Catalog match",
-    match_label: hasTrustedVendorUrl && isVendorHostedImage
+    match_label: hasTrustedVendorUrl && item.image_verified
       ? "Verified vendor result"
       : isAiDiscovery
         ? "AI discovered"
@@ -177,7 +204,7 @@ function normalizeStandaloneResult(item) {
     image_verified: Boolean(item.image_verified),
     product_url_verified: Boolean(item.product_url_verified),
     verified_price: item.wholesale_price ?? item.retail_price ?? null,
-    result_quality: hasTrustedVendorUrl && isVendorHostedImage ? "verified" : isAiDiscovery ? "ai-discovered" : isLiveResult ? "live-unverified" : "directional",
+    result_quality: hasTrustedVendorUrl && item.image_verified ? "verified" : isAiDiscovery ? "ai-discovered" : isLiveResult ? "live-unverified" : "directional",
     sku: item.sku || "",
     collection: item.collection || "",
     // Spatial intelligence fields

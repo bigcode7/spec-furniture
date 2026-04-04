@@ -422,6 +422,9 @@ export default function SearchPage() {
   const chatEndRef = useRef(null);
   const scrollSentinelRef = useRef(null);
 
+  // Specular mouse light position
+  const [specPos, setSpecPos] = useState({ x: -9999, y: -9999 });
+
   // Voice search
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -1452,7 +1455,21 @@ export default function SearchPage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
+      style={{ background: "#161311" }}
+      onMouseMove={(e) => setSpecPos({ x: e.clientX, y: e.clientY })}
     >
+      {/* Global specular light */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: 2,
+          background: `radial-gradient(800px circle at ${specPos.x}px ${specPos.y}px,
+            rgba(184,149,106,0.07) 0%,
+            rgba(184,149,106,0.03) 25%,
+            transparent 60%
+          )`,
+        }}
+      />
       {/* Cream background — inherited from body */}
 
       {/* ── LANDING STATE ── */}
@@ -1510,6 +1527,11 @@ export default function SearchPage() {
             {/* Search bar */}
             <form ref={searchFormRef} onSubmit={handleSubmit} className="mx-auto mt-6 sm:mt-8 max-w-5xl">
               <div className="relative">
+                {/* Ambient glow */}
+                <div className="absolute -inset-4 sm:-inset-8 pointer-events-none" style={{
+                  background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(184,149,106,0.12) 0%, rgba(184,149,106,0.05) 40%, transparent 70%)",
+                  filter: "blur(20px)",
+                }} />
                 <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
                   <div className="flex flex-col sm:flex-row sm:items-start">
                     <div className="flex flex-1 items-start">
@@ -2371,7 +2393,32 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const tiltRef = useRef(null);
   const { getPrice, fmtPrice } = useTradePricing();
+
+  const handleMouseMove = (e) => {
+    if (!tiltRef.current) return;
+    const rect = tiltRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    tiltRef.current.style.transform = `perspective(600px) rotateY(${x * 10}deg) rotateX(${-y * 8}deg) scale3d(1.02,1.02,1.02)`;
+    // Update holographic CSS variables
+    const pct_x = (x + 0.5) * 100; // 0-100
+    const pct_y = (y + 0.5) * 100; // note x,y are already -0.5 to 0.5
+    const angle = (x + 0.5) * 360;
+    tiltRef.current.style.setProperty('--holo-x', `${pct_x}%`);
+    tiltRef.current.style.setProperty('--holo-y', `${pct_y}%`);
+    tiltRef.current.style.setProperty('--holo-angle', `${angle}deg`);
+  };
+  const handleMouseLeave = () => {
+    if (!tiltRef.current) return;
+    tiltRef.current.style.transform = "perspective(600px) rotateY(0deg) rotateX(0deg) scale3d(1,1,1)";
+    tiltRef.current.style.transition = "transform 0.5s cubic-bezier(0.22,1,0.36,1)";
+  };
+  const handleMouseEnter = () => {
+    if (!tiltRef.current) return;
+    tiltRef.current.style.transition = "transform 0.1s ease-out";
+  };
 
   const priceInfo = getPrice(item);
   const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
@@ -2379,17 +2426,20 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
   const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, 1);
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={`product-card group cursor-pointer flex flex-col ${presentationMode ? "paper-grain" : ""}`}
-      style={{ contain: "layout style paint", height: "100%" }}
+      ref={tiltRef}
+      onMouseEnter={(e) => { setHovered(true); handleMouseEnter(e); }}
+      onMouseLeave={(e) => { setHovered(false); handleMouseLeave(e); }}
+      onMouseMove={handleMouseMove}
+      className={`product-card holo-card group cursor-pointer flex flex-col ${presentationMode ? "paper-grain" : ""}`}
+      style={{ contain: "layout style paint", height: "100%", transformStyle: "preserve-3d", willChange: "transform" }}
       onClick={(e) => {
         // Don't open preview if clicking action buttons
         if (e.target.closest("[data-action]")) return;
         onPreview();
       }}
     >
-      <div className="relative overflow-hidden rounded-t-[20px]" style={{ aspectRatio: "4/3", background: "#FFFFFF" }}>
+      <div className="specular-shine" />
+      <div className="relative overflow-hidden rounded-t-[20px]" style={{ aspectRatio: "4/3", background: "rgba(255,255,255,0.97)" }}>
         {item.image_url && !imgError ? (
           <>
             {!imgLoaded && (
@@ -2452,11 +2502,11 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
           )}
         </div>
         <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#1A1A18" }}>{item.product_name}</h3>
-        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "#9B9590" }}>{materialStyle || "\u00A0"}</div>
+        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "#6B6560" }}>{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && !presentationMode && (
           <div className="mb-2 flex flex-wrap gap-1">
             {detailChips.map((chip) => (
-              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.06)", color: "#6B6560" }}>
+              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.10)", color: "#4A4540" }}>
                 {chip}
               </span>
             ))}
@@ -2469,7 +2519,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
               {priceStr}
             </span>
           )}
-          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "#C2CCBA" }}>View</span>
+          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "#9B9590" }}>View</span>
         </div>
       </div>
 
@@ -2573,13 +2623,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
 
       {/* Panel — right-sliding */}
       <motion.div
-        initial={IS_MOBILE ? { opacity: 0, y: 10 } : { opacity: 0, x: 56, scale: 0.985 }}
-        animate={IS_MOBILE ? { opacity: 1, y: 0 } : { opacity: 1, x: 0, scale: 1 }}
-        exit={IS_MOBILE ? { opacity: 0, y: 10 } : { opacity: 0, x: 36, scale: 0.99 }}
-        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        initial={IS_MOBILE ? { opacity: 0, y: 10, scaleY: 0.96 } : { x: "100%", opacity: 0, scaleY: 0.96 }}
+        animate={IS_MOBILE ? { opacity: 1, y: 0, scaleY: 1 } : { x: 0, opacity: 1, scaleY: 1 }}
+        exit={IS_MOBILE ? { opacity: 0, y: 10, scaleY: 0.98 } : { x: "110%", opacity: 0, scaleY: 0.98 }}
+        transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
         className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] shadow-2xl overscroll-contain`}
-        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(44,62,45,0.08)" }}
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(44,62,45,0.08)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
         <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2"
