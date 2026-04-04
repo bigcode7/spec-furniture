@@ -9,7 +9,6 @@ import {
 } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
 import ScrollExperience from "@/components/ScrollExperience";
-import SearchDemoHero from "@/components/SearchDemoHero";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
 const EASE = [0.22, 1, 0.36, 1];
@@ -677,11 +676,6 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen" style={{ background: "#161311" }}>
-
-      {/* ══════════════════════════════════════════════
-          HERO — Live AI Search Demo
-          ══════════════════════════════════════════════ */}
-      <SearchDemoHero onSearch={() => goToSearch(createPageUrl("Search"))} />
 
       {/* ═══════════════════════════════════════════
           SCROLL EXPERIENCE — The Digital Showroom
