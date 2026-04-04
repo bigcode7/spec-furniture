@@ -4519,6 +4519,30 @@ Return JSON array:
       return json(res, 200, { ok: true, message: "Bernhardt import stop requested." });
     }
 
+    // ── Bulk update image fields from a pre-computed scan ──
+    // Accepts: { updates: [{id, image_url, alternate_images, image_verified}] }
+    if (req.method === "POST" && req.url === "/admin/bulk-update-images") {
+      if (!(await isAdmin(req))) return json(res, 404, { error: "Not found" });
+      const body = await collectBody(req);
+      const updates = Array.isArray(body.updates) ? body.updates : [];
+      if (updates.length === 0) return json(res, 400, { error: "No updates provided" });
+      let applied = 0;
+      for (const u of updates) {
+        if (!u.id) continue;
+        const product = getProduct(u.id);
+        if (!product) continue;
+        const patch = {};
+        if (u.image_url !== undefined) patch.image_url = u.image_url;
+        if (u.alternate_images !== undefined) patch.alternate_images = u.alternate_images;
+        if (u.image_verified !== undefined) patch.image_verified = u.image_verified;
+        if (Object.keys(patch).length > 0) {
+          updateProductDirect(u.id, patch);
+          applied++;
+        }
+      }
+      return json(res, 200, { ok: true, applied, total: updates.length });
+    }
+
     // ── Update a single product's fields (image, name, etc.) ──
     if (req.method === "POST" && req.url === "/admin/update-product") {
       const body = await collectBody(req);
