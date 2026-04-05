@@ -62,7 +62,7 @@ function Navbar({ onCta }) {
             <ArrowUpRight size={13} />
           </button>
           {/* Mobile hamburger — hidden on md+ (desktop) */}
-          <button className="md:hidden" onClick={() => setMenuOpen(o => !o)} style={{ width: 36, height: 36, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
+          <button className="md:hidden flex" onClick={() => setMenuOpen(o => !o)} style={{ width: 36, height: 36, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", transition: "transform 250ms, opacity 250ms", transform: menuOpen ? "rotate(45deg) translate(0, 6.5px)" : "none" }} />
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", opacity: menuOpen ? 0 : 1, transition: "opacity 200ms" }} />
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", transition: "transform 250ms", transform: menuOpen ? "rotate(-45deg) translate(0, -6.5px)" : "none" }} />
