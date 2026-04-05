@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { House, Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Sparkles } from "lucide-react";
+import { Search, FileText, LogOut, UserPlus, User, Settings, HelpCircle, ChevronDown, Tag, Sparkles } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { getQuoteItemCount } from "@/lib/growth-store";
@@ -10,7 +10,6 @@ import { checkSubscriptionStatus } from "@/lib/fingerprint";
 const EASE = [0.22, 1, 0.36, 1];
 
 const NAV_ITEMS = [
-  { label: "Home", path: "Dashboard", icon: House },
   { label: "Search", path: "Search", icon: Search },
   { label: "Quotes", path: "Quotes", icon: FileText },
 ];
@@ -471,7 +470,7 @@ export default function Layout({ children, currentPageName }) {
       <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden" style={{ background: "rgba(245,240,232,0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(44,62,45,0.06)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-around h-[68px]">
           {[
-            { path: "Search", icon: House, label: "Home" },
+            { path: "Search", icon: Search, label: "Search" },
             { path: "Search", icon: Search, label: "Search" },
           ].map((item) => {
             const active = currentPageName === item.path;
