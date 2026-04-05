@@ -1455,7 +1455,7 @@ export default function SearchPage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
-      style={{ background: "#000000" }}
+      style={{ background: "#0F0D0B" }}
       onMouseMove={(e) => setSpecPos({ x: e.clientX, y: e.clientY })}
     >
       {/* Global specular light */}
@@ -1478,18 +1478,13 @@ export default function SearchPage() {
           <div className="mx-auto max-w-6xl atelier-panel px-4 py-6 sm:px-8 sm:py-8 md:px-12 md:py-12">
             <div className="grid gap-5 sm:gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
               <div>
-                <div className="workspace-kicker mb-4 sm:mb-6">Describe it. We'll find it.</div>
+                <div className="workspace-kicker mb-4 sm:mb-6" style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>Describe it. We'll find it.</div>
                 <h1 className="workspace-heading max-w-4xl">
                   The sourcing workspace<br /><span style={{ color: "white" }}>designed for designers.</span>
                 </h1>
                 <p className="workspace-subhead mt-4 sm:mt-5">
                   Search by mood, silhouette, material, room intent, or visual reference — across 40,000+ trade products.
                 </p>
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  Current mood
-                  <span className="h-2 w-2 rounded-full" style={{ background: "white", boxShadow: "0 0 12px rgba(255,255,255,0.15)" }} />
-                  {moodTheme.name}
-                </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="atelier-panel-soft px-4 py-4">
                     <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Catalog</div>
@@ -1579,7 +1574,7 @@ export default function SearchPage() {
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#B8956A" }} /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "white", color: "black", boxShadow: "0 2px 8px rgba(255,255,255,0.15), 0 8px 24px rgba(44,62,45,0.10)" }}>
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "white", color: "black", boxShadow: "0 2px 8px rgba(255,255,255,0.15), 0 8px 24px rgba(255,255,255,0.10)" }}>
                         Search <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1600,8 +1595,8 @@ export default function SearchPage() {
                   onMouseLeave={() => clearTimeout(window._prefetchTimer)}
                   className="rounded-full px-4 py-2 text-[12px] transition-all duration-200 cursor-pointer"
                   style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)", background: "transparent" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.40)"; e.currentTarget.style.background = "transparent"; }}
                 >
                   {suggestion}
                 </button>
@@ -1661,8 +1656,8 @@ export default function SearchPage() {
               <button onClick={handleNewSearch}
                 className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] transition-colors shrink-0 cursor-pointer"
                 style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
+                onMouseEnter={(e) => { e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; e.currentTarget.style.background = "transparent"; }}>
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
             </div>
@@ -1933,7 +1928,7 @@ export default function SearchPage() {
                         return (
                           <div key={idx} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"
                             style={{ background: sel ? `${color}15` : "rgba(0,0,0,0.6)", border: `1px solid ${sel ? color + "40" : "rgba(255,255,255,0.08)"}` }}>
-                            <span style={{ color: sel ? color : "#9B9590" }}>
+                            <span style={{ color: sel ? color : "rgba(255,255,255,0.40)" }}>
                               {item.original_text?.split(/\s/).slice(0, 2).join(" ") || `Item ${idx + 1}`}:
                             </span>
                             {sel ? (
@@ -1972,7 +1967,7 @@ export default function SearchPage() {
                           setTimeout(() => setQuoteToast(null), 2200);
                           window.dispatchEvent(new CustomEvent("spec-quote-change"));
                         }}
-                        className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
+                        className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] font-semibold transition-all"
                         style={{ border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }}
                       >
                         <FileText className="h-3 w-3" />
@@ -1992,7 +1987,7 @@ export default function SearchPage() {
                             setTimeout(() => setQuoteToast(null), 2200);
                             window.dispatchEvent(new CustomEvent("spec-quote-change"));
                           }}
-                          className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
+                          className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] font-semibold transition-all"
                           style={{ background: "white", color: "black" }}
                         >
                           <ClipboardCheck className="h-3 w-3" />
@@ -2004,7 +1999,7 @@ export default function SearchPage() {
                 )}
 
                 {/* List summary */}
-                <div className="mt-4 mb-8 rounded-xl p-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(44,62,45,0.02)" }}>
+                <div className="mt-4 mb-8 rounded-xl p-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
                   <div className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
                     <ClipboardList className="h-3.5 w-3.5" />
                     <span className="font-semibold">
@@ -2031,7 +2026,7 @@ export default function SearchPage() {
                           </button>
                         </div>
                       )}
-                      <h2 className="text-base sm:text-xl font-medium truncate" style={{ fontFamily: "'Playfair Display', serif", color: "#ffffff" }}>
+                      <h2 className="text-base sm:text-xl font-medium truncate" style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "#ffffff" }}>
                         {visualSearchThumb ? "Visual Search Results" : displayQuery}
                       </h2>
                     </div>
@@ -2095,8 +2090,8 @@ export default function SearchPage() {
                   <button key={chip} onClick={() => handleChipClick(chip)}
                     className="rounded-full px-3.5 py-1.5 text-[11px] transition-all shrink-0 cursor-pointer"
                     style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.40)"; e.currentTarget.style.background = "transparent"; }}>
                     {chip}
                   </button>
                 ))}
@@ -2136,7 +2131,7 @@ export default function SearchPage() {
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "white" }} /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
-                        className="flex h-9 items-center justify-center gap-1 rounded-xl px-3.5 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                        className="flex h-9 items-center justify-center gap-1 rounded-full px-3.5 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
                         style={{ background: "white", color: "black" }}>
                         <Send className="h-3 w-3" />
                       </button>
@@ -2194,8 +2189,8 @@ export default function SearchPage() {
                   onClick={() => handleQuoteRoomSelect(quoteDropdownProduct, room.id, room.name)}
                   className="flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors cursor-pointer"
                   style={{ color: "rgba(255,255,255,0.65)" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#2C3E2D"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B6560"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "white"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.50)"; }}
                 >
                   <span className="truncate">{room.name}</span>
                   <span className="text-[10px] tabular-nums ml-2 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{room.items.length} items</span>
@@ -2224,10 +2219,10 @@ export default function SearchPage() {
             exit={{ opacity: 0, y: 40 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
-              background: "rgba(255,255,255,0.95)",
+              background: "rgba(15,13,11,0.92)",
               border: "1px solid rgba(255,255,255,0.12)",
               backdropFilter: "blur(20px)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
             }}
           >
             <ClipboardCheck className="h-4 w-4" style={{ color: "white" }} />
@@ -2245,10 +2240,10 @@ export default function SearchPage() {
             exit={{ opacity: 0, y: 40 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
-              background: "rgba(255,255,255,0.95)",
+              background: "rgba(15,13,11,0.92)",
               border: "1px solid rgba(255,255,255,0.12)",
               backdropFilter: "blur(20px)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
             }}
           >
             <Heart className="h-4 w-4" style={{ color: "#B8956A" }} />
@@ -2323,7 +2318,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             onClick={() => setPresentationMode(!presentationMode)}
             className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer"
             style={presentationMode
-              ? { background: "white", color: "#fff", border: "1px solid #2C3E2D" }
+              ? { background: "white", color: "#fff", border: "1px solid white" }
               : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
             title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
           >
@@ -2456,7 +2451,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
           </>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2" style={{ color: "rgba(255,255,255,0.12)" }}>
-            <div className="text-4xl font-light" style={{ fontFamily: "'Playfair Display', serif" }}>{(item.manufacturer_name || "?")[0]}</div>
+            <div className="text-4xl font-light" style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>{(item.manufacturer_name || "?")[0]}</div>
             <span className="text-[10px] px-4 text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.20)" }}>{item.product_name}</span>
           </div>
         )}
@@ -2628,12 +2623,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         exit={IS_MOBILE ? { opacity: 0, y: 10, scaleY: 0.98 } : { x: "110%", opacity: 0, scaleY: 0.98 }}
         transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
         className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] shadow-2xl overscroll-contain`}
-        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ background: "rgba(15,13,11,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
         <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2"
-          style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
-          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "rgba(255,255,255,0.45)" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#1A1A18"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9B9590"; }}>
+          style={{ background: "rgba(15,13,11,0.95)", backdropFilter: "blur(12px)", paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
+          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "rgba(255,255,255,0.45)" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "white"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}>
             <X className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
         </div>
@@ -2687,7 +2682,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all ${
                         i === activeImageIdx ? "opacity-100" : "opacity-60 hover:opacity-100"
                       }`}
-                      style={{ borderColor: i === activeImageIdx ? "#2C3E2D" : "rgba(255,255,255,0.12)" }}
+                      style={{ borderColor: i === activeImageIdx ? "white" : "rgba(255,255,255,0.12)" }}
                       style={{ backgroundColor: "#ffffff" }}
                     >
                       <ProxyImg src={src} productId={product.id} style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
@@ -2807,35 +2802,35 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
-                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all disabled:opacity-40 w-full sm:w-auto"
+                  className="flex items-center justify-center gap-1.5 rounded-full px-4 py-3 text-[11px] font-semibold transition-all disabled:opacity-40 w-full sm:w-auto"
                   style={{ border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }}>
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
                 <button onClick={(ev) => onAddToQuote(product, ev)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  className="flex items-center justify-center gap-1.5 rounded-full px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
                   style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.30)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.background = "transparent"; }}>
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.30)"; e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "rgba(255,255,255,0.50)"; e.currentTarget.style.background = "transparent"; }}>
                   <FileText className="h-3 w-3" />
                   Add to Quote
                 </button>
                 <button onClick={() => onToggleFavorite(product)}
-                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  className="flex items-center justify-center gap-1.5 rounded-full px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
                   style={isFavorited ? { border: "1px solid rgba(184,149,106,0.35)", background: "rgba(255,255,255,0.04)", color: "#B8956A" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                   <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
                   {isFavorited ? "Saved" : "Save"}
                 </button>
                 {product.portal_url && (
                   <a href={product.portal_url} target="_blank" rel="noopener"
-                    className="flex items-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all"
+                    className="flex items-center gap-1.5 rounded-full px-4 py-3 text-[11px] font-semibold transition-all"
                     style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                     <ExternalLink className="h-3 w-3" /> View at {(product.manufacturer_name || "vendor").split(" ")[0]}
                   </a>
                 )}
                 <button onClick={handleShare}
-                  className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
-                  style={shareCopied ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(255,255,255,0.06)", color: "white" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
+                  className="flex items-center justify-center gap-1.5 rounded-full px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
+                  style={shareCopied ? { border: "1px solid rgba(255,255,255,0.30)", background: "rgba(255,255,255,0.06)", color: "white" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                   {shareCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                   {shareCopied ? "Link Copied" : "Share"}
                 </button>
@@ -2851,7 +2846,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       disabled={alternativeLoading}
                       className="flex items-center gap-1 rounded-[999px] px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30"
                       style={alternativeLabel === alt && alternativeProducts.length > 0
-                        ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(255,255,255,0.08)", color: "white" }
+                        ? { border: "1px solid rgba(255,255,255,0.30)", background: "rgba(255,255,255,0.08)", color: "white" }
                         : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
                     >
                       {alternativeLoading && alternativeLabel === alt ? (

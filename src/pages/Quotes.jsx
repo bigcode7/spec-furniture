@@ -59,7 +59,7 @@ export default function Quotes() {
   // Gate: must be logged in to access quotes
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", background: "#000000" }}>
+      <div style={{ minHeight: "100vh", background: "#0F0D0B" }}>
         <div className="max-w-lg mx-auto px-4 py-32 flex flex-col items-center text-center">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-2xl mb-6"
@@ -67,17 +67,18 @@ export default function Quotes() {
           >
             <Lock className="h-7 w-7" style={{ color: "rgba(255,255,255,0.65)" }} />
           </div>
-          <h2 className="text-xl font-semibold mb-2" style={{ color: "#ffffff" }}>Sign in to build quotes</h2>
-          <p className="text-sm mb-6 max-w-sm" style={{ color: "rgba(255,255,255,0.65)" }}>
+          <h2 className="text-xl font-semibold mb-2" style={{ color: "#ffffff", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>Sign in to build quotes</h2>
+          <p className="text-sm mb-6 max-w-sm" style={{ color: "rgba(255,255,255,0.65)", fontFamily: "'Barlow', sans-serif" }}>
             Create a free account to save products, build quotes, and generate professional PDFs for your clients.
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => navigateToLogin("signup")}
-              className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:brightness-110"
+              className="flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all hover:brightness-110"
               style={{
                 background: "white",
-                color: "black",
+                color: "#0F0D0B",
+                fontFamily: "'Barlow', sans-serif",
               }}
             >
               <UserPlusIcon className="h-4 w-4" />
@@ -85,8 +86,8 @@ export default function Quotes() {
             </button>
             <button
               onClick={() => navigateToLogin("login")}
-              className="rounded-xl px-6 py-3 text-sm font-medium transition-all"
-              style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}
+              className="rounded-full px-6 py-3 text-sm font-medium transition-all backdrop-blur-md"
+              style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", fontFamily: "'Barlow', sans-serif" }}
             >
               Sign In
             </button>
@@ -484,7 +485,7 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="presentation-mode" style={{ minHeight: "100vh", background: "#000000", color: "#ffffff" }}>
+    <div className="presentation-mode" style={{ minHeight: "100vh", background: "#0F0D0B", color: "#ffffff" }}>
       <div className="page-wrap-wide py-10 pb-48 sm:pb-10">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -541,7 +542,7 @@ export default function Quotes() {
         <section className="mb-14">
           <div className="flex items-center gap-3 mb-5">
             <Heart className="h-4 w-4" style={{ color: "rgba(255,255,255,0.65)" }} />
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>
               Saved Products
             </h2>
             {favorites.length > 0 && (
@@ -659,7 +660,7 @@ export default function Quotes() {
         <section>
           <div className="flex items-center gap-3 mb-5">
             <FileText className="h-4 w-4" style={{ color: "rgba(255,255,255,0.65)" }} />
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>
               Quote Builder
             </h2>
             {totalItems > 0 && (
@@ -1160,10 +1161,11 @@ export default function Quotes() {
                   <button
                     onClick={() => handleGeneratePdf("client")}
                     disabled={generating}
-                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 sm:w-auto w-full"
+                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-full text-sm font-semibold transition-all disabled:opacity-50 sm:w-auto w-full"
                     style={{
                       background: "white",
-                      color: "black",
+                      color: "#0F0D0B",
+                      fontFamily: "'Barlow', sans-serif",
                     }}
                     title="Client-facing PDF with retail/marked-up prices"
                   >
@@ -1175,11 +1177,12 @@ export default function Quotes() {
                     <button
                       onClick={() => handleGeneratePdf("trade")}
                       disabled={generating}
-                      className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                      className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-full text-sm font-semibold transition-all disabled:opacity-50"
                       style={{
                         background: "rgba(255,255,255,0.12)",
                         border: "1px solid rgba(255,255,255,0.20)",
                         color: "white",
+                        fontFamily: "'Barlow', sans-serif",
                       }}
                       title="Internal PDF with trade prices"
                     >
@@ -1190,11 +1193,11 @@ export default function Quotes() {
 
                   <button
                     onClick={handleShareLink}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all sm:w-auto w-full"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-medium transition-all sm:w-auto w-full"
                     style={
                       shareCopied
-                        ? { background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.20)", color: "white" }
-                        : { background: "rgba(184,149,106,0.10)", border: "1px solid rgba(184,149,106,0.20)", color: "rgba(255,255,255,0.65)" }
+                        ? { background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.20)", color: "white", fontFamily: "'Barlow', sans-serif" }
+                        : { background: "rgba(184,149,106,0.10)", border: "1px solid rgba(184,149,106,0.20)", color: "rgba(255,255,255,0.65)", fontFamily: "'Barlow', sans-serif" }
                     }
                     title="Share interactive client approval portal"
                   >
@@ -1213,8 +1216,8 @@ export default function Quotes() {
 
                   <button
                     onClick={handleClear}
-                    className="px-5 py-2.5 rounded-xl text-xs transition-all sm:w-auto w-full hover:text-red-500"
-                    style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    className="px-5 py-2.5 rounded-full text-xs transition-all sm:w-auto w-full hover:text-red-500"
+                    style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)", fontFamily: "'Barlow', sans-serif" }}
                   >
                     Clear Quote
                   </button>
@@ -1261,7 +1264,7 @@ export default function Quotes() {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
                     className="paper-grain w-full max-w-md rounded-[28px] p-6"
-                    style={{ background: "#000000", border: "1px solid rgba(255,255,255,0.10)" }}
+                    style={{ background: "#0F0D0B", border: "1px solid rgba(255,255,255,0.10)" }}
                   >
                     <div className="mb-5 rounded-[22px] px-4 py-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                       <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.65)" }}>Client Portal</div>
@@ -1269,7 +1272,7 @@ export default function Quotes() {
                         Share a composed approval link where clients can review rooms, comment on pieces, and respond without creating an account.
                       </p>
                     </div>
-                    <h3 className="text-lg font-semibold mb-1" style={{ color: "#ffffff" }}>
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: "#ffffff", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>
                       {shareToken ? "Update Client Portal" : "Share with Client"}
                     </h3>
                     <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -1304,18 +1307,19 @@ export default function Quotes() {
                     <div className="flex gap-3 mt-6">
                       <button
                         onClick={() => setShowShareModal(false)}
-                        className="flex-1 py-2.5 rounded-xl text-sm transition-all"
-                        style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}
+                        className="flex-1 py-2.5 rounded-full text-sm transition-all backdrop-blur-md"
+                        style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.06)", fontFamily: "'Barlow', sans-serif" }}
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleCreateShareLink}
                         disabled={shareLoading}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-sm font-semibold transition-all"
                         style={{
                           background: "white",
-                          color: "black",
+                          color: "#0F0D0B",
+                          fontFamily: "'Barlow', sans-serif",
                         }}
                       >
                         {shareLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
@@ -1335,8 +1339,8 @@ export default function Quotes() {
                   className="fixed bottom-6 left-1/2 z-[85] -translate-x-1/2 rounded-2xl px-4 py-3 shadow-2xl backdrop-blur-xl"
                   style={{ background: "white", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <div className="flex items-center gap-2 text-[12px]" style={{ color: "black" }}>
-                    <Check className="h-3.5 w-3.5" style={{ color: "#C2CCBA" }} />
+                  <div className="flex items-center gap-2 text-[12px]" style={{ color: "#0F0D0B" }}>
+                    <Check className="h-3.5 w-3.5" style={{ color: "rgba(255,255,255,0.65)" }} />
                     {actionToast}
                   </div>
                 </motion.div>
@@ -1549,12 +1553,12 @@ function QuoteItemRow({
                 ) : (
                   <div className="flex items-center gap-2">
                     {price ? (
-                      <span className="text-xs" style={{ color: priceInfo.isCustom ? "#B8956A" : priceInfo.isTrade ? "#2C3E2D" : "#6B6560" }}>
+                      <span className="text-xs" style={{ color: priceInfo.isCustom ? "#B8956A" : priceInfo.isTrade ? "rgba(255,255,255,0.85)" : "#6B6560" }}>
                         {priceInfo.isCustom && <span className="text-[9px] mr-0.5 opacity-70">Custom </span>}
                         {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-70">Est. Trade </span>}
                         {formatUsd(price)}
                         {(item.quantity || 1) > 1 && (
-                          <span style={{ color: priceInfo.isCustom ? "rgba(184,149,106,0.5)" : priceInfo.isTrade ? "rgba(44,62,45,0.5)" : "#9B9590" }}>
+                          <span style={{ color: priceInfo.isCustom ? "rgba(184,149,106,0.5)" : priceInfo.isTrade ? "rgba(255,255,255,0.5)" : "#9B9590" }}>
                             {" "}x{item.quantity} = {formatUsd(price * (item.quantity || 1))}
                           </span>
                         )}
@@ -1628,7 +1632,7 @@ function QuoteItemRow({
                 <div
                   className="absolute right-0 top-full z-10 w-40 py-1 rounded-lg shadow-xl"
                   style={{
-                    background: "#000000",
+                    background: "#0F0D0B",
                     border: "1px solid rgba(255,255,255,0.10)",
                   }}
                 >
@@ -1643,8 +1647,8 @@ function QuoteItemRow({
                         }}
                         className="w-full text-left px-3 py-1.5 text-xs transition-colors"
                         style={{ color: "rgba(255,255,255,0.65)" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#1A1A18"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#6B6560"; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "white"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
                       >
                         {r.name}
                       </button>

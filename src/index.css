@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    /* ── Core palette — Dark Cinematic (Aether Theme) ── */
-    --cream: #000000;
-    --cream-dark: #0d0d0d;
+    /* ── Core palette — Dark Warm Charcoal ── */
+    --cream: #0F0D0B;
+    --cream-dark: #0a0908;
     --white: #FEFCF9;
     --green: #ffffff;
     --green-light: rgba(255,255,255,0.85);
@@ -27,15 +27,15 @@
     --gold: rgba(255,255,255,0.75);
     --gold-bright: #ffffff;
     --gold-rgb: 255, 255, 255;
-    --night-bg: #000000;
+    --night-bg: #0F0D0B;
     --warm-white: #ffffff;
     --warm-gray: rgba(255, 255, 255, 0.65);
     --muted-gray: rgba(255, 255, 255, 0.40);
 
     /* ── Shadcn variables (dark theme) ── */
-    --background: 0 0% 0%;
+    --background: 18 16% 4%;
     --foreground: 0 0% 100%;
-    --card: 0 0% 5%;
+    --card: 18 14% 6%;
     --card-foreground: 0 0% 100%;
     --popover: 0 0% 3%;
     --popover-foreground: 0 0% 100%;
@@ -68,12 +68,12 @@
     --sidebar-ring: 30 35% 49%;
 
     /* ── Glass surfaces (dark theme) ── */
-    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.04);
     --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-border-hover: rgba(255, 255, 255, 0.18);
+    --glass-border-hover: rgba(255, 255, 255, 0.16);
     --glass-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.2);
-    --glass-shadow-hover: 0 12px 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
-    --glass-blur: 20px;
+    --glass-shadow-hover: 0 12px 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.03);
+    --glass-blur: 8px;
 
     /* ── Editorial workspace surfaces (dark) ── */
     --panel-bg: rgba(255, 255, 255, 0.04);
@@ -111,7 +111,7 @@
     min-height: 100vh;
     color: var(--text-primary);
     background: var(--cream);
-    font-family: "Inter", "DM Sans", system-ui, sans-serif;
+    font-family: "Barlow", "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv11", "ss01";
@@ -145,7 +145,7 @@
       radial-gradient(ellipse at 20% 10%, rgba(184, 149, 106, 0.05) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 20%, rgba(44, 62, 45, 0.03) 0%, transparent 40%),
       radial-gradient(ellipse at 50% 80%, rgba(184, 149, 106, 0.03) 0%, transparent 50%);
-    background-color: #F5F0E8;
+    background-color: #0F0D0B;
   }
 
   #root {
@@ -202,12 +202,13 @@
     }
   }
 
-  /* ── Typography — Playfair Display for headings ── */
+  /* ── Typography — Instrument Serif italic for headings ── */
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    font-weight: 600;
+    font-weight: 400;
   }
 }
 
@@ -458,7 +459,8 @@
   }
 
   .workspace-heading {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
     font-size: clamp(2.5rem, 4.5vw, 4.5rem);
     line-height: 0.95;
     letter-spacing: -0.04em;
@@ -472,7 +474,7 @@
     font-size: 15px;
     line-height: 1.85;
     letter-spacing: 0.005em;
-    font-family: "Inter", "DM Sans", sans-serif;
+    font-family: "Barlow", sans-serif;
   }
 
   .workspace-kicker {
@@ -556,7 +558,7 @@
   /* ════════ KICKER / SECTION LABELS ════════ */
   .kicker {
     @apply inline-flex items-center gap-2 rounded-full px-4 py-1.5;
-    font-family: "Inter", "DM Sans", sans-serif;
+    font-family: "Barlow", sans-serif;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -569,7 +571,8 @@
   /* ════════ TYPOGRAPHY ════════ */
   .section-heading {
     @apply leading-[1.1];
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
     font-size: clamp(32px, 5vw, 56px);
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -583,7 +586,7 @@
   }
 
   .label-caps {
-    font-family: "Inter", "DM Sans", sans-serif;
+    font-family: "Barlow", sans-serif;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
@@ -592,7 +595,8 @@
   }
 
   .product-name {
-    font-family: "Playfair Display", Georgia, serif;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
     font-size: 17px;
     font-weight: 600;
     line-height: 1.15;
@@ -655,17 +659,17 @@
   /* ════════ BUTTONS ════════ */
   .pill-button {
     @apply inline-flex items-center justify-center gap-2 text-sm transition-all;
-    border-radius: 12px;
+    border-radius: 9999px;
     padding: 12px 28px;
     font-weight: 600;
     transition: all 300ms var(--ease-premium);
   }
 
   .btn-gold {
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold), var(--brass));
-    color: #0A0908;
-    font-weight: 700;
-    border-radius: 12px;
+    background: white;
+    color: #0F0D0B;
+    font-weight: 600;
+    border-radius: 9999px;
     padding: 12px 28px;
     box-shadow: 0 2px 8px rgba(196,162,101,0.2), 0 8px 24px rgba(0,0,0,0.2);
     transition: all 300ms var(--ease-premium);
@@ -674,8 +678,8 @@
   }
 
   .btn-gold:hover {
-    background: linear-gradient(135deg, #DCC48A, var(--gold-bright), var(--gold));
-    box-shadow: 0 2px 12px rgba(196,162,101,0.28), 0 12px 36px rgba(0,0,0,0.25), 0 0 48px rgba(196,162,101,0.06);
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 2px 12px rgba(255,255,255,0.15), 0 12px 36px rgba(0,0,0,0.25);
     transform: translateY(-1px);
   }
 
@@ -685,17 +689,17 @@
 
   .btn-outline {
     background: transparent;
-    border: 1px solid rgba(44,62,45,0.12);
+    border: 1px solid rgba(255,255,255,0.12);
     color: var(--text-primary);
-    border-radius: 12px;
+    border-radius: 9999px;
     padding: 12px 28px;
     font-weight: 600;
     transition: all 300ms var(--ease-premium);
   }
 
   .btn-outline:hover {
-    background: rgba(44,62,45,0.04);
-    border-color: rgba(44,62,45,0.20);
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.20);
   }
 
   .glow-blue {
@@ -1193,7 +1197,8 @@
 
 /* ── Hero headline ── */
 .hero-headline {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
   font-size: clamp(2.8rem, 7vw, 6rem);
   font-weight: 600;
   line-height: 1.0;
@@ -1410,7 +1415,8 @@
 }
 
 .stat-card-number {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
   font-size: clamp(3rem, 6vw, 5rem);
   font-weight: 600;
   line-height: 1;
@@ -1453,7 +1459,8 @@
   position: absolute;
   top: 12px;
   right: 20px;
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Instrument Serif", Georgia, serif;
+    font-style: italic;
   font-size: 80px;
   font-weight: 700;
   line-height: 1;

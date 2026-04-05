@@ -55,11 +55,11 @@ function Toast({ message, type, onClose }) {
       }}
     >
       {type === "success" ? (
-        <Check className="h-4 w-4 text-emerald-600" />
+        <Check className="h-4 w-4 text-emerald-400" />
       ) : (
-        <AlertCircle className="h-4 w-4 text-red-500" />
+        <AlertCircle className="h-4 w-4 text-red-400" />
       )}
-      <span className={`text-sm ${type === "success" ? "text-emerald-700" : "text-red-600"}`}>{message}</span>
+      <span className={`text-sm ${type === "success" ? "text-emerald-300" : "text-red-400"}`}>{message}</span>
     </motion.div>
   );
 }
@@ -80,7 +80,7 @@ function Sidebar({ active, onSelect }) {
   return (
     <nav
       className="w-56 shrink-0 pr-6 hidden lg:block"
-      style={{ borderRight: "1px solid rgba(44,62,45,0.10)" }}
+      style={{ borderRight: "1px solid rgba(255,255,255,0.08)" }}
     >
       <div className="sticky top-24 space-y-0.5">
         {SECTIONS.map((s) => {
@@ -92,16 +92,16 @@ function Sidebar({ active, onSelect }) {
               onClick={() => onSelect(s.id)}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all"
               style={{
-                background: isActive ? "rgba(44,62,45,0.07)" : "transparent",
-                color: isActive ? "#1A1A18" : "#9B9590",
+                background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
+                color: isActive ? "white" : "rgba(255,255,255,0.50)",
                 fontWeight: isActive ? "500" : "400",
               }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
             >
               <Icon
                 className="h-4 w-4"
-                style={{ color: isActive ? "#B8956A" : "#9B9590" }}
+                style={{ color: isActive ? "#B8956A" : "rgba(255,255,255,0.40)" }}
               />
               {s.label}
             </button>
@@ -126,11 +126,11 @@ function MobileSectionPicker({ active, onSelect }) {
             onClick={() => onSelect(s.id)}
             className="flex items-center gap-2 shrink-0 rounded-lg px-3 py-2 text-xs transition-all"
             style={{
-              background: isActive ? "rgba(44,62,45,0.07)" : "transparent",
-              color: isActive ? "#1A1A18" : "#9B9590",
+              background: isActive ? "rgba(255,255,255,0.06)" : "transparent",
+              color: isActive ? "white" : "rgba(255,255,255,0.50)",
               fontWeight: isActive ? "500" : "400",
             }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
             onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -148,8 +148,8 @@ function Section({ title, description, children }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold" style={{ color: "#1A1A18" }}>{title}</h2>
-        {description && <p className="text-sm mt-1" style={{ color: "#9B9590" }}>{description}</p>}
+        <h2 className="text-lg font-semibold" style={{ color: "white", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>{title}</h2>
+        {description && <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.55)" }}>{description}</p>}
       </div>
       {children}
     </div>
@@ -161,24 +161,24 @@ function Section({ title, description, children }) {
 function Field({ label, icon: Icon, children, hint }) {
   return (
     <div>
-      <label className="flex items-center gap-2 text-xs font-medium mb-1.5" style={{ color: "#6B6560" }}>
-        {Icon && <Icon className="h-3.5 w-3.5" style={{ color: "#9B9590" }} />}
+      <label className="flex items-center gap-2 text-xs font-medium mb-1.5" style={{ color: "rgba(255,255,255,0.50)" }}>
+        {Icon && <Icon className="h-3.5 w-3.5" style={{ color: "rgba(255,255,255,0.40)" }} />}
         {label}
       </label>
       {children}
-      {hint && <p className="text-[10px] mt-1" style={{ color: "#9B9590" }}>{hint}</p>}
+      {hint && <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{hint}</p>}
     </div>
   );
 }
 
 const INPUT_STYLE = {
   width: "100%",
-  background: "rgba(255,255,255,0.85)",
-  border: "1px solid rgba(44,62,45,0.12)",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.10)",
   borderRadius: "0.75rem",
   padding: "0.75rem 1rem",
   fontSize: "0.875rem",
-  color: "#1A1A18",
+  color: "white",
   outline: "none",
   transition: "border-color 0.15s",
 };
@@ -226,8 +226,8 @@ function ProfileSection({ user, onSave, saving, toast }) {
           {initial}
         </div>
         <div>
-          <p className="text-sm font-medium" style={{ color: "#1A1A18" }}>{user?.full_name || "Your Name"}</p>
-          <p className="text-xs" style={{ color: "#9B9590" }}>{user?.email}</p>
+          <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.90)" }}>{user?.full_name || "Your Name"}</p>
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>{user?.email}</p>
         </div>
       </div>
 
@@ -291,8 +291,8 @@ function ProfileSection({ user, onSave, saving, toast }) {
       <button
         onClick={() => onSave(form)}
         disabled={saving}
-        className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
-        style={{ background: "#2C3E2D", color: "#FFFFFF" }}
+        className="flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
+        style={{ background: "white", color: "#0F0D0B" }}
       >
         {saving ? (
           <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -354,8 +354,8 @@ function TradeDiscountsSection({ toast }) {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium" style={{ color: "#1A1A18" }}>Default Discount</p>
-            <p className="text-xs mt-0.5" style={{ color: "#9B9590" }}>Applies to any vendor without a specific discount below</p>
+            <p className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.90)" }}>Default Discount</p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.40)" }}>Applies to any vendor without a specific discount below</p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -369,12 +369,12 @@ function TradeDiscountsSection({ toast }) {
               placeholder="45"
               className="w-20 rounded-lg px-3 py-2.5 text-sm text-center font-medium focus:outline-none"
               style={{
-                background: "rgba(255,255,255,0.85)",
-                border: "1px solid rgba(44,62,45,0.12)",
-                color: "#1A1A18",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.10)",
+                color: "white",
               }}
             />
-            <span className="text-sm font-medium" style={{ color: "#9B9590" }}>%</span>
+            <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.40)" }}>%</span>
             <AnimatePresence>
               {saved === "default" && (
                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
@@ -386,7 +386,7 @@ function TradeDiscountsSection({ toast }) {
         </div>
       </div>
 
-      <p className="text-[11px]" style={{ color: "#9B9590" }}>
+      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
         Typical trade discounts range from 40-50% off retail. Enter 0 to use the default for that vendor.
       </p>
 
@@ -396,12 +396,12 @@ function TradeDiscountsSection({ toast }) {
           <div
             key={vendor.id}
             className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors"
-            style={{ border: "1px solid rgba(44,62,45,0.08)" }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(44,62,45,0.03)"}
+            style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm truncate" style={{ color: "#6B6560" }}>{vendor.name}</p>
+              <p className="text-sm truncate" style={{ color: "rgba(255,255,255,0.50)" }}>{vendor.name}</p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <input
@@ -415,12 +415,12 @@ function TradeDiscountsSection({ toast }) {
                 placeholder={String(discounts.default_discount || "—")}
                 className="w-16 rounded-lg px-2 py-2 text-xs text-center font-medium focus:outline-none"
                 style={{
-                  background: "rgba(255,255,255,0.85)",
-                  border: "1px solid rgba(44,62,45,0.10)",
-                  color: "#1A1A18",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  color: "white",
                 }}
               />
-              <span className="text-[10px]" style={{ color: "#9B9590" }}>%</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.40)" }}>%</span>
               <div className="w-4">
                 <AnimatePresence>
                   {saved === vendor.id && (
@@ -435,7 +435,7 @@ function TradeDiscountsSection({ toast }) {
         ))}
       </div>
 
-      <p className="text-[10px] text-center pt-2" style={{ color: "#9B9590" }}>
+      <p className="text-[10px] text-center pt-2" style={{ color: "rgba(255,255,255,0.35)" }}>
         Discounts are estimates only. Confirm actual trade pricing with each vendor.
       </p>
     </Section>
@@ -484,7 +484,7 @@ function PreferencesSection({ user, onSave, saving }) {
                 className="px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
                 style={form.results_per_page === n
                   ? { background: "rgba(184,149,106,0.12)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.28)" }
-                  : { background: "rgba(255,255,255,0.85)", color: "#9B9590", border: "1px solid rgba(44,62,45,0.10)" }
+                  : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.10)" }
                 }
               >
                 {n}
@@ -502,7 +502,7 @@ function PreferencesSection({ user, onSave, saving }) {
                 className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
                 style={form.default_sort === o.value
                   ? { background: "rgba(184,149,106,0.12)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.28)" }
-                  : { background: "rgba(255,255,255,0.85)", color: "#9B9590", border: "1px solid rgba(44,62,45,0.10)" }
+                  : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.10)" }
                 }
               >
                 {o.label}
@@ -523,7 +523,7 @@ function PreferencesSection({ user, onSave, saving }) {
                 className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
                 style={form.image_preference === o.value
                   ? { background: "rgba(184,149,106,0.12)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.28)" }
-                  : { background: "rgba(255,255,255,0.85)", color: "#9B9590", border: "1px solid rgba(44,62,45,0.10)" }
+                  : { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.10)" }
                 }
               >
                 {o.label}
@@ -534,7 +534,7 @@ function PreferencesSection({ user, onSave, saving }) {
       </div>
 
       <Field label="My Vendors">
-          <p className="text-xs mb-3 -mt-1" style={{ color: "#9B9590" }}>
+          <p className="text-xs mb-3 -mt-1" style={{ color: "rgba(255,255,255,0.40)" }}>
             Select the vendors you have trade accounts with. When enabled, search results will only show products from these vendors.
           </p>
           <div className="flex items-center gap-3 mb-4">
@@ -542,7 +542,7 @@ function PreferencesSection({ user, onSave, saving }) {
               onClick={() => setForm(f => ({ ...f, my_vendors_only: !f.my_vendors_only }))}
               className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
               style={{
-                background: form.my_vendors_only && form.my_vendors.length > 0 ? "#B8956A" : "rgba(44,62,45,0.12)",
+                background: form.my_vendors_only && form.my_vendors.length > 0 ? "#B8956A" : "rgba(255,255,255,0.12)",
               }}
             >
               <span
@@ -552,7 +552,7 @@ function PreferencesSection({ user, onSave, saving }) {
                 }}
               />
             </button>
-            <span className="text-xs" style={{ color: "#6B6560" }}>
+            <span className="text-xs" style={{ color: "rgba(255,255,255,0.50)" }}>
               {form.my_vendors_only && form.my_vendors.length > 0
                 ? `Showing only my vendors (${form.my_vendors.length} selected)`
                 : "Showing all vendors"}
@@ -568,19 +568,19 @@ function PreferencesSection({ user, onSave, saving }) {
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all"
                   style={selected
                     ? { background: "rgba(184,149,106,0.08)", border: "1px solid rgba(184,149,106,0.25)" }
-                    : { background: "rgba(255,255,255,0.6)", border: "1px solid rgba(44,62,45,0.07)" }
+                    : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }
                   }
                 >
                   <div
                     className="flex h-4 w-4 items-center justify-center rounded border transition-all shrink-0"
                     style={selected
                       ? { background: "#B8956A", borderColor: "#B8956A" }
-                      : { borderColor: "rgba(44,62,45,0.20)" }
+                      : { borderColor: "rgba(255,255,255,0.20)" }
                     }
                   >
                     {selected && <Check className="h-2.5 w-2.5 text-white" />}
                   </div>
-                  <span className="text-sm truncate" style={{ color: selected ? "#B8956A" : "#6B6560" }}>
+                  <span className="text-sm truncate" style={{ color: selected ? "#B8956A" : "rgba(255,255,255,0.50)" }}>
                     {v.name}
                   </span>
                 </button>
@@ -592,8 +592,8 @@ function PreferencesSection({ user, onSave, saving }) {
       <button
         onClick={() => onSave({ preferences: form })}
         disabled={saving}
-        className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
-        style={{ background: "#2C3E2D", color: "#FFFFFF" }}
+        className="flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
+        style={{ background: "white", color: "#0F0D0B" }}
       >
         <Save className="h-4 w-4" />
         Save Preferences
@@ -616,19 +616,19 @@ function NotificationsSection({ user, onSave, saving }) {
     return (
       <div className="flex items-start justify-between gap-4 py-3">
         <div>
-          <p className="text-sm" style={{ color: "#6B6560" }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: "#9B9590" }}>{description}</p>
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.50)" }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.40)" }}>{description}</p>
         </div>
         <button
           onClick={() => onChange(!checked)}
           className="relative w-11 h-6 rounded-full shrink-0 transition-colors"
-          style={{ background: checked ? "rgba(184,149,106,0.30)" : "rgba(44,62,45,0.10)" }}
+          style={{ background: checked ? "rgba(184,149,106,0.30)" : "rgba(255,255,255,0.10)" }}
         >
           <div
             className="absolute top-1 h-4 w-4 rounded-full transition-all"
             style={{
               left: checked ? "1.5rem" : "0.25rem",
-              background: checked ? "#B8956A" : "rgba(44,62,45,0.35)",
+              background: checked ? "#B8956A" : "rgba(255,255,255,0.35)",
             }}
           />
         </button>
@@ -638,7 +638,7 @@ function NotificationsSection({ user, onSave, saving }) {
 
   return (
     <Section title="Notifications" description="Control what emails you receive.">
-      <div className="divide-y" style={{ borderColor: "rgba(44,62,45,0.08)" }}>
+      <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
         <Toggle
           checked={form.new_vendors}
           onChange={(v) => setForm(f => ({ ...f, new_vendors: v }))}
@@ -662,8 +662,8 @@ function NotificationsSection({ user, onSave, saving }) {
       <button
         onClick={() => onSave({ notifications: form })}
         disabled={saving}
-        className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
-        style={{ background: "#2C3E2D", color: "#FFFFFF" }}
+        className="flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all disabled:opacity-50"
+        style={{ background: "white", color: "#0F0D0B" }}
       >
         <Save className="h-4 w-4" />
         Save Notifications
@@ -713,22 +713,22 @@ function SecuritySection({ toast }) {
       {/* Change password */}
       <div
         className="rounded-xl overflow-hidden"
-        style={{ border: "1px solid rgba(44,62,45,0.10)" }}
+        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <button
           onClick={() => setShowPw(!showPw)}
           className="flex w-full items-center justify-between px-5 py-4 text-sm transition-colors"
-          style={{ color: "#6B6560" }}
-          onMouseEnter={e => e.currentTarget.style.background = "rgba(44,62,45,0.04)"}
+          style={{ color: "rgba(255,255,255,0.50)" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
           onMouseLeave={e => e.currentTarget.style.background = "transparent"}
         >
           <div className="flex items-center gap-3">
-            <Lock className="h-4 w-4" style={{ color: "#9B9590" }} />
+            <Lock className="h-4 w-4" style={{ color: "rgba(255,255,255,0.40)" }} />
             Change Password
           </div>
           <ChevronRight
             className="h-4 w-4 transition-transform"
-            style={{ color: "#9B9590", transform: showPw ? "rotate(90deg)" : "rotate(0deg)" }}
+            style={{ color: "rgba(255,255,255,0.40)", transform: showPw ? "rotate(90deg)" : "rotate(0deg)" }}
           />
         </button>
 
@@ -764,9 +764,9 @@ function SecuritySection({ toast }) {
                     type="button"
                     onClick={() => setShowNewPw(!showNewPw)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                    style={{ color: "#9B9590" }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#6B6560"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#9B9590"}
+                    style={{ color: "rgba(255,255,255,0.40)" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.65)"}
+                    onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.40)"}
                   >
                     {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -782,8 +782,8 @@ function SecuritySection({ toast }) {
                 <button
                   onClick={handleChangePassword}
                   disabled={saving || !pwForm.current || !pwForm.new_pw || !pwForm.confirm}
-                  className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
-                  style={{ background: "#2C3E2D", color: "#FFFFFF" }}
+                  className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
+                  style={{ background: "white", color: "#0F0D0B" }}
                 >
                   {saving ? (
                     <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -801,18 +801,18 @@ function SecuritySection({ toast }) {
       {/* 2FA placeholder */}
       <div
         className="flex items-center justify-between rounded-xl px-5 py-4"
-        style={{ border: "1px solid rgba(44,62,45,0.10)" }}
+        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div className="flex items-center gap-3">
-          <Shield className="h-4 w-4" style={{ color: "#9B9590" }} />
+          <Shield className="h-4 w-4" style={{ color: "rgba(255,255,255,0.40)" }} />
           <div>
-            <p className="text-sm" style={{ color: "#6B6560" }}>Two-Factor Authentication</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#9B9590" }}>Add an extra layer of security to your account</p>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.50)" }}>Two-Factor Authentication</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Add an extra layer of security to your account</p>
           </div>
         </div>
         <span
           className="text-[10px] rounded-full px-3 py-1"
-          style={{ color: "#9B9590", background: "rgba(44,62,45,0.06)" }}
+          style={{ color: "rgba(255,255,255,0.40)", background: "rgba(255,255,255,0.06)" }}
         >
           Coming soon
         </span>
@@ -871,20 +871,20 @@ function DataPrivacySection({ toast }) {
       {/* Export */}
       <div
         className="flex items-center justify-between rounded-xl px-5 py-4"
-        style={{ border: "1px solid rgba(44,62,45,0.10)" }}
+        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div className="flex items-center gap-3">
-          <Download className="h-4 w-4" style={{ color: "#9B9590" }} />
+          <Download className="h-4 w-4" style={{ color: "rgba(255,255,255,0.40)" }} />
           <div>
-            <p className="text-sm" style={{ color: "#6B6560" }}>Export My Data</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#9B9590" }}>Download all your saved data as JSON</p>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.50)" }}>Export My Data</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Download all your saved data as JSON</p>
           </div>
         </div>
         <button
           onClick={handleExport}
           className="text-xs font-medium transition-colors"
           style={{ color: "#B8956A" }}
-          onMouseEnter={e => e.currentTarget.style.color = "#2C3E2D"}
+          onMouseEnter={e => e.currentTarget.style.color = "white"}
           onMouseLeave={e => e.currentTarget.style.color = "#B8956A"}
         >
           Download
@@ -894,9 +894,9 @@ function DataPrivacySection({ toast }) {
       {/* Privacy note */}
       <div
         className="rounded-xl px-5 py-4"
-        style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
       >
-        <p className="text-xs leading-relaxed" style={{ color: "#6B6560" }}>
+        <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.50)" }}>
           Your trade discounts, saved products, and search history are private to your account.
           We never share your data with vendors or other designers. Your discount percentages
           are stored locally in your browser and on our servers with encryption.
@@ -904,7 +904,7 @@ function DataPrivacySection({ toast }) {
       </div>
 
       {/* Delete account */}
-      <div className="pt-6" style={{ borderTop: "1px solid rgba(44,62,45,0.08)" }}>
+      <div className="pt-6" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <button
           onClick={() => setShowDeleteModal(true)}
           className="flex items-center gap-2 text-xs text-red-400/60 hover:text-red-500 transition-colors"
@@ -931,7 +931,7 @@ function DataPrivacySection({ toast }) {
               exit={{ scale: 0.95, opacity: 0 }}
               className="relative w-full max-w-md rounded-2xl p-6 space-y-4"
               style={{
-                background: "#FFFFFF",
+                background: "#0F0D0B",
                 border: "1px solid rgba(239,68,68,0.2)",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -941,27 +941,27 @@ function DataPrivacySection({ toast }) {
                   <Trash2 className="h-5 w-5 text-red-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold" style={{ color: "#1A1A18" }}>Delete Account</h3>
-                  <p className="text-xs" style={{ color: "#9B9590" }}>This action cannot be undone</p>
+                  <h3 className="text-base font-semibold" style={{ color: "rgba(255,255,255,0.90)" }}>Delete Account</h3>
+                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>This action cannot be undone</p>
                 </div>
               </div>
 
-              <p className="text-sm leading-relaxed" style={{ color: "#6B6560" }}>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.50)" }}>
                 This will permanently delete your account, saved products, quotes, and all preferences.
                 This cannot be undone.
               </p>
 
               <div>
-                <p className="text-xs mb-2" style={{ color: "#9B9590" }}>Type <span className="text-red-500/70 font-mono">DELETE</span> to confirm:</p>
+                <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.40)" }}>Type <span className="text-red-500/70 font-mono">DELETE</span> to confirm:</p>
                 <input
                   type="text"
                   value={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.value)}
                   className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
                   style={{
-                    background: "rgba(255,255,255,0.85)",
+                    background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(239,68,68,0.25)",
-                    color: "#1A1A18",
+                    color: "white",
                   }}
                   placeholder="DELETE"
                 />
@@ -972,12 +972,12 @@ function DataPrivacySection({ toast }) {
                   onClick={() => { setShowDeleteModal(false); setDeleteConfirm(""); }}
                   className="flex-1 rounded-xl px-4 py-3 text-sm transition-colors"
                   style={{
-                    color: "#6B6560",
-                    background: "rgba(44,62,45,0.05)",
-                    border: "1px solid rgba(44,62,45,0.10)",
+                    color: "rgba(255,255,255,0.50)",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.10)",
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(44,62,45,0.09)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "rgba(44,62,45,0.05)"}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.09)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
                 >
                   Cancel
                 </button>
@@ -1052,7 +1052,7 @@ function SubscriptionSection({ toast }) {
         <div className="flex items-center justify-center py-12">
           <div
             className="h-5 w-5 border-2 rounded-full animate-spin"
-            style={{ borderColor: "rgba(44,62,45,0.20)", borderTopColor: "#B8956A" }}
+            style={{ borderColor: "rgba(255,255,255,0.10)", borderTopColor: "#B8956A" }}
           />
         </div>
       </Section>
@@ -1073,21 +1073,21 @@ function SubscriptionSection({ toast }) {
       {/* Current plan card */}
       <div
         className="rounded-xl p-6"
-        style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)" }}
+        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.2em] mb-1" style={{ color: "#B8956A" }}>
               {sub?.plan === "early_bird" ? "SPEKD Pro — Early Bird" : isActive ? "SPEKD Pro" : isTrialing ? "SPEKD Pro — Trial" : isCancelled ? "Cancelled" : isPastDue ? "Past Due" : "No Active Plan"}
             </div>
-            <div className="text-xl font-semibold" style={{ color: "#1A1A18" }}>
-              {isTrialing ? "Free Trial" : sub?.plan === "early_bird" ? <><span style={{ textDecoration: "line-through", color: "#9B9590", fontSize: "1rem", marginRight: "0.5rem" }}>$99</span>$49/month</> : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
+            <div className="text-xl font-semibold" style={{ color: "rgba(255,255,255,0.90)" }}>
+              {isTrialing ? "Free Trial" : sub?.plan === "early_bird" ? <><span style={{ textDecoration: "line-through", color: "rgba(255,255,255,0.40)", fontSize: "1rem", marginRight: "0.5rem" }}>$99</span>$49/month</> : sub?.plan === "annual" ? "$990/year" : sub?.plan === "monthly" ? "$99/month" : "Free"}
             </div>
             {sub?.plan === "early_bird" && (isActive || isTrialing) && (
               <div className="text-xs text-emerald-600/80 mt-0.5 font-medium">Locked in for life</div>
             )}
             {isTrialing && trialEnd && (
-              <div className="text-xs mt-0.5" style={{ color: "#9B9590" }}>
+              <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.40)" }}>
                 Trial ends {trialEnd}{trialDays != null && ` (${trialDays} day${trialDays !== 1 ? "s" : ""} remaining)`}
               </div>
             )}
@@ -1099,19 +1099,19 @@ function SubscriptionSection({ toast }) {
             isPastDue ? "bg-red-500/10 text-red-600 border border-red-500/20" :
             "border"
           }`}
-          style={(!isActive && !isTrialing && !isCancelled && !isPastDue) ? { color: "#9B9590", borderColor: "rgba(44,62,45,0.10)", background: "rgba(44,62,45,0.04)" } : {}}
+          style={(!isActive && !isTrialing && !isCancelled && !isPastDue) ? { color: "rgba(255,255,255,0.40)", borderColor: "rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)" } : {}}
           >
             <div className={`h-1.5 w-1.5 rounded-full ${
               isActive ? "bg-emerald-500" : isTrialing ? "bg-blue-500" : isCancelled ? "bg-amber-500" : isPastDue ? "bg-red-500" : ""
             }`}
-            style={(!isActive && !isTrialing && !isCancelled && !isPastDue) ? { background: "rgba(44,62,45,0.30)" } : {}}
+            style={(!isActive && !isTrialing && !isCancelled && !isPastDue) ? { background: "rgba(255,255,255,0.30)" } : {}}
             />
             {isActive ? "Active" : isTrialing ? "Trial" : isCancelled ? "Cancels soon" : isPastDue ? "Payment failed" : "Inactive"}
           </div>
         </div>
 
         {periodEnd && (
-          <div className="flex items-center gap-2 text-xs mb-4" style={{ color: "#9B9590" }}>
+          <div className="flex items-center gap-2 text-xs mb-4" style={{ color: "rgba(255,255,255,0.40)" }}>
             <Calendar className="h-3.5 w-3.5" />
             {isCancelled ? `Access until ${periodEnd}` : `Next billing: ${periodEnd}`}
           </div>
@@ -1124,9 +1124,9 @@ function SubscriptionSection({ toast }) {
               onClick={handlePortal}
               disabled={portalLoading}
               className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-medium transition-all disabled:opacity-40"
-              style={{ border: "1px solid rgba(44,62,45,0.10)", color: "#6B6560" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "#1A1A18"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.20)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.10)"; }}
+              style={{ border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.50)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "white"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.20)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.50)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
             >
               {portalLoading ? <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
               {isPastDue ? "Update Payment Method" : "Manage Billing"}
@@ -1152,9 +1152,9 @@ function SubscriptionSection({ toast }) {
         <button
           onClick={() => setShowCancel(true)}
           className="text-xs transition-colors mt-2"
-          style={{ color: "#9B9590" }}
+          style={{ color: "rgba(255,255,255,0.40)" }}
           onMouseEnter={e => e.currentTarget.style.color = "rgba(239,68,68,0.65)"}
-          onMouseLeave={e => e.currentTarget.style.color = "#9B9590"}
+          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.40)"}
         >
           Cancel subscription
         </button>
@@ -1165,10 +1165,10 @@ function SubscriptionSection({ toast }) {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           className="rounded-xl p-6 space-y-4"
-          style={{ border: "1px solid rgba(239,68,68,0.12)", background: "rgba(239,68,68,0.02)" }}
+          style={{ border: "1px solid rgba(239,68,68,0.12)", background: "rgba(239,68,68,0.04)" }}
         >
-          <h3 className="text-sm font-semibold" style={{ color: "#1A1A18" }}>Cancel your subscription?</h3>
-          <p className="text-xs" style={{ color: "#9B9590" }}>Your access continues until the end of your current billing period{periodEnd ? ` (${periodEnd})` : ""}.</p>
+          <h3 className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.90)" }}>Cancel your subscription?</h3>
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>Your access continues until the end of your current billing period{periodEnd ? ` (${periodEnd})` : ""}.</p>
 
           {sub?.plan === "monthly" && (
             <button
@@ -1179,20 +1179,20 @@ function SubscriptionSection({ toast }) {
               onMouseLeave={e => e.currentTarget.style.background = "rgba(184,149,106,0.05)"}
             >
               <div className="text-xs font-semibold mb-1" style={{ color: "#B8956A" }}>Switch to annual and save $198/year</div>
-              <div className="text-[11px]" style={{ color: "#9B9590" }}>$990/year ($82.50/mo) instead of $99/mo</div>
+              <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.40)" }}>$990/year ($82.50/mo) instead of $99/mo</div>
             </button>
           )}
 
           <div>
-            <label className="text-xs mb-1.5 block" style={{ color: "#9B9590" }}>Why are you cancelling? (optional)</label>
+            <label className="text-xs mb-1.5 block" style={{ color: "rgba(255,255,255,0.40)" }}>Why are you cancelling? (optional)</label>
             <select
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
               style={{
-                background: "rgba(255,255,255,0.85)",
-                border: "1px solid rgba(44,62,45,0.10)",
-                color: "#6B6560",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.50)",
               }}
             >
               <option value="">Select a reason...</option>
@@ -1209,9 +1209,9 @@ function SubscriptionSection({ toast }) {
             <button
               onClick={() => setShowCancel(false)}
               className="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-all"
-              style={{ border: "1px solid rgba(44,62,45,0.10)", color: "#6B6560" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "#1A1A18"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.20)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.10)"; }}
+              style={{ border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.50)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "white"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.20)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.50)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
             >
               Keep Subscription
             </button>
@@ -1234,14 +1234,14 @@ function SubscriptionSection({ toast }) {
           style={{ border: "1px solid rgba(184,149,106,0.22)", background: "rgba(184,149,106,0.04)" }}
         >
           <h3 className="text-sm font-semibold" style={{ color: "#B8956A" }}>Save $198/year with an annual plan</h3>
-          <p className="text-xs" style={{ color: "#9B9590" }}>You're currently paying $99/month ($1,188/year). Switch to annual for just $990/year — that's $82.50/month.</p>
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.40)" }}>You're currently paying $99/month ($1,188/year). Switch to annual for just $990/year — that's $82.50/month.</p>
           <div className="flex gap-3">
             <button
               onClick={() => { setShowAnnualOffer(false); }}
               className="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-all"
-              style={{ border: "1px solid rgba(44,62,45,0.10)", color: "#6B6560" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "#1A1A18"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.20)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.borderColor = "rgba(44,62,45,0.10)"; }}
+              style={{ border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.50)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "white"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.20)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.50)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
             >
               No, cancel anyway
             </button>
@@ -1326,7 +1326,7 @@ export default function Account() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div
           className="h-6 w-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: "rgba(44,62,45,0.15)", borderTopColor: "#B8956A" }}
+          style={{ borderColor: "rgba(255,255,255,0.10)", borderTopColor: "#B8956A" }}
         />
       </div>
     );
@@ -1335,7 +1335,7 @@ export default function Account() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="page-wrap py-8" style={{ minHeight: "100vh", background: "#F5F0E8" }}>
+    <div className="page-wrap py-8" style={{ minHeight: "100vh", background: "#0F0D0B" }}>
       <AnimatePresence>
         {toastMsg && (
           <Toast
@@ -1348,8 +1348,8 @@ export default function Account() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold" style={{ color: "#1A1A18" }}>Account</h1>
-        <p className="text-sm mt-1" style={{ color: "#9B9590" }}>Manage your profile, trade discounts, and preferences</p>
+        <h1 className="text-2xl font-semibold" style={{ color: "white", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>Account</h1>
+        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.40)" }}>Manage your profile, trade discounts, and preferences</p>
       </div>
 
       <div className="flex gap-8">

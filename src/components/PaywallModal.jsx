@@ -70,11 +70,31 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
   const priceLabel = billing === "early_bird" ? "$49/mo" : billing === "annual" ? "$990/yr" : "$99/mo";
 
   const inputClass =
-    "w-full rounded-lg px-3.5 py-3 text-base sm:text-sm text-white bg-white/[0.04] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
+    "w-full rounded-lg px-3.5 py-3 text-base sm:text-sm text-white bg-[rgba(255,255,255,0.04)] border border-white/[0.08] focus:border-white/20 focus:outline-none transition-colors";
 
-  const goldBtnStyle = {
-    background: `linear-gradient(135deg, ${GOLD}, #B8944F)`,
-    boxShadow: `0 4px 20px ${GOLD_SHADOW}`,
+  const primaryBtnStyle = {
+    background: "#FFFFFF",
+    color: "#0F0D0B",
+    borderRadius: 9999,
+    boxShadow: "0 4px 20px rgba(255,255,255,0.10)",
+    fontFamily: "'Barlow', sans-serif",
+  };
+
+  const secondaryBtnStyle = {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "rgba(255,255,255,0.7)",
+    borderRadius: 9999,
+    fontFamily: "'Barlow', sans-serif",
+  };
+
+  const headingFont = {
+    fontFamily: "'Instrument Serif', serif",
+    fontStyle: "italic",
+  };
+
+  const bodyFont = {
+    fontFamily: "'Barlow', sans-serif",
   };
 
   const handleDismiss = () => {
@@ -233,7 +253,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full h-[100dvh] sm:h-auto sm:mx-4 sm:max-h-[90vh] overflow-y-auto sm:rounded-2xl rounded-t-2xl p-6 sm:p-8 sm:max-w-lg"
         style={{
-          background: "rgba(42,37,31,0.98)",
+          background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
           paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
@@ -254,7 +274,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
               <div className="flex justify-center mb-5">
                 <div
                   className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: "rgba(196,168,130,0.1)", border: "1px solid rgba(196,168,130,0.2)" }}
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)" }}
                 >
                   <Sparkles className="h-6 w-6" style={{ color: GOLD }} />
                 </div>
@@ -262,25 +282,25 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
 
               {isUpgrade ? (
                 <>
-                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                  <h2 className="text-xl font-semibold text-white text-center mb-2" style={headingFont}>
                     Reactivate Pro
                   </h2>
-                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed" style={bodyFont}>
                     {upgradeMessage || "Your saved products and quotes are still here. Reactivate Pro to pick up where you left off."}
                   </p>
                 </>
               ) : ebAvailable ? (
                 <>
-                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                  <h2 className="text-xl font-semibold text-white text-center mb-2" style={headingFont}>
                     Early Access — $49/mo for life
                   </h2>
-                  <p className="text-sm text-white/50 text-center mb-2 leading-relaxed">
+                  <p className="text-sm text-white/50 text-center mb-2 leading-relaxed" style={bodyFont}>
                     Join the designers already sourcing smarter — lock in $49/month forever. Regular price is $99/month and your rate never increases.
                   </p>
                   {earlyBird && (
                     <div className="flex items-center justify-center gap-1.5 mb-5">
                       <Clock className="h-3 w-3" style={{ color: GOLD }} />
-                      <span className="text-xs font-semibold" style={{ color: GOLD }}>
+                      <span className="text-xs font-semibold" style={{ color: GOLD, ...bodyFont }}>
                         Only {earlyBird.remaining} founding spots remaining
                       </span>
                     </div>
@@ -288,10 +308,10 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                  <h2 className="text-xl font-semibold text-white text-center mb-2" style={headingFont}>
                     {isLoggedIn ? "Try SPEKD Pro free for 7 days" : "Try SPEKD Pro free for 7 days"}
                   </h2>
-                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed">
+                  <p className="text-sm text-white/50 text-center mb-6 leading-relaxed" style={bodyFont}>
                     {isLoggedIn
                       ? "Start your free trial — no charge for 7 days. Cancel anytime before the trial ends and you won't pay a thing."
                       : "You've used your 7 free searches. Create an account and start a trial to get unlimited AI-powered sourcing — no charge for 7 days."}
@@ -306,9 +326,10 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     onClick={() => setBilling("early_bird")}
                     className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
                     style={{
-                      background: billing === "early_bird" ? "rgba(196,168,130,0.08)" : "transparent",
-                      border: `1px solid ${billing === "early_bird" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
+                      background: billing === "early_bird" ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: `1px solid ${billing === "early_bird" ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.08)"}`,
                       color: billing === "early_bird" ? GOLD : "rgba(255,255,255,0.4)",
+                      ...bodyFont,
                     }}
                   >
                     <span className="line-through opacity-50 mr-1">$99</span>$49/mo
@@ -324,9 +345,10 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   onClick={() => setBilling("monthly")}
                   className="text-sm font-medium px-4 py-1.5 rounded-full transition-all"
                   style={{
-                    background: billing === "monthly" ? "rgba(196,168,130,0.08)" : "transparent",
-                    border: `1px solid ${billing === "monthly" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    background: billing === "monthly" ? "rgba(255,255,255,0.08)" : "transparent",
+                    border: `1px solid ${billing === "monthly" ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.08)"}`,
                     color: billing === "monthly" ? GOLD : "rgba(255,255,255,0.4)",
+                    ...bodyFont,
                   }}
                 >
                   $99/mo
@@ -335,15 +357,16 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   onClick={() => setBilling("annual")}
                   className="text-sm font-medium px-4 py-1.5 rounded-full transition-all relative"
                   style={{
-                    background: billing === "annual" ? "rgba(196,168,130,0.08)" : "transparent",
-                    border: `1px solid ${billing === "annual" ? "rgba(196,168,130,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    background: billing === "annual" ? "rgba(255,255,255,0.08)" : "transparent",
+                    border: `1px solid ${billing === "annual" ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.08)"}`,
                     color: billing === "annual" ? GOLD : "rgba(255,255,255,0.4)",
+                    ...bodyFont,
                   }}
                 >
                   $990/yr
                   <span
                     className="absolute -top-2.5 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                    style={{ background: "rgba(196,168,130,0.2)", color: GOLD }}
+                    style={{ background: "rgba(255,255,255,0.08)", color: GOLD }}
                   >
                     Save $198
                   </span>
@@ -355,13 +378,13 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 {PRO_FEATURES.map((f, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: GOLD }} />
-                    <span className="text-xs text-white/60 leading-tight">{f.text}</span>
+                    <span className="text-xs text-white/60 leading-tight" style={bodyFont}>{f.text}</span>
                   </div>
                 ))}
               </div>
 
               {error && (
-                <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 mb-4">
+                <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 mb-4" style={bodyFont}>
                   {error}
                 </div>
               )}
@@ -371,13 +394,13 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   <button
                     onClick={handleDirectCheckout}
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                    style={goldBtnStyle}
+                    className="w-full py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={primaryBtnStyle}
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     {loading ? "Redirecting to Stripe..." : isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? <><span className="line-through opacity-50">$99</span>&nbsp;Lock in $49/mo forever</> : "Start your 7-day free trial"}
                   </button>
-                  <p className="text-[11px] text-white/30 text-center mt-2">
+                  <p className="text-[11px] text-white/30 text-center mt-2" style={bodyFont}>
                     {isUpgrade
                       ? `Signed in as ${existingUser?.email || ""}.`
                       : billing === "early_bird"
@@ -390,24 +413,20 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   <div className="flex gap-3">
                     <button
                       onClick={() => { setError(""); setStep("signup"); }}
-                      className="flex-1 py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 flex items-center justify-center gap-2"
-                      style={goldBtnStyle}
+                      className="flex-1 py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                      style={primaryBtnStyle}
                     >
                       Create Account
                     </button>
                     <button
                       onClick={() => { setError(""); setStep("login"); }}
-                      className="flex-1 py-3.5 rounded-xl text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
-                      style={{
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        color: "rgba(255,255,255,0.7)",
-                      }}
+                      className="flex-1 py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 flex items-center justify-center gap-2"
+                      style={secondaryBtnStyle}
                     >
                       Sign In
                     </button>
                   </div>
-                  <p className="text-[11px] text-white/30 text-center mt-2">
+                  <p className="text-[11px] text-white/30 text-center mt-2" style={bodyFont}>
                     {billing === "early_bird"
                       ? "7-day free trial, then $49/mo locked in for life. Cancel anytime."
                       : "You won't be charged for 7 days. Cancel anytime."}
@@ -419,6 +438,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
               <button
                 onClick={handleDismiss}
                 className="block mx-auto mt-4 text-[11px] text-white/20 hover:text-white/40 transition-colors"
+                style={bodyFont}
               >
                 Maybe later
               </button>
@@ -428,28 +448,29 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
           {/* ── SIGNUP ── */}
           {step === "signup" && (
             <motion.div key="signup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="text-lg font-semibold text-white mb-1">Create your account</h2>
-              <p className="text-xs text-white/40 mb-1">
+              <h2 className="text-lg font-semibold text-white mb-1" style={headingFont}>Create your account</h2>
+              <p className="text-xs text-white/40 mb-1" style={bodyFont}>
                 {isUpgrade ? `Reactivate Pro — ${priceLabel}` : billing === "early_bird" ? "7-day free trial — then $49/mo locked in forever" : `7-day free trial — then ${priceLabel}`}
               </p>
-              <p className="text-xs text-white/30 mb-6">You'll add your card with Stripe next</p>
+              <p className="text-xs text-white/30 mb-6" style={bodyFont}>You'll add your card with Stripe next</p>
 
               <form onSubmit={handleCheckout} className="space-y-3.5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                    <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Email</label>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className={inputClass}
+                      style={bodyFont}
                       placeholder="you@studio.com"
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Password</label>
+                    <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Password</label>
                     <input
                       type="password"
                       required
@@ -457,36 +478,39 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className={inputClass}
+                      style={bodyFont}
                       placeholder="Min. 8 characters"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Full name</label>
+                    <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Full name</label>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className={inputClass}
+                      style={bodyFont}
                       placeholder="Jane Smith"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-white/40 mb-1.5">Company <span className="text-white/20">(optional)</span></label>
+                    <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Company <span className="text-white/20">(optional)</span></label>
                     <input
                       type="text"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
                       className={inputClass}
+                      style={bodyFont}
                       placeholder="Studio name"
                     />
                   </div>
                 </div>
 
                 {error && (
-                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2" style={bodyFont}>
                     {error}
                   </div>
                 )}
@@ -494,15 +518,15 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={goldBtnStyle}
+                  className="w-full py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={primaryBtnStyle}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {loading ? "Creating account..." : "Continue to Payment"}
                 </button>
               </form>
 
-              <p className="text-[11px] text-white/30 text-center mt-2">
+              <p className="text-[11px] text-white/30 text-center mt-2" style={bodyFont}>
                 Card required but not charged during your 7-day trial
               </p>
 
@@ -510,6 +534,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <button
                   onClick={() => { setError(""); setStep("login"); }}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                  style={bodyFont}
                 >
                   Already have an account? <span className="underline">Sign in</span>
                 </button>
@@ -520,34 +545,36 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
           {/* ── LOGIN ── */}
           {step === "login" && (
             <motion.div key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="text-lg font-semibold text-white mb-1">Welcome back</h2>
-              <p className="text-xs text-white/40 mb-6">Sign in to your SPEKD account</p>
+              <h2 className="text-lg font-semibold text-white mb-1" style={headingFont}>Welcome back</h2>
+              <p className="text-xs text-white/40 mb-6" style={bodyFont}>Sign in to your SPEKD account</p>
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                  <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Email</label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={inputClass}
+                    style={bodyFont}
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Password</label>
+                  <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Password</label>
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={inputClass}
+                    style={bodyFont}
                   />
                 </div>
 
                 {error && (
-                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                  <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2" style={bodyFont}>
                     {error}
                   </div>
                 )}
@@ -555,8 +582,8 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={goldBtnStyle}
+                  className="w-full py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={primaryBtnStyle}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {loading ? "Signing in..." : "Sign In"}
@@ -567,6 +594,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <button
                   onClick={() => { setError(""); setForgotSuccess(false); setStep("forgot"); }}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                  style={bodyFont}
                 >
                   Forgot password?
                 </button>
@@ -574,6 +602,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <button
                   onClick={() => { setError(""); setStep("signup"); }}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors"
+                  style={bodyFont}
                 >
                   Create account
                 </button>
@@ -584,17 +613,18 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
           {/* ── FORGOT PASSWORD ── */}
           {step === "forgot" && (
             <motion.div key="forgot" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="text-lg font-semibold text-white mb-1">Reset your password</h2>
-              <p className="text-xs text-white/40 mb-6">Enter your email and we'll send a reset link</p>
+              <h2 className="text-lg font-semibold text-white mb-1" style={headingFont}>Reset your password</h2>
+              <p className="text-xs text-white/40 mb-6" style={bodyFont}>Enter your email and we'll send a reset link</p>
 
               {forgotSuccess ? (
                 <div>
-                  <div className="text-sm text-white/70 bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
+                  <div className="text-sm text-white/70 bg-[rgba(255,255,255,0.04)] border border-white/[0.08] rounded-lg px-4 py-3 mb-6" style={bodyFont}>
                     If an account exists with that email, a reset link has been sent.
                   </div>
                   <button
                     onClick={() => { setForgotSuccess(false); setError(""); setStep("login"); }}
                     className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto"
+                    style={bodyFont}
                   >
                     Back to login
                   </button>
@@ -603,20 +633,21 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                 <>
                   <form onSubmit={handleForgotPassword} className="space-y-4">
                     <div>
-                      <label className="block text-xs text-white/40 mb-1.5">Email</label>
+                      <label className="block text-xs text-white/40 mb-1.5" style={bodyFont}>Email</label>
                       <input
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className={inputClass}
+                        style={bodyFont}
                         placeholder="you@studio.com"
                         autoFocus
                       />
                     </div>
 
                     {error && (
-                      <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+                      <div className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2" style={bodyFont}>
                         {error}
                       </div>
                     )}
@@ -624,8 +655,8 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 rounded-xl text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                      style={goldBtnStyle}
+                      className="w-full py-3.5 rounded-full text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={primaryBtnStyle}
                     >
                       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       {loading ? "Sending..." : "Send Reset Link"}
@@ -635,6 +666,7 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                   <button
                     onClick={() => { setError(""); setStep("login"); }}
                     className="text-xs text-white/30 hover:text-white/50 transition-colors block mx-auto mt-4"
+                    style={bodyFont}
                   >
                     Back to login
                   </button>
