@@ -474,6 +474,9 @@ export function getQuoteItemCount() {
 
 export function clearQuote() {
   writeJson(STORAGE_KEYS.quote, null);
+  // Sync the empty state to server so it doesn't restore on next login
+  const empty = { rooms: [{ id: "room_default", name: "Living Room", items: [] }], updated_at: new Date().toISOString() };
+  syncQuoteToServer(empty).catch(() => {});
 }
 
 export function getQuoteSettings() {
@@ -542,8 +545,9 @@ export async function syncFromServer() {
       for (const f of local) { if (!merged.has(f.id)) merged.set(f.id, f); }
       writeJson(STORAGE_KEYS.favorites, [...merged.values()].slice(0, 40));
     }
-    // Quote: always use server version for this account
-    if (serverQuote && serverQuote.rooms) {
+    // Quote: always use server version for this account (only if it has items)
+    const serverItemCount = serverQuote?.rooms?.reduce((s, r) => s + (r.items?.length || 0), 0) || 0;
+    if (serverQuote && serverQuote.rooms && serverItemCount > 0) {
       writeJson(STORAGE_KEYS.quote, serverQuote);
     } else {
       // Server has no quote — check if local has items that belong to this user
