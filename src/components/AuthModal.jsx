@@ -3,9 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Eye, EyeOff, ArrowRight, AlertCircle, Check, Mail, Lock, User, Building2 } from "lucide-react";
 import { register, login, getSubscriptionStatus } from "@/api/authClient";
 import { useAuth } from "@/lib/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 export default function AuthModal() {
   const { showAuthModal, setShowAuthModal, authModalMode, setAuthModalMode, onAuthSuccess } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(authModalMode); // "signup" | "login"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +73,7 @@ export default function AuthModal() {
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user, true);
+            navigate(createPageUrl("Search"));
           }, 800);
         } else {
           setError(result.error || "Registration failed");
@@ -87,6 +91,7 @@ export default function AuthModal() {
           setSuccess(true);
           setTimeout(() => {
             onAuthSuccess(result.user);
+            navigate(createPageUrl("Search"));
           }, 800);
         } else {
           setError(result.error || "Login failed");

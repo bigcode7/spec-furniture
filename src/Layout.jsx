@@ -471,7 +471,7 @@ export default function Layout({ children, currentPageName }) {
       <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden" style={{ background: "rgba(245,240,232,0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(44,62,45,0.06)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-around h-[68px]">
           {[
-            { path: "Dashboard", icon: House, label: "Home" },
+            { path: "Search", icon: House, label: "Home" },
             { path: "Search", icon: Search, label: "Search" },
           ].map((item) => {
             const active = currentPageName === item.path;

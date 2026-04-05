@@ -34,7 +34,7 @@ export const PAGES = {
     "Terms": Terms,
     "Approve": ClientPortal,
     /* Legacy redirects */
-    "Dashboard": Dashboard,
+    "Dashboard": ToSearch,
     "Cart": ToSearch,
     "Compare": ToSearch,
     "Projects": ToSearch,
