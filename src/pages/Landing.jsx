@@ -167,10 +167,10 @@ function IntroSection() {
         </motion.h2>
         <motion.p variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.2}
           style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "1.05rem", color: "rgba(255,255,255,0.72)", lineHeight: 1.75, maxWidth: 560, margin: "0 0 48px" }}>
-          Describe exactly what you need — "curved bouclé sofa, low profile, warm neutrals" — and SPEKD searches 42,000+ trade products instantly.
+          Describe exactly what you need — "transitional leather sofa with nailhead trim" — and SPEKD searches 42,000+ trade products instantly.
         </motion.p>
         <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.3}
-          style={{ display: "flex", gap: "clamp(20px, 3vw, 48px)", flexWrap: "wrap", justifyContent: "center" }}>
+          style={{ display: "flex", gap: "clamp(12px, 2.5vw, 48px)", flexWrap: "nowrap", justifyContent: "center" }}>
           {vendors.map((v) => (
             <span key={v} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.875rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)" }}>{v}</span>
           ))}
