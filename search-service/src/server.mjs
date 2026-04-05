@@ -638,6 +638,26 @@ async function runHeavyInit() {
     if (imgFixed || imgCleared) console.log(`[startup] Image fix v1: ${imgFixed} heroes updated, ${imgCleared} fully broken cleared (Gabby + Century)`);
   }
 
+  // ── Manual image patch v2 — cross-contaminated images ──
+  {
+    const CROSS_FIXES = [
+      // Amerigo Sofa had chair image (6892-1) scraped into its images array as 3rd photo
+      {
+        id: "hancock-moore_amerigo-sofa-6892-3",
+        images: [
+          "https://hancockandmoore.com/Documents/prod-images/6892-3_Amerigo_EasTob_SonEsp_Mesa_1023_HR.jpg",
+          "https://hancockandmoore.com/Documents/prod-images/6892-3_Amerigo_EasTob_SonEsp_Mesa_1023_BK_HR.jpg",
+        ],
+      },
+    ];
+    for (const fix of CROSS_FIXES) {
+      const product = getProduct(fix.id);
+      if (!product) continue;
+      updateProductDirect(fix.id, { images: fix.images });
+    }
+    console.log(`[startup] Image patch v2: ${CROSS_FIXES.length} cross-contaminated image(s) corrected`);
+  }
+
   // Initialize project store
   initProjectStore();
 
