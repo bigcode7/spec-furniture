@@ -1,563 +1,529 @@
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import {
-  Search, ArrowRight,
-  FileText, Send,
-} from "lucide-react";
-import {
-  motion, useInView,
-} from "framer-motion";
+import { Search, Layers, Sparkles, Heart, ArrowUpRight, ChevronRight, Play } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
-import ScrollExperience from "@/components/ScrollExperience";
 
 const SEARCH_URL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
-const EASE = [0.22, 1, 0.36, 1];
 
-// ── THE DIGITAL SHOWROOM — Palette ──
-const P = {
-  cream:        "#F5F0E8",
-  creamDark:    "#EBE4D8",
-  white:        "#FEFCF9",
-  green:        "#2C3E2D",
-  greenLight:   "#3D5240",
-  greenMuted:   "#5A7A5E",
-  sage:         "#C2CCBA",
-  sageDark:     "#8A9A8A",
-  brass:        "#B8956A",
-  brassLight:   "#D4B88A",
-  brassDark:    "#96744D",
-  brassRgb:     "184,149,106",
-  greenRgb:     "44,62,45",
-  sageRgb:      "194,204,186",
-  textPrimary:  "#2A2622",
-  textSecondary:"#7A746B",
-  textMuted:    "#9B9590",
-  obsidian:     "#161311",
-  surface:      "#1E1B19",
-  surfaceHigh:  "#2D2927",
-  surfaceHigher:"#383432",
-  onSurface:    "#2A2622",
-  onSurfaceDim: "#7A746B",
+// ── Fade-up variant ──────────────────────────────────────────────────────────
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: (delay = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1], delay } }),
 };
 
-const EXAMPLE_SEARCHES = [
-  "curved bouclé sofa",
-  "mid-century teak credenza",
-  "marble coffee table",
-  "statement accent chair",
-  "woven rattan pendant",
-];
-
-// ── Scroll-triggered reveal ──
-function Reveal({ children, className = "", delay = 0 }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 32 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: EASE }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-// ── Animated counter ──
-function AnimatedCounter({ target, suffix = "", prefix = "" }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+// ── Particle Canvas ──────────────────────────────────────────────────────────
+function ParticleCanvas() {
+  const canvasRef = useRef(null);
   useEffect(() => {
-    if (!inView || !target) return;
-    let start = 0;
-    const step = target / 120;
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) { setCount(target); clearInterval(timer); }
-      else setCount(Math.floor(start));
-    }, 1000 / 60);
-    return () => clearInterval(timer);
-  }, [inView, target]);
-  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId;
+    let W = 0, H = 0;
+    const pts = [];
+    function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
+    function spawn() {
+      pts.length = 0;
+      for (let i = 0; i < 90; i++) {
+        pts.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.2,
+          speed: Math.random() * 0.35 + 0.08, drift: (Math.random() - 0.5) * 0.25,
+          baseOpacity: Math.random() * 0.55 + 0.08, phase: Math.random() * Math.PI * 2 });
+      }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      for (const p of pts) {
+        p.y -= p.speed; p.x += p.drift; p.phase += 0.012;
+        if (p.y < -p.r * 3) p.y = H + p.r;
+        if (p.x < -p.r * 3) p.x = W + p.r;
+        if (p.x > W + p.r * 3) p.x = -p.r;
+        const opacity = p.baseOpacity * (0.65 + 0.35 * Math.sin(p.phase));
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.5);
+        grad.addColorStop(0, `rgba(255,255,255,${opacity})`);
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      animId = requestAnimationFrame(draw);
+    }
+    resize(); spawn(); draw();
+    const ro = new ResizeObserver(() => { resize(); spawn(); });
+    ro.observe(canvas);
+    return () => { cancelAnimationFrame(animId); ro.disconnect(); };
+  }, []);
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 2 }} />;
 }
 
-// ── Glass Card — tonal layering, ghost borders per Stitch design system ──
-function GlassCard({ children, className = "", hover = true }) {
+// ── Navbar ───────────────────────────────────────────────────────────────────
+function Navbar({ onCta }) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
   return (
-    <motion.div
-      className={`relative overflow-hidden rounded-2xl ${className}`}
-      style={{
-        background: "rgba(255,255,255,0.75)",
-        backdropFilter: "blur(20px) saturate(1.1)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.1)",
-        border: "1px solid rgba(44,62,45,0.08)",
-        boxShadow: "0 4px 24px rgba(44,62,45,0.06), 0 1px 3px rgba(0,0,0,0.04)",
-      }}
-      whileHover={hover ? {
-        y: -3,
-        boxShadow: "0 12px 40px rgba(44,62,45,0.12), 0 4px 12px rgba(0,0,0,0.06)",
-        borderColor: `rgba(${P.brassRgb}, 0.20)`,
-      } : {}}
-      transition={{ duration: 0.3, ease: EASE }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-
-// ── 3D Carousel Showcase ──
-const CAROUSEL_ITEMS = [
-  { name: "Revelin Sofa", vendor: "Hooker Furniture", style: "Transitional", color: "#8B6F47", image: "https://hookerfurnishings.com/media/catalog/product/2/0/203_95_922000_82_silo.jpg" },
-  { name: "Chase Leather Sofa", vendor: "Lexington", style: "Contemporary", color: "#4A3728", image: "https://www.lexington.com/feedcache/productFull/7725_33_02.jpg" },
-  { name: "Brandon Sofa", vendor: "CR Laine", style: "Modern", color: "#6B5B45", image: "https://www.crlaine.com/assets/images/products/xlarge/L1190-00.jpg" },
-  { name: "Flossie Sofa", vendor: "Hancock & Moore", style: "Traditional", color: "#5C4A3A", image: "https://hancockandmoore.com/Documents/prod-images/CJ6815-3_Flossie_TibDoe_MD_1022_HR.jpg" },
-  { name: "Candace Sofa", vendor: "Bernhardt", style: "Transitional", color: "#7A6050", image: "https://s3.amazonaws.com/emuncloud-staticassets/productImages/bh074/medium/7277LFO.jpg" },
-];
-
-const SEARCH_URL_CAROUSEL = (import.meta.env.VITE_SEARCH_SERVICE_URL || "https://api.spekd.ai").replace(/\/$/, "");
-
-function CarouselShowcase() {
-  const [activeIdx, setActiveIdx] = useState(2);
-  const [dragStart, setDragStart] = useState(null);
-  const n = CAROUSEL_ITEMS.length;
-
-  const prev = () => setActiveIdx((i) => (i - 1 + n) % n);
-  const next = () => setActiveIdx((i) => (i + 1) % n);
-
-  const onDragStart = (e) => setDragStart(e.clientX ?? e.touches?.[0]?.clientX);
-  const onDragEnd = (e) => {
-    if (dragStart === null) return;
-    const end = e.clientX ?? e.changedTouches?.[0]?.clientX ?? dragStart;
-    if (dragStart - end > 50) next();
-    else if (end - dragStart > 50) prev();
-    setDragStart(null);
-  };
-
-  return (
-    <div
-      className="relative w-full cursor-grab active:cursor-grabbing select-none"
-      style={{ perspective: "1200px", height: "380px" }}
-      onMouseDown={onDragStart} onMouseUp={onDragEnd}
-      onTouchStart={onDragStart} onTouchEnd={onDragEnd}
-    >
-      {CAROUSEL_ITEMS.map((item, i) => {
-        const offset = ((i - activeIdx + n) % n);
-        const normalized = offset > n/2 ? offset - n : offset; // -2 to 2
-        const angle = normalized * 38; // degrees
-        const z = Math.abs(normalized) === 0 ? 0 : Math.abs(normalized) === 1 ? -180 : -380;
-        const scale = normalized === 0 ? 1 : Math.abs(normalized) === 1 ? 0.78 : 0.58;
-        const opacity = normalized === 0 ? 1 : Math.abs(normalized) === 1 ? 0.65 : 0.3;
-        const zIndex = normalized === 0 ? 10 : Math.abs(normalized) === 1 ? 5 : 1;
-        const translateX = normalized * 52;
-
-        return (
-          <div
-            key={item.name}
-            onClick={() => normalized !== 0 && setActiveIdx(i)}
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              width: "280px",
-              transform: `translate(-50%, -50%) translateX(${translateX}%) translateZ(${z}px) rotateY(${angle}deg) scale(${scale})`,
-              opacity,
-              zIndex,
-              transition: "all 0.6s cubic-bezier(0.22,1,0.36,1)",
-              cursor: normalized !== 0 ? "pointer" : "default",
-            }}
+    <div style={{ position: "fixed", top: "1rem", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 2rem)", maxWidth: "56rem", zIndex: 50 }}>
+      <motion.div
+        initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+        className="landing-lg"
+        style={{
+          borderRadius: 9999, paddingLeft: 20, paddingRight: 20, height: 56,
+          display: "flex", alignItems: "center",
+          boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.12)" : "inset 0 1px 1px rgba(255,255,255,0.10)",
+          transition: "box-shadow 400ms ease",
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "white", fontSize: "1.25rem", letterSpacing: "-0.01em" }}>SPEKD</span>
+        </div>
+        <div style={{ display: "flex", gap: 28, flexShrink: 0 }}>
+          {["Search", "Vendors", "Pricing", "About"].map((l) => (
+            <a key={l} href="#" style={{ fontFamily: "'Barlow', sans-serif", fontSize: "0.875rem", fontWeight: 400, color: "rgba(255,255,255,0.75)", textDecoration: "none", transition: "color 200ms" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "white")}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+            >{l}</a>
+          ))}
+        </div>
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onCta} style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            background: "white", color: "black", borderRadius: 9999,
+            paddingLeft: 20, paddingRight: 20, paddingTop: 6, paddingBottom: 6,
+            fontFamily: "'Barlow', sans-serif", fontSize: "0.875rem", fontWeight: 500,
+            border: "none", cursor: "pointer", transition: "opacity 200ms",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
           >
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: "#1E1B19",
-                border: "1px solid rgba(255,255,255,0.06)",
-                boxShadow: normalized === 0
-                  ? `0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(184,149,106,0.15), 0 0 60px rgba(184,149,106,0.08)`
-                  : "0 16px 40px rgba(0,0,0,0.4)",
-              }}
-            >
-              <div style={{ aspectRatio: "4/3", background: "#fff", overflow: "hidden" }}>
-                <img
-                  src={`${SEARCH_URL_CAROUSEL}/proxy-image?url=${encodeURIComponent(item.image)}`}
-                  alt={item.name}
-                  className="h-full w-full object-contain p-4"
-                  loading="lazy"
-                  style={{ transition: "transform 0.4s ease" }}
-                />
-              </div>
-              <div className="p-4">
-                <div className="text-[9px] uppercase tracking-[0.2em] mb-1" style={{ color: "#B8956A" }}>{item.vendor}</div>
-                <div className="text-base font-medium" style={{ color: "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>{item.name}</div>
-                <div className="text-[11px] mt-0.5" style={{ color: "rgba(233,225,221,0.45)" }}>{item.style}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Nav arrows */}
-      <button
-        onClick={prev}
-        className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-all"
-        style={{ background: "rgba(184,149,106,0.12)", border: "1px solid rgba(184,149,106,0.25)", color: "#B8956A" }}
-        onMouseEnter={e => e.currentTarget.style.background = "rgba(184,149,106,0.25)"}
-        onMouseLeave={e => e.currentTarget.style.background = "rgba(184,149,106,0.12)"}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      </button>
-      <button
-        onClick={next}
-        className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-10 h-10 rounded-full cursor-pointer transition-all"
-        style={{ background: "rgba(184,149,106,0.12)", border: "1px solid rgba(184,149,106,0.25)", color: "#B8956A" }}
-        onMouseEnter={e => e.currentTarget.style.background = "rgba(184,149,106,0.25)"}
-        onMouseLeave={e => e.currentTarget.style.background = "rgba(184,149,106,0.12)"}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      </button>
-
-      {/* Dots */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-2">
-        {CAROUSEL_ITEMS.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveIdx(i)}
-            className="cursor-pointer transition-all rounded-full"
-            style={{
-              width: i === activeIdx ? "20px" : "6px",
-              height: "6px",
-              background: i === activeIdx ? "#B8956A" : "rgba(184,149,106,0.3)",
-            }}
-          />
-        ))}
-      </div>
+            Start Free Trial <ArrowUpRight size={14} />
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-// ════════════════════════════════════════════════════════
-// THE DIGITAL SHOWROOM — LANDING PAGE
-// ════════════════════════════════════════════════════════
-export default function Landing() {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+// ── Hero ─────────────────────────────────────────────────────────────────────
+function Hero({ onCta }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
+  const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+  return (
+    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, background: "black", overflow: "hidden" }}>
+      <video autoPlay loop muted playsInline
+        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "56.25vw", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
+        <source src="/hero.mp4" type="video/mp4" />
+      </video>
+      <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(0,0,0,0.05)" }} />
+      <ParticleCanvas />
+      <motion.div style={{ y, opacity, position: "relative", zIndex: 10, paddingTop: 110, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingLeft: 24, paddingRight: 24 }}>
+        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0.1} style={{ marginBottom: 32 }}>
+          <div className="landing-lg" style={{ borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8 }}>
+            <span style={{ background: "white", color: "black", fontSize: "0.75rem", fontWeight: 600, padding: "1px 7px", borderRadius: 9999 }}>NEW</span>
+            <span style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 400, fontSize: "0.82rem", color: "rgba(255,255,255,0.75)" }}>
+              Founding pricing — $49/month for the first 200 designers.
+            </span>
+          </div>
+        </motion.div>
+        <motion.h1 variants={fadeUp} initial="hidden" animate="visible" custom={0.25}
+          style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(44px, 8vw, 100px)", fontWeight: 400, letterSpacing: "-0.04em", lineHeight: 0.92, color: "white", margin: "0 0 24px", maxWidth: 960 }}>
+          Source the way<br />you design.
+        </motion.h1>
+        <motion.p variants={fadeUp} initial="hidden" animate="visible" custom={0.8}
+          style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "1rem", color: "rgba(255,255,255,0.65)", lineHeight: 1.75, maxWidth: 520, marginTop: 0, marginBottom: 36 }}>
+          42,000+ trade products across Hickory Chair, Baker, Bernhardt, Theodore Alexander and more. Search in plain English. Find it instantly.
+        </motion.p>
+        <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1.1} style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <button onClick={onCta} className="landing-lg-strong" style={{
+            borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 6,
+            paddingLeft: 28, paddingRight: 28, paddingTop: 12, paddingBottom: 12,
+            fontFamily: "'Barlow', sans-serif", fontSize: "0.9rem", fontWeight: 500, color: "white",
+            border: "none", cursor: "pointer", transition: "opacity 200ms",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            Start Free Trial <ArrowUpRight size={15} />
+          </button>
+          <a href="#how-it-works" style={{
+            borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 6,
+            paddingLeft: 20, paddingRight: 20, paddingTop: 12, paddingBottom: 12,
+            fontFamily: "'Barlow', sans-serif", fontSize: "0.9rem", fontWeight: 300, color: "rgba(255,255,255,0.60)",
+            textDecoration: "none", cursor: "pointer", transition: "color 200ms",
+          }}
+            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.90)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.60)")}
+          >
+            Watch Demo <Play size={13} />
+          </a>
+        </motion.div>
+      </motion.div>
+      <div style={{ position: "absolute", zIndex: 5, top: "calc(56.25vw - 280px)", left: 0, right: 0, height: 280, background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.9) 80%, black 100%)" }} />
+    </section>
+  );
+}
 
-  const goToSearch = useCallback((url) => {
-    try { sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() })); } catch {}
-    navigate(url);
-  }, [navigate]);
+// ── Intro Section ─────────────────────────────────────────────────────────────
+function IntroSection() {
+  const vendors = ["Hickory Chair", "Baker Furniture", "Bernhardt", "Theodore Alexander", "Hooker", "CR Laine"];
+  return (
+    <section style={{ background: "black", paddingTop: "clamp(64px,10vw,144px)", paddingBottom: "clamp(64px,10vw,144px)", paddingLeft: 24, paddingRight: 24, textAlign: "center", overflow: "hidden", position: "relative" }}>
+      <img src="/showroom.png" alt="" style={{
+        position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", zIndex: 0, pointerEvents: "none",
+        maskImage: "radial-gradient(ellipse 90% 85% at 50% 50%, black 30%, transparent 80%)",
+        WebkitMaskImage: "radial-gradient(ellipse 90% 85% at 50% 50%, black 30%, transparent 80%)",
+      }} />
+      <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(0,0,0,0.55)", pointerEvents: "none" }} />
+      <div style={{ position: "relative", zIndex: 3, maxWidth: 768, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0}>
+          <span className="landing-badge">Built for trade designers</span>
+        </motion.div>
+        <motion.h2 variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.1}
+          style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(40px, 6.5vw, 80px)", fontWeight: 400, letterSpacing: "-0.04em", lineHeight: 0.92, color: "white", margin: "0 0 24px" }}>
+          Stop tabbing between<br />vendor sites.
+        </motion.h2>
+        <motion.p variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.2}
+          style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "1.05rem", color: "rgba(255,255,255,0.72)", lineHeight: 1.75, maxWidth: 560, margin: "0 0 48px" }}>
+          Describe exactly what you need — "curved bouclé sofa, low profile, warm neutrals" — and SPEKD searches 42,000+ trade products instantly.
+        </motion.p>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.3}
+          style={{ display: "flex", gap: "clamp(20px, 3vw, 48px)", flexWrap: "wrap", justifyContent: "center" }}>
+          {vendors.map((v) => (
+            <span key={v} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.875rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)" }}>{v}</span>
+          ))}
+        </motion.div>
+      </div>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, height: 300, background: "linear-gradient(to bottom, transparent, black)", pointerEvents: "none" }} />
+    </section>
+  );
+}
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (query.trim()) goToSearch(`${createPageUrl("Search")}?q=${encodeURIComponent(query.trim())}`);
-    else goToSearch(createPageUrl("Search"));
+// ── How It Works — animated demo ─────────────────────────────────────────────
+const DEMO_QUERIES = [
+  {
+    query: "recliners that don't look like recliners",
+    results: [
+      { vendor: "Hooker Furniture", name: "Drake Recliner", tags: ["Leather", "Power"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC140_085_silo.jpg" },
+      { vendor: "Hooker Furniture", name: "Caleigh Recliner", tags: ["Leather", "Contemporary"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg" },
+      { vendor: "Hooker Furniture", name: "Shasta Recliner", tags: ["Leather", "Transitional"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC127_085_silo.jpg" },
+    ],
+  },
+  {
+    query: "skirted sofa with tight back transitional",
+    results: [
+      { vendor: "Hickory Chair", name: "Crowley Skirted Sofa", tags: ["Skirted", "Transitional"], image: "https://www.hickorychair.com/prod-images/3425-90_fv_hc298-10_f21_medium.jpg" },
+      { vendor: "Hickory Chair", name: "Questa Skirted Sofa", tags: ["Skirted", "Fabric"], image: "https://www.hickorychair.com/prod-images/hc7225_08s_hc320-10_f22_medium.jpg" },
+      { vendor: "Hooker Furniture", name: "Emme Skirted Sofa", tags: ["Skirted", "Tight Back"], image: "https://hookerfurnishings.com/media/catalog/product/S/K/SK31_002_silo.jpg" },
+    ],
+  },
+  {
+    query: "3 over 3 cushion sofa low profile",
+    results: [
+      { vendor: "Hooker Furniture", name: "Austin 3 over 3 Sofa", tags: ["3/3 Cushion", "Low Profile"], image: "https://hookerfurnishings.com/media/catalog/product/7/0/7001_002_silo.jpg" },
+      { vendor: "Hooker Furniture", name: "Danae 3 over 3 Sofa", tags: ["3/3 Cushion", "Fabric"], image: "https://hookerfurnishings.com/media/catalog/product/L/L/LL21_002_silo.jpg" },
+      { vendor: "Hickory Chair", name: "Wilmington Sofa 3/3", tags: ["3/3 Cushion", "Low Profile"], image: "https://www.hickorychair.com/prod-images/HC6416-85_517284_medium.jpg" },
+    ],
+  },
+];
+
+function HowItWorksSection() {
+  const [qIdx, setQIdx] = useState(0);
+  const [typed, setTyped] = useState("");
+  const [phase, setPhase] = useState("typing");
+  const [cardsVisible, setCardsVisible] = useState(false);
+  const timers = useRef([]);
+  const intervalRef = useRef(null);
+
+  const clear = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
   };
-
-  // ── Live data ──
-  const [catalogStats, setCatalogStats] = useState(null);
-  const [vendors, setVendors] = useState([]);
+  const addT = (fn, ms) => { const t = setTimeout(fn, ms); timers.current.push(t); };
 
   useEffect(() => {
-    fetch(`${SEARCH_URL}/catalog/stats`).then((r) => r.json()).then((data) => setCatalogStats(data.catalog || data)).catch(() => {});
-    fetch(`${SEARCH_URL}/vendors`).then((r) => r.json()).then((data) => {
-      const v = (data.vendors || []).sort((a, b) => (b.product_count || 0) - (a.product_count || 0));
-      setVendors(v);
-    }).catch(() => {});
-    sessionStorage.removeItem("spekd_demo_products");
-    sessionStorage.removeItem("spekd_demo_v2");
-  }, []);
+    clear();
+    const query = DEMO_QUERIES[qIdx].query;
+    let i = 0;
+    setTyped(""); setCardsVisible(false); setPhase("typing");
+    intervalRef.current = setInterval(() => {
+      i++;
+      setTyped(query.slice(0, i));
+      if (i >= query.length) {
+        clearInterval(intervalRef.current); intervalRef.current = null;
+        addT(() => {
+          setCardsVisible(true); setPhase("showing");
+          addT(() => {
+            setPhase("fading"); setCardsVisible(false);
+            addT(() => {
+              setPhase("clearing");
+              let j = query.length;
+              intervalRef.current = setInterval(() => {
+                j--; setTyped(query.slice(0, j));
+                if (j <= 0) {
+                  clearInterval(intervalRef.current); intervalRef.current = null;
+                  addT(() => setQIdx((x) => (x + 1) % DEMO_QUERIES.length), 200);
+                }
+              }, 18);
+            }, 500);
+          }, 2400);
+        }, 300);
+      }
+    }, 48);
+    return clear;
+  }, [qIdx]);
 
-  const totalProducts = Math.max(catalogStats?.total_products || 0, 42000);
-  const totalVendors = Math.max(vendors.length || 0, 20);
+  const current = DEMO_QUERIES[qIdx];
+  return (
+    <section id="how-it-works" style={{ background: "black", padding: "clamp(80px,10vw,140px) 24px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0}>
+          <span className="landing-badge">How It Works</span>
+        </motion.div>
+        <motion.h2 variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.1}
+          style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(36px, 5.5vw, 70px)", fontWeight: 400, letterSpacing: "-0.04em", lineHeight: 0.92, color: "white", margin: "0 0 16px", textAlign: "center" }}>
+          Describe it.<br />We find it.
+        </motion.h2>
+        <motion.p variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.2}
+          style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "1rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.75, maxWidth: 420, textAlign: "center", margin: "0 0 56px" }}>
+          Type what you need the way you'd say it to a colleague — SPEKD does the rest.
+        </motion.p>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} custom={0.3} style={{ width: "100%", maxWidth: 720 }}>
+          {/* Search bar */}
+          <div className="landing-lg" style={{ borderRadius: 9999, padding: "14px 22px", display: "flex", alignItems: "center", gap: 12, marginBottom: 28, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 0 40px rgba(255,255,255,0.03), 0 2px 0 rgba(255,255,255,0.08) inset" }}>
+            <Search size={16} color="rgba(255,255,255,0.35)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+              <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(15px, 2vw, 19px)", color: "white", letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden" }}>
+                {typed}
+              </span>
+              {(phase === "typing" || phase === "clearing") && (
+                <span style={{ display: "inline-block", width: 1.5, height: 18, background: "rgba(255,255,255,0.75)", marginLeft: 2, animation: "landing-blink 0.75s step-end infinite", flexShrink: 0 }} />
+              )}
+            </div>
+            <div style={{ flexShrink: 0, background: phase === "showing" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 9999, padding: "5px 16px", fontFamily: "'Barlow', sans-serif", fontSize: "0.78rem", fontWeight: 500, color: "rgba(255,255,255,0.70)", letterSpacing: "0.06em", transition: "background 400ms" }}>
+              Search
+            </div>
+          </div>
+          {/* Results grid */}
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${current.results.length}, 1fr)`, gap: 12, opacity: cardsVisible ? 1 : 0, transform: cardsVisible ? "translateY(0)" : "translateY(10px)", transition: "opacity 500ms cubic-bezier(0.22,1,0.36,1), transform 500ms cubic-bezier(0.22,1,0.36,1)" }}>
+            {current.results.map((r, i) => (
+              <div key={`${qIdx}-${i}`} style={{ borderRadius: 16, background: "linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 1px 0 rgba(255,255,255,0.07) inset, 0 12px 40px rgba(0,0,0,0.4)", overflow: "hidden", opacity: cardsVisible ? 1 : 0, transform: cardsVisible ? "translateY(0)" : "translateY(8px)", transition: `opacity 450ms ease ${i * 80}ms, transform 450ms ease ${i * 80}ms` }}>
+                <div style={{ height: 150, background: "#ffffff", position: "relative", overflow: "hidden" }}>
+                  <img src={r.image} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block", padding: "8px" }} />
+                  <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, background: "linear-gradient(to right, transparent, rgba(255,255,255,0.12), transparent)" }} />
+                </div>
+                <div style={{ padding: "12px 14px 14px" }}>
+                  <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 500, fontSize: "0.60rem", letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 5 }}>{r.vendor}</div>
+                  <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "0.92rem", color: "white", lineHeight: 1.2, marginBottom: 8 }}>{r.name}</div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {r.tags.map((tag, j) => (
+                      <span key={j} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.65rem", color: "rgba(255,255,255,0.38)", padding: "1px 8px", borderRadius: 9999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)" }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Dots */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 28 }}>
+            {DEMO_QUERIES.map((_, i) => (
+              <div key={i} style={{ width: i === qIdx ? 16 : 4, height: 4, borderRadius: 9999, background: i === qIdx ? "rgba(255,255,255,0.60)" : "rgba(255,255,255,0.18)", transition: "width 300ms ease, background 300ms ease" }} />
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ── Sofa Reveal Section ───────────────────────────────────────────────────────
+const SOFA_QUERY = "tufted leather sofa with nailhead trim";
+function SofaRevealSection() {
+  const sectionRef = useRef(null);
+  const [inView, setInView] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [resultVisible, setResultVisible] = useState(false);
+  const hasPlayed = useRef(false);
+  const timers = useRef([]);
+  const runAnimation = useCallback(() => {
+    if (hasPlayed.current) return;
+    hasPlayed.current = true;
+    const addT = (fn, ms) => { const t = setTimeout(fn, ms); timers.current.push(t); };
+    addT(() => {
+      let i = 0;
+      const interval = setInterval(() => {
+        i++; setTyped(SOFA_QUERY.slice(0, i));
+        if (i >= SOFA_QUERY.length) { clearInterval(interval); addT(() => setResultVisible(true), 500); }
+      }, 40);
+    }, 2000);
+  }, []);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setInView(true); runAnimation(); } }, { threshold: 0.25 });
+    observer.observe(el);
+    return () => { observer.disconnect(); timers.current.forEach(clearTimeout); };
+  }, [runAnimation]);
+  const typingDone = typed.length >= SOFA_QUERY.length;
+  return (
+    <section ref={sectionRef} style={{ position: "relative", width: "100%", height: "100vh", minHeight: 600, background: "black", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <video autoPlay loop muted playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}>
+        <source src="/sofa-reveal.mov" type="video/mp4" />
+        <source src="/sofa-reveal.mov" type="video/quicktime" />
+      </video>
+      <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(0,0,0,0.52)" }} />
+      <div style={{ position: "relative", zIndex: 3, textAlign: "center", padding: "0 24px" }}>
+        <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 400, fontSize: "0.72rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 20, opacity: inView ? 1 : 0, transition: "opacity 800ms ease 1.8s" }}>
+          Searching SPEKD
+        </div>
+        <div style={{ marginBottom: resultVisible ? 28 : 0, transition: "margin-bottom 500ms ease" }}>
+          <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(26px, 4vw, 52px)", fontWeight: 400, color: "white", letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            {typed}
+          </span>
+          {!typingDone && typed.length > 0 && (
+            <span style={{ display: "inline-block", width: 2, height: "clamp(26px, 4vw, 52px)", background: "white", marginLeft: 3, verticalAlign: "middle", animation: "landing-blink 0.8s step-end infinite" }} />
+          )}
+        </div>
+        <div style={{ opacity: resultVisible ? 1 : 0, transform: resultVisible ? "translateY(0)" : "translateY(8px)", transition: "opacity 700ms ease, transform 700ms ease", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 500, fontSize: "0.70rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(255,255,255,0.40)" }}>
+            Hooker Furniture
+          </div>
+          <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(16px, 2vw, 22px)", fontWeight: 400, color: "rgba(255,255,255,0.70)", letterSpacing: "-0.01em" }}>
+            Savion Power Recliner Sofa
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Features Section ──────────────────────────────────────────────────────────
+const FEATURES = [
+  { Icon: Search, num: "01", title: "Natural Language Search", desc: "Describe what you need in plain English. SPEKD understands designer language that generic search never could." },
+  { Icon: Layers, num: "02", title: "42,000+ Trade Products", desc: "Hickory Chair, Baker, Bernhardt, Theodore Alexander and 16 more trade-only vendors. All in one place." },
+  { Icon: Sparkles, num: "03", title: "AI Intelligence Tags", desc: "Every product tagged with silhouette, formality, mood, material, and 25 more fields. Find Similar. Find Alternatives. Instantly." },
+  { Icon: Heart, num: "04", title: "Built by the Industry", desc: "Created by a furniture industry insider who saw the sourcing problem every day. SPEKD speaks designer." },
+];
+
+function FeaturesSection() {
+  return (
+    <section style={{ background: "black", paddingTop: "clamp(64px,10vw,144px)", paddingBottom: "clamp(64px,10vw,144px)", paddingLeft: 24, paddingRight: 24 }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 56, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0}>
+            <span className="landing-badge">What SPEKD Does</span>
+          </motion.div>
+          <motion.h2 variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.1}
+            style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(36px, 5.5vw, 72px)", fontWeight: 400, letterSpacing: "-0.04em", lineHeight: 0.92, color: "white", margin: 0 }}>
+            Built for the way<br />designers actually think.
+          </motion.h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20, maxWidth: 768, margin: "0 auto" }}>
+          {FEATURES.map(({ Icon, num, title, desc }, i) => (
+            <motion.div key={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} custom={i * 0.1}
+              whileHover={{ y: -6 }}
+              style={{ borderRadius: 24, padding: 28, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 1px 0 rgba(255,255,255,0.08) inset, 0 20px 60px rgba(0,0,0,0.5)", cursor: "default" }}>
+              <div style={{ position: "absolute", top: 0, left: 24, right: 24, height: 1, background: "linear-gradient(to right, transparent, rgba(255,255,255,0.18), transparent)" }} />
+              <div style={{ position: "absolute", top: 24, right: 28, fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.75rem", color: "rgba(255,255,255,0.20)", letterSpacing: "0.05em" }}>{num}</div>
+              <div style={{ width: 44, height: 44, borderRadius: 16, marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03))", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)" }}>
+                <Icon size={18} />
+              </div>
+              <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 500, fontSize: "0.95rem", color: "white", marginBottom: 10, letterSpacing: "-0.01em" }}>{title}</div>
+              <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.85rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.65 }}>{desc}</div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── CTA Section ───────────────────────────────────────────────────────────────
+function CtaSection({ onCta }) {
+  return (
+    <section style={{ background: "black", paddingTop: "clamp(64px,10vw,160px)", paddingBottom: "clamp(64px,10vw,160px)", paddingLeft: 24, paddingRight: 24 }}>
+      <div style={{ maxWidth: 768, margin: "0 auto", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0}>
+          <span className="landing-badge">Founding Access</span>
+        </motion.div>
+        <motion.h2 variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.1}
+          style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "clamp(40px, 6.5vw, 80px)", fontWeight: 400, letterSpacing: "-0.04em", lineHeight: 0.9, color: "white", margin: "0 0 24px" }}>
+          The sourcing tool<br />designers have waited for.
+        </motion.h2>
+        <motion.p variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.2}
+          style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "1.05rem", color: "rgba(255,255,255,0.70)", lineHeight: 1.75, maxWidth: 448, margin: "0 0 40px" }}>
+          Join the first 200 designers at $49/month — locked in for life at half the standard price. Cancel anytime.
+        </motion.p>
+        <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.3} style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+          <button onClick={onCta} className="landing-lg-strong" style={{ borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 6, paddingLeft: 32, paddingRight: 32, paddingTop: 14, paddingBottom: 14, fontFamily: "'Barlow', sans-serif", fontSize: "0.9rem", fontWeight: 500, color: "white", border: "none", cursor: "pointer", transition: "opacity 200ms" }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.82")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            Start Free Trial — $49/mo <ArrowUpRight size={15} />
+          </button>
+          <button onClick={onCta} className="landing-lg" style={{ borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 6, paddingLeft: 32, paddingRight: 32, paddingTop: 14, paddingBottom: 14, fontFamily: "'Barlow', sans-serif", fontSize: "0.9rem", fontWeight: 300, color: "rgba(255,255,255,0.80)", border: "none", cursor: "pointer", transition: "opacity 200ms" }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.75")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            See All Vendors <ChevronRight size={15} />
+          </button>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer style={{ background: "black", paddingLeft: 24, paddingRight: 24, paddingBottom: 40 }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <div style={{ height: 1, width: "100%", marginBottom: 32, background: "rgba(255,255,255,0.12)" }} />
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.75rem", color: "rgba(255,255,255,0.38)" }}>
+            © {new Date().getFullYear()} SPEKD. Trade sourcing, reimagined.
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+            {[{ label: "Privacy", path: "Privacy" }, { label: "Terms", path: "Terms" }, { label: "About", path: "About" }].map((l) => (
+              <Link key={l.label} to={createPageUrl(l.path)} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.75rem", color: "rgba(255,255,255,0.38)", textDecoration: "none", transition: "color 200ms" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.70)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.38)")}
+              >{l.label}</Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ── Main Landing ──────────────────────────────────────────────────────────────
+export default function Landing() {
+  const navigate = useNavigate();
+  const goToSearch = useCallback(() => {
+    try { sessionStorage.setItem("spekd_search_entry", JSON.stringify({ from: "landing", ts: Date.now() })); } catch {}
+    navigate(createPageUrl("Search"));
+  }, [navigate]);
 
   return (
-    <div className="relative min-h-screen" style={{ background: P.cream }}>
-
-      {/* ═══════════════════════════════════════════
-          HERO — Above the fold
-          ═══════════════════════════════════════════ */}
-      <section className="relative z-10 pt-28 pb-16 sm:pt-36 sm:pb-20 text-center px-6">
-        <Reveal>
-          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-8 text-[10px] font-semibold uppercase tracking-[0.2em]"
-            style={{ background: `rgba(${P.brassRgb},0.10)`, border: `1px solid rgba(${P.brassRgb},0.20)`, color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>
-            Trade sourcing, reimagined
-          </div>
-        </Reveal>
-        <Reveal delay={0.08}>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.0] tracking-tight mb-6 mx-auto"
-            style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif", maxWidth: "900px" }}>
-            The trade catalogue,<br />
-            <span style={{ color: P.brass }}>finally searchable.</span>
-          </h1>
-        </Reveal>
-        <Reveal delay={0.16}>
-          <p className="text-base sm:text-lg leading-relaxed mb-10 mx-auto"
-            style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif", maxWidth: "520px" }}>
-            42,000+ pieces from 20+ trade vendors. Search in plain English — Spekd finds exactly what you're envisioning.
-          </p>
-        </Reveal>
-        <Reveal delay={0.22}>
-          <form onSubmit={handleSearch} className="mx-auto max-w-lg relative">
-            <div
-              className="relative flex items-center gap-2 sm:gap-3 rounded-full"
-              style={{
-                height: "56px",
-                padding: "0 10px 0 20px",
-                background: "rgba(255,255,255,0.85)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: `1px solid rgba(${P.greenRgb},0.12)`,
-                boxShadow: "0 4px 24px rgba(44,62,45,0.10)",
-              }}
-            >
-              <Search className="h-4 w-4 shrink-0" style={{ color: P.textMuted }} />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="modular leather sectional..."
-                className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
-                style={{ color: P.textPrimary, fontFamily: "'DM Sans', sans-serif" }}
-              />
-              <motion.button
-                type="submit"
-                className="cursor-pointer flex items-center gap-1.5 shrink-0"
-                style={{
-                  height: "40px",
-                  padding: "0 20px",
-                  borderRadius: "999px",
-                  background: `linear-gradient(135deg, ${P.brass}, ${P.brassLight})`,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: "13px",
-                  fontFamily: "'DM Sans', sans-serif",
-                  boxShadow: `0 4px 16px rgba(${P.brassRgb},0.30)`,
-                }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <span>Search</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </motion.button>
-            </div>
-          </form>
-        </Reveal>
-      </section>
-
-      {/* ═══════════════════════════════════════════
-          SCROLL EXPERIENCE — The Digital Showroom
-          ═══════════════════════════════════════════ */}
-      <ScrollExperience />
-
-      {/* ═══════════════════════════════════════════
-          STATS RIBBON
-          ═══════════════════════════════════════════ */}
-      <section className="relative py-16 sm:py-20 md:py-28 z-10">
-        <div className="page-wrap-wide">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
-            {[
-              { value: totalProducts, suffix: "+", label: "Products", sublabel: "Trade-only pieces indexed" },
-              { value: totalVendors, suffix: "", label: "Trade Vendors", sublabel: "Manufacturer-direct sources" },
-              { value: 100, suffix: "%", label: "Verified", sublabel: "Every source authenticated" },
-            ].map((stat, i) => (
-              <Reveal key={stat.label} delay={i * 0.08}>
-                <GlassCard className="p-6 sm:p-8 text-center cursor-default">
-                  <div className="text-4xl sm:text-5xl font-semibold tracking-tight" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
-                    <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                  </div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.25em] mt-3" style={{ color: P.brass }}>{stat.label}</div>
-                  <div className="text-[11px] mt-1.5" style={{ color: P.textSecondary }}>{stat.sublabel}</div>
-                </GlassCard>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════
-          HOW IT WORKS — Three cards with green left accent
-          ═══════════════════════════════════════════ */}
-      <section className="relative py-20 sm:py-24 md:py-32 z-10">
-        <div className="page-wrap-wide">
-          <Reveal className="text-center mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>How It Works</span>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-14 sm:mb-20">
-            <h2 className="text-3xl md:text-5xl lg:text-6xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
-              Three steps to the <span style={{ color: P.green }}>right piece</span>
-            </h2>
-          </Reveal>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-            {[
-              {
-                num: "01", icon: Search, title: "Describe", delay: 0,
-                accent: `linear-gradient(to bottom, ${P.green}, ${P.greenMuted})`,
-                body: "Type the way you'd brief a colleague. Style, material, mood, room — Spekd understands designer language.",
-                tags: [],
-              },
-              {
-                num: "02", icon: FileText, title: "Curate", delay: 0.12,
-                accent: `linear-gradient(to bottom, ${P.brass}, ${P.brassLight})`,
-                body: "Save your finds, organize by room, and apply trade pricing. Everything in one place.",
-                tags: [],
-              },
-              {
-                num: "03", icon: Send, title: "Present", delay: 0.24,
-                accent: `linear-gradient(to bottom, ${P.greenMuted}, ${P.sage})`,
-                body: "Generate polished PDFs and shareable client links in seconds — no manual formatting, no extra tools.",
-                tags: ["PDF Export", "Client Portal", "Trade Pricing"],
-              },
-            ].map(({ num, icon: Icon, title, delay, accent, body, tags }) => (
-              <Reveal key={num} delay={delay}>
-                <GlassCard className="p-7 sm:p-8 cursor-default h-full flex flex-col">
-                  <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: accent }} />
-                  <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>{num}</div>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 shrink-0" style={{ background: `rgba(${P.brassRgb},0.12)`, border: `1px solid rgba(${P.brassRgb},0.22)` }}>
-                    <Icon className="w-5 h-5" style={{ color: P.brassLight }} />
-                  </div>
-                  <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>{title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{body}</p>
-                  {tags.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <span key={tag} className="rounded-full px-3 py-1 text-[10px] font-medium uppercase tracking-[0.12em]" style={{ background: `rgba(${P.sageRgb},0.20)`, color: P.textSecondary }}>{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                </GlassCard>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════
-          3D PRODUCT CAROUSEL — The Showroom Wall
-          ════════════════════════════════════════ */}
-      <section className="relative py-24 sm:py-32 z-10 overflow-hidden">
-        <div className="page-wrap-wide">
-          <Reveal className="text-center mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>The Collection</span>
-          </Reveal>
-          <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
-              42,000 pieces.<br />
-              <span style={{ color: P.brass }}>One search.</span>
-            </h2>
-          </Reveal>
-        </div>
-        <CarouselShowcase />
-      </section>
-
-      {/* ═══════════════════════════════════════════
-          CTA — Forest green background section
-          ═══════════════════════════════════════════ */}
-      <section className="relative py-28 md:py-40 z-10" style={{ background: `linear-gradient(135deg, ${P.green}, #1E2E1F)` }}>
-        {/* Subtle texture overlay */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: `radial-gradient(circle at 30% 50%, rgba(${P.brassRgb},0.06) 0%, transparent 50%), radial-gradient(circle at 70% 50%, rgba(255,255,255,0.03) 0%, transparent 40%)`,
-        }} />
-        <div className="page-wrap-wide text-center relative z-10">
-          <Reveal>
-            <div className="h-px max-w-md mx-auto mb-16" style={{ background: `linear-gradient(90deg, transparent, rgba(${P.brassRgb},0.30), transparent)` }} />
-          </Reveal>
-          <Reveal delay={0.1}>
-            <h2 className="text-4xl sm:text-5xl md:text-7xl mb-6" style={{ color: "#fff", fontFamily: "'Playfair Display', serif" }}>
-              Start sourcing{" "}<br className="hidden sm:block" />
-              <span style={{ color: P.brassLight }}>smarter</span>
-            </h2>
-            <p className="text-base md:text-lg max-w-md mx-auto mb-10" style={{ color: "rgba(255,255,255,0.65)", fontFamily: "'DM Sans', sans-serif" }}>
-              Join the designers already using Spekd to find the perfect piece, faster.
-            </p>
-          </Reveal>
-          <Reveal delay={0.2}>
-            <form onSubmit={handleSearch} className="mx-auto max-w-xl relative mb-10">
-              <div
-                className="relative flex items-center gap-2 sm:gap-3 rounded-full group"
-                style={{
-                  height: "58px",
-                  padding: "0 12px 0 22px",
-                  background: "rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: `1px solid rgba(${P.brassRgb},0.20)`,
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                }}
-              >
-                <Search className="h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.5)" }} />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Describe what you're looking for..."
-                  className="flex-1 min-w-0 bg-transparent text-sm sm:text-base focus:outline-none placeholder:text-white/30"
-                  style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif" }}
-                />
-                <motion.button
-                  type="submit"
-                  className="cursor-pointer flex items-center gap-1.5 shrink-0"
-                  style={{
-                    height: "42px",
-                    padding: "0 24px",
-                    borderRadius: "999px",
-                    background: `linear-gradient(135deg, ${P.brass}, ${P.brassLight})`,
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: "13px",
-                    fontFamily: "'DM Sans', sans-serif",
-                    boxShadow: `0 4px 16px rgba(${P.brassRgb},0.30)`,
-                  }}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <span>Search</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </motion.button>
-              </div>
-            </form>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════
-          FOOTER — Clean, minimal, warm
-          ═══════════════════════════════════════════ */}
-      <footer className="relative py-16 sm:py-20 z-10" style={{ background: P.creamDark }}>
-        <div className="page-wrap-wide">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="SPEKD" className="h-8 w-8 object-contain rounded-lg" />
-              <span className="text-sm font-semibold tracking-[0.05em]" style={{ color: P.textPrimary, fontFamily: "'DM Sans', sans-serif" }}>SPEKD</span>
-            </div>
-            <div className="flex items-center gap-6">
-              {[
-                { label: "About", path: "About" },
-                { label: "Privacy", path: "Privacy" },
-                { label: "Terms", path: "Terms" },
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  to={createPageUrl(link.path)}
-                  className="text-xs transition-colors duration-200 cursor-pointer"
-                  style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = P.green; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = P.textMuted; }}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-            <div className="text-[11px]" style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
-              &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
-            </div>
-          </div>
-        </div>
-      </footer>
-
+    <div style={{ background: "black", minHeight: "100vh" }}>
+      <Navbar onCta={goToSearch} />
+      <main>
+        <Hero onCta={goToSearch} />
+        <IntroSection />
+        <HowItWorksSection />
+        <SofaRevealSection />
+        <FeaturesSection />
+        <CtaSection onCta={goToSearch} />
+      </main>
+      <Footer />
     </div>
   );
 }
