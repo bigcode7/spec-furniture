@@ -275,15 +275,13 @@ export default function PaywallModal({ show, onClose, onAuthSuccess, mode: initi
                     Early Access — $49/mo for life
                   </h2>
                   <p className="text-sm text-white/50 text-center mb-2 leading-relaxed">
-                    {isLoggedIn
-                      ? "Lock in $49/month forever as one of our first 200 members. This price never goes up."
-                      : "Be one of the first 200 members and lock in $49/month forever. Regular price is $99/month — your early-bird rate never increases."}
+                    Join the designers already sourcing smarter — lock in $49/month forever. Regular price is $99/month and your rate never increases.
                   </p>
                   {earlyBird && (
                     <div className="flex items-center justify-center gap-1.5 mb-5">
                       <Clock className="h-3 w-3" style={{ color: GOLD }} />
                       <span className="text-xs font-semibold" style={{ color: GOLD }}>
-                        {earlyBird.remaining} of {earlyBird.cap} spots left
+                        Only {earlyBird.remaining} founding spots remaining
                       </span>
                     </div>
                   )}
