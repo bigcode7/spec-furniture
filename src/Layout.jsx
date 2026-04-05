@@ -179,7 +179,7 @@ function AppFooter() {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded brightness-[2] invert" />
+                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded " />
               </div>
               <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "rgba(255,255,255,0.80)", fontSize: "1.2rem", letterSpacing: "-0.01em" }}>SPEKD</span>
             </div>
@@ -274,7 +274,7 @@ export default function Layout({ children, currentPageName }) {
             {/* Logo — Instrument Serif italic, no subtitle */}
             <Link to="/" className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <img src="/logo.png" alt="SPEKD" className="h-5 w-5 object-contain rounded brightness-[2] invert" />
+                <img src="/logo.png" alt="SPEKD" className="h-5 w-5 object-contain rounded " />
               </div>
               <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "white", fontSize: "1.2rem", letterSpacing: "-0.01em" }}>
                 SPEKD
