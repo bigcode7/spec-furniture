@@ -318,7 +318,7 @@ export default function Landing() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="curved bouclé sofa, warm finish..."
+                placeholder="modular leather sectional..."
                 className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-white/25"
                 style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif" }}
               />
