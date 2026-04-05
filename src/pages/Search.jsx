@@ -2513,9 +2513,9 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
           </div>
         )}
         <div className="mt-auto flex items-end justify-between gap-2">
-          {priceStr && (
-            <span className="text-[13px] font-semibold" style={{ color: priceInfo.isTrade ? "#2C3E2D" : "#B8956A" }}>
-              {priceInfo.isTrade && <span className="text-[8px] uppercase tracking-wider mr-1 opacity-60">{priceInfo.label}</span>}
+          {priceStr && priceInfo.isTrade && (
+            <span className="text-[13px] font-semibold" style={{ color: "#2C3E2D" }}>
+              <span className="text-[8px] uppercase tracking-wider mr-1 opacity-60">{priceInfo.label}</span>
               {priceStr}
             </span>
           )}
@@ -2719,9 +2719,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               </div>
 
               {/* Price */}
-              {priceInfo.price && (
-                <div className="text-lg font-semibold" style={{ color: priceInfo.isTrade ? "#2C3E2D" : "#B8956A" }}>
-                  {priceInfo.isTrade && <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>}
+              {priceInfo.price && priceInfo.isTrade && (
+                <div className="text-lg font-semibold" style={{ color: "#2C3E2D" }}>
+                  <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>
                   {fmtPrice(priceInfo.price)}
                 </div>
               )}
@@ -2893,9 +2893,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{ap.product_name}</div>
                     {(() => {
                       const apPrice = getPrice(ap);
-                      return apPrice.price ? (
-                        <div className="text-[10px]" style={{ color: apPrice.isTrade ? "#2C3E2D" : "#B8956A" }}>
-                          {apPrice.isTrade ? `${apPrice.label} ` : ""}{fmtPrice(apPrice.price)}
+                      return apPrice.price && apPrice.isTrade ? (
+                        <div className="text-[10px]" style={{ color: "#2C3E2D" }}>
+                          {apPrice.label} {fmtPrice(apPrice.price)}
                         </div>
                       ) : null;
                     })()}
@@ -2931,9 +2931,9 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{sp.product_name}</div>
                     {(() => {
                       const spPrice = getPrice(sp);
-                      return spPrice.price ? (
-                        <div className="text-[10px]" style={{ color: spPrice.isTrade ? "#2C3E2D" : "#B8956A" }}>
-                          {spPrice.isTrade ? `${spPrice.label} ` : ""}{fmtPrice(spPrice.price)}
+                      return spPrice.price && spPrice.isTrade ? (
+                        <div className="text-[10px]" style={{ color: "#2C3E2D" }}>
+                          {spPrice.label} {fmtPrice(spPrice.price)}
                         </div>
                       ) : null;
                     })()}

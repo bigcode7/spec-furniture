@@ -407,7 +407,6 @@ function ClientProductCard({ item, feedback, onApprove, onChange, onReject, onCo
             <div className="space-y-1 text-sm" style={{ color: "#9B9590" }}>
               {dims && <p>{dims}</p>}
               {item.material && <p>{item.material}</p>}
-              {item.retail_price && <p className="font-medium" style={{ color: "#6B6560" }}>{formatUsd(item.retail_price)}</p>}
             </div>
 
             {justification && (

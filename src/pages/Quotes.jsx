@@ -603,16 +603,12 @@ export default function Quotes() {
                       <p className="text-[10px] uppercase tracking-[0.18em] truncate" style={{ color: "#B8956A" }}>{fav.manufacturer_name}</p>
 
                       {/* Price */}
-                      {showPricing && (
+                      {showPricing && priceInfo.isTrade && priceInfo.price && (
                         <div className="text-xs">
-                          {priceInfo.price ? (
-                            <span style={{ color: priceInfo.isTrade ? "#2C3E2D" : "#6B6560" }}>
-                              {priceInfo.isTrade && <span className="text-[9px] mr-0.5 opacity-60">Trade </span>}
-                              {formatUsd(priceInfo.price)}
-                            </span>
-                          ) : (
-                            <span className="text-[10px]" style={{ color: "#9B9590" }}>Price on request</span>
-                          )}
+                          <span style={{ color: "#2C3E2D" }}>
+                            <span className="text-[9px] mr-0.5 opacity-60">Trade </span>
+                            {formatUsd(priceInfo.price)}
+                          </span>
                         </div>
                       )}
 
