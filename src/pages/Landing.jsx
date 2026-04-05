@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
-  Search, ArrowRight, Brain, Shield,
+  Search, ArrowRight,
   FileText, Send,
 } from "lucide-react";
 import {
@@ -47,159 +47,6 @@ const EXAMPLE_SEARCHES = [
   "statement accent chair",
   "woven rattan pendant",
 ];
-
-// ════════════════════════════════════════════════════════
-// 3D WIREFRAME CANVAS — Architectural Chair
-// Lightweight canvas-based renderer, no Three.js needed
-// ════════════════════════════════════════════════════════
-function WireframeCanvas() {
-  const canvasRef = useRef(null);
-  const frameRef = useRef(null);
-  const angleRef = useRef(0);
-  const mouseRef = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      if (!rect) return;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = rect.width + "px";
-      canvas.style.height = rect.height + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    // Subtle mouse parallax
-    const handleMouse = (e) => {
-      mouseRef.current = {
-        x: (e.clientX / window.innerWidth - 0.5) * 0.15,
-        y: (e.clientY / window.innerHeight - 0.5) * 0.10,
-      };
-    };
-    window.addEventListener("mousemove", handleMouse, { passive: true });
-
-    // Chair wireframe vertices (normalized -1 to 1)
-    const verts = [
-      // Seat
-      [-0.5,0,-0.4],[0.5,0,-0.4],[0.5,0,0.4],[-0.5,0,0.4],
-      [-0.5,0.05,-0.4],[0.5,0.05,-0.4],[0.5,0.05,0.4],[-0.5,0.05,0.4],
-      // Legs
-      [-0.45,-0.7,0.35],[0.45,-0.7,0.35],[-0.45,-0.7,-0.35],[0.45,-0.7,-0.35],
-      // Backrest
-      [-0.48,0.85,-0.38],[0.48,0.85,-0.38],[-0.48,0.55,-0.38],[0.48,0.55,-0.38],
-      // Backrest inner
-      [-0.38,0.78,-0.36],[0.38,0.78,-0.36],[-0.38,0.15,-0.36],[0.38,0.15,-0.36],
-      // Armrests
-      [-0.52,0.35,0.15],[0.52,0.35,0.15],[-0.52,0.45,-0.35],[0.52,0.45,-0.35],
-    ];
-
-    const edges = [
-      [4,5],[5,6],[6,7],[7,4],[0,1],[1,2],[2,3],[3,0],
-      [0,4],[1,5],[2,6],[3,7],[2,9],[3,8],[0,10],[1,11],
-      [0,14],[14,12],[1,15],[15,13],[12,13],[14,15],
-      [16,17],[17,19],[19,18],[18,16],
-      [20,22],[22,14],[21,23],[23,15],[7,20],[6,21],
-    ];
-
-    // Floating architectural particles
-    const particles = Array.from({ length: 22 }, () => ({
-      x: (Math.random() - 0.5) * 3.5,
-      y: (Math.random() - 0.5) * 3,
-      z: (Math.random() - 0.5) * 2,
-      size: 1 + Math.random() * 2.5,
-      speed: 0.001 + Math.random() * 0.003,
-      phase: Math.random() * Math.PI * 2,
-    }));
-
-    const project = (v, w, h, angle) => {
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
-      const cosA = Math.cos(angle), sinA = Math.sin(angle);
-      const cosM = Math.cos(mx), sinM = Math.sin(mx);
-      // Y-axis rotation (main) + subtle mouse tilt
-      let x = v[0] * cosA - v[2] * sinA;
-      let z = v[0] * sinA + v[2] * cosA;
-      let y = v[1] + my * 0.3;
-      // Apply slight X-rotation from mouse
-      const x2 = x * cosM - z * sinM;
-      const z2 = x * sinM + z * cosM;
-      x = x2; z = z2;
-      const perspective = 3.5;
-      const scale = perspective / (perspective + z + 1.5);
-      return [w * 0.5 + x * scale * w * 0.28, h * 0.52 - y * scale * h * 0.32, scale];
-    };
-
-    const draw = () => {
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
-      ctx.clearRect(0, 0, w, h);
-
-      if (!prefersReduced) angleRef.current += 0.002;
-      const angle = angleRef.current;
-
-      // Particles
-      const t = Date.now() * 0.001;
-      particles.forEach((p) => {
-        const px = p.x + Math.sin(t * p.speed * 60 + p.phase) * 0.3;
-        const py = p.y + Math.cos(t * p.speed * 42 + p.phase) * 0.2;
-        const [sx, sy, sc] = project([px, py, p.z], w, h, angle * 0.3);
-        ctx.beginPath();
-        ctx.arc(sx, sy, p.size * sc, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${P.brassRgb}, ${0.10 * sc})`;
-        ctx.fill();
-      });
-
-      // Edges
-      edges.forEach(([a, b]) => {
-        const [x1, y1, s1] = project(verts[a], w, h, angle);
-        const [x2, y2, s2] = project(verts[b], w, h, angle);
-        const avg = (s1 + s2) / 2;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.strokeStyle = `rgba(${P.brassRgb}, ${0.18 + avg * 0.14})`;
-        ctx.lineWidth = 1.1 * avg;
-        ctx.stroke();
-      });
-
-      // Vertices — small brass dots
-      verts.forEach((v) => {
-        const [sx, sy, sc] = project(v, w, h, angle);
-        ctx.beginPath();
-        ctx.arc(sx, sy, 1.8 * sc, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${P.brassRgb}, ${0.30 * sc})`;
-        ctx.fill();
-      });
-
-      frameRef.current = requestAnimationFrame(draw);
-    };
-
-    frameRef.current = requestAnimationFrame(draw);
-    return () => {
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", handleMouse);
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.80 }}
-      aria-hidden="true"
-    />
-  );
-}
 
 // ── Scroll-triggered reveal ──
 function Reveal({ children, className = "", delay = 0 }) {
@@ -258,248 +105,6 @@ function GlassCard({ children, className = "", hover = true }) {
     >
       {children}
     </motion.div>
-  );
-}
-
-// ── Design Intent Decoder ──
-function IntentDecoder() {
-  const inputPhrase = "modern high back swivel chair";
-  const [typedLength, setTypedLength] = useState(0);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
-
-  useEffect(() => {
-    if (!inView) return;
-    let i = 0;
-    const timer = setInterval(() => {
-      i++;
-      if (i > inputPhrase.length) { clearInterval(timer); return; }
-      setTypedLength(i);
-    }, 60);
-    return () => clearInterval(timer);
-  }, [inView]);
-
-  const decoded = [
-    { label: "Category", value: "Accent Chair", color: P.green },
-    { label: "Back Style", value: "High Back", color: P.brass },
-    { label: "Feature", value: "Swivel Base", color: P.greenMuted },
-    { label: "Style", value: "Modern / Contemporary", color: P.green },
-    { label: "Silhouette", value: "Upright, Structured", color: P.brass },
-    { label: "Intent", value: "Statement seating with support", color: P.greenMuted },
-  ];
-
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai</span>
-      </div>
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl" style={{ background: `rgba(${P.sageRgb},0.12)` }}>
-          <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
-          <span ref={ref} className="text-sm italic" style={{ color: P.textSecondary }}>
-            "{inputPhrase.slice(0, typedLength)}{typedLength < inputPhrase.length ? <span className="animate-pulse" style={{ color: P.brass }}>|</span> : ""}"
-          </span>
-        </div>
-        <div className="flex items-center gap-2 mb-5 px-1">
-          <div className="h-px flex-1" style={{ background: `linear-gradient(to right, ${P.brass}33, transparent)` }} />
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: P.brass }}>Spekd understands</span>
-          <div className="h-px flex-1" style={{ background: `linear-gradient(to left, ${P.brass}33, transparent)` }} />
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          {decoded.map((attr, i) => (
-            <div key={attr.label}
-              className="rounded-lg px-3 py-2.5 transition-all duration-500"
-              style={{
-                background: `rgba(${P.sageRgb},0.10)`,
-                opacity: typedLength >= inputPhrase.length ? 1 : 0,
-                transform: typedLength >= inputPhrase.length ? "translateY(0)" : "translateY(8px)",
-                transitionDelay: `${i * 100}ms`,
-              }}>
-              <div className="text-[9px] font-semibold uppercase tracking-[0.15em] mb-1" style={{ color: P.textMuted }}>{attr.label}</div>
-              <div className="text-[13px] font-medium" style={{ color: attr.color }}>{attr.value}</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 px-3 py-2.5 rounded-lg" style={{ background: `rgba(${P.brassRgb},0.06)` }}>
-          <div className="text-[10px] leading-relaxed" style={{ color: P.textSecondary }}>
-            <span style={{ color: P.brass }} className="font-semibold">&rarr;</span> Matches back style, base type, and silhouette as hard filters across 20 vendors
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Hardcoded featured vendors (fallback while API loads — no fake counts) ──
-const FEATURED_VENDORS = [
-  { name: "Hooker Furniture" },
-  { name: "Caracole" },
-  { name: "Century Furniture" },
-];
-
-// ── Mock Vendor UI ──
-function MockVendorUI({ vendors }) {
-  const topVendors = vendors.length >= 3 ? vendors.slice(0, 3) : FEATURED_VENDORS;
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai/vendors</span>
-      </div>
-      <div className="p-5 space-y-3">
-        {topVendors.map((v) => (
-          <div key={v.name} className="flex items-center gap-3 p-3 rounded-xl transition-colors" style={{ background: `rgba(${P.sageRgb},0.08)` }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-sm" style={{ background: `rgba(${P.brassRgb},0.12)`, color: P.brass }}>
-              {v.name[0]}
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-medium" style={{ color: P.textPrimary }}>{v.name}</div>
-              <div className="text-[10px]" style={{ color: P.textMuted }}>
-                {(v.product_count || v.active_skus) > 0
-                  ? `${(v.product_count || v.active_skus).toLocaleString()} products`
-                  : "Trade-only catalog"}
-              </div>
-            </div>
-            <ArrowRight className="w-3 h-3" style={{ color: P.textMuted }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Hardcoded demo products ──
-const DEMO_PRODUCTS = [
-  { id: "caracole_lean-on-me", product_name: "Lean On Me", manufacturer_name: "Caracole", image_url: "https://cdn.shopify.com/s/files/1/0710/9299/4095/files/f39ucdyxymdpjaqwzcnr.jpg?v=1773686507" },
-  { id: "hooker_caleigh-recliner", product_name: "Caleigh Recliner", manufacturer_name: "Hooker Furniture", image_url: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg" },
-  { id: "gabby_nantucket-recliner-sch-r1492", product_name: "Nantucket Recliner", manufacturer_name: "Gabby", image_url: "https://cdn.shopify.com/s/files/1/0625/1007/1895/files/image_e9v65lq92l5a9fk9oshjlr0f09.jpg?v=1772795521" },
-];
-
-// ── Mock Search UI ──
-function MockSearchUI() {
-  const demoQuery = "recliner that doesn't look like a recliner";
-  const products = DEMO_PRODUCTS;
-  const [typedLength, setTypedLength] = useState(0);
-  const [showResults, setShowResults] = useState(false);
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
-
-  // Preload product images immediately on mount so they're cached before typing ends
-  useEffect(() => {
-    DEMO_PRODUCTS.forEach((p) => {
-      if (p.image_url) {
-        const img = new Image();
-        img.src = `${SEARCH_URL}/proxy-image?url=${encodeURIComponent(p.image_url)}`;
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!inView) return;
-    let i = 0;
-    const timer = setInterval(() => {
-      i++;
-      if (i > demoQuery.length) {
-        clearInterval(timer);
-        setTimeout(() => setShowResults(true), 400);
-        return;
-      }
-      setTypedLength(i);
-    }, 50);
-    return () => clearInterval(timer);
-  }, [inView]);
-
-  const typingDone = typedLength >= demoQuery.length;
-
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.06)` }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: `rgba(${P.sageRgb},0.15)`, borderBottom: `1px solid rgba(${P.greenRgb},0.05)` }}>
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: P.sage }} />
-        <span className="ml-auto text-[9px] font-mono" style={{ color: P.textMuted }}>spekd.ai</span>
-      </div>
-      <div className="p-4">
-        <div ref={ref} className="flex items-center gap-3 rounded-full px-4 py-2.5 mb-4" style={{ background: `rgba(${P.sageRgb},0.10)` }}>
-          <img src="/logo.png" alt="" className="h-4 w-4 object-contain shrink-0" />
-          <span className="text-[12px] truncate flex-1" style={{ color: P.textMuted }}>
-            {demoQuery.slice(0, typedLength)}
-            {!typingDone && <span className="animate-pulse" style={{ color: P.brass }}>|</span>}
-          </span>
-          <div className="h-7 px-3 rounded-full text-[10px] font-semibold flex items-center shrink-0 transition-all duration-300"
-            style={{ background: typingDone ? P.green : `rgba(${P.greenRgb},0.08)`, color: typingDone ? "#fff" : P.textMuted }}>
-            Search
-          </div>
-        </div>
-        {typingDone && !showResults && (
-          <div className="flex items-center justify-center gap-2 py-6">
-            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "0ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "150ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: P.brass, animationDelay: "300ms" }} />
-          </div>
-        )}
-        {showResults && (
-          <div className="grid grid-cols-3 gap-2.5">
-            {products.map((item, i) => (
-              <div key={i} className="rounded-xl overflow-hidden transition-all duration-500"
-                style={{ background: P.white, border: `1px solid rgba(${P.greenRgb},0.05)`, opacity: showResults ? 1 : 0, transform: showResults ? "translateY(0)" : "translateY(12px)", transitionDelay: `${i * 120}ms` }}>
-                <div className="relative overflow-hidden" style={{ aspectRatio: "4/3", backgroundColor: "#faf8f5" }}>
-                  {item.image_url ? (
-                    <img src={`${SEARCH_URL}/proxy-image?url=${encodeURIComponent(item.image_url)}`} alt={item.product_name} className="h-full w-full" style={{ objectFit: "contain", padding: "8px" }} referrerPolicy="no-referrer" loading="eager" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center" style={{ color: P.textMuted }}>
-                      <div className="text-xl font-display">{(item.manufacturer_name || "?")[0]}</div>
-                    </div>
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <div className="text-[8px] font-bold uppercase tracking-[0.18em] mb-0.5 truncate" style={{ color: P.brass }}>{item.manufacturer_name}</div>
-                  <div className="text-[11px] line-clamp-2 mb-1 leading-tight" style={{ color: P.textPrimary }}>{item.product_name}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Feature section ──
-function FeatureSection({ kicker, title, description, mockUI, reverse = false, icon: Icon }) {
-  return (
-    <div className="py-24 md:py-32">
-      <div className="page-wrap">
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-          <Reveal className={reverse ? "lg:order-2" : ""}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
-                <Icon className="w-5 h-5" style={{ color: P.green }} />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: P.brass }}>{kicker}</span>
-            </div>
-            <h3 className="font-display text-3xl md:text-4xl lg:text-[42px] leading-[1.08] mb-5" style={{ color: P.textPrimary }}>{title}</h3>
-            <p className="text-base leading-7 max-w-lg" style={{ color: P.textSecondary }}>{description}</p>
-          </Reveal>
-          <Reveal delay={0.15} className={reverse ? "lg:order-1" : ""}>
-            <motion.div
-              whileHover={{ y: -4, boxShadow: "0 16px 48px rgba(44,62,45,0.10), 0 4px 16px rgba(0,0,0,0.05)" }}
-              transition={{ duration: 0.4, ease: EASE }}
-              className="rounded-2xl overflow-hidden"
-              style={{ boxShadow: "0 4px 24px rgba(44,62,45,0.06), 0 1px 3px rgba(0,0,0,0.04)" }}
-            >
-              {mockUI}
-            </motion.div>
-          </Reveal>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -654,14 +259,12 @@ export default function Landing() {
   // ── Live data ──
   const [catalogStats, setCatalogStats] = useState(null);
   const [vendors, setVendors] = useState([]);
-  const [vendorNames, setVendorNames] = useState([]);
 
   useEffect(() => {
     fetch(`${SEARCH_URL}/catalog/stats`).then((r) => r.json()).then((data) => setCatalogStats(data.catalog || data)).catch(() => {});
     fetch(`${SEARCH_URL}/vendors`).then((r) => r.json()).then((data) => {
       const v = (data.vendors || []).sort((a, b) => (b.product_count || 0) - (a.product_count || 0));
       setVendors(v);
-      setVendorNames(v.map((x) => x.name));
     }).catch(() => {});
     sessionStorage.removeItem("spekd_demo_products");
     sessionStorage.removeItem("spekd_demo_v2");
@@ -669,39 +272,85 @@ export default function Landing() {
 
   const totalProducts = Math.max(catalogStats?.total_products || 0, 42000);
   const totalVendors = Math.max(vendors.length || 0, 20);
-  const marqueeNames = vendorNames.length > 0 ? vendorNames : [
-    "Bernhardt", "Hooker Furniture", "Century Furniture", "Vanguard",
-    "Caracole", "Baker Furniture", "Theodore Alexander", "Stickley",
-  ];
 
   return (
     <div className="relative min-h-screen" style={{ background: "#161311" }}>
 
       {/* ═══════════════════════════════════════════
+          HERO — Above the fold
+          ═══════════════════════════════════════════ */}
+      <section className="relative z-10 pt-28 pb-16 sm:pt-36 sm:pb-20 text-center px-6">
+        <Reveal>
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-8 text-[10px] font-semibold uppercase tracking-[0.2em]"
+            style={{ background: `rgba(${P.brassRgb},0.10)`, border: `1px solid rgba(${P.brassRgb},0.20)`, color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>
+            Trade sourcing, reimagined
+          </div>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.0] tracking-tight mb-6 mx-auto"
+            style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif", maxWidth: "900px" }}>
+            The trade catalogue,<br />
+            <span style={{ color: P.brass }}>finally searchable.</span>
+          </h1>
+        </Reveal>
+        <Reveal delay={0.16}>
+          <p className="text-base sm:text-lg leading-relaxed mb-10 mx-auto"
+            style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif", maxWidth: "520px" }}>
+            42,000+ pieces from 20+ trade vendors. Search in plain English — Spekd finds exactly what you're envisioning.
+          </p>
+        </Reveal>
+        <Reveal delay={0.22}>
+          <form onSubmit={handleSearch} className="mx-auto max-w-lg relative">
+            <div
+              className="relative flex items-center gap-2 sm:gap-3 rounded-full"
+              style={{
+                height: "56px",
+                padding: "0 10px 0 20px",
+                background: "rgba(255,255,255,0.06)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: `1px solid rgba(${P.brassRgb},0.18)`,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.20)",
+              }}
+            >
+              <Search className="h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="curved bouclé sofa, warm finish..."
+                className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-white/25"
+                style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif" }}
+              />
+              <motion.button
+                type="submit"
+                className="cursor-pointer flex items-center gap-1.5 shrink-0"
+                style={{
+                  height: "40px",
+                  padding: "0 20px",
+                  borderRadius: "999px",
+                  background: `linear-gradient(135deg, ${P.brass}, ${P.brassLight})`,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  fontFamily: "'DM Sans', sans-serif",
+                  boxShadow: `0 4px 16px rgba(${P.brassRgb},0.30)`,
+                }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span>Search</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </motion.button>
+            </div>
+          </form>
+        </Reveal>
+      </section>
+
+      {/* ═══════════════════════════════════════════
           SCROLL EXPERIENCE — The Digital Showroom
           ═══════════════════════════════════════════ */}
       <ScrollExperience />
-
-      {/* ═══════════════════════════════════════════
-          VENDOR MARQUEE — "Trusted by the Trade"
-          ═══════════════════════════════════════════ */}
-      <section className="relative py-14 sm:py-18 z-10" style={{ background: "rgba(255,255,255,0.03)" }}>
-        <Reveal className="text-center mb-8">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>Trusted by the Trade</span>
-        </Reveal>
-        <div className="relative overflow-hidden">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to right, rgba(255,255,255,0.03) 0%, #161311, transparent)` }} />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-40 z-10" style={{ background: `linear-gradient(to left, rgba(255,255,255,0.03) 0%, #161311, transparent)` }} />
-          <div className="brand-marquee whitespace-nowrap">
-            {[...marqueeNames, ...marqueeNames].map((name, i) => (
-              <span key={`${name}-${i}`} className="inline-flex items-center mx-6 sm:mx-10">
-                <span className="text-sm sm:text-base tracking-[0.08em] uppercase whitespace-nowrap" style={{ fontWeight: 600, color: `rgba(${P.greenRgb},0.20)`, fontFamily: "'DM Sans', sans-serif" }}>{name}</span>
-                <span className="ml-6 sm:ml-10" style={{ color: `rgba(${P.brassRgb},0.25)` }}>·</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ═══════════════════════════════════════════
           STATS RIBBON
@@ -785,55 +434,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
-      {/* Subtle divider — tonal shift, not a line */}
-      <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
-        <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
-          <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
-        </svg>
-      </div>
-
-      {/* ═══════════════════════════════════════════
-          FEATURE SECTIONS
-          ═══════════════════════════════════════════ */}
-      <div className="relative z-10">
-        <FeatureSection
-          kicker="Natural Language"
-          title={<>Search the way you <span style={{ color: P.green }}>actually think</span></>}
-          description="Type the way you'd brief a colleague. Describe the vision — material, style, mood, budget — and Spekd finds every match across your favorite vendors."
-          mockUI={<IntentDecoder />}
-          icon={Brain}
-        />
-
-        <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
-          <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
-            <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
-          </svg>
-        </div>
-
-        <FeatureSection
-          kicker="Verified Sources"
-          title={<>Every vendor, <span style={{ color: P.green }}>verified at source</span></>}
-          description={`${totalVendors} trade-only manufacturer catalogs, curated and kept current. Every product links directly to the vendor.`}
-          mockUI={<MockVendorUI vendors={vendors} />}
-          icon={Shield}
-          reverse
-        />
-
-        <div className="relative z-10 overflow-hidden" style={{ height: "48px", marginTop: "-1px" }}>
-          <svg viewBox="0 0 1440 48" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" fill="none">
-            <path d="M0,24 C240,48 480,0 720,24 C960,48 1200,0 1440,24" stroke={`rgba(${P.sageRgb},0.30)`} strokeWidth="1" fill="none"/>
-          </svg>
-        </div>
-
-        <FeatureSection
-          kicker="Intelligent Search"
-          title={<>Describe the vision, <span style={{ color: P.green }}>we find the pieces</span></>}
-          description="Spekd understands design intent — materials, styles, budgets — then surfaces exactly the right pieces from every vendor at once."
-          mockUI={<MockSearchUI />}
-          icon={Search}
-        />
-      </div>
 
       {/* ════════════════════════════════════════
           3D PRODUCT CAROUSEL — The Showroom Wall
