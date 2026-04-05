@@ -29,15 +29,15 @@ const P = {
   brassRgb:     "184,149,106",
   greenRgb:     "44,62,45",
   sageRgb:      "194,204,186",
-  textPrimary:  "#E9E1DD",
-  textSecondary:"#B0A898",
-  textMuted:    "#7A736B",
+  textPrimary:  "#2A2622",
+  textSecondary:"#7A746B",
+  textMuted:    "#9B9590",
   obsidian:     "#161311",
   surface:      "#1E1B19",
   surfaceHigh:  "#2D2927",
   surfaceHigher:"#383432",
-  onSurface:    "#E9E1DD",
-  onSurfaceDim: "#B0A898",
+  onSurface:    "#2A2622",
+  onSurfaceDim: "#7A746B",
 };
 
 const EXAMPLE_SEARCHES = [
@@ -90,16 +90,16 @@ function GlassCard({ children, className = "", hover = true }) {
     <motion.div
       className={`relative overflow-hidden rounded-2xl ${className}`}
       style={{
-        background: "rgba(30,27,25,0.85)",
-        backdropFilter: "blur(20px) saturate(1.2)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.2)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 4px 24px rgba(44,62,45,0.05), 0 1px 3px rgba(0,0,0,0.03)",
+        background: "rgba(255,255,255,0.75)",
+        backdropFilter: "blur(20px) saturate(1.1)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.1)",
+        border: "1px solid rgba(44,62,45,0.08)",
+        boxShadow: "0 4px 24px rgba(44,62,45,0.06), 0 1px 3px rgba(0,0,0,0.04)",
       }}
       whileHover={hover ? {
         y: -3,
-        boxShadow: "0 12px 40px rgba(44,62,45,0.09), 0 4px 12px rgba(0,0,0,0.05)",
-        borderColor: `rgba(${P.brassRgb}, 0.15)`,
+        boxShadow: "0 12px 40px rgba(44,62,45,0.12), 0 4px 12px rgba(0,0,0,0.06)",
+        borderColor: `rgba(${P.brassRgb}, 0.20)`,
       } : {}}
       transition={{ duration: 0.3, ease: EASE }}
     >
@@ -274,7 +274,7 @@ export default function Landing() {
   const totalVendors = Math.max(vendors.length || 0, 20);
 
   return (
-    <div className="relative min-h-screen" style={{ background: "#161311" }}>
+    <div className="relative min-h-screen" style={{ background: P.cream }}>
 
       {/* ═══════════════════════════════════════════
           HERO — Above the fold
@@ -306,21 +306,21 @@ export default function Landing() {
               style={{
                 height: "56px",
                 padding: "0 10px 0 20px",
-                background: "rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.85)",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
-                border: `1px solid rgba(${P.brassRgb},0.18)`,
-                boxShadow: "0 4px 24px rgba(0,0,0,0.20)",
+                border: `1px solid rgba(${P.greenRgb},0.12)`,
+                boxShadow: "0 4px 24px rgba(44,62,45,0.10)",
               }}
             >
-              <Search className="h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }} />
+              <Search className="h-4 w-4 shrink-0" style={{ color: P.textMuted }} />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="modular leather sectional..."
-                className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-white/25"
-                style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif" }}
+                className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
+                style={{ color: P.textPrimary, fontFamily: "'DM Sans', sans-serif" }}
               />
               <motion.button
                 type="submit"
@@ -438,13 +438,13 @@ export default function Landing() {
       {/* ════════════════════════════════════════
           3D PRODUCT CAROUSEL — The Showroom Wall
           ════════════════════════════════════════ */}
-      <section className="relative py-24 sm:py-32 z-10 overflow-hidden">
+      <section className="relative py-24 sm:py-32 z-10 overflow-hidden" style={{ background: P.obsidian }}>
         <div className="page-wrap-wide">
           <Reveal className="text-center mb-4">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>The Collection</span>
           </Reveal>
           <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl" style={{ color: P.onSurface || "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>
+            <h2 className="text-3xl md:text-5xl" style={{ color: "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>
               42,000 pieces.<br />
               <span style={{ color: P.brass }}>One search.</span>
             </h2>
@@ -526,7 +526,7 @@ export default function Landing() {
       {/* ═══════════════════════════════════════════
           FOOTER — Clean, minimal, warm
           ═══════════════════════════════════════════ */}
-      <footer className="relative py-16 sm:py-20 z-10" style={{ background: "#161311" }}>
+      <footer className="relative py-16 sm:py-20 z-10" style={{ background: P.creamDark }}>
         <div className="page-wrap-wide">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
