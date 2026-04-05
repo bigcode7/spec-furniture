@@ -715,9 +715,9 @@
 
   /* ════════ PRODUCT CARD ════════ */
   .product-card {
-    background: #FFFFFF;
-    border: 1px solid rgba(44, 62, 45, 0.06);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(44,62,45,0.04);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2);
     overflow: hidden;
     border-radius: 20px;
     transition: transform var(--transition-card), border-color var(--transition-card), box-shadow var(--transition-card);
@@ -732,7 +732,7 @@
     right: 0;
     height: 1px;
     pointer-events: none;
-    background: linear-gradient(90deg, transparent 10%, rgba(44,62,45,0.04) 40%, rgba(44,62,45,0.04) 60%, transparent 90%);
+    background: linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.08) 60%, transparent 90%);
     z-index: 2;
     transition: background 300ms var(--ease-premium);
   }
@@ -760,8 +760,8 @@
   @media (hover: hover) {
     .product-card:hover {
       transform: translateY(-4px);
-      border-color: rgba(44,62,45,0.12);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06), 0 24px 48px rgba(44,62,45,0.08);
+      border-color: rgba(255,255,255,0.20);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 24px 48px rgba(0,0,0,0.3);
     }
 
     .product-card:hover::after {

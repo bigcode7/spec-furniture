@@ -1838,7 +1838,7 @@ export default function SearchPage() {
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {item.dimension_notes && (
-                            <span className="text-[10px] rounded px-1.5 py-0.5" style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(44,62,45,0.10)" }}>{item.dimension_notes}</span>
+                            <span className="text-[10px] rounded px-1.5 py-0.5" style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.10)" }}>{item.dimension_notes}</span>
                           )}
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${bucketColor}15`, color: bucketColor }}>
                             {item.original_text?.split(/\s+/)?.[0] || "Item"} ({item.total || item.products.length} results)
@@ -1912,7 +1912,7 @@ export default function SearchPage() {
                           <button
                             onClick={() => setExpandedBuckets(prev => new Set([...prev, itemIdx]))}
                             className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-[11px] transition-colors"
-                            style={{ border: "1px solid rgba(44,62,45,0.10)", color: "rgba(255,255,255,0.45)" }}
+                            style={{ border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.45)" }}
                           >
                             Show all {item.products.length} results <ChevronDown className="h-3 w-3" />
                           </button>
@@ -2024,7 +2024,7 @@ export default function SearchPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       {visualSearchThumb && (
                         <div className="relative shrink-0">
-                          <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover" style={{ border: "1px solid rgba(44,62,45,0.10)" }} />
+                          <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover" style={{ border: "1px solid rgba(255,255,255,0.10)" }} />
                           <button onClick={() => { setVisualSearchThumb(null); setDisplayQuery(""); setAllResults([]); }}
                             className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center transition-colors" style={{ background: "#fff", border: "1px solid rgba(255,255,255,0.12)" }}>
                             <X className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.45)" }} />
@@ -2467,7 +2467,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
             className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isFavorited ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
-            style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(255,255,255,0.45)" }}>
+            style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(0,0,0,0.5)" }}>
             <Heart className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
           <button data-action onClick={(ev) => {
@@ -2481,7 +2481,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
             className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isInQuote || justAdded ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
-            style={isInQuote || justAdded ? { background: "white", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(255,255,255,0.45)" }}
+            style={isInQuote || justAdded ? { background: "rgba(255,255,255,0.85)", color: "black" } : { background: "rgba(255,255,255,0.85)", color: "rgba(0,0,0,0.5)" }}
             title={isInQuote ? "In quote" : "Add to quote"}>
             {isInQuote || justAdded ? <ClipboardCheck className="h-3.5 w-3.5 sm:h-3 sm:w-3" /> : <FileText className="h-3.5 w-3.5 sm:h-3 sm:w-3" />}
           </button>
@@ -2506,7 +2506,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
         {detailChips.length > 0 && !presentationMode && (
           <div className="mb-2 flex flex-wrap gap-1">
             {detailChips.map((chip) => (
-              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(44,62,45,0.10)", color: "#4A4540" }}>
+              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.60)" }}>
                 {chip}
               </span>
             ))}
@@ -2781,7 +2781,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>AI Intelligence</div>
                     <div className="flex flex-wrap gap-1.5">
                       {aiTags.map(({ label, value }) => (
-                        <span key={label} className="rounded-full px-2.5 py-0.5 text-[10px]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(44,62,45,0.10)", color: "rgba(255,255,255,0.65)" }}>
+                        <span key={label} className="rounded-full px-2.5 py-0.5 text-[10px]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.65)" }}>
                           <span className="mr-1" style={{ color: "rgba(255,255,255,0.45)" }}>{label}:</span>{value}
                         </span>
                       ))}
@@ -2961,7 +2961,7 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
           className={`absolute z-50 w-full rounded-[24px] shadow-2xl overflow-hidden ${
             position === "above" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
-          style={{ background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.10)" }}
+          style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.10)" }}
         >
           {results.map((item, i) => {
             const text = typeof item === "string" ? item : item.text;
