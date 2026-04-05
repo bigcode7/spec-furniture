@@ -416,8 +416,8 @@ export default function Landing() {
                 <GlassCard className="p-7 sm:p-8 cursor-default h-full flex flex-col">
                   <div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full" style={{ background: accent }} />
                   <div className="text-[11px] font-bold tracking-[0.2em] mb-5" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>{num}</div>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 shrink-0" style={{ background: `rgba(${P.sageRgb},0.20)`, border: `1px solid rgba(${P.sageRgb},0.30)` }}>
-                    <Icon className="w-5 h-5" style={{ color: P.green }} />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 shrink-0" style={{ background: `rgba(${P.brassRgb},0.12)`, border: `1px solid rgba(${P.brassRgb},0.22)` }}>
+                    <Icon className="w-5 h-5" style={{ color: P.brassLight }} />
                   </div>
                   <h3 className="text-2xl mb-3" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>{title}</h3>
                   <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{body}</p>
