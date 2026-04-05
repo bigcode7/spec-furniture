@@ -12,52 +12,6 @@ const fadeUp = {
   visible: (delay = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1], delay } }),
 };
 
-// ── Particle Canvas ──────────────────────────────────────────────────────────
-function ParticleCanvas() {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let animId;
-    let W = 0, H = 0;
-    const pts = [];
-    function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
-    function spawn() {
-      pts.length = 0;
-      for (let i = 0; i < 90; i++) {
-        pts.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.2,
-          speed: Math.random() * 0.35 + 0.08, drift: (Math.random() - 0.5) * 0.25,
-          baseOpacity: Math.random() * 0.55 + 0.08, phase: Math.random() * Math.PI * 2 });
-      }
-    }
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      for (const p of pts) {
-        p.y -= p.speed; p.x += p.drift; p.phase += 0.012;
-        if (p.y < -p.r * 3) p.y = H + p.r;
-        if (p.x < -p.r * 3) p.x = W + p.r;
-        if (p.x > W + p.r * 3) p.x = -p.r;
-        const opacity = p.baseOpacity * (0.65 + 0.35 * Math.sin(p.phase));
-        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.5);
-        grad.addColorStop(0, `rgba(255,255,255,${opacity})`);
-        grad.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      animId = requestAnimationFrame(draw);
-    }
-    resize(); spawn(); draw();
-    const ro = new ResizeObserver(() => { resize(); spawn(); });
-    ro.observe(canvas);
-    return () => { cancelAnimationFrame(animId); ro.disconnect(); };
-  }, []);
-  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 2 }} />;
-}
-
 // ── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar({ onCta }) {
   const [scrolled, setScrolled] = useState(false);
@@ -84,7 +38,7 @@ function Navbar({ onCta }) {
           <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "white", fontSize: "1.2rem", letterSpacing: "-0.01em" }}>SPEKD</span>
         </div>
         {/* Desktop nav */}
-        <div className="hidden sm:flex" style={{ gap: 24, flexShrink: 0 }}>
+        <div className="hidden md:flex" style={{ gap: 24, flexShrink: 0 }}>
           {["Search", "Vendors", "Pricing", "About"].map((l) => (
             <a key={l} href="#" style={{ fontFamily: "'Barlow', sans-serif", fontSize: "0.875rem", fontWeight: 400, color: "rgba(255,255,255,0.75)", textDecoration: "none", transition: "color 200ms" }}
               onMouseEnter={e => (e.currentTarget.style.color = "white")}
@@ -103,12 +57,12 @@ function Navbar({ onCta }) {
             onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
             onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
           >
-            <span className="hidden sm:inline">Start Free Trial</span>
-            <span className="sm:hidden">Get Started</span>
+            <span className="hidden md:inline">Start Free Trial</span>
+            <span className="md:hidden">Get Started</span>
             <ArrowUpRight size={13} />
           </button>
-          {/* Mobile hamburger */}
-          <button className="sm:hidden" onClick={() => setMenuOpen(o => !o)} style={{ width: 36, height: 36, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
+          {/* Mobile hamburger — hidden on md+ (desktop) */}
+          <button className="md:hidden" onClick={() => setMenuOpen(o => !o)} style={{ width: 36, height: 36, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", transition: "transform 250ms, opacity 250ms", transform: menuOpen ? "rotate(45deg) translate(0, 6.5px)" : "none" }} />
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", opacity: menuOpen ? 0 : 1, transition: "opacity 200ms" }} />
             <span style={{ display: "block", width: 18, height: 1.5, background: "white", transition: "transform 250ms", transform: menuOpen ? "rotate(-45deg) translate(0, -6.5px)" : "none" }} />
@@ -118,7 +72,7 @@ function Navbar({ onCta }) {
       {/* Mobile dropdown menu */}
       {menuOpen && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-          className="landing-lg sm:hidden"
+          className="landing-lg md:hidden"
           style={{ marginTop: 8, borderRadius: 20, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 0 }}
         >
           {["Search", "Vendors", "Pricing", "About"].map((l) => (
@@ -135,18 +89,16 @@ function Navbar({ onCta }) {
 // ── Hero ─────────────────────────────────────────────────────────────────────
 function Hero({ onCta }) {
   const ref = useRef(null);
-  const [videoReady, setVideoReady] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   return (
-    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, background: "black", overflow: "hidden" }}>
-      <video autoPlay loop muted playsInline preload="auto" onCanPlay={() => setVideoReady(true)}
-        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "56.25vw", objectFit: "cover", pointerEvents: "none", zIndex: 0, opacity: videoReady ? 1 : 0, transition: "opacity 1.2s ease" }}>
+    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden" }}>
+      <video autoPlay loop muted playsInline preload="auto"
+        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
         <source src="/hero.mp4" type="video/mp4" />
       </video>
       <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(0,0,0,0.05)" }} />
-      <ParticleCanvas />
       <motion.div style={{ y, opacity, position: "relative", zIndex: 10, paddingTop: "clamp(80px, 15vw, 110px)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingLeft: 16, paddingRight: 16 }}>
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0.1} style={{ marginBottom: 32 }}>
           <div className="landing-lg" style={{ borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8 }}>
