@@ -2271,19 +2271,6 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
               My Vendors{myVendorsOnly ? ` (${myVendorCount})` : ""}
             </button>
           )}
-          <PricingToggle />
-          <button
-            onClick={() => setPresentationMode(!presentationMode)}
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer"
-            style={presentationMode
-              ? { background: "rgba(255,255,255,0.10)", color: "white", border: "1px solid rgba(255,255,255,0.40)" }
-              : { border: "1px solid rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.70)" }}
-            title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
-          >
-            <Eye className="h-3 w-3" />
-            {presentationMode ? "Presentation" : "Workspace"}
-          </button>
-
           {/* Sort dropdown */}
           <div className="relative shrink-0">
             <button onClick={() => setShowSortMenu(!showSortMenu)}
@@ -2322,24 +2309,6 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
 }
 
 
-// ─── PRICING TOGGLE ────────────────────────────────────────
-function PricingToggle() {
-  const { showPricing, toggleShowPricing } = useTradePricing();
-  return (
-    <button
-      onClick={toggleShowPricing}
-      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] border transition-all shrink-0 cursor-pointer"
-      style={showPricing
-        ? { border: "1px solid rgba(255,255,255,0.40)", background: "rgba(255,255,255,0.10)", color: "white" }
-        : { border: "1px solid rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.70)" }}
-      title={showPricing ? "Hide pricing" : "Show pricing"}
-    >
-      <span className="text-[11px] font-semibold">$</span>
-      <span className="hidden sm:inline">{showPricing ? "Pricing on" : "Pricing off"}</span>
-    </button>
-  );
-}
-
 // ─── HELPERS ───────────────────────────────────────────────
 function sanitizeDescription(text) {
   if (!text) return text;
@@ -2360,7 +2329,6 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
   const [hovered, setHovered] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const tiltRef = useRef(null);
-  const { getPrice, fmtPrice } = useTradePricing();
 
   const handleMouseMove = (e) => {
     if (!tiltRef.current) return;
@@ -2386,8 +2354,6 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
     tiltRef.current.style.transition = "transform 0.1s ease-out";
   };
 
-  const priceInfo = getPrice(item);
-  const priceStr = priceInfo.price ? fmtPrice(priceInfo.price) : null;
   const materialStyle = [item.material, item.style].filter(Boolean).join(" · ");
   const detailChips = [item.ai_style || item.style, item.ai_primary_material || item.material, item.ai_mood].filter(Boolean).slice(0, 1);
   return (
@@ -2473,14 +2439,6 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
             ))}
           </div>
         )}
-        <div className="mt-auto flex items-end justify-between gap-2">
-          {priceStr && priceInfo.isTrade && (
-            <span className="text-[13px] font-semibold" style={{ color: "white" }}>
-              <span className="text-[8px] uppercase tracking-wider mr-1 opacity-60">{priceInfo.label}</span>
-              {priceStr}
-            </span>
-          )}
-        </div>
       </div>
 
     </div>
@@ -2510,8 +2468,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
     }
   };
   const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const { getPrice, fmtPrice } = useTradePricing();
-
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEsc);
@@ -2553,7 +2509,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
     return product.image_url ? [product.image_url] : [];
   })();
 
-  const priceInfo = getPrice(product);
   const tags = (product.ai_visual_tags || "").split(",").map(t => t.trim()).filter(Boolean);
   const dims = [];
   if (product.width) dims.push(`${product.width}" W`);
@@ -2669,13 +2624,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 </p>
               </div>
 
-              {/* Price */}
-              {priceInfo.price && priceInfo.isTrade && (
-                <div className="text-lg font-semibold" style={{ color: "white" }}>
-                  <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>
-                  {fmtPrice(priceInfo.price)}
-                </div>
-              )}
 
               {/* Details grid */}
               <div className="grid grid-cols-2 gap-3">
@@ -2842,14 +2790,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     </div>
                     <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "white" }}>{ap.manufacturer_name}</div>
                     <div className="text-[11px] truncate transition-colors" style={{ color: "rgba(255,255,255,0.65)" }}>{ap.product_name}</div>
-                    {(() => {
-                      const apPrice = getPrice(ap);
-                      return apPrice.price && apPrice.isTrade ? (
-                        <div className="text-[10px]" style={{ color: "white" }}>
-                          {apPrice.label} {fmtPrice(apPrice.price)}
-                        </div>
-                      ) : null;
-                    })()}
                   </button>
                 ))}
               </div>
@@ -2880,14 +2820,6 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                     </div>
                     <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "white" }}>{sp.manufacturer_name}</div>
                     <div className="text-[11px] truncate transition-colors" style={{ color: "rgba(255,255,255,0.65)" }}>{sp.product_name}</div>
-                    {(() => {
-                      const spPrice = getPrice(sp);
-                      return spPrice.price && spPrice.isTrade ? (
-                        <div className="text-[10px]" style={{ color: "white" }}>
-                          {spPrice.label} {fmtPrice(spPrice.price)}
-                        </div>
-                      ) : null;
-                    })()}
                   </button>
                 ))}
               </div>
