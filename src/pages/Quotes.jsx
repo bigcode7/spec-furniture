@@ -566,7 +566,7 @@ export default function Quotes() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-4"
+              className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4"
             >
               {favorites.map((fav) => {
                 const priceInfo = getPrice(fav);
@@ -581,7 +581,7 @@ export default function Quotes() {
                     className="group editorial-card transition-colors"
                   >
                     {/* Thumbnail */}
-                    <div className="relative aspect-square overflow-hidden" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+                    <div className="relative aspect-square overflow-hidden" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.97)" }}>
                       {(fav.image_url || fav.thumbnail) ? (
                         <img
                           src={quoteImageUrl(fav)}
@@ -1402,7 +1402,7 @@ function QuoteItemRow({
           rel="noopener noreferrer"
           onClick={(e) => { if (!item.portal_url && !item.product_url) e.preventDefault(); }}
           className={`flex-shrink-0 w-28 h-28 rounded-[20px] overflow-hidden sm:mx-0 mx-auto block transition-colors ${(item.portal_url || item.product_url) ? "cursor-pointer" : ""}`}
-          style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ background: "rgba(255,255,255,0.97)", border: "1px solid rgba(255,255,255,0.08)" }}
           title={item.portal_url || item.product_url ? "Open vendor product page" : ""}
         >
           {item.image_url ? (
