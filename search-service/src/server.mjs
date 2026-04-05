@@ -658,6 +658,18 @@ async function runHeavyInit() {
     console.log(`[startup] Image patch v2: ${CROSS_FIXES.length} cross-contaminated image(s) corrected`);
   }
 
+  // ── Material fix v1 — Stickley "Express Leather Event" promo name scraped as material ──
+  {
+    let matFixed = 0;
+    for (const p of getAllProducts()) {
+      if (p.material === 'Express Leather Event') {
+        updateProductDirect(p.id, { material: 'Leather' });
+        matFixed++;
+      }
+    }
+    if (matFixed) console.log(`[startup] Material fix v1: corrected ${matFixed} Stickley leather products`);
+  }
+
   // Initialize project store
   initProjectStore();
 
