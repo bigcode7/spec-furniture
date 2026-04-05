@@ -93,8 +93,8 @@ function Hero({ onCta }) {
   const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   return (
-    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden" }}>
-      <video autoPlay loop muted playsInline preload="auto"
+    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden", backgroundImage: "url(/hero-poster.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
+      <video autoPlay loop muted playsInline preload="auto" poster="/hero-poster.png"
         style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
         <source src="/hero.mp4" type="video/mp4" />
       </video>
