@@ -59,16 +59,16 @@ export default function Quotes() {
   // Gate: must be logged in to access quotes
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", background: "#F5F0E8" }}>
+      <div style={{ minHeight: "100vh", background: "#000000" }}>
         <div className="max-w-lg mx-auto px-4 py-32 flex flex-col items-center text-center">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-2xl mb-6"
-            style={{ background: "rgba(184,149,106,0.1)", border: "1px solid rgba(184,149,106,0.2)" }}
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}
           >
-            <Lock className="h-7 w-7" style={{ color: "#B8956A" }} />
+            <Lock className="h-7 w-7" style={{ color: "rgba(255,255,255,0.65)" }} />
           </div>
-          <h2 className="text-xl font-semibold mb-2" style={{ color: "#1A1A18" }}>Sign in to build quotes</h2>
-          <p className="text-sm mb-6 max-w-sm" style={{ color: "#6B6560" }}>
+          <h2 className="text-xl font-semibold mb-2" style={{ color: "#ffffff" }}>Sign in to build quotes</h2>
+          <p className="text-sm mb-6 max-w-sm" style={{ color: "rgba(255,255,255,0.65)" }}>
             Create a free account to save products, build quotes, and generate professional PDFs for your clients.
           </p>
           <div className="flex gap-3">
@@ -76,8 +76,8 @@ export default function Quotes() {
               onClick={() => navigateToLogin("signup")}
               className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:brightness-110"
               style={{
-                background: "#2C3E2D",
-                color: "#FFFFFF",
+                background: "white",
+                color: "black",
               }}
             >
               <UserPlusIcon className="h-4 w-4" />
@@ -86,7 +86,7 @@ export default function Quotes() {
             <button
               onClick={() => navigateToLogin("login")}
               className="rounded-xl px-6 py-3 text-sm font-medium transition-all"
-              style={{ color: "#6B6560", border: "1px solid rgba(44,62,45,0.10)" }}
+              style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}
             >
               Sign In
             </button>
@@ -484,7 +484,7 @@ export default function Quotes() {
 
   /* ─── render ────────────────────────────────────────────── */
   return (
-    <div className="presentation-mode" style={{ minHeight: "100vh", background: "#F5F0E8", color: "#1A1A18" }}>
+    <div className="presentation-mode" style={{ minHeight: "100vh", background: "#000000", color: "#ffffff" }}>
       <div className="page-wrap-wide py-10 pb-48 sm:pb-10">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -501,30 +501,30 @@ export default function Quotes() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[320px]">
               <div className="atelier-panel-soft px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Rooms</div>
-                <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>{quote.rooms.length}</div>
-                <div className="mt-1 text-xs" style={{ color: "#6B6560" }}>Organized quote sections</div>
+                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Rooms</div>
+                <div className="mt-2 text-2xl font-semibold" style={{ color: "#ffffff" }}>{quote.rooms.length}</div>
+                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>Organized quote sections</div>
               </div>
               <div className="atelier-panel-soft px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Quote total</div>
-                <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>{showPricing && grandTotal > 0 ? formatUsd(grandTotal) : "Price on request"}</div>
-                <div className="mt-1 text-xs" style={{ color: "#6B6560" }}>Live estimate</div>
+                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Quote total</div>
+                <div className="mt-2 text-2xl font-semibold" style={{ color: "#ffffff" }}>{showPricing && grandTotal > 0 ? formatUsd(grandTotal) : "Price on request"}</div>
+                <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>Live estimate</div>
               </div>
             </div>
           </div>
           {totalItems > 0 && (
             <div className="mt-5 sm:mt-6 grid gap-3 lg:grid-cols-[1fr_0.65fr]">
               <div className="atelier-panel-soft paper-grain px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#B8956A" }}>Quote Overview</div>
-                <p className="mt-2 text-[13px] leading-6" style={{ color: "#6B6560" }}>
+                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.65)" }}>Quote Overview</div>
+                <p className="mt-2 text-[13px] leading-6" style={{ color: "rgba(255,255,255,0.65)" }}>
                   Rooms, totals, notes, and exports are grouped here so the quote stays easy to scan and easy to share.
                 </p>
               </div>
               <div className="atelier-panel-soft px-4 py-4">
-                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Export readiness</div>
+                <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Export readiness</div>
                 <div className="mt-2 flex items-end justify-between gap-3">
-                  <div className="text-2xl font-semibold" style={{ color: "#1A1A18" }}>{Math.round(((quote.rooms.filter((r) => r.items.length > 0).length > 0 ? 1 : 0) + (quote.name ? 1 : 0) + (settings.designer_name ? 1 : 0) + (settings.business_name ? 1 : 0)) / 4 * 100)}%</div>
-                  <div className="text-right text-[11px] leading-5" style={{ color: "#9B9590" }}>
+                  <div className="text-2xl font-semibold" style={{ color: "#ffffff" }}>{Math.round(((quote.rooms.filter((r) => r.items.length > 0).length > 0 ? 1 : 0) + (quote.name ? 1 : 0) + (settings.designer_name ? 1 : 0) + (settings.business_name ? 1 : 0)) / 4 * 100)}%</div>
+                  <div className="text-right text-[11px] leading-5" style={{ color: "rgba(255,255,255,0.45)" }}>
                     Add project, designer, and room detail
                     <br />
                     for the strongest export.
@@ -540,12 +540,12 @@ export default function Quotes() {
            ═══════════════════════════════════════════════════ */}
         <section className="mb-14">
           <div className="flex items-center gap-3 mb-5">
-            <Heart className="h-4 w-4" style={{ color: "#B8956A" }} />
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#6B6560" }}>
+            <Heart className="h-4 w-4" style={{ color: "rgba(255,255,255,0.65)" }} />
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>
               Saved Products
             </h2>
             {favorites.length > 0 && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(184,149,106,0.1)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.2)" }}>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}>
                 {favorites.length}
               </span>
             )}
@@ -556,11 +556,11 @@ export default function Quotes() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="editorial-card paper-grain py-14 flex flex-col items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
             >
-              <HeartOff className="h-8 w-8 mb-3" style={{ color: "#9B9590" }} />
-              <p className="text-sm mb-1" style={{ color: "#6B6560" }}>No saved products yet</p>
-              <p className="text-xs" style={{ color: "#9B9590" }}>Save products while browsing and this board becomes your staging area for room-by-room review, spec notes, and quote export.</p>
+              <HeartOff className="h-8 w-8 mb-3" style={{ color: "rgba(255,255,255,0.45)" }} />
+              <p className="text-sm mb-1" style={{ color: "rgba(255,255,255,0.65)" }}>No saved products yet</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Save products while browsing and this board becomes your staging area for room-by-room review, spec notes, and quote export.</p>
             </motion.div>
           ) : (
             <motion.div
@@ -581,7 +581,7 @@ export default function Quotes() {
                     className="group editorial-card transition-colors"
                   >
                     {/* Thumbnail */}
-                    <div className="relative aspect-square overflow-hidden" style={{ borderBottom: "1px solid rgba(44,62,45,0.08)", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
+                    <div className="relative aspect-square overflow-hidden" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(180deg, #f7f1e8, #ece1d3)" }}>
                       {(fav.image_url || fav.thumbnail) ? (
                         <img
                           src={quoteImageUrl(fav)}
@@ -590,22 +590,22 @@ export default function Quotes() {
                           loading="lazy"
                         />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center" style={{ background: "rgba(44,62,45,0.04)" }}>
-                          <Package className="h-8 w-8" style={{ color: "#9B9590" }} />
+                        <div className="h-full w-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+                          <Package className="h-8 w-8" style={{ color: "rgba(255,255,255,0.45)" }} />
                         </div>
                       )}
                     </div>
 
                     <div className="px-4 pt-3 pb-4 space-y-2">
-                      <p className="text-sm font-medium truncate leading-tight" style={{ color: "#1A1A18" }}>
+                      <p className="text-sm font-medium truncate leading-tight" style={{ color: "#ffffff" }}>
                         {fav.product_name || fav.name}
                       </p>
-                      <p className="text-[10px] uppercase tracking-[0.18em] truncate" style={{ color: "#B8956A" }}>{fav.manufacturer_name}</p>
+                      <p className="text-[10px] uppercase tracking-[0.18em] truncate" style={{ color: "rgba(255,255,255,0.65)" }}>{fav.manufacturer_name}</p>
 
                       {/* Price */}
                       {showPricing && priceInfo.isTrade && priceInfo.price && (
                         <div className="text-xs">
-                          <span style={{ color: "#2C3E2D" }}>
+                          <span style={{ color: "white" }}>
                             <span className="text-[9px] mr-0.5 opacity-60">Trade </span>
                             {formatUsd(priceInfo.price)}
                           </span>
@@ -620,8 +620,8 @@ export default function Quotes() {
                           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
                           style={
                             alreadyInQuote
-                              ? { background: "rgba(44,62,45,0.06)", color: "#9B9590", cursor: "default" }
-                              : { background: "rgba(184,149,106,0.1)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.2)" }
+                              ? { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)", cursor: "default" }
+                              : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }
                           }
                         >
                           {alreadyInQuote ? (
@@ -639,7 +639,7 @@ export default function Quotes() {
                         <button
                           onClick={() => handleRemoveFavorite(fav)}
                           className="p-1.5 rounded-lg transition-colors hover:text-red-400"
-                          style={{ color: "#9B9590" }}
+                          style={{ color: "rgba(255,255,255,0.45)" }}
                           title="Remove from saved"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -658,12 +658,12 @@ export default function Quotes() {
            ═══════════════════════════════════════════════════ */}
         <section>
           <div className="flex items-center gap-3 mb-5">
-            <FileText className="h-4 w-4" style={{ color: "#B8956A" }} />
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#6B6560" }}>
+            <FileText className="h-4 w-4" style={{ color: "rgba(255,255,255,0.65)" }} />
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>
               Quote Builder
             </h2>
             {totalItems > 0 && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(184,149,106,0.1)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.2)" }}>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}>
                 {totalItems} {totalItems === 1 ? "item" : "items"}
               </span>
             )}
@@ -675,9 +675,9 @@ export default function Quotes() {
             animate={{ opacity: 1, y: 0 }}
             className="atelier-panel overflow-hidden mb-4"
           >
-            <div className="px-4 py-4 sm:px-6 sm:py-5" style={{ borderBottom: "1px solid rgba(44,62,45,0.08)" }}>
+            <div className="px-4 py-4 sm:px-6 sm:py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-[10px]" style={{ color: "#9B9590" }}>
+                <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
                 <div className="flex items-center gap-2">
@@ -687,8 +687,8 @@ export default function Quotes() {
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] transition-colors"
                     style={
                       showPricing
-                        ? { color: "#B8956A", background: "rgba(184,149,106,0.06)", border: "1px solid rgba(184,149,106,0.15)" }
-                        : { color: "#9B9590", border: "1px solid transparent" }
+                        ? { color: "rgba(255,255,255,0.65)", background: "rgba(184,149,106,0.06)", border: "1px solid rgba(184,149,106,0.15)" }
+                        : { color: "rgba(255,255,255,0.45)", border: "1px solid transparent" }
                     }
                     title={showPricing ? "Hide pricing" : "Show pricing"}
                   >
@@ -701,27 +701,27 @@ export default function Quotes() {
 
               {/* Project name — always visible input */}
               <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: "#9B9590" }}>Project Name</label>
+                <label className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>Project Name</label>
                 <input
                   ref={nameRef}
                   value={quote.name || ""}
                   onChange={(e) => handleSaveName("name", e.target.value)}
                   placeholder="e.g., Thompson Residence — Living Room Refresh"
                   className="w-full rounded-lg px-4 py-3 text-base font-medium focus:outline-none transition-colors"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                 />
 
                 {/* Client name */}
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <div className="flex-1">
-                    <label className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: "#9B9590" }}>Client</label>
+                    <label className="text-[9px] uppercase tracking-[0.2em] font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>Client</label>
                     <input
                       ref={clientRef}
                       value={quote.client_name || ""}
                       onChange={(e) => handleSaveName("client_name", e.target.value)}
                       placeholder="Client name"
                       className="w-full mt-1 rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
-                      style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                     />
                   </div>
                 </div>
@@ -729,8 +729,8 @@ export default function Quotes() {
             </div>
 
             {/* Designer Info — always visible */}
-            <div className="px-4 py-4 sm:px-6" style={{ borderBottom: "1px solid rgba(44,62,45,0.08)", background: "rgba(184,149,106,0.03)" }}>
-              <div className="text-[9px] uppercase tracking-[0.2em] font-semibold mb-3" style={{ color: "#B8956A" }}>
+            <div className="px-4 py-4 sm:px-6" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(184,149,106,0.03)" }}>
+              <div className="text-[9px] uppercase tracking-[0.2em] font-semibold mb-3" style={{ color: "rgba(255,255,255,0.65)" }}>
                 Your Info (appears on PDF)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -739,28 +739,28 @@ export default function Quotes() {
                   onChange={(e) => handleSaveSettings({ business_name: e.target.value })}
                   placeholder="Business name"
                   className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                 />
                 <input
                   value={settings.designer_name}
                   onChange={(e) => handleSaveSettings({ designer_name: e.target.value })}
                   placeholder="Designer name"
                   className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                 />
                 <input
                   value={settings.email}
                   onChange={(e) => handleSaveSettings({ email: e.target.value })}
                   placeholder="Email"
                   className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                 />
                 <input
                   value={settings.phone}
                   onChange={(e) => handleSaveSettings({ phone: e.target.value })}
                   placeholder="Phone"
                   className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                 />
               </div>
 
@@ -768,20 +768,20 @@ export default function Quotes() {
               <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 {settings.logo_data_url ? (
                   <>
-                    <div className="h-10 w-20 rounded-lg flex items-center justify-center overflow-hidden p-1" style={{ border: "1px solid rgba(44,62,45,0.10)", background: "rgba(255,255,255,0.85)" }}>
+                    <div className="h-10 w-20 rounded-lg flex items-center justify-center overflow-hidden p-1" style={{ border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.05)" }}>
                       <img src={settings.logo_data_url} alt="Logo" className="max-h-full max-w-full object-contain" />
                     </div>
                     <button
                       onClick={() => handleSaveSettings({ logo_data_url: "" })}
                       className="flex items-center gap-1 text-[10px] transition-colors hover:text-red-500"
-                      style={{ color: "#9B9590" }}
+                      style={{ color: "rgba(255,255,255,0.45)" }}
                     >
                       <X className="h-3 w-3" />
                       Remove
                     </button>
                   </>
                 ) : (
-                  <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border-dashed text-[10px] transition-colors" style={{ border: "1px dashed rgba(44,62,45,0.15)", color: "#9B9590" }}>
+                  <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border-dashed text-[10px] transition-colors" style={{ border: "1px dashed rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.45)" }}>
                     <ImagePlus className="h-3.5 w-3.5" />
                     Upload your logo (appears on PDF cover)
                     <input
@@ -824,7 +824,7 @@ export default function Quotes() {
           {/* Rooms + Items */}
           {/* Mobile hint for actions */}
           {totalItems > 0 && (
-            <p className="sm:hidden text-[10px] mb-2 text-center" style={{ color: "#9B9590" }}>
+            <p className="sm:hidden text-[10px] mb-2 text-center" style={{ color: "rgba(255,255,255,0.45)" }}>
               Tap an item to see swap, notes, and delete options
             </p>
           )}
@@ -834,11 +834,11 @@ export default function Quotes() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="editorial-card linen-surface py-20 flex flex-col items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
             >
-              <Package className="h-12 w-12 mb-4" style={{ color: "#9B9590" }} />
-              <p className="text-sm mb-1" style={{ color: "#6B6560" }}>No quote boards yet</p>
-              <p className="text-xs" style={{ color: "#9B9590" }}>
+              <Package className="h-12 w-12 mb-4" style={{ color: "rgba(255,255,255,0.45)" }} />
+              <p className="text-sm mb-1" style={{ color: "rgba(255,255,255,0.65)" }}>No quote boards yet</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
                 Save standout pieces from search, arrange them into rooms, and this space becomes your client-ready presentation deck.
               </p>
             </motion.div>
@@ -853,10 +853,10 @@ export default function Quotes() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="atelier-panel overflow-hidden linen-surface"
-                  style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                 >
                   {/* Room Header */}
-                  <div style={{ borderBottom: "1px solid rgba(44,62,45,0.06)" }}>
+                  <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="px-4 pt-4 pb-4 sm:px-5 sm:pt-5" style={{ background: `linear-gradient(135deg, ${roomTheme.wash}, rgba(255,255,255,0.5))` }}>
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -865,13 +865,13 @@ export default function Quotes() {
                             Room
                           </span>
                         </div>
-                        <span className="text-[10px]" style={{ color: "#9B9590" }}>{room.items.length} curated selections</span>
+                        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>{room.items.length} curated selections</span>
                       </div>
                       <div className="flex items-start gap-3">
                         <button
                           onClick={() => setExpandedRooms((prev) => ({ ...prev, [room.id]: !prev[room.id] }))}
                           className="transition-colors"
-                          style={{ color: "#6B6560" }}
+                          style={{ color: "rgba(255,255,255,0.65)" }}
                         >
                           {expandedRooms[room.id] ? (
                             <ChevronDown className="h-4 w-4" />
@@ -886,7 +886,7 @@ export default function Quotes() {
                               autoFocus
                               defaultValue={room.name}
                               className="w-full rounded px-2 py-1 text-xs focus:outline-none"
-                              style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                               onBlur={(e) => handleRenameRoom(room.id, e.target.value)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") handleRenameRoom(room.id, e.target.value);
@@ -897,10 +897,10 @@ export default function Quotes() {
                               onClick={() => setEditingRoomId(room.id)}
                             className="text-left"
                           >
-                              <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] transition-colors" style={{ color: "#1A1A18" }}>
+                              <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.18em] transition-colors" style={{ color: "#ffffff" }}>
                                 {room.name}
                               </div>
-                              <div className="mt-1 text-[11px] sm:text-[12px] leading-5" style={{ color: "#9B9590" }}>
+                              <div className="mt-1 text-[11px] sm:text-[12px] leading-5" style={{ color: "rgba(255,255,255,0.45)" }}>
                                 Saved items, pricing, notes, and export-ready details for this room.
                               </div>
                             </button>
@@ -917,7 +917,7 @@ export default function Quotes() {
                           <button
                             onClick={() => handleDeleteRoom(room.id)}
                             className="p-1 transition-colors hover:text-red-500"
-                            style={{ color: "#9B9590" }}
+                            style={{ color: "rgba(255,255,255,0.45)" }}
                             title="Delete room"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -927,18 +927,18 @@ export default function Quotes() {
                     </div>
 
                     {room.items.length > 0 && (
-                      <div className="grid gap-2 px-4 py-3 sm:px-5 sm:grid-cols-3" style={{ borderTop: "1px solid rgba(44,62,45,0.06)" }}>
-                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(255,255,255,0.5)" }}>
-                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "#9B9590" }}>Pieces</div>
-                          <div className="mt-1 text-xl font-semibold" style={{ color: "#1A1A18" }}>{room.items.length}</div>
+                      <div className="grid gap-2 px-4 py-3 sm:px-5 sm:grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.5)" }}>
+                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.45)" }}>Pieces</div>
+                          <div className="mt-1 text-xl font-semibold" style={{ color: "#ffffff" }}>{room.items.length}</div>
                         </div>
-                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(255,255,255,0.5)" }}>
-                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "#9B9590" }}>Vendors</div>
-                          <div className="mt-1 text-xl font-semibold" style={{ color: "#1A1A18" }}>{new Set(room.items.map((i) => i.manufacturer_name).filter(Boolean)).size}</div>
+                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.5)" }}>
+                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.45)" }}>Vendors</div>
+                          <div className="mt-1 text-xl font-semibold" style={{ color: "#ffffff" }}>{new Set(room.items.map((i) => i.manufacturer_name).filter(Boolean)).size}</div>
                         </div>
-                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(255,255,255,0.5)" }}>
-                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "#9B9590" }}>Direction</div>
-                          <div className="mt-1 text-xl font-semibold" style={{ color: "#1A1A18" }}>Ready</div>
+                        <div className="rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.5)" }}>
+                          <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.45)" }}>Direction</div>
+                          <div className="mt-1 text-xl font-semibold" style={{ color: "#ffffff" }}>Ready</div>
                         </div>
                       </div>
                     )}
@@ -978,12 +978,12 @@ export default function Quotes() {
                         ))}
                         {/* Generate All Justifications */}
                         {room.items.length >= 2 && (
-                          <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(44,62,45,0.06)" }}>
+                          <div className="px-5 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                             <button
                               onClick={() => handleGenerateAllJustifications(room)}
                               disabled={justifyBatchLoading === room.id}
                               className="flex items-center gap-1.5 text-[10px] font-medium transition-colors disabled:opacity-40"
-                              style={{ color: "#B8956A" }}
+                              style={{ color: "rgba(255,255,255,0.65)" }}
                             >
                               {justifyBatchLoading === room.id ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -1014,7 +1014,7 @@ export default function Quotes() {
                       onChange={(e) => setNewRoomName(e.target.value)}
                       placeholder="Room name"
                       className="flex-1 rounded-lg px-3 py-2 text-xs focus:outline-none"
-                      style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAddRoom();
                         if (e.key === "Escape") setShowAddRoom(false);
@@ -1023,14 +1023,14 @@ export default function Quotes() {
                     <button
                       onClick={handleAddRoom}
                       className="px-4 py-2 rounded-lg text-xs font-medium transition-colors"
-                      style={{ background: "rgba(184,149,106,0.15)", color: "#B8956A", border: "1px solid rgba(184,149,106,0.2)" }}
+                      style={{ background: "rgba(184,149,106,0.15)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}
                     >
                       Add
                     </button>
                     <button
                       onClick={() => setShowAddRoom(false)}
                       className="px-3 py-2 rounded-lg text-xs transition-colors"
-                      style={{ color: "#9B9590" }}
+                      style={{ color: "rgba(255,255,255,0.45)" }}
                     >
                       Cancel
                     </button>
@@ -1039,7 +1039,7 @@ export default function Quotes() {
                   <button
                     onClick={() => setShowAddRoom(true)}
                     className="flex items-center gap-2 text-xs transition-colors py-2"
-                    style={{ color: "#9B9590" }}
+                    style={{ color: "rgba(255,255,255,0.45)" }}
                   >
                     <FolderPlus className="h-3.5 w-3.5" />
                     Add room
@@ -1059,7 +1059,7 @@ export default function Quotes() {
                   <button
                     onClick={() => setShowMarkup(!showMarkup)}
                     className="flex items-center gap-2 text-[10px] uppercase tracking-wider transition-colors"
-                    style={{ color: "#9B9590" }}
+                    style={{ color: "rgba(255,255,255,0.45)" }}
                   >
                     <DollarSign className="h-3 w-3" />
                     Designer markup
@@ -1068,7 +1068,7 @@ export default function Quotes() {
                     />
                   </button>
                   {quote.markup_percent > 0 && (
-                    <span className="text-[10px]" style={{ color: "#B8956A" }}>+{quote.markup_percent}%</span>
+                    <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.65)" }}>+{quote.markup_percent}%</span>
                   )}
                 </div>
 
@@ -1081,7 +1081,7 @@ export default function Quotes() {
                       className="overflow-hidden"
                     >
                       <div className="flex flex-col items-start gap-2 py-1 sm:flex-row sm:items-center sm:gap-3">
-                        <span className="text-[10px]" style={{ color: "#9B9590" }}>Markup %</span>
+                        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Markup %</span>
                         <input
                           type="number"
                           min="0"
@@ -1090,9 +1090,9 @@ export default function Quotes() {
                           onChange={(e) => handleMarkup(e.target.value)}
                           placeholder="0"
                           className="w-20 rounded px-2 py-1 text-xs text-center focus:outline-none"
-                          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                         />
-                        <span className="text-[10px]" style={{ color: "#9B9590" }}>
+                        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                           Client sees marked-up price. Trade price stays hidden.
                         </span>
                       </div>
@@ -1107,8 +1107,8 @@ export default function Quotes() {
                       .filter((r) => r.items.length > 0)
                       .map((room) => (
                         <div key={room.id} className="flex justify-between text-xs">
-                          <span style={{ color: "#9B9590" }}>{room.name}</span>
-                          <span style={{ color: "#6B6560" }}>
+                          <span style={{ color: "rgba(255,255,255,0.45)" }}>{room.name}</span>
+                          <span style={{ color: "rgba(255,255,255,0.65)" }}>
                             {getRoomTotal(room) > 0
                               ? formatUsd(getRoomTotal(room))
                               : "Price on request"}
@@ -1116,14 +1116,14 @@ export default function Quotes() {
                         </div>
                       ))}
 
-                    <div className="flex justify-between text-sm font-semibold pt-2" style={{ borderTop: "1px solid rgba(44,62,45,0.08)" }}>
-                      <span style={{ color: "#6B6560" }}>Total</span>
-                      <span style={{ color: "#1A1A18" }}>
+                    <div className="flex justify-between text-sm font-semibold pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                      <span style={{ color: "rgba(255,255,255,0.65)" }}>Total</span>
+                      <span style={{ color: "#ffffff" }}>
                         {grandTotal > 0 ? formatUsd(grandTotal) : "Prices on request"}
                       </span>
                     </div>
                     {itemsWithoutPrice.length > 0 && (
-                      <div className="text-[10px]" style={{ color: "#9B9590" }}>
+                      <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                         {itemsWithoutPrice.length}{" "}
                         {itemsWithoutPrice.length === 1 ? "item" : "items"} pending pricing
                       </div>
@@ -1133,21 +1133,21 @@ export default function Quotes() {
 
                 {/* Trade mode indicator */}
                 {mode === "trade" && hasDiscounts && (
-                  <div className="flex items-center gap-2 text-[10px]" style={{ color: "#2C3E2D" }}>
+                  <div className="flex items-center gap-2 text-[10px]" style={{ color: "white" }}>
                     <span className="uppercase tracking-wider font-semibold">Trade pricing active</span>
                   </div>
                 )}
 
-                <div className="rounded-[22px] px-4 py-4" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(255,255,255,0.5)" }}>
+                <div className="rounded-[22px] px-4 py-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.5)" }}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <div className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#B8956A" }}>Presentation Export</div>
-                      <p className="mt-1 text-[12px] leading-5" style={{ color: "#6B6560" }}>
+                      <div className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>Presentation Export</div>
+                      <p className="mt-1 text-[12px] leading-5" style={{ color: "rgba(255,255,255,0.65)" }}>
                         Client PDFs are designed for review. Trade PDFs preserve internal pricing context for your team.
                       </p>
                     </div>
                     {generating && (
-                      <div className="flex items-center gap-2 text-[11px]" style={{ color: "#B8956A" }}>
+                      <div className="flex items-center gap-2 text-[11px]" style={{ color: "rgba(255,255,255,0.65)" }}>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         {generatingLabel || "Preparing export..."}
                       </div>
@@ -1162,8 +1162,8 @@ export default function Quotes() {
                     disabled={generating}
                     className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 sm:w-auto w-full"
                     style={{
-                      background: "#2C3E2D",
-                      color: "#FFFFFF",
+                      background: "white",
+                      color: "black",
                     }}
                     title="Client-facing PDF with retail/marked-up prices"
                   >
@@ -1177,9 +1177,9 @@ export default function Quotes() {
                       disabled={generating}
                       className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                       style={{
-                        background: "rgba(44,62,45,0.12)",
-                        border: "1px solid rgba(44,62,45,0.20)",
-                        color: "#2C3E2D",
+                        background: "rgba(255,255,255,0.12)",
+                        border: "1px solid rgba(255,255,255,0.20)",
+                        color: "white",
                       }}
                       title="Internal PDF with trade prices"
                     >
@@ -1193,8 +1193,8 @@ export default function Quotes() {
                     className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-medium transition-all sm:w-auto w-full"
                     style={
                       shareCopied
-                        ? { background: "rgba(44,62,45,0.10)", border: "1px solid rgba(44,62,45,0.20)", color: "#2C3E2D" }
-                        : { background: "rgba(184,149,106,0.10)", border: "1px solid rgba(184,149,106,0.20)", color: "#B8956A" }
+                        ? { background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.20)", color: "white" }
+                        : { background: "rgba(184,149,106,0.10)", border: "1px solid rgba(184,149,106,0.20)", color: "rgba(255,255,255,0.65)" }
                     }
                     title="Share interactive client approval portal"
                   >
@@ -1214,7 +1214,7 @@ export default function Quotes() {
                   <button
                     onClick={handleClear}
                     className="px-5 py-2.5 rounded-xl text-xs transition-all sm:w-auto w-full hover:text-red-500"
-                    style={{ color: "#9B9590", border: "1px solid rgba(44,62,45,0.08)" }}
+                    style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }}
                   >
                     Clear Quote
                   </button>
@@ -1222,12 +1222,12 @@ export default function Quotes() {
 
                 {/* Client Feedback Summary */}
                 {Object.keys(clientFeedback).length > 0 && (
-                  <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}>
+                  <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="flex items-center gap-2 mb-3">
-                      <MessageSquare className="h-4 w-4" style={{ color: "#6B6560" }} />
-                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#6B6560" }}>Client Feedback</span>
+                      <MessageSquare className="h-4 w-4" style={{ color: "rgba(255,255,255,0.65)" }} />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.65)" }}>Client Feedback</span>
                       {shareToken && (
-                        <span className="ml-auto text-[10px]" style={{ color: "#9B9590" }}>v{localStorage.getItem("spec_share_version") || "1"}</span>
+                        <span className="ml-auto text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>v{localStorage.getItem("spec_share_version") || "1"}</span>
                       )}
                     </div>
                     <div className="flex gap-4 text-sm">
@@ -1261,42 +1261,42 @@ export default function Quotes() {
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
                     className="paper-grain w-full max-w-md rounded-[28px] p-6"
-                    style={{ background: "#F5F0E8", border: "1px solid rgba(44,62,45,0.10)" }}
+                    style={{ background: "#000000", border: "1px solid rgba(255,255,255,0.10)" }}
                   >
-                    <div className="mb-5 rounded-[22px] px-4 py-4" style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)" }}>
-                      <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#B8956A" }}>Client Portal</div>
-                      <p className="mt-2 text-[12px] leading-6" style={{ color: "#6B6560" }}>
+                    <div className="mb-5 rounded-[22px] px-4 py-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.65)" }}>Client Portal</div>
+                      <p className="mt-2 text-[12px] leading-6" style={{ color: "rgba(255,255,255,0.65)" }}>
                         Share a composed approval link where clients can review rooms, comment on pieces, and respond without creating an account.
                       </p>
                     </div>
-                    <h3 className="text-lg font-semibold mb-1" style={{ color: "#1A1A18" }}>
+                    <h3 className="text-lg font-semibold mb-1" style={{ color: "#ffffff" }}>
                       {shareToken ? "Update Client Portal" : "Share with Client"}
                     </h3>
-                    <p className="text-xs mb-5" style={{ color: "#9B9590" }}>
+                    <p className="text-xs mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>
                       Your client will see an interactive approval experience — no account needed.
                     </p>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "#9B9590" }}>Personal Note (optional)</label>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "rgba(255,255,255,0.45)" }}>Personal Note (optional)</label>
                         <textarea
                           value={shareNote}
                           onChange={(e) => setShareNote(e.target.value)}
                           placeholder="Hi! Here are my initial selections for your living room. Let me know what you think..."
                           className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none resize-none"
-                          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                           rows={3}
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "#9B9590" }}>Client Email (optional — sends notification)</label>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "rgba(255,255,255,0.45)" }}>Client Email (optional — sends notification)</label>
                         <input
                           type="email"
                           value={shareClientEmail}
                           onChange={(e) => setShareClientEmail(e.target.value)}
                           placeholder="client@email.com"
                           className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-                          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.10)", color: "#1A1A18" }}
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#ffffff" }}
                         />
                       </div>
                     </div>
@@ -1305,7 +1305,7 @@ export default function Quotes() {
                       <button
                         onClick={() => setShowShareModal(false)}
                         className="flex-1 py-2.5 rounded-xl text-sm transition-all"
-                        style={{ color: "#6B6560", border: "1px solid rgba(44,62,45,0.10)" }}
+                        style={{ color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.10)" }}
                       >
                         Cancel
                       </button>
@@ -1314,8 +1314,8 @@ export default function Quotes() {
                         disabled={shareLoading}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
                         style={{
-                          background: "#2C3E2D",
-                          color: "#FFFFFF",
+                          background: "white",
+                          color: "black",
                         }}
                       >
                         {shareLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
@@ -1333,9 +1333,9 @@ export default function Quotes() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 24 }}
                   className="fixed bottom-6 left-1/2 z-[85] -translate-x-1/2 rounded-2xl px-4 py-3 shadow-2xl backdrop-blur-xl"
-                  style={{ background: "#2C3E2D", border: "1px solid rgba(44,62,45,0.3)" }}
+                  style={{ background: "white", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <div className="flex items-center gap-2 text-[12px]" style={{ color: "#FFFFFF" }}>
+                  <div className="flex items-center gap-2 text-[12px]" style={{ color: "black" }}>
                     <Check className="h-3.5 w-3.5" style={{ color: "#C2CCBA" }} />
                     {actionToast}
                   </div>
@@ -1390,8 +1390,8 @@ function QuoteItemRow({
   return (
     <div
       className={`px-5 py-4 transition-colors group last:border-b-0 ${feedbackBorderClass} ${presentationMode ? "paper-grain" : ""}`}
-      style={{ borderBottom: "1px solid rgba(44,62,45,0.06)" }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
     >
       <div className="flex gap-4 sm:flex-row flex-col">
@@ -1402,7 +1402,7 @@ function QuoteItemRow({
           rel="noopener noreferrer"
           onClick={(e) => { if (!item.portal_url && !item.product_url) e.preventDefault(); }}
           className={`flex-shrink-0 w-28 h-28 rounded-[20px] overflow-hidden sm:mx-0 mx-auto block transition-colors ${(item.portal_url || item.product_url) ? "cursor-pointer" : ""}`}
-          style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)", border: "1px solid rgba(44,62,45,0.08)" }}
+          style={{ background: "linear-gradient(180deg, #f7f1e8, #ece1d3)", border: "1px solid rgba(255,255,255,0.08)" }}
           title={item.portal_url || item.product_url ? "Open vendor product page" : ""}
         >
           {item.image_url ? (
@@ -1413,8 +1413,8 @@ function QuoteItemRow({
               loading="lazy"
             />
           ) : (
-            <div className="h-full w-full flex items-center justify-center" style={{ background: "rgba(44,62,45,0.04)" }}>
-              <Package className="h-6 w-6" style={{ color: "#9B9590" }} />
+            <div className="h-full w-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <Package className="h-6 w-6" style={{ color: "rgba(255,255,255,0.45)" }} />
             </div>
           )}
         </a>
@@ -1428,13 +1428,13 @@ function QuoteItemRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="truncate transition-colors"
-                style={{ color: "#1A1A18", fontSize: presentationMode ? "18px" : "16px", fontWeight: presentationMode ? 600 : 500 }}
+                style={{ color: "#ffffff", fontSize: presentationMode ? "18px" : "16px", fontWeight: presentationMode ? 600 : 500 }}
                 title="Open vendor product page — check pricing"
               >
                 {item.product_name}
               </a>
             ) : (
-              <div className="text-sm font-medium truncate" style={{ color: "#1A1A18" }}>{item.product_name}</div>
+              <div className="text-sm font-medium truncate" style={{ color: "#ffffff" }}>{item.product_name}</div>
             )}
             {(item.portal_url || item.product_url) && (
               <a
@@ -1442,16 +1442,16 @@ function QuoteItemRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-shrink-0 transition-colors"
-                style={{ color: "#9B9590" }}
+                style={{ color: "rgba(255,255,255,0.45)" }}
                 title="Open vendor page"
               >
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] truncate" style={{ color: "#B8956A" }}>{item.manufacturer_name}</div>
-          {item.sku && <div className="text-[10px] mt-1" style={{ color: "#9B9590" }}>SKU: {item.sku}</div>}
-          {dims && <div className="text-[11px] mt-0.5" style={{ color: "#9B9590" }}>{dims}</div>}
+          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] truncate" style={{ color: "rgba(255,255,255,0.65)" }}>{item.manufacturer_name}</div>
+          {item.sku && <div className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>SKU: {item.sku}</div>}
+          {dims && <div className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{dims}</div>}
 
           {/* Client Feedback Badge */}
           {clientFeedback && (
@@ -1482,7 +1482,7 @@ function QuoteItemRow({
                    "Client Rejected"}
                 </span>
                 {clientFeedback.comment && (
-                  <p className="mt-0.5 leading-relaxed" style={{ color: "#6B6560" }}>"{clientFeedback.comment}"</p>
+                  <p className="mt-0.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>"{clientFeedback.comment}"</p>
                 )}
               </div>
             </div>
@@ -1490,19 +1490,19 @@ function QuoteItemRow({
 
           {/* Quantity & Price */}
           <div className="flex items-center gap-4 mt-3 flex-wrap">
-            <div className="flex items-center gap-0.5 rounded-xl" style={{ border: "1px solid rgba(44,62,45,0.10)", background: "rgba(255,255,255,0.5)" }}>
+            <div className="flex items-center gap-0.5 rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.5)" }}>
               <button
                 onClick={() => onQuantity(-1)}
                 className="px-2.5 py-1.5 transition-colors"
-                style={{ color: "#9B9590" }}
+                style={{ color: "rgba(255,255,255,0.45)" }}
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="text-xs w-7 text-center" style={{ color: "#6B6560" }}>{item.quantity || 1}</span>
+              <span className="text-xs w-7 text-center" style={{ color: "rgba(255,255,255,0.65)" }}>{item.quantity || 1}</span>
               <button
                 onClick={() => onQuantity(1)}
                 className="px-2.5 py-1.5 transition-colors"
-                style={{ color: "#9B9590" }}
+                style={{ color: "rgba(255,255,255,0.45)" }}
               >
                 <Plus className="h-3 w-3" />
               </button>
@@ -1512,7 +1512,7 @@ function QuoteItemRow({
               <>
                 {editingPrice ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px]" style={{ color: "#9B9590" }}>$</span>
+                    <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>$</span>
                     <input
                       autoFocus
                       type="number"
@@ -1521,7 +1521,7 @@ function QuoteItemRow({
                       defaultValue={item.custom_price || price || ""}
                       placeholder="Enter price"
                       className="w-24 rounded px-2 py-1 text-xs focus:outline-none"
-                      style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(184,149,106,0.30)", color: "#1A1A18" }}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(184,149,106,0.30)", color: "#ffffff" }}
                       onBlur={(e) => {
                         const val = parseFloat(e.target.value) || 0;
                         onCustomPrice(val);
@@ -1540,7 +1540,7 @@ function QuoteItemRow({
                       <button
                         onClick={() => { onCustomPrice(0); setEditingPrice(false); }}
                         className="text-[9px] transition-colors hover:text-red-500"
-                        style={{ color: "#9B9590" }}
+                        style={{ color: "rgba(255,255,255,0.45)" }}
                       >
                         Reset
                       </button>
@@ -1565,8 +1565,8 @@ function QuoteItemRow({
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors"
                       style={
                         price
-                          ? { border: "1px solid rgba(44,62,45,0.10)", color: "#9B9590" }
-                          : { border: "1px solid rgba(184,149,106,0.20)", background: "rgba(184,149,106,0.06)", color: "#B8956A" }
+                          ? { border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.45)" }
+                          : { border: "1px solid rgba(184,149,106,0.20)", background: "rgba(184,149,106,0.06)", color: "rgba(255,255,255,0.65)" }
                       }
                       title={price ? "Edit price" : "Enter price from vendor page"}
                     >
@@ -1586,7 +1586,7 @@ function QuoteItemRow({
           <button
             onClick={onSwap}
             className="p-1.5 transition-colors"
-            style={{ color: "#9B9590" }}
+            style={{ color: "rgba(255,255,255,0.45)" }}
             title="Swap — find similar products"
           >
             <ArrowRightLeft className="h-3.5 w-3.5" />
@@ -1607,7 +1607,7 @@ function QuoteItemRow({
           <button
             onClick={() => setShowNotes(!showNotes)}
             className="p-1.5 transition-colors"
-            style={{ color: "#9B9590" }}
+            style={{ color: "rgba(255,255,255,0.45)" }}
             title="Add notes"
           >
             <MessageSquare className="h-3.5 w-3.5" />
@@ -1619,7 +1619,7 @@ function QuoteItemRow({
               <button
                 onClick={() => setShowMoveMenu(!showMoveMenu)}
                 className="p-1.5 transition-colors"
-                style={{ color: "#9B9590" }}
+                style={{ color: "rgba(255,255,255,0.45)" }}
                 title="Move to room"
               >
                 <FolderPlus className="h-3.5 w-3.5" />
@@ -1628,8 +1628,8 @@ function QuoteItemRow({
                 <div
                   className="absolute right-0 top-full z-10 w-40 py-1 rounded-lg shadow-xl"
                   style={{
-                    background: "#F5F0E8",
-                    border: "1px solid rgba(44,62,45,0.10)",
+                    background: "#000000",
+                    border: "1px solid rgba(255,255,255,0.10)",
                   }}
                 >
                   {rooms
@@ -1642,8 +1642,8 @@ function QuoteItemRow({
                           setShowMoveMenu(false);
                         }}
                         className="w-full text-left px-3 py-1.5 text-xs transition-colors"
-                        style={{ color: "#6B6560" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(44,62,45,0.04)"; e.currentTarget.style.color = "#1A1A18"; }}
+                        style={{ color: "rgba(255,255,255,0.65)" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#1A1A18"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#6B6560"; }}
                       >
                         {r.name}
@@ -1658,7 +1658,7 @@ function QuoteItemRow({
           <button
             onClick={onRemove}
             className="p-1.5 transition-colors hover:text-red-500"
-            style={{ color: "#9B9590" }}
+            style={{ color: "rgba(255,255,255,0.45)" }}
             title="Remove from quote"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -1680,7 +1680,7 @@ function QuoteItemRow({
               onChange={(e) => onNotes(e.target.value)}
               placeholder="Notes — e.g., COM in Crypton Ivory, check arm height..."
               className="w-full mt-2.5 rounded-lg px-3 py-2 text-xs focus:outline-none resize-none"
-              style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.65)" }}
               rows={2}
             />
           </motion.div>
@@ -1691,16 +1691,16 @@ function QuoteItemRow({
       {justification && (
         <div className="mt-2 ml-0 sm:ml-28">
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-3 w-3" style={{ color: "#B8956A" }} />
-            <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#B8956A" }}>Design Justification</span>
+            <Sparkles className="h-3 w-3" style={{ color: "rgba(255,255,255,0.65)" }} />
+            <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.65)" }}>Design Justification</span>
             <button onClick={() => setEditingJustification(!editingJustification)}
               className="text-[9px] transition-colors"
-              style={{ color: "#9B9590" }}>
+              style={{ color: "rgba(255,255,255,0.45)" }}>
               {editingJustification ? "Done" : "Edit"}
             </button>
             <button onClick={onWhyThisPiece} disabled={justifyLoading}
               className="text-[9px] transition-colors"
-              style={{ color: "#9B9590" }}>
+              style={{ color: "rgba(255,255,255,0.45)" }}>
               {justifyLoading ? "..." : "Regenerate"}
             </button>
           </div>
@@ -1709,11 +1709,11 @@ function QuoteItemRow({
               value={justification}
               onChange={(e) => onUpdateJustification(item.id, e.target.value)}
               className="w-full rounded-lg px-3 py-2 text-[11px] leading-relaxed focus:outline-none resize-none"
-              style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(184,149,106,0.15)", color: "#6B6560" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(184,149,106,0.15)", color: "rgba(255,255,255,0.65)" }}
               rows={3}
             />
           ) : (
-            <p className="text-[11px] leading-relaxed italic" style={{ color: "#6B6560" }}>{justification}</p>
+            <p className="text-[11px] leading-relaxed italic" style={{ color: "rgba(255,255,255,0.65)" }}>{justification}</p>
           )}
         </div>
       )}

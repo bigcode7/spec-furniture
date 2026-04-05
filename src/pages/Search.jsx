@@ -71,7 +71,7 @@ function ProxyImg({ src, productId, alt = "", className = "", style = {}, onLoad
 
   if (failed || !finalSrc) {
     return (
-      <div className={className} style={{ ...style, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f0", color: "#999" }} {...rest}>
+      <div className={className} style={{ ...style, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#1a1a1a", color: "#999" }} {...rest}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
       </div>
     );
@@ -1455,7 +1455,7 @@ export default function SearchPage() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className={`relative min-h-screen ${presentationMode ? "presentation-mode" : ""}`}
-      style={{ background: "#161311" }}
+      style={{ background: "#000000" }}
       onMouseMove={(e) => setSpecPos({ x: e.clientX, y: e.clientY })}
     >
       {/* Global specular light */}
@@ -1464,8 +1464,8 @@ export default function SearchPage() {
         style={{
           zIndex: 2,
           background: `radial-gradient(800px circle at ${specPos.x}px ${specPos.y}px,
-            rgba(184,149,106,0.07) 0%,
-            rgba(184,149,106,0.03) 25%,
+            rgba(255,255,255,0.03) 0%,
+            rgba(255,255,255,0.02) 25%,
             transparent 60%
           )`,
         }}
@@ -1480,43 +1480,43 @@ export default function SearchPage() {
               <div>
                 <div className="workspace-kicker mb-4 sm:mb-6">Describe it. We'll find it.</div>
                 <h1 className="workspace-heading max-w-4xl">
-                  The sourcing workspace<br /><span style={{ color: "#2C3E2D" }}>designed for designers.</span>
+                  The sourcing workspace<br /><span style={{ color: "white" }}>designed for designers.</span>
                 </h1>
                 <p className="workspace-subhead mt-4 sm:mt-5">
                   Search by mood, silhouette, material, room intent, or visual reference — across 40,000+ trade products.
                 </p>
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: "rgba(44,62,45,0.06)", color: "#2C3E2D", border: "1px solid rgba(44,62,45,0.12)" }}>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] sm:text-[11px] uppercase tracking-[0.22em]" style={{ background: "rgba(255,255,255,0.06)", color: "white", border: "1px solid rgba(255,255,255,0.12)" }}>
                   Current mood
-                  <span className="h-2 w-2 rounded-full" style={{ background: "#2C3E2D", boxShadow: "0 0 12px rgba(44,62,45,0.3)" }} />
+                  <span className="h-2 w-2 rounded-full" style={{ background: "white", boxShadow: "0 0 12px rgba(255,255,255,0.15)" }} />
                   {moodTheme.name}
                 </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Catalog</div>
-                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>40k+</div>
-                    <div className="mt-1 text-xs" style={{ color: "#9B9590" }}>Trade-ready products</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Catalog</div>
+                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#ffffff" }}>40k+</div>
+                    <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Trade-ready products</div>
                   </div>
                   <div className="atelier-panel-soft px-4 py-4">
-                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#9B9590" }}>Use</div>
-                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#1A1A18" }}>Search</div>
-                    <div className="mt-1 text-xs" style={{ color: "#9B9590" }}>Refine, save, and quote</div>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Use</div>
+                    <div className="mt-2 text-2xl font-semibold" style={{ color: "#ffffff" }}>Search</div>
+                    <div className="mt-1 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Refine, save, and quote</div>
                   </div>
                 </div>
               </div>
 
               <div className="editorial-card p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#2C3E2D" }}>Search brief</span>
-                  <span className="text-[11px]" style={{ color: "#9B9590" }}>Natural language</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "white" }}>Search brief</span>
+                  <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>Natural language</span>
                 </div>
-                <div className="mt-4 rounded-[22px] px-5 py-5" style={{ background: "rgba(44,62,45,0.03)", border: "1px solid rgba(44,62,45,0.06)" }}>
-                  <p className="text-sm leading-7" style={{ color: "#6B6560" }}>
+                <div className="mt-4 rounded-[22px] px-5 py-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <p className="text-sm leading-7" style={{ color: "rgba(255,255,255,0.65)" }}>
                     "I need a sculptural, warm modern accent chair with a higher back and a refined silhouette for a luxury residential living room."
                   </p>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {["Warm modern", "Higher back", "Accent chair"].map((tag) => (
-                    <span key={tag} className="rounded-full px-3 py-1.5 text-[11px]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
+                    <span key={tag} className="rounded-full px-3 py-1.5 text-[11px]" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.65)" }}>
                       {tag}
                     </span>
                   ))}
@@ -1529,7 +1529,7 @@ export default function SearchPage() {
               <div className="relative">
                 {/* Ambient glow */}
                 <div className="absolute -inset-4 sm:-inset-8 pointer-events-none" style={{
-                  background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(184,149,106,0.12) 0%, rgba(184,149,106,0.05) 40%, transparent 70%)",
+                  background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.03) 40%, transparent 70%)",
                   filter: "blur(20px)",
                 }} />
                 <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
@@ -1556,30 +1556,30 @@ export default function SearchPage() {
                         onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                         placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
                         className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden"
-                        style={{ color: "#1A1A18" }}
+                        style={{ color: "#ffffff" }}
                         rows={1}
                       />
                     </div>
                     <div className="flex items-center gap-1.5 px-4 pb-4 sm:pr-4 sm:pl-0 sm:pb-0 sm:mt-4 shrink-0">
                       {inputValue && (
                         <button type="button" onClick={() => { setInputValue(""); setAutocompleteResults([]); inputRef.current?.focus(); if (inputRef.current) { inputRef.current.style.height = "auto"; } }}
-                          className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors" style={{ color: "#9B9590" }}>
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>
                           <X className="h-4 w-4" />
                         </button>
                       )}
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
                         className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
-                        style={!isListening ? { color: "#9B9590" } : {}}
+                        style={!isListening ? { color: "rgba(255,255,255,0.45)" } : {}}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className="h-4 w-4" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-10 w-10 items-center justify-center rounded-2xl transition-colors"
-                        style={{ color: "#9B9590" }}
+                        style={{ color: "rgba(255,255,255,0.45)" }}
                         title="Visual search — upload a photo to find matching furniture">
                         {visualSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#B8956A" }} /> : <Camera className="h-4 w-4" />}
                       </button>
-                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "#2C3E2D", color: "#FFFFFF", boxShadow: "0 2px 8px rgba(44,62,45,0.15), 0 8px 24px rgba(44,62,45,0.10)" }}>
+                      <button type="submit" disabled={!inputValue.trim() && !isListening} className="flex h-12 flex-1 sm:flex-none items-center justify-center gap-2 rounded-2xl px-6 text-sm font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed hover:brightness-110 active:scale-95" style={{ background: "white", color: "black", boxShadow: "0 2px 8px rgba(255,255,255,0.15), 0 8px 24px rgba(44,62,45,0.10)" }}>
                         Search <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1599,9 +1599,9 @@ export default function SearchPage() {
                   onMouseEnter={() => { clearTimeout(window._prefetchTimer); window._prefetchTimer = setTimeout(() => prefetchSearch(suggestion), 300); }}
                   onMouseLeave={() => clearTimeout(window._prefetchTimer)}
                   className="rounded-full px-4 py-2 text-[12px] transition-all duration-200 cursor-pointer"
-                  style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590", background: "transparent" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}
+                  style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)", background: "transparent" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}
                 >
                   {suggestion}
                 </button>
@@ -1626,32 +1626,32 @@ export default function SearchPage() {
       {(hasConversation || loading) && (
         <div className="pb-24">
           {/* Top bar */}
-            <div className="sticky top-[68px] sm:top-[72px] z-30" style={{ background: "rgba(245,240,232,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(44,62,45,0.06)" }}>
+            <div className="sticky top-[68px] sm:top-[72px] z-30" style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="page-wrap-wide py-3 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.08)" }}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
                   <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
                 </div>
                   <div className="hidden sm:block">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>Search Results</div>
-                  <div className="text-[12px]" style={{ color: "#9B9590" }}>{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "white" }}>Search Results</div>
+                  <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
                 </div>
               </div>
               {/* Inline compact search input */}
               <form onSubmit={handleSubmit} className="order-3 w-full sm:order-2 sm:flex-1 sm:max-w-xl">
                 <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <Search className="ml-4 h-3.5 w-3.5 shrink-0" style={{ color: "#9B9590" }} />
+                    <Search className="ml-4 h-3.5 w-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }} />
                     <input
                       value={inputValue}
                       onChange={(e) => handleInputChange(e.target.value)}
                       placeholder="Search..."
                       className="h-12 w-full bg-transparent pl-3 pr-10 text-[14px] outline-none"
-                      style={{ color: "#1A1A18" }}
+                      style={{ color: "#ffffff" }}
                       disabled={loading}
                     />
                     {inputValue.trim() && (
-                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded transition-colors" style={{ color: "#9B9590" }}>
+                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -1660,8 +1660,8 @@ export default function SearchPage() {
               </form>
               <button onClick={handleNewSearch}
                 className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] transition-colors shrink-0 cursor-pointer"
-                style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
+                style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
                 <RefreshCw className="h-3 w-3" /> New Search
               </button>
@@ -1689,12 +1689,12 @@ export default function SearchPage() {
                     msg.role === "user" ? (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                         className="inline-flex items-center rounded-full px-3 py-1 text-[11px] cursor-default"
-                        style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
+                        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.65)" }}>
                         {msg.content.length > 50 ? msg.content.slice(0, 50) + "…" : msg.content}
                       </motion.span>
                     ) : (
                       <motion.span key={msg.timestamp + "-" + i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "#9B9590" }}>
+                        className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                         <img src="/logo.png" alt="" className="h-3 w-3 object-contain" />
                         {(msg.content || "").length > 60 ? msg.content.slice(0, 60) + "…" : msg.content}
                         <span className="mx-1" style={{ color: "#C2CCBA" }}>→</span>
@@ -1708,28 +1708,28 @@ export default function SearchPage() {
             {/* Loading — skeleton product cards */}
             {loading && (
               <div className="pt-4">
-                <div className="mb-5 rounded-[24px] px-4 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
+                <div className="mb-5 rounded-[24px] px-4 py-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div className="flex items-center gap-2.5">
                     <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D" }} />
-                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D", animationDelay: "0.15s" }} />
-                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#2C3E2D", animationDelay: "0.3s" }} />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "white" }} />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "white", animationDelay: "0.15s" }} />
+                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "white", animationDelay: "0.3s" }} />
                     </div>
-                    <span className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>Curating</span>
+                    <span className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "white" }}>Curating</span>
                   </div>
-                  <div className="mt-2 text-[13px]" style={{ color: "#6B6560" }}>{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
+                  <div className="mt-2 text-[13px]" style={{ color: "rgba(255,255,255,0.65)" }}>{LOADING_STEPS[loadingStep]?.label || "Searching..."}</div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                   {Array.from({ length: IS_MOBILE ? 6 : 10 }, (_, i) => (
                     <div key={i} className="product-card overflow-hidden" style={{ contain: "layout style paint" }}>
-                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "#f8f6f2" }}>
-                        <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(44,62,45,0.04)" }} />
+                      <div className="relative" style={{ aspectRatio: "4/3", backgroundColor: "#1a1a1a" }}>
+                        <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(255,255,255,0.05)" }} />
                       </div>
-                      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(44,62,45,0.06), transparent)" }} />
+                      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)" }} />
                       <div className="p-3 sm:p-4 space-y-2">
-                        <div className="h-2.5 w-16 rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.06)" }} />
-                        <div className="h-3 w-full rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.04)" }} />
-                        <div className="h-3 w-2/3 rounded animate-pulse" style={{ backgroundColor: "rgba(44,62,45,0.03)" }} />
+                        <div className="h-2.5 w-16 rounded animate-pulse" style={{ backgroundColor: "rgba(255,255,255,0.06)" }} />
+                        <div className="h-3 w-full rounded animate-pulse" style={{ backgroundColor: "rgba(255,255,255,0.05)" }} />
+                        <div className="h-3 w-2/3 rounded animate-pulse" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
                       </div>
                     </div>
                   ))}
@@ -1774,7 +1774,7 @@ export default function SearchPage() {
                 <div className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.12)" }}>
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>{zeroResultGuidance.suggestion}</p>
+                    <p className="text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>{zeroResultGuidance.suggestion}</p>
                     {zeroResultGuidance.searched_for?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {zeroResultGuidance.searched_for.map((term, i) => (
@@ -1792,11 +1792,11 @@ export default function SearchPage() {
             {/* ── Empty search fallback (no results, no server guidance) ── */}
             {!loading && !listMode && messages.length > 0 && allResults.length === 0 && !zeroResultGuidance && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                <div className="flex items-start gap-3 rounded-[24px] px-5 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
+                <div className="flex items-start gap-3 rounded-[24px] px-5 py-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <Search className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#B8956A" }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "#2C3E2D" }}>Search direction</div>
-                    <p className="mt-2 text-[12px] leading-relaxed" style={{ color: "#6B6560" }}>Nothing strong surfaced for that brief. Try broadening the material or style language, or remove vendor-specific terms so the system can widen the sourcing field.</p>
+                    <div className="text-[10px] uppercase tracking-[0.22em]" style={{ color: "white" }}>Search direction</div>
+                    <p className="mt-2 text-[12px] leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>Nothing strong surfaced for that brief. Try broadening the material or style language, or remove vendor-specific terms so the system can widen the sourcing field.</p>
                   </div>
                 </div>
               </motion.div>
@@ -1831,14 +1831,14 @@ export default function SearchPage() {
                           {item.item_number || itemIdx + 1}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                          <div className="text-sm font-medium truncate" style={{ color: "#1A1A18" }}>{item.original_text}</div>
+                          <div className="text-sm font-medium truncate" style={{ color: "#ffffff" }}>{item.original_text}</div>
                           {item.summary && item.summary !== item.original_text && (
-                            <div className="text-[11px] mt-0.5" style={{ color: "#9B9590" }}>{item.summary}</div>
+                            <div className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>{item.summary}</div>
                           )}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {item.dimension_notes && (
-                            <span className="text-[10px] rounded px-1.5 py-0.5" style={{ color: "#9B9590", border: "1px solid rgba(44,62,45,0.10)" }}>{item.dimension_notes}</span>
+                            <span className="text-[10px] rounded px-1.5 py-0.5" style={{ color: "rgba(255,255,255,0.45)", border: "1px solid rgba(44,62,45,0.10)" }}>{item.dimension_notes}</span>
                           )}
                           <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${bucketColor}15`, color: bucketColor }}>
                             {item.original_text?.split(/\s+/)?.[0] || "Item"} ({item.total || item.products.length} results)
@@ -1848,7 +1848,7 @@ export default function SearchPage() {
                               <Check className="h-2.5 w-2.5" /> Selected
                             </span>
                           )}
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "#9B9590" }} /> : <ChevronDown className="h-3.5 w-3.5" style={{ color: "#9B9590" }} />}
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "rgba(255,255,255,0.45)" }} /> : <ChevronDown className="h-3.5 w-3.5" style={{ color: "rgba(255,255,255,0.45)" }} />}
                         </div>
                       </button>
 
@@ -1894,7 +1894,7 @@ export default function SearchPage() {
                                       ? "text-white"
                                       : ""
                                   }`}
-                                  style={selectedProduct?.id === product.id ? { background: bucketColor, borderColor: bucketColor, color: "#fff" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#9B9590" }}
+                                  style={selectedProduct?.id === product.id ? { background: bucketColor, borderColor: bucketColor, color: "#fff" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.45)" }}
                                 >
                                   {selectedProduct?.id === product.id ? <><Check className="h-2.5 w-2.5" /> Selected</> : "Select"}
                                 </button>
@@ -1902,8 +1902,8 @@ export default function SearchPage() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-lg p-4 text-center" style={{ border: "1px solid rgba(44,62,45,0.06)", background: "rgba(245,240,232,0.5)" }}>
-                            <span className="text-[11px]" style={{ color: "#9B9590" }}>No matching products in our catalog yet</span>
+                          <div className="rounded-lg p-4 text-center" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.5)" }}>
+                            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>No matching products in our catalog yet</span>
                           </div>
                         )}
 
@@ -1912,7 +1912,7 @@ export default function SearchPage() {
                           <button
                             onClick={() => setExpandedBuckets(prev => new Set([...prev, itemIdx]))}
                             className="mt-2 w-full flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-[11px] transition-colors"
-                            style={{ border: "1px solid rgba(44,62,45,0.10)", color: "#9B9590" }}
+                            style={{ border: "1px solid rgba(44,62,45,0.10)", color: "rgba(255,255,255,0.45)" }}
                           >
                             Show all {item.products.length} results <ChevronDown className="h-3 w-3" />
                           </button>
@@ -1924,25 +1924,25 @@ export default function SearchPage() {
 
                 {/* Bucket selection summary + Add Room buttons (Changes 9-11) */}
                 {bucketSelections.size > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-4 rounded-xl p-4" style={{ border: "1px solid rgba(44,62,45,0.12)", background: "rgba(44,62,45,0.03)" }}>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#9B9590" }}>Room Selections</div>
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-4 rounded-xl p-4" style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>Room Selections</div>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {listResults.items.map((item, idx) => {
                         const sel = bucketSelections.get(idx);
                         const color = bucketColors[idx] || "#C4A265";
                         return (
                           <div key={idx} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]"
-                            style={{ background: sel ? `${color}15` : "rgba(245,240,232,0.6)", border: `1px solid ${sel ? color + "40" : "rgba(44,62,45,0.08)"}` }}>
+                            style={{ background: sel ? `${color}15` : "rgba(0,0,0,0.6)", border: `1px solid ${sel ? color + "40" : "rgba(255,255,255,0.08)"}` }}>
                             <span style={{ color: sel ? color : "#9B9590" }}>
                               {item.original_text?.split(/\s/).slice(0, 2).join(" ") || `Item ${idx + 1}`}:
                             </span>
                             {sel ? (
-                              <span className="truncate max-w-[120px]" style={{ color: "#6B6560" }}>
+                              <span className="truncate max-w-[120px]" style={{ color: "rgba(255,255,255,0.65)" }}>
                                 {sel.product_name} {sel.retail_price ? `$${Number(sel.retail_price).toLocaleString()}` : ""}
-                                <Check className="inline h-2.5 w-2.5 ml-1" style={{ color: "#2C3E2D" }} />
+                                <Check className="inline h-2.5 w-2.5 ml-1" style={{ color: "white" }} />
                               </span>
                             ) : (
-                              <span className="italic" style={{ color: "#9B9590" }}>not yet selected</span>
+                              <span className="italic" style={{ color: "rgba(255,255,255,0.45)" }}>not yet selected</span>
                             )}
                           </div>
                         );
@@ -1973,7 +1973,7 @@ export default function SearchPage() {
                           window.dispatchEvent(new CustomEvent("spec-quote-change"));
                         }}
                         className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
-                        style={{ border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }}
+                        style={{ border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }}
                       >
                         <FileText className="h-3 w-3" />
                         Add Room to Quote ({bucketSelections.size}/{listResults.items.length})
@@ -1993,7 +1993,7 @@ export default function SearchPage() {
                             window.dispatchEvent(new CustomEvent("spec-quote-change"));
                           }}
                           className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-semibold transition-all"
-                          style={{ background: "#2C3E2D", color: "#FFFFFF" }}
+                          style={{ background: "white", color: "black" }}
                         >
                           <ClipboardCheck className="h-3 w-3" />
                           Add Complete Room to Quote
@@ -2004,8 +2004,8 @@ export default function SearchPage() {
                 )}
 
                 {/* List summary */}
-                <div className="mt-4 mb-8 rounded-xl p-4" style={{ border: "1px solid rgba(44,62,45,0.08)", background: "rgba(44,62,45,0.02)" }}>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#9B9590" }}>
+                <div className="mt-4 mb-8 rounded-xl p-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(44,62,45,0.02)" }}>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
                     <ClipboardList className="h-3.5 w-3.5" />
                     <span className="font-semibold">
                       {listResults.total_items} items sourced — {listResults.total_products} total products found
@@ -2020,23 +2020,23 @@ export default function SearchPage() {
               <motion.div key={messages.length} {...(IS_MOBILE ? noAnim : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } })}>
                 {/* Search query header */}
                 {displayQuery && (
-                  <div className="mb-5 flex items-center justify-between gap-3 rounded-[26px] px-4 py-4" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.06)" }}>
+                  <div className="mb-5 flex items-center justify-between gap-3 rounded-[26px] px-4 py-4" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="flex items-center gap-3 min-w-0">
                       {visualSearchThumb && (
                         <div className="relative shrink-0">
                           <img src={visualSearchThumb} alt="Visual search" className="h-10 w-10 rounded-lg object-cover" style={{ border: "1px solid rgba(44,62,45,0.10)" }} />
                           <button onClick={() => { setVisualSearchThumb(null); setDisplayQuery(""); setAllResults([]); }}
-                            className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center transition-colors" style={{ background: "#fff", border: "1px solid rgba(44,62,45,0.12)" }}>
-                            <X className="h-2.5 w-2.5" style={{ color: "#9B9590" }} />
+                            className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full flex items-center justify-center transition-colors" style={{ background: "#fff", border: "1px solid rgba(255,255,255,0.12)" }}>
+                            <X className="h-2.5 w-2.5" style={{ color: "rgba(255,255,255,0.45)" }} />
                           </button>
                         </div>
                       )}
-                      <h2 className="text-base sm:text-xl font-medium truncate" style={{ fontFamily: "'Playfair Display', serif", color: "#1A1A18" }}>
+                      <h2 className="text-base sm:text-xl font-medium truncate" style={{ fontFamily: "'Playfair Display', serif", color: "#ffffff" }}>
                         {visualSearchThumb ? "Visual Search Results" : displayQuery}
                       </h2>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="block text-xs ml-3 whitespace-nowrap" style={{ color: "#9B9590" }}>
+                      <span className="block text-xs ml-3 whitespace-nowrap" style={{ color: "rgba(255,255,255,0.45)" }}>
                         {totalAvailable > sorted.length ? `${sorted.length} of ${totalAvailable.toLocaleString()}` : sorted.length.toLocaleString()} results
                       </span>
                     </div>
@@ -2071,10 +2071,10 @@ export default function SearchPage() {
                 {loadingMore && (
                   <div className="flex justify-center py-8">
                     <div className="flex items-center gap-3">
-                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "0ms" }} />
-                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "150ms" }} />
-                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "#2C3E2D", animationDelay: "300ms" }} />
-                      <span className="text-[10px] ml-1" style={{ color: "#9B9590" }}>Loading more...</span>
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "white", animationDelay: "0ms" }} />
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "white", animationDelay: "150ms" }} />
+                      <div className="h-1 w-1 rounded-full animate-bounce" style={{ background: "white", animationDelay: "300ms" }} />
+                      <span className="text-[10px] ml-1" style={{ color: "rgba(255,255,255,0.45)" }}>Loading more...</span>
                     </div>
                   </div>
                 )}
@@ -2082,7 +2082,7 @@ export default function SearchPage() {
                 {/* End of results */}
                 {!hasMoreLocal && !hasMoreServer && sorted.length > INITIAL_PAGE_SIZE && (
                   <div className="text-center py-8">
-                    <span className="text-[10px]" style={{ color: "#9B9590" }}>Showing all {sorted.length} results</span>
+                    <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>Showing all {sorted.length} results</span>
                   </div>
                 )}
               </motion.div>
@@ -2094,9 +2094,9 @@ export default function SearchPage() {
                 {REFINEMENT_CHIPS.map((chip) => (
                   <button key={chip} onClick={() => handleChipClick(chip)}
                     className="rounded-full px-3.5 py-1.5 text-[11px] transition-all shrink-0 cursor-pointer"
-                    style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.04)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
+                    style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#9B9590"; e.currentTarget.style.background = "transparent"; }}>
                     {chip}
                   </button>
                 ))}
@@ -2108,36 +2108,36 @@ export default function SearchPage() {
 
           {/* Sticky input bar */}
           <div className="fixed bottom-14 md:bottom-0 inset-x-0 z-40"
-            style={{ background: "rgba(245,240,232,0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(44,62,45,0.06)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            style={{ background: "rgba(245,240,232,0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={() => { if (!isPro && hasConversation) setShowPaywall(true); }}>
             <div className="page-wrap-wide py-3">
               <form onSubmit={handleSubmit} className="relative">
                 <div className="luxe-input relative transition-all">
                   <div className="flex items-center">
-                    <div className="ml-3.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.70)", border: "1px solid rgba(44,62,45,0.08)" }}><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
+                    <div className="ml-3.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}><img src="/logo.png" alt="" className="h-4 w-4 object-contain" /></div>
                     <input ref={inputRef} value={inputValue} onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
                       className="h-14 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm outline-none"
-                      style={{ color: "#1A1A18" }}
+                      style={{ color: "#ffffff" }}
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
                         className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
-                        style={!isListening ? { color: "#9B9590" } : {}}
+                        style={!isListening ? { color: "rgba(255,255,255,0.45)" } : {}}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
                         className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
-                        style={{ color: "#9B9590" }}
+                        style={{ color: "rgba(255,255,255,0.45)" }}
                         title="Visual search">
-                        {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "#2C3E2D" }} /> : <Camera className="h-3.5 w-3.5" />}
+                        {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "white" }} /> : <Camera className="h-3.5 w-3.5" />}
                       </button>
                       <button type="submit" disabled={loading || !inputValue.trim()}
                         className="flex h-9 items-center justify-center gap-1 rounded-xl px-3.5 text-xs font-semibold transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                        style={{ background: "#2C3E2D", color: "#FFFFFF" }}>
+                        style={{ background: "white", color: "black" }}>
                         <Send className="h-3 w-3" />
                       </button>
                     </div>
@@ -2183,29 +2183,29 @@ export default function SearchPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="fixed z-[71] w-52 rounded-xl shadow-xl overflow-hidden"
-              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left, background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)" }}
+              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left, background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)" }}
             >
-              <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(44,62,45,0.06)" }}>
-                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#9B9590" }}>Add to room</span>
+              <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>Add to room</span>
               </div>
               {getQuote().rooms.map((room) => (
                 <button
                   key={room.id}
                   onClick={() => handleQuoteRoomSelect(quoteDropdownProduct, room.id, room.name)}
                   className="flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors cursor-pointer"
-                  style={{ color: "#6B6560" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(44,62,45,0.04)"; e.currentTarget.style.color = "#2C3E2D"; }}
+                  style={{ color: "rgba(255,255,255,0.65)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#2C3E2D"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B6560"; }}
                 >
                   <span className="truncate">{room.name}</span>
-                  <span className="text-[10px] tabular-nums ml-2 shrink-0" style={{ color: "#9B9590" }}>{room.items.length} items</span>
+                  <span className="text-[10px] tabular-nums ml-2 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>{room.items.length} items</span>
                 </button>
               ))}
               <button
                 onClick={() => handleQuoteNewRoom(quoteDropdownProduct)}
                 className="flex w-full items-center gap-1.5 px-3 py-2 text-[12px] transition-colors cursor-pointer"
-                style={{ borderTop: "1px solid rgba(44,62,45,0.06)", color: "#B8956A" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(184,149,106,0.05)"; }}
+                style={{ borderTop: "1px solid rgba(255,255,255,0.06)", color: "#B8956A" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 <Plus className="h-3 w-3" /> New Room
@@ -2225,13 +2225,13 @@ export default function SearchPage() {
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
               background: "rgba(255,255,255,0.95)",
-              border: "1px solid rgba(44,62,45,0.12)",
+              border: "1px solid rgba(255,255,255,0.12)",
               backdropFilter: "blur(20px)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           >
-            <ClipboardCheck className="h-4 w-4" style={{ color: "#2C3E2D" }} />
-            <span className="text-sm max-w-[300px] truncate" style={{ color: "#1A1A18" }}>{quoteToast}</span>
+            <ClipboardCheck className="h-4 w-4" style={{ color: "white" }} />
+            <span className="text-sm max-w-[300px] truncate" style={{ color: "#ffffff" }}>{quoteToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2246,13 +2246,13 @@ export default function SearchPage() {
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-xl"
             style={{
               background: "rgba(255,255,255,0.95)",
-              border: "1px solid rgba(44,62,45,0.12)",
+              border: "1px solid rgba(255,255,255,0.12)",
               backdropFilter: "blur(20px)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
             }}
           >
             <Heart className="h-4 w-4" style={{ color: "#B8956A" }} />
-            <span className="text-sm" style={{ color: "#1A1A18" }}>{favoriteToast}</span>
+            <span className="text-sm" style={{ color: "#ffffff" }}>{favoriteToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2293,11 +2293,11 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
       <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[12px]" style={{ color: "#6B6560" }}>
-            <span style={{ color: "#2C3E2D" }}>"{query}"</span>
+          <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>
+            <span style={{ color: "white" }}>"{query}"</span>
             {" "}&mdash; {totalCount} curated result{totalCount !== 1 ? "s" : ""}
           </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.18em]" style={{ color: "#9B9590" }}>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.45)" }}>
             {vendorCount} brands shown{myVendorsOnly ? " (My Vendors)" : ""}
           </p>
         </div>
@@ -2311,7 +2311,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
                   : ""
               }`}
-              style={!myVendorsOnly ? { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" } : {}}
+              style={!myVendorsOnly ? { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" } : {}}
               title={myVendorsOnly ? "Showing only your vendors" : "Show only your vendors"}
             >
               <Store className="h-3 w-3" />
@@ -2323,8 +2323,8 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             onClick={() => setPresentationMode(!presentationMode)}
             className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer"
             style={presentationMode
-              ? { background: "#2C3E2D", color: "#fff", border: "1px solid #2C3E2D" }
-              : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
+              ? { background: "white", color: "#fff", border: "1px solid #2C3E2D" }
+              : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
             title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
           >
             <Eye className="h-3 w-3" />
@@ -2335,7 +2335,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           <div className="relative shrink-0">
             <button onClick={() => setShowSortMenu(!showSortMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all cursor-pointer"
-              style={{ border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}>
+              style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}>
               <ArrowUpDown className="h-3 w-3" />
               {SORT_OPTIONS.find(s => s.key === sortKey)?.label}
             </button>
@@ -2343,14 +2343,14 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
               {showSortMenu && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                   className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl shadow-xl p-1.5"
-                  style={{ background: "#FFFFFF", border: "1px solid rgba(44,62,45,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+                  style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
                   {SORT_OPTIONS.map((opt) => (
                     <button key={opt.key}
                       onClick={() => { setSortKey(opt.key); setShowSortMenu(false); }}
                       className="w-full text-left rounded-lg px-3 py-1.5 text-[11px] transition-all cursor-pointer"
                       style={sortKey === opt.key
-                        ? { background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }
-                        : { color: "#6B6560" }}>
+                        ? { background: "rgba(255,255,255,0.06)", color: "white" }
+                        : { color: "rgba(255,255,255,0.65)" }}>
                       {opt.label}
                     </button>
                   ))}
@@ -2377,8 +2377,8 @@ function PricingToggle() {
       onClick={toggleShowPricing}
       className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] border transition-all shrink-0 cursor-pointer"
       style={showPricing
-        ? { border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }
-        : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
+        ? { border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }
+        : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
       title={showPricing ? "Hide pricing" : "Show pricing"}
     >
       <span className="text-[11px] font-semibold">$</span>
@@ -2444,7 +2444,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
           <>
             {!imgLoaded && (
               <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "#FFFFFF" }}>
-                <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(44,62,45,0.03)" }} />
+                <div className="absolute inset-0 animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
               </div>
             )}
             <ProxyImg src={item.image_url} productId={item.id} alt={item.product_name}
@@ -2455,9 +2455,9 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
               onLoad={() => setImgLoaded(true)} onError={() => setImgError(true)} />
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2" style={{ color: "rgba(44,62,45,0.12)" }}>
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2" style={{ color: "rgba(255,255,255,0.12)" }}>
             <div className="text-4xl font-light" style={{ fontFamily: "'Playfair Display', serif" }}>{(item.manufacturer_name || "?")[0]}</div>
-            <span className="text-[10px] px-4 text-center line-clamp-2" style={{ color: "rgba(44,62,45,0.20)" }}>{item.product_name}</span>
+            <span className="text-[10px] px-4 text-center line-clamp-2" style={{ color: "rgba(255,255,255,0.20)" }}>{item.product_name}</span>
           </div>
         )}
 
@@ -2467,7 +2467,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
             className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isFavorited ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
-            style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "#9B9590" }}>
+            style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(255,255,255,0.45)" }}>
             <Heart className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${isFavorited ? "fill-current" : ""}`} />
           </button>
           <button data-action onClick={(ev) => {
@@ -2481,7 +2481,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
             className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isInQuote || justAdded ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
-            style={isInQuote || justAdded ? { background: "#2C3E2D", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "#9B9590" }}
+            style={isInQuote || justAdded ? { background: "white", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(255,255,255,0.45)" }}
             title={isInQuote ? "In quote" : "Add to quote"}>
             {isInQuote || justAdded ? <ClipboardCheck className="h-3.5 w-3.5 sm:h-3 sm:w-3" /> : <FileText className="h-3.5 w-3.5 sm:h-3 sm:w-3" />}
           </button>
@@ -2489,24 +2489,24 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
       </div>
 
       {/* Green hairline */}
-      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(44,62,45,0.12), transparent)" }} />
+      <div className="h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)" }} />
 
       {/* Card meta */}
       <div className="card-meta p-3 sm:p-4 pb-3 flex-1 flex flex-col">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <div className="text-[9px] font-bold uppercase tracking-[0.18em] truncate" style={{ color: "#2C3E2D" }}>{item.manufacturer_name}</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.18em] truncate" style={{ color: "white" }}>{item.manufacturer_name}</div>
           {item.result_quality && (
-            <span className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.04)", border: "1px solid rgba(44,62,45,0.06)", color: "#9B9590" }}>
+            <span className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}>
               {item.result_quality === "verified" ? "Verified" : item.result_quality === "ai-discovered" ? "AI" : "Catalog"}
             </span>
           )}
         </div>
-        <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#1A1A18" }}>{item.product_name}</h3>
-        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "#6B6560" }}>{materialStyle || "\u00A0"}</div>
+        <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#ffffff" }}>{item.product_name}</h3>
+        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && !presentationMode && (
           <div className="mb-2 flex flex-wrap gap-1">
             {detailChips.map((chip) => (
-              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.10)", color: "#4A4540" }}>
+              <span key={chip} className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(44,62,45,0.10)", color: "#4A4540" }}>
                 {chip}
               </span>
             ))}
@@ -2514,12 +2514,12 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
         )}
         <div className="mt-auto flex items-end justify-between gap-2">
           {priceStr && priceInfo.isTrade && (
-            <span className="text-[13px] font-semibold" style={{ color: "#2C3E2D" }}>
+            <span className="text-[13px] font-semibold" style={{ color: "white" }}>
               <span className="text-[8px] uppercase tracking-wider mr-1 opacity-60">{priceInfo.label}</span>
               {priceStr}
             </span>
           )}
-          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "#9B9590" }}>View</span>
+          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>View</span>
         </div>
       </div>
 
@@ -2628,12 +2628,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
         exit={IS_MOBILE ? { opacity: 0, y: 10, scaleY: 0.98 } : { x: "110%", opacity: 0, scaleY: 0.98 }}
         transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
         className={`fixed top-0 right-0 bottom-0 z-[61] w-full ${presentationMode ? "md:w-[680px]" : "md:w-[600px]"} overflow-y-auto md:rounded-l-[32px] shadow-2xl overscroll-contain`}
-        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(44,62,45,0.08)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(20px)", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         {/* Close X button */}
         <div className="sticky top-0 z-10 flex justify-end pt-3 pr-3 pb-2"
           style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}>
-          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "#9B9590" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(44,62,45,0.06)"; e.currentTarget.style.color = "#1A1A18"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9B9590"; }}>
+          <button onClick={onClose} className="flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-lg transition-colors" style={{ color: "rgba(255,255,255,0.45)" }} onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#1A1A18"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9B9590"; }}>
             <X className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
         </div>
@@ -2656,18 +2656,18 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       <>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx - 1 + productImages.length) % productImages.length); }}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(245,240,232,0.85)", color: "#1A1A18" }}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(0,0,0,0.85)", color: "#ffffff" }}
                         >
                           ‹
                         </button>
                         <button
                           onClick={() => { setImgLoaded(false); setActiveImageIdx((activeImageIdx + 1) % productImages.length); }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(245,240,232,0.85)", color: "#1A1A18" }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full transition-all" style={{ background: "rgba(0,0,0,0.85)", color: "#ffffff" }}
                         >
                           ›
                         </button>
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(245,240,232,0.85)" }}>
-                          <span className="text-[10px] font-medium" style={{ color: "#6B6560" }}>{activeImageIdx + 1} / {productImages.length}</span>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: "rgba(0,0,0,0.85)" }}>
+                          <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.65)" }}>{activeImageIdx + 1} / {productImages.length}</span>
                         </div>
                       </>
                     )}
@@ -2687,7 +2687,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border transition-all ${
                         i === activeImageIdx ? "opacity-100" : "opacity-60 hover:opacity-100"
                       }`}
-                      style={{ borderColor: i === activeImageIdx ? "#2C3E2D" : "rgba(44,62,45,0.12)" }}
+                      style={{ borderColor: i === activeImageIdx ? "#2C3E2D" : "rgba(255,255,255,0.12)" }}
                       style={{ backgroundColor: "#ffffff" }}
                     >
                       <ProxyImg src={src} productId={product.id} style={{ objectFit: "contain", padding: "4px" }} className="h-full w-full" />
@@ -2700,27 +2700,27 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
             {/* Details */}
             <div className="flex flex-col gap-4">
               {/* Vendor */}
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: "#2C3E2D" }}>
+              <div className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: "white" }}>
                 {product.manufacturer_name}
               </div>
 
               {/* Product name */}
-              <h2 className={`font-display ${presentationMode ? "text-[38px]" : "text-[32px]"} leading-tight`} style={{ color: "#1A1A18" }}>
+              <h2 className={`font-display ${presentationMode ? "text-[38px]" : "text-[32px]"} leading-tight`} style={{ color: "#ffffff" }}>
                 {product.product_name}
               </h2>
 
               <div className={`rounded-[24px] border px-4 py-4 ${presentationMode ? "paper-grain" : ""}`} style={{ borderColor: "rgba(194,204,186,0.4)", background: "rgba(194,204,186,0.12)" }}>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#2C3E2D" }}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "white" }}>
                   Why it stands out
                 </div>
-                <p className="mt-2 text-[13px] leading-6" style={{ color: "#6B6560" }}>
+                <p className="mt-2 text-[13px] leading-6" style={{ color: "rgba(255,255,255,0.65)" }}>
                   {product.reasoning || product.ai_visual_analysis || product.description || "A strong editorial fit with clear sourcing potential, balanced proportions, and a tone that feels intentional in high-end residential work."}
                 </p>
               </div>
 
               {/* Price */}
               {priceInfo.price && priceInfo.isTrade && (
-                <div className="text-lg font-semibold" style={{ color: "#2C3E2D" }}>
+                <div className="text-lg font-semibold" style={{ color: "white" }}>
                   <span className="text-[10px] uppercase tracking-wider mr-1.5 opacity-70">{priceInfo.label}</span>
                   {fmtPrice(priceInfo.price)}
                 </div>
@@ -2730,38 +2730,38 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               <div className="grid grid-cols-2 gap-3">
                 {dimStr && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Dimensions</div>
-                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{dimStr}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Dimensions</div>
+                    <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>{dimStr}</div>
                   </div>
                 )}
                 {product.material && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Material</div>
-                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.material}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Material</div>
+                    <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>{product.material}</div>
                   </div>
                 )}
                 {product.style && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Style</div>
-                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.style}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Style</div>
+                    <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>{product.style}</div>
                   </div>
                 )}
                 {product.collection && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Collection</div>
-                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.collection}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Collection</div>
+                    <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>{product.collection}</div>
                   </div>
                 )}
                 {product.color && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>Color</div>
-                    <div className="text-[12px]" style={{ color: "#6B6560" }}>{product.color}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Color</div>
+                    <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>{product.color}</div>
                   </div>
                 )}
                 {product.sku && (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "#9B9590" }}>SKU</div>
-                    <div className="text-[12px] font-mono" style={{ color: "#6B6560" }}>{product.sku}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>SKU</div>
+                    <div className="text-[12px] font-mono" style={{ color: "rgba(255,255,255,0.65)" }}>{product.sku}</div>
                   </div>
                 )}
               </div>
@@ -2778,11 +2778,11 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                 if (product.ai_silhouette) aiTags.push({ label: "Silhouette", value: product.ai_silhouette });
                 return aiTags.length > 0 ? (
                   <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9B9590" }}>AI Intelligence</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>AI Intelligence</div>
                     <div className="flex flex-wrap gap-1.5">
                       {aiTags.map(({ label, value }) => (
-                        <span key={label} className="rounded-full px-2.5 py-0.5 text-[10px]" style={{ background: "rgba(44,62,45,0.05)", border: "1px solid rgba(44,62,45,0.10)", color: "#6B6560" }}>
-                          <span className="mr-1" style={{ color: "#9B9590" }}>{label}:</span>{value}
+                        <span key={label} className="rounded-full px-2.5 py-0.5 text-[10px]" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(44,62,45,0.10)", color: "rgba(255,255,255,0.65)" }}>
+                          <span className="mr-1" style={{ color: "rgba(255,255,255,0.45)" }}>{label}:</span>{value}
                         </span>
                       ))}
                     </div>
@@ -2793,10 +2793,10 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               {/* Visual tags */}
               {tags.length > 0 && (
                 <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "#9B9590" }}>Visual Tags</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>Visual Tags</div>
                   <div className="flex flex-wrap gap-1.5">
                     {tags.map((tag) => (
-                      <span key={tag} className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: "rgba(245,240,232,0.8)", border: "1px solid rgba(44,62,45,0.08)", color: "#6B6560" }}>
+                      <span key={tag} className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: "rgba(245,240,232,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.65)" }}>
                         {tag}
                       </span>
                     ))}
@@ -2808,41 +2808,41 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 <button onClick={() => onFindSimilar(product)} disabled={similarLoading}
                   className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all disabled:opacity-40 w-full sm:w-auto"
-                  style={{ border: "1px solid rgba(44,62,45,0.20)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" }}>
+                  style={{ border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }}>
                   {similarLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Layers className="h-3 w-3" />}
                   Find Similar
                 </button>
                 <button onClick={(ev) => onAddToQuote(product, ev)}
                   className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
-                  style={{ border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.30)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(44,62,45,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.12)"; e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.background = "transparent"; }}>
+                  style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(44,62,45,0.30)"; e.currentTarget.style.color = "#2C3E2D"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#6B6560"; e.currentTarget.style.background = "transparent"; }}>
                   <FileText className="h-3 w-3" />
                   Add to Quote
                 </button>
                 <button onClick={() => onToggleFavorite(product)}
                   className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
-                  style={isFavorited ? { border: "1px solid rgba(184,149,106,0.35)", background: "rgba(184,149,106,0.08)", color: "#B8956A" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
+                  style={isFavorited ? { border: "1px solid rgba(184,149,106,0.35)", background: "rgba(255,255,255,0.04)", color: "#B8956A" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                   <Heart className={`h-3 w-3 ${isFavorited ? "fill-current" : ""}`} />
                   {isFavorited ? "Saved" : "Save"}
                 </button>
                 {product.portal_url && (
                   <a href={product.portal_url} target="_blank" rel="noopener"
                     className="flex items-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all"
-                    style={{ border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
+                    style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                     <ExternalLink className="h-3 w-3" /> View at {(product.manufacturer_name || "vendor").split(" ")[0]}
                   </a>
                 )}
                 <button onClick={handleShare}
                   className="flex items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-[11px] font-semibold transition-all w-full sm:w-auto"
-                  style={shareCopied ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(44,62,45,0.06)", color: "#2C3E2D" } : { border: "1px solid rgba(44,62,45,0.12)", color: "#6B6560" }}>
+                  style={shareCopied ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(255,255,255,0.06)", color: "white" } : { border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.65)" }}>
                   {shareCopied ? <Check className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                   {shareCopied ? "Link Copied" : "Share"}
                 </button>
               </div>
               {/* Find Alternatives */}
               <div className="pt-3">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] mb-2.5" style={{ color: "#9B9590" }}>Find Alternatives</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.2em] mb-2.5" style={{ color: "rgba(255,255,255,0.45)" }}>Find Alternatives</div>
                 <div className="flex flex-wrap gap-1.5">
                   {["Different Material", "Different Color", "Different Size", "Less Formal", "More Formal", "Lower Price", "Higher End"].map((alt) => (
                     <button
@@ -2851,8 +2851,8 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                       disabled={alternativeLoading}
                       className="flex items-center gap-1 rounded-[999px] px-3 py-1.5 text-[10px] font-medium transition-all disabled:opacity-30"
                       style={alternativeLabel === alt && alternativeProducts.length > 0
-                        ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(44,62,45,0.08)", color: "#2C3E2D" }
-                        : { border: "1px solid rgba(44,62,45,0.08)", color: "#9B9590" }}
+                        ? { border: "1px solid rgba(44,62,45,0.30)", background: "rgba(255,255,255,0.08)", color: "white" }
+                        : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
                     >
                       {alternativeLoading && alternativeLabel === alt ? (
                         <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -2871,16 +2871,16 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           {alternativeProducts.length > 0 && (
             <div className="mt-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(44,62,45,0.12))" }} />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#9B9590" }}>
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.12))" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {alternativeLabel}
                 </span>
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(44,62,45,0.12))" }} />
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(255,255,255,0.12))" }} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {alternativeProducts.map((ap) => (
                   <button key={ap.id} onClick={() => onOpenPreview(ap)} className="text-left group">
-                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(44,62,45,0.08)" }}>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(255,255,255,0.08)" }}>
                       {ap.image_url ? (
                         <ProxyImg src={ap.image_url} productId={ap.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
@@ -2889,12 +2889,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                         </div>
                       )}
                     </div>
-                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "#2C3E2D" }}>{ap.manufacturer_name}</div>
-                    <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{ap.product_name}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "white" }}>{ap.manufacturer_name}</div>
+                    <div className="text-[11px] truncate transition-colors" style={{ color: "rgba(255,255,255,0.65)" }}>{ap.product_name}</div>
                     {(() => {
                       const apPrice = getPrice(ap);
                       return apPrice.price && apPrice.isTrade ? (
-                        <div className="text-[10px]" style={{ color: "#2C3E2D" }}>
+                        <div className="text-[10px]" style={{ color: "white" }}>
                           {apPrice.label} {fmtPrice(apPrice.price)}
                         </div>
                       ) : null;
@@ -2909,16 +2909,16 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
           {similarProducts.length > 0 && (
             <div className="mt-8">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(44,62,45,0.12))" }} />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#9B9590" }}>
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.12))" }} />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   Similar from different vendors
                 </span>
-                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(44,62,45,0.12))" }} />
+                <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(255,255,255,0.12))" }} />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {similarProducts.map((sp) => (
                   <button key={sp.id} onClick={() => onOpenPreview(sp)} className="text-left group">
-                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(44,62,45,0.08)" }}>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden transition-colors mb-1.5" style={{ backgroundColor: "#ffffff", border: "1px solid rgba(255,255,255,0.08)" }}>
                       {sp.image_url ? (
                         <ProxyImg src={sp.image_url} productId={sp.id} className="h-full w-full" style={{ objectFit: "contain", padding: "6px" }} />
                       ) : (
@@ -2927,12 +2927,12 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                         </div>
                       )}
                     </div>
-                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "#2C3E2D" }}>{sp.manufacturer_name}</div>
-                    <div className="text-[11px] truncate transition-colors" style={{ color: "#6B6560" }}>{sp.product_name}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider truncate" style={{ color: "white" }}>{sp.manufacturer_name}</div>
+                    <div className="text-[11px] truncate transition-colors" style={{ color: "rgba(255,255,255,0.65)" }}>{sp.product_name}</div>
                     {(() => {
                       const spPrice = getPrice(sp);
                       return spPrice.price && spPrice.isTrade ? (
-                        <div className="text-[10px]" style={{ color: "#2C3E2D" }}>
+                        <div className="text-[10px]" style={{ color: "white" }}>
                           {spPrice.label} {fmtPrice(spPrice.price)}
                         </div>
                       ) : null;
@@ -2971,17 +2971,17 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
             return (
               <button key={i} type="button" onMouseDown={() => onSelect(item)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(44,62,45,0.04)"}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                <Search className="h-3 w-3 shrink-0" style={{ color: "#9B9590" }} />
-                <span className="flex-1 text-left" style={{ color: "#1A1A18" }}>{text}</span>
+                <Search className="h-3 w-3 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }} />
+                <span className="flex-1 text-left" style={{ color: "#ffffff" }}>{text}</span>
                 {count != null && (
-                  <span className="text-[10px] tabular-nums shrink-0" style={{ color: "#9B9590" }}>
+                  <span className="text-[10px] tabular-nums shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>
                     {count.toLocaleString()}
                   </span>
                 )}
                 {type === "vendor" && (
-                  <span className="text-[9px] uppercase tracking-wider shrink-0" style={{ color: "#2C3E2D" }}>vendor</span>
+                  <span className="text-[9px] uppercase tracking-wider shrink-0" style={{ color: "white" }}>vendor</span>
                 )}
               </button>
             );

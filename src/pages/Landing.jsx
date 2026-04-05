@@ -112,17 +112,18 @@ function Navbar({ onCta }) {
 // ── Hero ─────────────────────────────────────────────────────────────────────
 function Hero({ onCta }) {
   const ref = useRef(null);
+  const [videoReady, setVideoReady] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   return (
     <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, background: "black", overflow: "hidden" }}>
-      <video autoPlay loop muted playsInline
+      <video autoPlay loop muted playsInline onCanPlay={() => setVideoReady(true)}
         style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "56.25vw", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
         <source src="/hero.mp4" type="video/mp4" />
       </video>
       <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "rgba(0,0,0,0.05)" }} />
-      <ParticleCanvas />
+      {videoReady && <ParticleCanvas />}
       <motion.div style={{ y, opacity, position: "relative", zIndex: 10, paddingTop: 110, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingLeft: 24, paddingRight: 24 }}>
         <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0.1} style={{ marginBottom: 32 }}>
           <div className="landing-lg" style={{ borderRadius: 9999, display: "inline-flex", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8 }}>
