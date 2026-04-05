@@ -438,13 +438,13 @@ export default function Landing() {
       {/* ════════════════════════════════════════
           3D PRODUCT CAROUSEL — The Showroom Wall
           ════════════════════════════════════════ */}
-      <section className="relative py-24 sm:py-32 z-10 overflow-hidden" style={{ background: P.obsidian }}>
+      <section className="relative py-24 sm:py-32 z-10 overflow-hidden">
         <div className="page-wrap-wide">
           <Reveal className="text-center mb-4">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: P.brass, fontFamily: "'DM Sans', sans-serif" }}>The Collection</span>
           </Reveal>
           <Reveal delay={0.1} className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl" style={{ color: "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>
+            <h2 className="text-3xl md:text-5xl" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
               42,000 pieces.<br />
               <span style={{ color: P.brass }}>One search.</span>
             </h2>
