@@ -1527,7 +1527,7 @@ export default function SearchPage() {
                   background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.03) 40%, transparent 70%)",
                   filter: "blur(20px)",
                 }} />
-                <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite" }}>
+                <div className="luxe-input search-bar-glow relative transition-all duration-300" style={{ animation: "glow-pulse 4s ease-in-out infinite", border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)" }}>
                   <div className="flex flex-col sm:flex-row sm:items-start">
                     <div className="flex flex-1 items-start">
                       <div className="ml-4 mt-[18px] flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:ml-5 sm:mt-[18px]">
@@ -1550,7 +1550,7 @@ export default function SearchPage() {
                         onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                         onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                         placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
-                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden"
+                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden placeholder:text-white/60"
                         style={{ color: "#ffffff" }}
                         rows={1}
                       />
@@ -1620,60 +1620,18 @@ export default function SearchPage() {
       {/* ── RESULTS VIEW ── */}
       {(hasConversation || loading) && (
         <div className="pb-24">
-          {/* Top bar */}
-            <div className="sticky top-[68px] sm:top-[72px] z-30" style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="page-wrap-wide py-3 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <img src="/logo.png" alt="" className={`h-5 w-5 object-contain${loading ? " animate-pulse" : ""}`} />
-                </div>
-                  <div className="hidden sm:block">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: "white" }}>Search Results</div>
-                  <div className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>{presentationMode ? "Calm, client-ready review mode" : "Refine, review, and save"}</div>
-                </div>
-              </div>
-              {/* Inline compact search input */}
-              <form onSubmit={handleSubmit} className="order-3 w-full sm:order-2 sm:flex-1 sm:max-w-xl">
-                <div className="luxe-input relative transition-all">
-                  <div className="flex items-center">
-                    <Search className="ml-4 h-3.5 w-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }} />
-                    <input
-                      value={inputValue}
-                      onChange={(e) => handleInputChange(e.target.value)}
-                      placeholder="Search..."
-                      className="h-12 w-full bg-transparent pl-3 pr-10 text-[14px] outline-none"
-                      style={{ color: "#ffffff" }}
-                      disabled={loading}
-                    />
-                    {inputValue.trim() && (
-                      <button type="submit" className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </form>
-              <button onClick={handleNewSearch}
-                className="order-2 sm:order-3 flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] transition-colors shrink-0 cursor-pointer"
-                style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.40)"; e.currentTarget.style.background = "transparent"; }}>
-                <RefreshCw className="h-3 w-3" /> New Search
-              </button>
+          {/* Search progress bar */}
+          {loading && (
+            <div className="h-[2px] w-full overflow-hidden">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg, transparent, var(--gold), transparent)" }}
+                initial={{ x: "-100%" }}
+                animate={{ x: "100%" }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              />
             </div>
-            {/* Search progress bar */}
-            {loading && (
-              <div className="h-[2px] w-full overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, transparent, var(--gold), transparent)" }}
-                  initial={{ x: "-100%" }}
-                  animate={{ x: "100%" }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="page-wrap-wide">
             {/* Compact thread */}
@@ -1858,7 +1816,7 @@ export default function SearchPage() {
                       {/* Product cards for this bucket */}
                       <div className="px-4 py-3">
                         {visibleItems.length > 0 ? (
-                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" style={{ gridAutoRows: "1fr" }}>
                             {visibleItems.map((product, pIdx) => (
                               <div key={product.id || pIdx} className="relative">
                                 {/* Selection highlight */}
@@ -2037,7 +1995,7 @@ export default function SearchPage() {
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                   {visibleProducts.map((item, idx) => (
                     <motion.div
                       key={item.id || idx}
@@ -2318,8 +2276,8 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
             onClick={() => setPresentationMode(!presentationMode)}
             className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-full border transition-all shrink-0 cursor-pointer"
             style={presentationMode
-              ? { background: "white", color: "#fff", border: "1px solid white" }
-              : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+              ? { background: "rgba(255,255,255,0.10)", color: "white", border: "1px solid rgba(255,255,255,0.40)" }
+              : { border: "1px solid rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.70)" }}
             title={presentationMode ? "Turn off presentation mode" : "Turn on presentation mode"}
           >
             <Eye className="h-3 w-3" />
@@ -2330,7 +2288,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
           <div className="relative shrink-0">
             <button onClick={() => setShowSortMenu(!showSortMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border transition-all cursor-pointer"
-              style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}>
+              style={{ border: "1px solid rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.70)" }}>
               <ArrowUpDown className="h-3 w-3" />
               {SORT_OPTIONS.find(s => s.key === sortKey)?.label}
             </button>
@@ -2338,7 +2296,7 @@ function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey
               {showSortMenu && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                   className="absolute top-full mt-1.5 right-0 z-50 w-40 rounded-xl shadow-xl p-1.5"
-                  style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+                  style={{ background: "rgba(25,23,20,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 32px rgba(0,0,0,0.40)" }}>
                   {SORT_OPTIONS.map((opt) => (
                     <button key={opt.key}
                       onClick={() => { setSortKey(opt.key); setShowSortMenu(false); }}
@@ -2370,16 +2328,29 @@ function PricingToggle() {
   return (
     <button
       onClick={toggleShowPricing}
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] border transition-all shrink-0 cursor-pointer"
+      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] border transition-all shrink-0 cursor-pointer"
       style={showPricing
-        ? { border: "1px solid rgba(255,255,255,0.20)", background: "rgba(255,255,255,0.06)", color: "white" }
-        : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
+        ? { border: "1px solid rgba(255,255,255,0.40)", background: "rgba(255,255,255,0.10)", color: "white" }
+        : { border: "1px solid rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.70)" }}
       title={showPricing ? "Hide pricing" : "Show pricing"}
     >
       <span className="text-[11px] font-semibold">$</span>
       <span className="hidden sm:inline">{showPricing ? "Pricing on" : "Pricing off"}</span>
     </button>
   );
+}
+
+// ─── HELPERS ───────────────────────────────────────────────
+function sanitizeDescription(text) {
+  if (!text) return text;
+  // Strip HTML tags, CSS rules, and bracketed junk
+  return text
+    .replace(/<[^>]*>/g, "")
+    .replace(/\{[^}]*\}/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/#[a-fA-F0-9]{3,8}\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 // ─── PRODUCT CARD ──────────────────────────────────────────
@@ -2488,16 +2459,11 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
 
       {/* Card meta */}
       <div className="card-meta p-3 sm:p-4 pb-3 flex-1 flex flex-col">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <div className="text-[9px] font-bold uppercase tracking-[0.18em] truncate" style={{ color: "white" }}>{item.manufacturer_name}</div>
-          {item.result_quality && (
-            <span className="rounded-full px-2 py-0.5 text-[8px] uppercase tracking-[0.12em]" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}>
-              {item.result_quality === "verified" ? "Verified" : item.result_quality === "ai-discovered" ? "AI" : "Catalog"}
-            </span>
-          )}
+        <div className="mb-1">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] truncate" style={{ color: "rgba(255,255,255,0.60)", fontVariant: "all-small-caps" }}>{item.manufacturer_name}</div>
         </div>
-        <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#ffffff" }}>{item.product_name}</h3>
-        <div className="text-[11px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "rgba(255,255,255,0.65)" }}>{materialStyle || "\u00A0"}</div>
+        <h3 className="product-name line-clamp-2 mb-1 text-[14px] sm:text-[15px] min-h-[2.2em]" style={{ letterSpacing: "-0.01em", color: "#ffffff", fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}>{item.product_name}</h3>
+        <div className="text-[10px] truncate mb-1.5 min-h-[1.2em]" style={{ color: "rgba(255,255,255,0.40)", fontFamily: "'Barlow', sans-serif" }}>{materialStyle || "\u00A0"}</div>
         {detailChips.length > 0 && !presentationMode && (
           <div className="mb-2 flex flex-wrap gap-1">
             {detailChips.map((chip) => (
@@ -2514,19 +2480,9 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
               {priceStr}
             </span>
           )}
-          <span className="text-[9px] uppercase tracking-[0.2em] transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>View</span>
         </div>
       </div>
 
-      {/* Hover actions */}
-      <div className="card-link px-3 pb-3 flex items-center justify-end">
-        {item.portal_url && (
-          <a href={item.portal_url} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} data-action
-            className="text-[10px] font-medium flex items-center gap-1 transition-colors" style={{ color: "#B8956A" }}>
-            View <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        )}
-      </div>
     </div>
   );
 });
@@ -2709,7 +2665,7 @@ function ProductPreviewPanel({ product, onClose, onFindSimilar, similarProducts,
                   Why it stands out
                 </div>
                 <p className="mt-2 text-[13px] leading-6" style={{ color: "rgba(255,255,255,0.65)" }}>
-                  {product.reasoning || product.ai_visual_analysis || product.description || "A strong editorial fit with clear sourcing potential, balanced proportions, and a tone that feels intentional in high-end residential work."}
+                  {sanitizeDescription(product.reasoning || product.ai_visual_analysis || product.description) || "A strong editorial fit with clear sourcing potential, balanced proportions, and a tone that feels intentional in high-end residential work."}
                 </p>
               </div>
 
