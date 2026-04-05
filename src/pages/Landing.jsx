@@ -93,7 +93,7 @@ function Hero({ onCta }) {
   const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   return (
-    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden", backgroundImage: "url(/hero-poster.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
+    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden", backgroundColor: "black", backgroundImage: "url(/hero-poster.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
       <video autoPlay loop muted playsInline preload="auto" poster="/hero-poster.png"
         style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
         <source src="/hero.mp4" type="video/mp4" />
@@ -141,7 +141,7 @@ function Hero({ onCta }) {
           </a>
         </motion.div>
       </motion.div>
-      <div style={{ position: "absolute", zIndex: 5, top: "calc(56.25vw - 280px)", left: 0, right: 0, height: 280, background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.9) 80%, black 100%)" }} />
+      <div style={{ position: "absolute", zIndex: 5, bottom: 0, left: 0, right: 0, height: "50%", background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.9) 75%, black 100%)" }} />
     </section>
   );
 }
@@ -172,7 +172,7 @@ function IntroSection() {
         <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.3}
           style={{ display: "flex", gap: "clamp(12px, 2.5vw, 48px)", flexWrap: "nowrap", justifyContent: "center" }}>
           {vendors.map((v) => (
-            <span key={v} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "0.875rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)" }}>{v}</span>
+            <span key={v} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "clamp(0.6rem, 1.4vw, 0.82rem)", letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{v}</span>
           ))}
         </motion.div>
       </div>
