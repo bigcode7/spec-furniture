@@ -49,7 +49,7 @@ const SCROLL_PRODUCTS = [
   { id: "crlaine_brandon", product_name: "Brandon Sofa", manufacturer_name: "CR Laine", material: "Leather", style: "Transitional", image_url: "https://www.crlaine.com/assets/images/products/xlarge/L1190-00.jpg" },
   { id: "hancock_flossie", product_name: "Flossie Sofa", manufacturer_name: "Hancock & Moore", material: "Leather", style: "Transitional", image_url: "https://hancockandmoore.com/Documents/prod-images/CJ6815-3_Flossie_TibDoe_MD_1022_HR.jpg" },
   { id: "bernhardt_candace", product_name: "Candace Leather Sofa", manufacturer_name: "Bernhardt", material: "Leather", style: "Transitional", image_url: "https://s3.amazonaws.com/emuncloud-staticassets/productImages/bh074/medium/7277LFO.jpg?1.0.81.20281-bfb05d321d+bernhardt-20230616+bernhardt+umbraco+cms+prod=no-cache&m=undefined&=im2022-10-07T06:37:14.8030000Z" },
-  { id: "stickley_woodlands-small-roll-arm-sofa-with-nails", product_name: "Woodlands Roll Arm Sofa", manufacturer_name: "Stickley", material: "Fabric", style: "Transitional", image_url: "https://cdn.shopify.com/s/files/1/0571/7088/6842/products/CL-8187-86-PR_SelvanoBark-DarkMaple_WoodlandsSmallRollArmSofa_Angle.jpg?v=1708087381" },
+  { id: "stickley_woodlands-small-roll-arm-sofa-with-nails", product_name: "Woodlands Roll Arm Sofa", manufacturer_name: "Stickley", material: "Leather", style: "Transitional", image_url: "https://cdn.shopify.com/s/files/1/0571/7088/6842/products/CL-8187-86-PR_SelvanoBark-DarkMaple_WoodlandsSmallRollArmSofa_Angle.jpg?v=1708087381" },
 ];
 
 // The featured product for the detail panel (Phase 4)
@@ -58,6 +58,25 @@ const FEATURED_PRODUCT = SCROLL_PRODUCTS[0];
 const TYPED_QUERY = "transitional leather sofa with nailhead trim";
 const AI_RESPONSE = "Found 47 transitional leather sofas with nailhead detailing across 8 vendors. Showing top matches by relevance.";
 
+
+// Text scramble utility
+const SCRAMBLE_CHARS = "!<>-_\\/[]{}=+*^?#@ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+function scrambleText(target, visibleChars) {
+  // Returns HTML string with scrambled characters
+  let out = "";
+  for (let i = 0; i < visibleChars; i++) {
+    const ch = target[i];
+    if (i < visibleChars - 3) {
+      // Already settled characters
+      out += ch;
+    } else {
+      // Scrambling characters (last 3)
+      const rand = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      out += `<span style="color:#B8956A;opacity:0.6">${rand}</span>`;
+    }
+  }
+  return out;
+}
 
 // ════════════════════════════════════════════════════════
 // WIREFRAME ROOM — Canvas-based 3D room scene
@@ -498,13 +517,13 @@ export default function ScrollExperience() {
 
       <div ref={containerRef} className="relative" style={{ height: scrollHeight }}>
         {/* ── Sticky viewport — all animation happens here ── */}
-        <div ref={stickyRef} className="sticky top-0 left-0 w-full overflow-hidden" style={{ height: "100vh", background: P.cream }}>
+        <div ref={stickyRef} className="sticky top-0 left-0 w-full overflow-hidden" style={{ height: "100vh", background: "#161311" }}>
 
           {/* ════════ PHASE 1: THE SHOWROOM ════════ */}
           <div
             ref={phase1Ref}
             className="absolute inset-0 flex items-center justify-center"
-            style={{ opacity: 1, willChange: "opacity" }}
+            style={{ opacity: 1, willChange: "opacity", background: "#0D1410" }}
           >
             {!isMobile && <WireframeRoom scrollYProgress={scrollYProgress} />}
 
@@ -530,26 +549,56 @@ export default function ScrollExperience() {
               </div>
 
               <h1
-                className="text-[2.1rem] sm:text-5xl md:text-6xl lg:text-[4.5rem] font-semibold leading-[1.05] tracking-[-0.02em]"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif", color: P.textPrimary }}
+                className="leading-[1.05]"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#FEFCF9", fontSize: "clamp(2.8rem, 8vw, 7rem)", fontWeight: 300, letterSpacing: "-0.04em" }}
               >
-                Source the way<br />
-                you{" "}
-                <span style={{
-                  background: `linear-gradient(135deg, ${P.green}, ${P.greenMuted})`,
-                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-                }}>design.</span>
+                {[
+                  { word: "Source", delay: "0s" },
+                  { word: "the", delay: "0.08s" },
+                  { word: "way", delay: "0.16s" },
+                ].map(({ word, delay }) => (
+                  <span
+                    key={word}
+                    className="inline-block mr-[0.2em]"
+                    style={{
+                      animation: `letter-drop 0.9s ${delay} cubic-bezier(0.22,1,0.36,1) both`,
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
+                <br />
+                {[
+                  { word: "you", delay: "0.24s", isNormal: true },
+                  { word: "design.", delay: "0.32s", isNormal: false },
+                ].map(({ word, delay, isNormal }) => (
+                  <span
+                    key={word}
+                    className="inline-block mr-[0.2em]"
+                    style={{
+                      animation: `letter-drop 0.9s ${delay} cubic-bezier(0.22,1,0.36,1) both`,
+                      ...(isNormal ? {} : {
+                        background: `linear-gradient(135deg, ${P.brass}, ${P.brassLight})`,
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }),
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
               </h1>
               <p
                 className="mt-6 text-[15px] sm:text-[17px] leading-relaxed max-w-xl mx-auto"
-                style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}
+                style={{ color: "rgba(254,252,249,0.60)", fontFamily: "'DM Sans', sans-serif" }}
               >
                 42,000+ trade products across 20 vendors.<br className="hidden sm:block" />
                 AI that understands designer language.
               </p>
 
               <div className="mt-12 flex flex-col items-center gap-2 animate-pulse" style={{ opacity: 0.5 }}>
-                <span className="text-[10px] uppercase tracking-[0.2em] font-medium" style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}>Scroll to explore</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] font-medium" style={{ color: "rgba(254,252,249,0.40)", fontFamily: "'DM Sans', sans-serif" }}>Scroll to explore</span>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M10 4v12M5 11l5 5 5-5" stroke={P.brass} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -645,7 +694,7 @@ export default function ScrollExperience() {
 
               {/* Subtle hint that this is real */}
               <div ref={searchHintRef} className="mt-6" style={{ opacity: 0 }}>
-                <span className="text-[11px]" style={{ color: P.textMuted, fontFamily: "'DM Sans', sans-serif" }}>
+                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>
                   Type your own search or keep scrolling
                 </span>
               </div>
@@ -671,13 +720,13 @@ export default function ScrollExperience() {
                   paddingTop: isMobile ? "8px" : "10px",
                   paddingBottom: isMobile ? "8px" : "10px",
                   marginBottom: isMobile ? "8px" : "12px",
-                  background: "rgba(255,255,255,0.70)",
+                  background: "rgba(255,255,255,0.08)",
                   backdropFilter: "blur(20px)",
                   border: `1px solid rgba(${P.sageRgb},0.30)`,
                 }}
               >
                 <Search className="h-4 w-4 shrink-0" style={{ color: P.brass }} />
-                <span className="text-sm truncate" style={{ color: P.textPrimary, fontFamily: "'DM Sans', sans-serif" }}>
+                <span className="text-sm truncate" style={{ color: "#E9E1DD", fontFamily: "'DM Sans', sans-serif" }}>
                   {TYPED_QUERY}
                 </span>
               </div>
@@ -689,7 +738,7 @@ export default function ScrollExperience() {
                 style={{
                   padding: isMobile ? "10px 14px" : "16px 20px",
                   marginBottom: isMobile ? "10px" : "24px",
-                  background: `rgba(${P.sageRgb},0.12)`,
+                  background: "rgba(44,62,45,0.35)",
                   borderLeft: `3px solid ${P.green}`,
                   opacity: 0,
                   transform: "translateY(20px)",
@@ -705,7 +754,7 @@ export default function ScrollExperience() {
                   <span className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: P.green, fontFamily: "'DM Sans', sans-serif" }}>Spekd AI</span>
                 </div>
                 <p className="text-sm leading-relaxed" style={{ color: P.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
-                  {AI_RESPONSE.slice(0, aiResponseChars)}
+                  <span dangerouslySetInnerHTML={{ __html: aiResponseChars > 0 ? scrambleText(AI_RESPONSE, aiResponseChars) : "" }} />
                   {aiResponseChars < AI_RESPONSE.length && aiResponseChars > 0 && (
                     <span className="inline-block w-[2px] h-[14px] align-middle ml-px animate-pulse" style={{ background: P.brass }} />
                   )}
@@ -713,16 +762,16 @@ export default function ScrollExperience() {
               </div>
 
               {/* Product cards grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 pb-8">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 pb-8">
                 {(isMobile ? SCROLL_PRODUCTS.slice(0, 4) : SCROLL_PRODUCTS).map((product, i) => {
                   const hasImage = product.image_url && product.image_url.length > 10;
                   return (
                     <div
                       key={product.id + "-" + i}
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className="rounded-xl overflow-hidden cursor-pointer group"
+                      className={`rounded-xl overflow-hidden cursor-pointer group ${i === 0 ? "col-span-2" : ""}`}
                       style={{
-                        background: P.white,
+                        background: "#1E1B19",
                         border: `1px solid rgba(${P.greenRgb},0.05)`,
                         boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
                         opacity: 0,
@@ -730,7 +779,7 @@ export default function ScrollExperience() {
                         willChange: isMobile ? "opacity" : "transform, opacity",
                       }}
                     >
-                      <div className="relative overflow-hidden" style={{ aspectRatio: isMobile ? "4/3" : "1/1", backgroundColor: "#ffffff" }}>
+                      <div className="relative overflow-hidden" style={{ aspectRatio: i === 0 ? "16/9" : (isMobile ? "4/3" : "1/1"), backgroundColor: "#ffffff" }}>
                         {hasImage ? (
                           <img
                             src={proxyUrl(product.image_url)}
@@ -748,14 +797,14 @@ export default function ScrollExperience() {
                         )}
                       </div>
                       <div className="p-3 sm:p-4">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.12em] mb-1 truncate" style={{ color: P.green, fontFamily: "'DM Sans', sans-serif" }}>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.12em] mb-1 truncate" style={{ color: "#B8956A", fontFamily: "'DM Sans', sans-serif" }}>
                           {product.manufacturer_name}
                         </div>
-                        <div className="text-[13px] sm:text-[15px] font-medium mb-1 line-clamp-1" style={{ color: P.textPrimary, fontFamily: "'Playfair Display', serif" }}>
+                        <div className="text-[13px] sm:text-[15px] font-medium mb-1 line-clamp-1" style={{ color: "#E9E1DD", fontFamily: "'Playfair Display', serif" }}>
                           {product.product_name}
                         </div>
                         {product.material && (
-                          <div className="text-[11px] truncate" style={{ color: P.textMuted }}>{product.material}</div>
+                          <div className="text-[11px] truncate" style={{ color: "rgba(233,225,221,0.5)" }}>{product.material}</div>
                         )}
                       </div>
                     </div>
@@ -784,7 +833,7 @@ export default function ScrollExperience() {
                   ref={phase4CardRef}
                   className="rounded-2xl overflow-hidden hidden sm:block"
                   style={{
-                    background: P.white,
+                    background: "#1E1B19",
                     border: `1px solid rgba(${P.greenRgb},0.06)`,
                     boxShadow: "0 8px 40px rgba(44,62,45,0.08), 0 2px 8px rgba(0,0,0,0.04)",
                     transform: "translateX(-40px)",
@@ -821,10 +870,10 @@ export default function ScrollExperience() {
 
                   {/* Product info */}
                   <div className="p-5">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] mb-2" style={{ color: P.green }}>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] mb-2" style={{ color: "#B8956A" }}>
                       {featuredProduct.manufacturer_name}
                     </div>
-                    <h3 className="text-xl sm:text-2xl mb-4" style={{ fontFamily: "'Playfair Display', serif", color: P.textPrimary }}>
+                    <h3 className="text-xl sm:text-2xl mb-4" style={{ fontFamily: "'Playfair Display', serif", color: "#E9E1DD" }}>
                       {featuredProduct.product_name}
                     </h3>
 
@@ -832,26 +881,26 @@ export default function ScrollExperience() {
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       {featuredProduct.material && (
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: P.textMuted }}>Material</div>
-                          <div className="text-[12px]" style={{ color: P.textSecondary }}>{featuredProduct.material}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(233,225,221,0.4)" }}>Material</div>
+                          <div className="text-[12px]" style={{ color: "rgba(233,225,221,0.7)" }}>{featuredProduct.material}</div>
                         </div>
                       )}
                       {featuredProduct.style && (
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: P.textMuted }}>Style</div>
-                          <div className="text-[12px]" style={{ color: P.textSecondary }}>{featuredProduct.style}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(233,225,221,0.4)" }}>Style</div>
+                          <div className="text-[12px]" style={{ color: "rgba(233,225,221,0.7)" }}>{featuredProduct.style}</div>
                         </div>
                       )}
                       {featuredProduct.dimensions && (
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: P.textMuted }}>Dimensions</div>
-                          <div className="text-[12px]" style={{ color: P.textSecondary }}>{featuredProduct.dimensions}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(233,225,221,0.4)" }}>Dimensions</div>
+                          <div className="text-[12px]" style={{ color: "rgba(233,225,221,0.7)" }}>{featuredProduct.dimensions}</div>
                         </div>
                       )}
                       {featuredProduct.color && (
                         <div>
-                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: P.textMuted }}>Color</div>
-                          <div className="text-[12px]" style={{ color: P.textSecondary }}>{featuredProduct.color}</div>
+                          <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "rgba(233,225,221,0.4)" }}>Color</div>
+                          <div className="text-[12px]" style={{ color: "rgba(233,225,221,0.7)" }}>{featuredProduct.color}</div>
                         </div>
                       )}
                     </div>
