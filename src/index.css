@@ -153,6 +153,30 @@
     z-index: 2;
   }
 
+  /* ── Mobile touch & sizing improvements ── */
+  @media (max-width: 640px) {
+    /* Ensure minimum touch targets */
+    button, a, [role="button"] {
+      min-height: 36px;
+    }
+    /* Prevent iOS zoom on input focus */
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+    /* Tighter spacing on small screens */
+    .page-wrap, .page-wrap-wide {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+  }
+
+  /* ── Safe area insets for notched devices ── */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+
   /* ── Disable heavy animations on mobile for performance ── */
   @media (max-width: 768px) {
     body::after {

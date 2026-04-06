@@ -34,7 +34,11 @@ function AccountDropdown({ user, logout }) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("touchstart", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("touchstart", handleClick);
+    };
   }, []);
 
   const initial = (user.full_name || user.email || "U")[0].toUpperCase();
@@ -65,7 +69,7 @@ function AccountDropdown({ user, logout }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-2xl overflow-hidden z-50"
             style={{
               background: "rgba(15,13,11,0.95)",
               border: "1px solid rgba(255,255,255,0.10)",
@@ -175,27 +179,26 @@ function AppFooter() {
   return (
     <footer className="relative mt-20" style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="page-wrap-wide py-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded " />
+                <img src="/logo.png" alt="SPEKD" className="h-6 w-6 object-contain rounded" />
               </div>
               <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "rgba(255,255,255,0.80)", fontSize: "1.2rem", letterSpacing: "-0.01em" }}>SPEKD</span>
             </div>
-            <span className="hidden md:inline text-white/15">|</span>
-            <span className="text-[11px] text-white/30">
+            <span className="text-[11px] text-white/30 text-center">
               &copy; {new Date().getFullYear()} SPEKD. All rights reserved.
             </span>
           </div>
 
-          <nav className="flex items-center gap-4 text-[11px]">
+          <nav className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-[11px]">
             <Link to={createPageUrl("About")} className="text-white/40 hover:text-white/70 transition-colors">About</Link>
-            <span className="text-white/15">&middot;</span>
+            <span className="text-white/15 hidden sm:inline">&middot;</span>
             <a href="mailto:support@spekd.ai" className="text-white/40 hover:text-white/70 transition-colors">Contact</a>
-            <span className="text-white/15">&middot;</span>
+            <span className="text-white/15 hidden sm:inline">&middot;</span>
             <Link to={createPageUrl("Privacy")} className="text-white/40 hover:text-white/70 transition-colors">Privacy</Link>
-            <span className="text-white/15">&middot;</span>
+            <span className="text-white/15 hidden sm:inline">&middot;</span>
             <Link to={createPageUrl("Terms")} className="text-white/40 hover:text-white/70 transition-colors">Terms</Link>
           </nav>
 

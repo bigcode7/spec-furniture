@@ -490,7 +490,7 @@ export default function Quotes() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="atelier-panel paper-grain mb-10 px-6 py-8 sm:px-8 md:px-10"
+          className="atelier-panel paper-grain mb-10 px-4 py-6 sm:px-8 sm:py-8 md:px-10"
         >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>

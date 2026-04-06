@@ -163,7 +163,7 @@ export default function AuthModal() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="relative px-8 pt-8 pb-2">
+            <div className="relative px-5 sm:px-8 pt-6 sm:pt-8 pb-2">
               <button
                 onClick={handleClose}
                 className="absolute top-4 right-4 p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors"
@@ -190,7 +190,7 @@ export default function AuthModal() {
 
             {/* Forgot Password View */}
             {forgotMode ? (
-              <div className="px-8 py-6 space-y-4">
+              <div className="px-5 sm:px-8 py-5 sm:py-6 space-y-4">
                 {forgotSent ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-3">
@@ -273,7 +273,7 @@ export default function AuthModal() {
             ) : (
               <>
               {/* Form */}
-              <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4">
+              <form onSubmit={handleSubmit} className="px-5 sm:px-8 py-5 sm:py-6 space-y-4">
                 {mode === "signup" && (
                   <>
                     <div className="relative">

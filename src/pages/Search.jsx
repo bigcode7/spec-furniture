@@ -1550,7 +1550,7 @@ export default function SearchPage() {
                         onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                         onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                         placeholder={isListening ? 'Listening...' : 'Describe the piece, mood, room, or sourcing constraint...'}
-                        className="min-h-[64px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-5 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden placeholder:text-white/60"
+                        className="min-h-[56px] sm:min-h-[72px] w-full bg-transparent pl-4 sm:pl-6 pr-4 py-4 sm:py-6 text-base sm:text-[15px] outline-none resize-none overflow-hidden placeholder:text-white/60"
                         style={{ color: "#ffffff" }}
                         rows={1}
                       />
@@ -2072,18 +2072,18 @@ export default function SearchPage() {
                       onFocus={() => { if (!loading && autocompleteResults.length > 0) setShowAutocomplete(true); }}
                       onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
                       placeholder="Refine your search or ask me anything..."
-                      className="h-14 w-full bg-transparent pl-3 pr-28 text-base sm:text-sm outline-none"
+                      className="h-14 w-full bg-transparent pl-3 pr-20 sm:pr-28 text-base sm:text-sm outline-none"
                       style={{ color: "#ffffff" }}
                       disabled={loading || (!isPro && hasConversation)} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                       <button type="button" onClick={() => voiceSupported ? handleVoiceSearch() : setError("Voice search requires Chrome or Edge browser.")}
-                        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
+                        className={`hidden sm:flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? "text-red-400 bg-red-400/10 animate-pulse" : ""}`}
                         style={!isListening ? { color: "rgba(255,255,255,0.45)" } : {}}
                         title={isListening ? "Stop listening" : "Voice search"}>
                         <Mic className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
+                        className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
                         style={{ color: "rgba(255,255,255,0.45)" }}
                         title="Visual search">
                         {visualSearchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "white" }} /> : <Camera className="h-3.5 w-3.5" />}
@@ -2135,8 +2135,8 @@ export default function SearchPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed z-[71] w-52 rounded-xl shadow-xl overflow-hidden"
-              style={{ top: quoteDropdownPos.top, left: quoteDropdownPos.left, background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)" }}
+              className="fixed z-[71] w-52 max-w-[calc(100vw-1rem)] rounded-xl shadow-xl overflow-hidden"
+              style={{ top: quoteDropdownPos.top, left: Math.min(quoteDropdownPos.left, window.innerWidth - 220), background: "rgba(25,23,20,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 8px 32px rgba(0,0,0,0.40)" }}
             >
               <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>Add to room</span>
@@ -2243,7 +2243,7 @@ export default function SearchPage() {
 // ─── CLIENT FILTER BAR ──────────────────────────────────────
 function ResultsSummaryBar({ query, totalCount, vendorCount, sortKey, setSortKey, presentationMode, setPresentationMode, showSortMenu, setShowSortMenu, moodTheme, myVendorsOnly, setMyVendorsOnly, myVendorCount }) {
   return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[190px] sm:top-[145px] z-20 mb-5">
+    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="sticky top-[64px] sm:top-[72px] z-20 mb-5">
       <div className="atelier-panel-soft flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.65)" }}>
@@ -2396,7 +2396,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
         {/* Overlay buttons — always visible on mobile, hover-reveal on desktop */}
         <div className="absolute top-2.5 left-2.5 flex gap-1.5">
           <button data-action onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
+            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isFavorited ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
             style={isFavorited ? { background: "#B8956A", color: "#fff" } : { background: "rgba(255,255,255,0.85)", color: "rgba(0,0,0,0.5)" }}>
@@ -2410,7 +2410,7 @@ const ProductCard = React.memo(function ProductCard({ item, index, presentationM
                 setTimeout(() => setJustAdded(false), 2000);
               }
             }}
-            className={`flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
+            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-full transition-all ${
               isInQuote || justAdded ? "shadow-md" : "backdrop-blur-md sm:opacity-0 sm:group-hover:opacity-100"
             }`}
             style={isInQuote || justAdded ? { background: "rgba(255,255,255,0.85)", color: "black" } : { background: "rgba(255,255,255,0.85)", color: "rgba(0,0,0,0.5)" }}
@@ -2841,10 +2841,10 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
           initial={{ opacity: 0, y: position === "above" ? 4 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: position === "above" ? 4 : -4 }}
-          className={`absolute z-50 w-full rounded-[24px] shadow-2xl overflow-hidden ${
+          className={`absolute z-50 w-full rounded-[24px] shadow-2xl overflow-hidden overflow-y-auto max-h-[50vh] ${
             position === "above" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
-          style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.10)" }}
+          style={{ background: "rgba(25,23,20,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)" }}
         >
           {results.map((item, i) => {
             const text = typeof item === "string" ? item : item.text;
@@ -2852,8 +2852,8 @@ function SmartAutocomplete({ show, results, onSelect, position = "below" }) {
             const type = typeof item === "object" ? item.type : "search";
 
             return (
-              <button key={i} type="button" onMouseDown={() => onSelect(item)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+              <button key={i} type="button" onMouseDown={() => onSelect(item)} onTouchEnd={() => onSelect(item)}
+                className="flex w-full items-center gap-3 px-4 py-3 sm:py-2.5 text-sm transition-colors"
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <Search className="h-3 w-3 shrink-0" style={{ color: "rgba(255,255,255,0.45)" }} />

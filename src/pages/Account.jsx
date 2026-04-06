@@ -47,7 +47,7 @@ function Toast({ message, type, onClose }) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="fixed top-20 right-6 z-[200] flex items-center gap-2 rounded-xl px-4 py-3 shadow-2xl"
+      className="fixed top-20 right-3 sm:right-6 left-3 sm:left-auto z-[200] flex items-center gap-2 rounded-xl px-4 py-3 shadow-2xl"
       style={{
         background: type === "success" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
         border: `1px solid ${type === "success" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,

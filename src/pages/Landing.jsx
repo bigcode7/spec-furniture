@@ -22,7 +22,7 @@ function Navbar({ onCta }) {
     return () => window.removeEventListener("scroll", fn);
   }, []);
   return (
-    <div style={{ position: "fixed", top: "0.75rem", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 1.5rem)", maxWidth: "56rem", zIndex: 50 }}>
+    <div style={{ position: "fixed", top: "0.75rem", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 1rem)", maxWidth: "56rem", zIndex: 50 }}>
       <motion.div
         initial={{ y: -18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
@@ -93,7 +93,7 @@ function Hero({ onCta }) {
   const y = useTransform(scrollYProgress, [0, 0.6], [0, 45]);
   const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   return (
-    <section ref={ref} style={{ position: "relative", height: "100vh", minHeight: 600, overflow: "hidden", backgroundColor: "black", backgroundImage: "url(/hero-poster.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
+    <section ref={ref} className="h-screen min-h-[500px] sm:min-h-[600px]" style={{ position: "relative", overflow: "hidden", backgroundColor: "black", backgroundImage: "url(/hero-poster.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
       <video autoPlay loop muted playsInline preload="auto" poster="/hero-poster.png"
         style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}>
         <source src="/hero.mp4" type="video/mp4" />
@@ -170,7 +170,7 @@ function IntroSection() {
           Describe exactly what you need — "transitional leather sofa with nailhead trim" — and SPEKD searches 42,000+ trade products instantly.
         </motion.p>
         <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} custom={0.3}
-          style={{ display: "flex", gap: "clamp(12px, 2.5vw, 48px)", flexWrap: "nowrap", justifyContent: "center" }}>
+          className="flex flex-wrap sm:flex-nowrap justify-center" style={{ gap: "clamp(12px, 2.5vw, 48px)" }}>
           {vendors.map((v) => (
             <span key={v} style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 300, fontSize: "clamp(0.6rem, 1.4vw, 0.82rem)", letterSpacing: "0.10em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{v}</span>
           ))}
@@ -288,7 +288,7 @@ function HowItWorksSection() {
             </div>
           </div>
           {/* Results grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(240px, 1fr))", gap: 10, overflowX: "auto", paddingBottom: 4, opacity: cardsVisible ? 1 : 0, transform: cardsVisible ? "translateY(0)" : "translateY(10px)", transition: "opacity 500ms cubic-bezier(0.22,1,0.36,1), transform 500ms cubic-bezier(0.22,1,0.36,1)" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 10, paddingBottom: 4, opacity: cardsVisible ? 1 : 0, transform: cardsVisible ? "translateY(0)" : "translateY(10px)", transition: "opacity 500ms cubic-bezier(0.22,1,0.36,1), transform 500ms cubic-bezier(0.22,1,0.36,1)" }}>
             {current.results.map((r, i) => (
               <div key={`${qIdx}-${i}`} style={{ borderRadius: 16, background: "linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 1px 0 rgba(255,255,255,0.07) inset, 0 12px 40px rgba(0,0,0,0.4)", overflow: "hidden", opacity: cardsVisible ? 1 : 0, transform: cardsVisible ? "translateY(0)" : "translateY(8px)", transition: `opacity 450ms ease ${i * 80}ms, transform 450ms ease ${i * 80}ms` }}>
                 <div style={{ height: 150, background: "#ffffff", position: "relative", overflow: "hidden" }}>
@@ -349,7 +349,7 @@ function SofaRevealSection() {
   }, [runAnimation]);
   const typingDone = typed.length >= SOFA_QUERY.length;
   return (
-    <section ref={sectionRef} style={{ position: "relative", width: "100%", height: "100vh", minHeight: 600, background: "black", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <section ref={sectionRef} className="h-screen min-h-[400px] sm:min-h-[600px]" style={{ position: "relative", width: "100%", background: "black", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <video autoPlay loop muted playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}>
         <source src="/sofa-reveal.mov" type="video/mp4" />
         <source src="/sofa-reveal.mov" type="video/quicktime" />
