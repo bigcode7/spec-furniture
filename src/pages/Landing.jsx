@@ -186,25 +186,25 @@ const DEMO_QUERIES = [
   {
     query: "recliners that don't look like recliners",
     results: [
-      { vendor: "Hooker Furniture", name: "Drake Recliner", tags: ["Leather", "Power"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC140_085_silo.jpg" },
-      { vendor: "Hooker Furniture", name: "Caleigh Recliner", tags: ["Leather", "Contemporary"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC143_094_silo.jpg" },
-      { vendor: "Hooker Furniture", name: "Shasta Recliner", tags: ["Leather", "Transitional"], image: "https://hookerfurnishings.com/media/catalog/product/R/C/RC127_085_silo.jpg" },
+      { vendor: "Hooker Furniture", name: "Daxton Swivel Glider Recliner", tags: ["Power", "Transitional"], image: "https://hookerfurnishings.com/media/catalog/product/L/L/LL23_055_P_400615_98_silo_1.jpg" },
+      { vendor: "CR Laine", name: "Curtis Recliner", tags: ["Leather", "Contemporary"], image: "https://www.crlaine.com/assets/images/products/xlarge/L1106-05SWPR.jpg" },
+      { vendor: "Century Furniture", name: "Evan Electric Recliner", tags: ["Power", "Transitional"], image: "https://www.centuryfurniture.com/prod-images/ltd5295-6m_silo_fm2020_medium.jpg" },
     ],
   },
   {
-    query: "skirted sofa with tight back transitional",
+    query: "skirted sofa with tight back",
     results: [
-      { vendor: "Hickory Chair", name: "Crowley Skirted Sofa", tags: ["Skirted", "Transitional"], image: "https://www.hickorychair.com/prod-images/3425-90_fv_hc298-10_f21_medium.jpg" },
-      { vendor: "Hickory Chair", name: "Questa Skirted Sofa", tags: ["Skirted", "Fabric"], image: "https://www.hickorychair.com/prod-images/hc7225_08s_hc320-10_f22_medium.jpg" },
+      { vendor: "Hickory Chair", name: "Macdonald Skirted Sofa", tags: ["Skirted", "Transitional"], image: "https://www.hickorychair.com/prod-images/hc5417_51_m2m_100_medium.jpg" },
       { vendor: "Hooker Furniture", name: "Emme Skirted Sofa", tags: ["Skirted", "Tight Back"], image: "https://hookerfurnishings.com/media/catalog/product/S/K/SK31_002_silo.jpg" },
+      { vendor: "Century Furniture", name: "Del Rio Skirted Sofa", tags: ["Skirted", "Lawson"], image: "https://www.centuryfurniture.com/prod-images/ltd1042-2_silo_ps2023_medium.jpg" },
     ],
   },
   {
-    query: "3 over 3 cushion sofa low profile",
+    query: "tufted accent chair with nailhead trim",
     results: [
-      { vendor: "Hooker Furniture", name: "Austin 3 over 3 Sofa", tags: ["3/3 Cushion", "Low Profile"], image: "https://hookerfurnishings.com/media/catalog/product/7/0/7001_002_silo.jpg" },
-      { vendor: "Hooker Furniture", name: "Danae 3 over 3 Sofa", tags: ["3/3 Cushion", "Fabric"], image: "https://hookerfurnishings.com/media/catalog/product/L/L/LL21_002_silo.jpg" },
-      { vendor: "Hickory Chair", name: "Wilmington Sofa 3/3", tags: ["3/3 Cushion", "Low Profile"], image: "https://www.hickorychair.com/prod-images/HC6416-85_517284_medium.jpg" },
+      { vendor: "Theodore Alexander", name: "Hounslow Chair", tags: ["Tufted", "Traditional"], image: "https://theodorealexander.sirv.com/ProductPhotos/TA/SL3188_main_1.jpg" },
+      { vendor: "Hancock & Moore", name: "Editor's Chair", tags: ["Tufted", "Nailhead"], image: "https://hancockandmoore.com/Documents/prod-images/5014_Editors_OC_HR.jpg" },
+      { vendor: "CR Laine", name: "Darby Chair", tags: ["Tufted", "Traditional"], image: "https://www.crlaine.com/assets/images/products/xlarge/L1805.jpg" },
     ],
   },
 ];
